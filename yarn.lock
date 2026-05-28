@@ -1501,6 +1501,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@casl/ability@npm:^6.7.0":
+  version: 6.8.1
+  resolution: "@casl/ability@npm:6.8.1"
+  dependencies:
+    "@ucast/mongo2js": "npm:^1.3.0"
+  checksum: 10c0/34e3589ce75c49325bc97f9f6d915d8da746094ac4b37582d91ddec450757f2a90e8f87c6ebe8a5fe0ea5a9ba2a257e3dcf7698a0ad95b753ec42559d749f0d6
+  languageName: node
+  linkType: hard
+
 "@colordx/core@npm:^5.4.3":
   version: 5.4.3
   resolution: "@colordx/core@npm:5.4.3"
@@ -1867,7 +1876,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/shared@workspace:libs/shared"
   dependencies:
+    "@casl/ability": "npm:^6.7.0"
     tslib: "npm:^2.3.0"
+    vitest: "npm:^3.0.0"
   languageName: unknown
   linkType: soft
 
@@ -5187,6 +5198,42 @@ __metadata:
     "@typescript-eslint/types": "npm:8.60.0"
     eslint-visitor-keys: "npm:^5.0.0"
   checksum: 10c0/5ff775fe5352d359e25ed47ce27d8d61dea7aa9aa4d21a3556a9ee02957673e8d4787ad1d0c325977f47cca56ecdce401417864de0c773b6167053fe36bf9e65
+  languageName: node
+  linkType: hard
+
+"@ucast/core@npm:1.10.2, @ucast/core@npm:^1.4.1":
+  version: 1.10.2
+  resolution: "@ucast/core@npm:1.10.2"
+  checksum: 10c0/bc24a2b02d796b5c14353aaf1c8faf8103157695522e82e9d6d7813a300e631a406d4809030c582bda99a72232a8eb19f25b4d78857f1c9fab2e8fb2028706e8
+  languageName: node
+  linkType: hard
+
+"@ucast/js@npm:3.1.0":
+  version: 3.1.0
+  resolution: "@ucast/js@npm:3.1.0"
+  dependencies:
+    "@ucast/core": "npm:1.10.2"
+  checksum: 10c0/5ee6c496b8c8b2905a102f7d61e052dadc12b01e48089b0523b897d76a739612c75fc58678a42aa2616298198d2da86460e9903483ddc73da8dc77c2ccdb3eb4
+  languageName: node
+  linkType: hard
+
+"@ucast/mongo2js@npm:^1.3.0":
+  version: 1.4.1
+  resolution: "@ucast/mongo2js@npm:1.4.1"
+  dependencies:
+    "@ucast/core": "npm:1.10.2"
+    "@ucast/js": "npm:3.1.0"
+    "@ucast/mongo": "npm:2.4.3"
+  checksum: 10c0/a00809b58924812c27770ebceea8978a8a6dfad4b861941e5b840284523162d5f08271ca6a22146a6ef17bf08f7f5632e3c954820515034dcf088a3953413b8d
+  languageName: node
+  linkType: hard
+
+"@ucast/mongo@npm:2.4.3":
+  version: 2.4.3
+  resolution: "@ucast/mongo@npm:2.4.3"
+  dependencies:
+    "@ucast/core": "npm:^1.4.1"
+  checksum: 10c0/3b806014f5754594faae5045f778e330c03216904895116ad524bd5e57e24875d7994add478e873628b5b2406d8c4cbce6e3eba5a7c6591924e4226e956d78b6
   languageName: node
   linkType: hard
 
@@ -8759,6 +8806,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "icore@workspace:."
   dependencies:
+    "@casl/ability": "npm:^6.7.0"
     "@eslint/js": "npm:^10.0.1"
     "@nx/eslint": "npm:^22.7.5"
     "@nx/eslint-plugin": "npm:22.7.5"
@@ -14109,7 +14157,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vitest@npm:^3":
+"vitest@npm:^3, vitest@npm:^3.0.0":
   version: 3.2.4
   resolution: "vitest@npm:3.2.4"
   dependencies:
