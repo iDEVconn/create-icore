@@ -16,7 +16,8 @@
       "@icore/auth-supabase": ["./libs/auth-strategies/supabase/src/index.ts"],
       "@icore/auth-client": ["./libs/auth-client/src/index.ts"],
       "@icore/package.json": ["./package.json"],
-      "@icore/auth-firebase": ["./libs/auth-strategies/firebase/src/index.ts"]
+      "@icore/auth-firebase": ["./libs/auth-strategies/firebase/src/index.ts"],
+      "@icore/storage-supabase": ["./libs/storage-strategies/supabase/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]
