@@ -9,7 +9,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done    |
 | 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done    |
 | 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done    |
-| 4    | Supabase storage MS + gateway storage routes   | ⬜ pending |
+| 4    | Supabase storage MS + gateway storage routes   | ✅ done    |
 | 5    | Firebase + Cloudinary storage strategies       | ⬜ pending |
 | 6    | Client shell (Vite + shadcn + TanStack Router) | ⬜ pending |
 | 7    | `@idevconn/create-icore` CLI + publish         | ⬜ pending |
@@ -56,11 +56,11 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 
 ### Env keys per app / MS (v0.1.0)
 
-| File                             | Keys                                                                                                                                                                                                                                   |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api/.env`                  | `API_ORIGIN`, `API_PORT`, `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT` (+ optional `AUTH_REDIS_URL` / `AUTH_NATS_URL`)                                                                                                                   |
-| `apps/microservices/auth/.env`   | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER` (`supabase` \| `firebase`), `ADMINS_LIST` (CSV emails), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FB_ADMIN_*` + `FIREBASE_WEB_API_KEY` (when `AUTH_PROVIDER=firebase`) |
-| `apps/microservices/upload/.env` | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER`, `SUPABASE_*` / `FB_ADMIN_*` / `CLOUDINARY_*` (Plan 4-5)                                                                                                          |
+| File                             | Keys                                                                                                                                                                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/.env`                  | `API_ORIGIN`, `API_PORT`, `AUTH_TRANSPORT`/`AUTH_HOST`/`AUTH_PORT`, `UPLOAD_TRANSPORT`/`UPLOAD_HOST`/`UPLOAD_PORT`, `MAX_FILE_SIZE_KB` (+ optional `AUTH_REDIS_URL` / `AUTH_NATS_URL` / `UPLOAD_REDIS_URL` / `UPLOAD_NATS_URL`)                                                       |
+| `apps/microservices/auth/.env`   | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER` (`supabase` \| `firebase`), `ADMINS_LIST` (CSV emails), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FB_ADMIN_*` + `FIREBASE_WEB_API_KEY` (when `AUTH_PROVIDER=firebase`)                                                |
+| `apps/microservices/upload/.env` | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`), `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_STORAGE_BUCKET` (when supabase), `FB_ADMIN_*` + `FIREBASE_STORAGE_BUCKET` (Plan 5), `CLOUDINARY_*` (Plan 5) |
 
 ## Plan 2 deliverables (active)
 
@@ -76,15 +76,27 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - Auth MS `auth.signup` now atomically assigns an initial role: `ADMINS_LIST` (comma-separated, case-insensitive) members get `'admin'`, everyone else gets `'user'`. Idempotent — never overwrites an existing role.
 - `apps/microservices/auth/.env.example` documents `ADMINS_LIST` and `FIREBASE_WEB_API_KEY`.
 
+## Plan 4 deliverables (active)
+
+- `libs/storage-strategies/supabase` — `SupabaseStorageStrategy` adapts `@supabase/supabase-js`'s storage surface (`storage.from(bucket).upload/remove/createSignedUrl/list`). Passes the 7 `runStorageContract` cases with a mocked client. Strategy enforces `path.startsWith(userId + '/')` internally — defense-in-depth alongside the gateway-side `assertOwnership`.
+- `apps/microservices/upload` — NestJS microservice. `createMicroservice(buildTransportMS('UPLOAD'))`. `ConfigModule.forRoot` loads `apps/microservices/upload/.env`. Factory provider for `StorageStrategy` reads `STORAGE_PROVIDER`. `@MessagePattern` handlers: `storage.upload`, `storage.remove`, `storage.signedUrl`, `storage.list`. Buffers cross the wire as base64.
+- `libs/upload-client` — `UploadClientModule.forRoot()` + `UploadClientService`. Used by gateway `StorageController`. Encodes `Buffer` to base64 before sending; the MS decodes on entry.
+- `apps/api/src/app/storage/` — `StorageController` exposes `POST /api/storage/upload` (multer `FileInterceptor` + `MAX_FILE_SIZE_KB` cap), `GET /api/storage/signed-url`, `DELETE /api/storage/remove`, `GET /api/storage/list`. All four require Bearer auth (no `@Public()`). Swagger annotations include `@ApiBearerAuth` + per-route `@ApiOperation`.
+- `apps/api/src/app/storage/assert-ownership.ts` — exported helper called BEFORE every `signed-url` and `remove` invocation. Rejects foreign-prefix paths with `ForbiddenException`. Strategy implementations re-check the same invariant — two layers.
+
 ## Routes (gateway, v0.1.0)
 
-| Route                     | Auth        | CASL | Notes                                 |
-| ------------------------- | ----------- | ---- | ------------------------------------- |
-| `POST /api/auth/register` | `@Public()` | —    | Forwards to auth MS `auth.signup`     |
-| `POST /api/auth/login`    | `@Public()` | —    | Forwards to auth MS `auth.login`      |
-| `POST /api/auth/refresh`  | `@Public()` | —    | Forwards to auth MS `auth.refresh`    |
-| `GET /api/profile`        | Bearer      | —    | Returns `req.user` set by `AuthGuard` |
-| `GET /api/docs`           | Open        | —    | Swagger UI                            |
+| Route                         | Auth        | CASL | Notes                                     |
+| ----------------------------- | ----------- | ---- | ----------------------------------------- |
+| `POST /api/auth/register`     | `@Public()` | —    | Forwards to auth MS `auth.signup`         |
+| `POST /api/auth/login`        | `@Public()` | —    | Forwards to auth MS `auth.login`          |
+| `POST /api/auth/refresh`      | `@Public()` | —    | Forwards to auth MS `auth.refresh`        |
+| `GET /api/profile`            | Bearer      | —    | Returns `req.user` set by `AuthGuard`     |
+| `POST /api/storage/upload`    | Bearer      | —    | Multipart upload, returns `StorageRef`    |
+| `GET /api/storage/signed-url` | Bearer      | —    | `assertOwnership` → upload MS `signedUrl` |
+| `DELETE /api/storage/remove`  | Bearer      | —    | `assertOwnership` → upload MS `remove`    |
+| `GET /api/storage/list`       | Bearer      | —    | Returns caller's `StorageRef[]`           |
+| `GET /api/docs`               | Open        | —    | Swagger UI                                |
 
 ## Conventions
 
