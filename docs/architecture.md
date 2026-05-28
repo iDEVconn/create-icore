@@ -8,7 +8,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | ---- | ---------------------------------------------- | ---------- |
 | 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done    |
 | 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done    |
-| 3    | Firebase auth strategy                         | ⬜ pending |
+| 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done    |
 | 4    | Supabase storage MS + gateway storage routes   | ⬜ pending |
 | 5    | Firebase + Cloudinary storage strategies       | ⬜ pending |
 | 6    | Client shell (Vite + shadcn + TanStack Router) | ⬜ pending |
@@ -56,11 +56,11 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 
 ### Env keys per app / MS (v0.1.0)
 
-| File                             | Keys                                                                                                                                                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/api/.env`                  | `API_ORIGIN`, `API_PORT`, `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT` (+ optional `AUTH_REDIS_URL` / `AUTH_NATS_URL`)                                                                                   |
-| `apps/microservices/auth/.env`   | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER` (`supabase` \| `firebase`), `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `FB_ADMIN_*` (when `AUTH_PROVIDER=firebase`) |
-| `apps/microservices/upload/.env` | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER`, `SUPABASE_*` / `FB_ADMIN_*` / `CLOUDINARY_*` (Plan 4-5)                                                                          |
+| File                             | Keys                                                                                                                                                                                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/.env`                  | `API_ORIGIN`, `API_PORT`, `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT` (+ optional `AUTH_REDIS_URL` / `AUTH_NATS_URL`)                                                                                                                   |
+| `apps/microservices/auth/.env`   | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER` (`supabase` \| `firebase`), `ADMINS_LIST` (CSV emails), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FB_ADMIN_*` + `FIREBASE_WEB_API_KEY` (when `AUTH_PROVIDER=firebase`) |
+| `apps/microservices/upload/.env` | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER`, `SUPABASE_*` / `FB_ADMIN_*` / `CLOUDINARY_*` (Plan 4-5)                                                                                                          |
 
 ## Plan 2 deliverables (active)
 
@@ -68,6 +68,13 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `apps/microservices/auth` — NestJS microservice. `createMicroservice(buildTransport('AUTH'))`. `ConfigModule.forRoot` loads `apps/microservices/auth/.env`. Factory provider for `AuthStrategy` reads `AUTH_PROVIDER`. `@MessagePattern` handlers: `auth.verify`, `auth.login`, `auth.signup`, `auth.refresh`, `auth.setRole`.
 - `libs/auth-strategies/supabase` — `SupabaseAuthStrategy` adapting `@supabase/supabase-js`. Passes `runAuthContract` (7 cases) with a mocked `SupabaseClient`.
 - `libs/auth-client` — `AuthClientModule.forRoot()` + `AuthClientService`. Used by gateway `AuthGuard` and `AuthController`.
+
+## Plan 3 deliverables (active)
+
+- `libs/auth-strategies/firebase` — `FirebaseAuthStrategy` adapts two surfaces: `firebase-admin` for `verifyToken` / `setRole` / `getRole`, and `HttpIdentityToolkitClient` (plain `fetch` against Identity Toolkit REST endpoints) for `signUp` / `signIn` / `refresh`. Passes the same 9 `runAuthContract` cases as Supabase.
+- `AuthStrategy.getRole(uid)` added to the shared contract. All three strategies (Fake, Supabase, Firebase) implement it; the two new contract cases assert `null` for an unassigned user and the most-recent value after `setRole`.
+- Auth MS `auth.signup` now atomically assigns an initial role: `ADMINS_LIST` (comma-separated, case-insensitive) members get `'admin'`, everyone else gets `'user'`. Idempotent — never overwrites an existing role.
+- `apps/microservices/auth/.env.example` documents `ADMINS_LIST` and `FIREBASE_WEB_API_KEY`.
 
 ## Routes (gateway, v0.1.0)
 
