@@ -71,6 +71,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@supabase/supabase-js": "^2.106.2",
     "axios": "^1.6.0",
+    "firebase-admin": "^13.10.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   }
