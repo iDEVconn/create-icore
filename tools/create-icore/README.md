@@ -24,7 +24,7 @@ npm i -g @idevconn/create-icore && create-icore my-saas
 | `--auth`       | `supabase` \| `firebase`                           | prompted                    | Auth provider                                                                                                        |
 | `--db`         | `supabase` \| `firebase`                           | prompted (mirrors `--auth`) | Database backend. In v0.1.0 this is recorded but mirrors `--auth` implicitly. Independent db swap arrives in Plan 8. |
 | `--upload`     | `supabase` \| `firebase` \| `cloudinary` \| `none` | prompted                    | File upload provider. Use `none` to remove the upload microservice entirely.                                         |
-| `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`                    | UI library (antd/mui fall back to shadcn in v0.1.0)                                                                  |
+| `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`                    | UI library. `shadcn` and `antd` are fully implemented. `mui` falls back to shadcn until Plan 6.2.                    |
 | `--transport`  | `tcp` \| `redis` \| `nats`                         | `tcp`                       | Microservice transport                                                                                               |
 | `--no-git`     | —                                                  | git enabled                 | Skip `git init`                                                                                                      |
 | `--no-install` | —                                                  | install enabled             | Skip `yarn install`                                                                                                  |
@@ -34,8 +34,11 @@ npm i -g @idevconn/create-icore && create-icore my-saas
 ## Examples
 
 ```bash
-# Full stack with Supabase
+# Full stack with Supabase + shadcn/ui
 npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+
+# Ant Design + Cloudinary
+npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=cloudinary --ui=antd
 
 # Firebase auth + Cloudinary uploads
 npm init @idevconn/icore my-app -- --auth=firebase --db=firebase --upload=cloudinary

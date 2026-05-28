@@ -129,8 +129,8 @@ export async function selectClientTemplate(
   targetDir: string,
   opts: CreateIcoreOptions,
 ): Promise<void> {
-  // v0.1.0 ships only shadcn. Drop the templates dir altogether and move the
-  // chosen template into apps/client.
+  // Drop the templates dir altogether and move the chosen template into apps/client.
+  // shadcn (v0.1.0) and antd (v0.2.0) are fully implemented. mui falls back to shadcn.
   const templatesRoot = join(targetDir, 'apps/templates');
   const chosen = join(templatesRoot, `client-${opts.ui}`);
   const destClient = join(targetDir, 'apps/client');
@@ -138,7 +138,7 @@ export async function selectClientTemplate(
     const s = await stat(chosen);
     if (!s.isDirectory()) throw new Error('not a dir');
   } catch {
-    // antd / mui not yet implemented — fall back to shadcn
+    // mui not yet implemented (Plan 6.2) — fall back to shadcn
     await copyTree(join(templatesRoot, 'client-shadcn'), destClient);
     await rm(templatesRoot, { recursive: true, force: true });
     return;

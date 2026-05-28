@@ -58,6 +58,9 @@ async function makeFakeTemplates(): Promise<string> {
   );
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-shadcn/package.json'), '{}');
+  // antd template stub — differentiates from shadcn via a marker file
+  await mkdir(join(tplDir, 'apps/templates/client-antd/src'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/templates/client-antd/marker.txt'), 'antd');
   return tplDir;
 }
 
@@ -138,5 +141,32 @@ describe('scaffold (integration, dry-run)', () => {
 
     const authEnv = await readFile(join(outputDir, 'apps/microservices/auth/.env'), 'utf8');
     expect(authEnv).toContain('AUTH_PROVIDER=supabase');
+  });
+
+  it('selects client-antd when opts.ui === "antd"', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'antd-app');
+    await scaffold(
+      {
+        projectName: 'antd-app',
+        targetDir: outputDir,
+        authProvider: 'supabase',
+        dbProvider: 'supabase',
+        upload: 'supabase',
+        ui: 'antd',
+        transport: 'tcp',
+        initGit: false,
+        install: false,
+      },
+      templatesDir,
+    );
+
+    // apps/templates should be gone, apps/client should exist with antd contents
+    const apps = await readdir(join(outputDir, 'apps'));
+    expect(apps).toContain('client');
+    expect(apps).not.toContain('templates');
+
+    // marker.txt proves the antd template was copied (not shadcn)
+    const marker = await readFile(join(outputDir, 'apps/client/marker.txt'), 'utf8');
+    expect(marker).toBe('antd');
   });
 });

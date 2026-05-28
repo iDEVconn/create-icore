@@ -7,11 +7,15 @@ iCore is the monorepo that powers [`@idevconn/create-icore`](https://www.npmjs.c
 ## Quick start (consumers)
 
 ```bash
+# shadcn/ui + Tailwind
 npm init @idevconn/icore my-saas -- \
   --auth=supabase \
   --db=supabase \
   --upload=supabase \
   --ui=shadcn
+
+# Ant Design + Cloudinary
+npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=cloudinary --ui=antd
 ```
 
 The CLI prompts (interactive) or accepts flags (non-interactive) for:
@@ -21,7 +25,7 @@ The CLI prompts (interactive) or accepts flags (non-interactive) for:
 | **Auth**        | Supabase, Firebase                                           |
 | **Database**    | Supabase, Firebase (mirrors auth in v0.1.0)                  |
 | **File upload** | Supabase Storage, Firebase Cloud Storage, Cloudinary, `none` |
-| **UI library**  | shadcn/Tailwind (antd + MUI tracked for v0.2)                |
+| **UI library**  | shadcn/Tailwind, Ant Design 6 (MUI tracked for v0.2)         |
 | **Transport**   | TCP, Redis, NATS                                             |
 
 After scaffolding:
@@ -37,19 +41,19 @@ Full CLI docs: [`tools/create-icore/README.md`](./tools/create-icore/README.md).
 
 ## What's inside the scaffold
 
-| Layer         | Stack                                                                           |
-| ------------- | ------------------------------------------------------------------------------- |
-| Monorepo      | Nx 22.7 + yarn 4                                                                |
-| Gateway       | NestJS 11 + Swagger + Throttler + CASL guards                                   |
-| Auth MS       | Supabase or Firebase via `AuthStrategy` factory + `ADMINS_LIST` auto-admin      |
-| Upload MS     | Supabase / Firebase / Cloudinary via `StorageStrategy` factory (or opt-out)     |
-| Transports    | TCP / Redis / NATS — same env contract on both sides                            |
-| Client        | Vite 6 + React 19 + Tailwind 4 + shadcn + TanStack Router + Query + Zustand     |
-| i18n          | i18next + react-i18next (en / ru / he with RTL)                                 |
-| Form blocking | `@idevconn/use-draft` — global dirty-state with router + browser-close blocking |
-| Tests         | Vitest 4 unit + Playwright smoke                                                |
-| Publish       | changesets + OIDC trusted publishing + npm provenance                           |
-| CI            | nx affected lint/test/build matrix + auto sync-main-to-dev                      |
+| Layer         | Stack                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| Monorepo      | Nx 22.7 + yarn 4                                                                          |
+| Gateway       | NestJS 11 + Swagger + Throttler + CASL guards                                             |
+| Auth MS       | Supabase or Firebase via `AuthStrategy` factory + `ADMINS_LIST` auto-admin                |
+| Upload MS     | Supabase / Firebase / Cloudinary via `StorageStrategy` factory (or opt-out)               |
+| Transports    | TCP / Redis / NATS — same env contract on both sides                                      |
+| Client        | Vite 6 + React 19 + shadcn/Tailwind 4 or Ant Design 6 + TanStack Router + Query + Zustand |
+| i18n          | i18next + react-i18next (en / ru / he with RTL)                                           |
+| Form blocking | `@idevconn/use-draft` — global dirty-state with router + browser-close blocking           |
+| Tests         | Vitest 4 unit + Playwright smoke                                                          |
+| Publish       | changesets + OIDC trusted publishing + npm provenance                                     |
+| CI            | nx affected lint/test/build matrix + auto sync-main-to-dev                                |
 
 ## Layout
 

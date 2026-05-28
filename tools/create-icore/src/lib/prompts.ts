@@ -115,7 +115,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'shadcn' as 'shadcn' | 'antd' | 'mui', label: 'shadcn/ui + Tailwind' },
         {
           value: 'antd' as 'shadcn' | 'antd' | 'mui',
-          label: 'Ant Design (coming soon — falls back to shadcn)',
+          label: 'Ant Design 6',
         },
         {
           value: 'mui' as 'shadcn' | 'antd' | 'mui',
@@ -152,7 +152,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     authProvider,
     dbProvider,
     upload,
-    ui: ui === 'shadcn' ? 'shadcn' : 'shadcn', // antd/mui fall back to shadcn for v0.1.0
+    ui: ui === 'mui' ? 'shadcn' : ui, // only mui still falls back to shadcn (Plan 6.2); antd ships
     transport,
     initGit,
     install,

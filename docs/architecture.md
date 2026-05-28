@@ -95,7 +95,7 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `libs/template-shared` — library-agnostic React foundation shared by every UI template. Exports the Zustand `useAuthStore`, `createIcoreApi` wrapper around `@idevconn/api-client`, i18next bootstrap (`createIcoreI18n` + `ICORE_LOCALES`) with en/ru/he + RTL helpers, `AbilityProvider` + `Can` bound to the auth store, `useLoading`/`useLoadingStore`, the `useNotify` / `setNotifier` abstraction, a re-export of `@idevconn/use-draft`, and the inline-styled `LandingPage` component.
 - `apps/templates/client-shadcn` — Vite 6 + React 19 + Tailwind 4 + shadcn/ui + TanStack Router + TanStack Query. Routes: `/` (landing reading `VITE_APP_VERSION` from the root `package.json`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` files. Sonner toaster wired through `setNotifier`. `PageLayout` gates with `<Can>` from `@casl/react@7` (passThrough + render-prop) and resets the global dirty flag via `useDraft(false)`; the profile page enables blocking with `useDraft(dirty)`.
 - `apps/templates/client-shadcn-e2e` — Playwright smoke suite (4 cases): landing heading contains `icore v`, login form labels visible, `/dashboard` and `/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
-- Antd + MUI templates tracked for Plans 6.1 + 6.2 — same shared lib, same route tree, library-specific layout + form components.
+- Antd template shipped in Plan 6.1 (see below). MUI tracked for Plan 6.2 — same shared lib, same route tree, library-specific layout + form components.
 
 ## Routes (gateway, v0.1.0)
 
@@ -120,13 +120,19 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - Yarn 4 with `nodeLinker: node-modules` (NOT PnP — PnP blocks `nx g` generators that spawn yarn via corepack).
 - NestJS apps and MSes set `module: node16, moduleResolution: node16` in their tsconfig. Vite client sets `moduleResolution: bundler`. `tsconfig.base.json` deliberately leaves both unset so each project picks what it needs.
 
-## Plan 7 deliverables (active)
+## Plan 6.1 deliverables (complete)
+
+- `apps/templates/client-antd/` — Vite 6 + React 19 + Ant Design 6 + TanStack Router + TanStack Query. Routes mirror `client-shadcn`: `/` (landing reading `VITE_APP_VERSION`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. Ant Design `ConfigProvider` with dark algorithm wired at `main.tsx`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` using `antd` `Layout.*` subcomponents. `notification.useNotification()` wired via `setNotifier` (same abstraction as shadcn's Sonner binding). `PageLayout` gates with `<Can>` and resets global dirty flag.
+- `apps/templates/client-antd-e2e/` — Playwright smoke suite (4 cases): landing heading contains `icore v` and `antd` text visible, login form labels visible, `/_dashboard/dashboard` and `/_dashboard/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
+- `tools/create-icore` CLI updated: `--ui=antd` now routes to the real `apps/templates/client-antd` snapshot instead of falling back to shadcn. The UI library prompt label changed from "Ant Design (coming soon — falls back to shadcn)" to "Ant Design 6". Only `mui` still falls back to shadcn (Plan 6.2). CLI test count grew by 1 (antd selection path).
+
+## Plan 7 deliverables (complete)
 
 - `tools/create-icore/` — `@idevconn/create-icore` CLI built with tsup. Entry: `dist/cli.js`. Templates baked into `tools/create-icore/templates/` by a build-time snapshot of the current monorepo source.
 - Interactive prompts via `@clack/prompts` 1.4+: project name → auth provider → db provider (records the choice, mirrors auth in v0.1.0) → upload provider (with `none` opt-out) → UI library → MS transport → init git → run install.
 - Non-interactive via flags: `--auth=supabase|firebase`, `--db=supabase|firebase`, `--upload=supabase|firebase|cloudinary|none`, `--ui=shadcn|antd|mui`, `--transport=tcp|redis|nats`, `--no-git`, `--no-install`. The legacy `--storage` flag is a deprecated alias that warns and maps to `--upload`.
 - `scaffold()` copies templates, rewrites `.env.example` → `.env` per provider selection, removes the upload stack when `--upload=none`, runs `git init` + initial commit + `yarn install`.
-- 18 tests cover env rewriting, flag parsing, deprecated-storage alias, upload=none stack removal, and full dry-run integration smoke.
+- 19 tests cover env rewriting, flag parsing, deprecated-storage alias, upload=none stack removal, antd template selection, and full dry-run integration smoke.
 - Published to npm via OIDC trusted publishing + changesets (see `.github/workflows/release.yml`).
 
 ## Cross-links
