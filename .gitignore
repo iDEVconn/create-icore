@@ -20,3 +20,7 @@ coverage
 vitest.config.*.timestamp*.idea/
 
 vitest.config.*.timestamp*
+.nx/polygraph
+.claude/worktrees
+.claude/settings.local.json
+vite.config.*.timestamp*
