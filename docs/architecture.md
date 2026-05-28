@@ -11,7 +11,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done    |
 | 4    | Supabase storage MS + gateway storage routes   | ✅ done    |
 | 5    | Firebase + Cloudinary storage strategies       | ✅ done    |
-| 6    | Client shell (Vite + shadcn + TanStack Router) | ⬜ pending |
+| 6    | Client shell (Vite + shadcn + TanStack Router) | ✅ done    |
 | 7    | `@idevconn/create-icore` CLI + publish         | ⬜ pending |
 
 ## Layout
@@ -89,6 +89,13 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `libs/storage-strategies/firebase` — `FirebaseStorageStrategy` over `firebase-admin`'s `bucket(name).file(path).{save,delete,getSignedUrl}` surface, plus `bucket.getFiles({prefix})`. Same 7 contract cases pass with a mocked bucket.
 - `libs/storage-strategies/cloudinary` — `CloudinaryStorageStrategy` over a `CloudinaryApiLike` interface mapping `upload_stream` / `destroy` / `private_download_url` / `api.resources`. Cloudinary has no buckets, so the strategy synthesises `StorageRef.bucket` from the optional `CLOUDINARY_BUCKET_TAG` env (default `'cloudinary'`).
 - Upload MS factory now handles all three providers — flipping `STORAGE_PROVIDER` switches the entire backend; the gateway is unaware.
+
+## Plan 6 deliverables (active)
+
+- `libs/template-shared` — library-agnostic React foundation shared by every UI template. Exports the Zustand `useAuthStore`, `createIcoreApi` wrapper around `@idevconn/api-client`, i18next bootstrap (`createIcoreI18n` + `ICORE_LOCALES`) with en/ru/he + RTL helpers, `AbilityProvider` + `Can` bound to the auth store, `useLoading`/`useLoadingStore`, the `useNotify` / `setNotifier` abstraction, a re-export of `@idevconn/use-draft`, and the inline-styled `LandingPage` component.
+- `apps/templates/client-shadcn` — Vite 6 + React 19 + Tailwind 4 + shadcn/ui + TanStack Router + TanStack Query. Routes: `/` (landing reading `VITE_APP_VERSION` from the root `package.json`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` files. Sonner toaster wired through `setNotifier`. `PageLayout` gates with `<Can>` from `@casl/react@7` (passThrough + render-prop) and resets the global dirty flag via `useDraft(false)`; the profile page enables blocking with `useDraft(dirty)`.
+- `apps/templates/client-shadcn-e2e` — Playwright smoke suite (4 cases): landing heading contains `icore v`, login form labels visible, `/dashboard` and `/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
+- Antd + MUI templates tracked for Plans 6.1 + 6.2 — same shared lib, same route tree, library-specific layout + form components.
 
 ## Routes (gateway, v0.1.0)
 
