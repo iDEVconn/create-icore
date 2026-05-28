@@ -10,7 +10,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done    |
 | 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done    |
 | 4    | Supabase storage MS + gateway storage routes   | ✅ done    |
-| 5    | Firebase + Cloudinary storage strategies       | ⬜ pending |
+| 5    | Firebase + Cloudinary storage strategies       | ✅ done    |
 | 6    | Client shell (Vite + shadcn + TanStack Router) | ⬜ pending |
 | 7    | `@idevconn/create-icore` CLI + publish         | ⬜ pending |
 
@@ -83,6 +83,12 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `libs/upload-client` — `UploadClientModule.forRoot()` + `UploadClientService`. Used by gateway `StorageController`. Encodes `Buffer` to base64 before sending; the MS decodes on entry.
 - `apps/api/src/app/storage/` — `StorageController` exposes `POST /api/storage/upload` (multer `FileInterceptor` + `MAX_FILE_SIZE_KB` cap), `GET /api/storage/signed-url`, `DELETE /api/storage/remove`, `GET /api/storage/list`. All four require Bearer auth (no `@Public()`). Swagger annotations include `@ApiBearerAuth` + per-route `@ApiOperation`.
 - `apps/api/src/app/storage/assert-ownership.ts` — exported helper called BEFORE every `signed-url` and `remove` invocation. Rejects foreign-prefix paths with `ForbiddenException`. Strategy implementations re-check the same invariant — two layers.
+
+## Plan 5 deliverables (active)
+
+- `libs/storage-strategies/firebase` — `FirebaseStorageStrategy` over `firebase-admin`'s `bucket(name).file(path).{save,delete,getSignedUrl}` surface, plus `bucket.getFiles({prefix})`. Same 7 contract cases pass with a mocked bucket.
+- `libs/storage-strategies/cloudinary` — `CloudinaryStorageStrategy` over a `CloudinaryApiLike` interface mapping `upload_stream` / `destroy` / `private_download_url` / `api.resources`. Cloudinary has no buckets, so the strategy synthesises `StorageRef.bucket` from the optional `CLOUDINARY_BUCKET_TAG` env (default `'cloudinary'`).
+- Upload MS factory now handles all three providers — flipping `STORAGE_PROVIDER` switches the entire backend; the gateway is unaware.
 
 ## Routes (gateway, v0.1.0)
 
