@@ -13575,6 +13575,7 @@ __metadata:
     jsdom: "npm:~22.1.0"
     jsonc-eslint-parser: "npm:^2.1.0"
     kleur: "npm:^4.1.5"
+    less: "npm:3.12.2"
     lint-staged: "npm:^17.0.5"
     lucide-react: "npm:^1.17.0"
     nx: "npm:22.7.5"
@@ -15125,6 +15126,39 @@ __metadata:
   languageName: node
   linkType: hard
 
+"less@npm:3.12.2":
+  version: 3.12.2
+  resolution: "less@npm:3.12.2"
+  dependencies:
+    errno: "npm:^0.1.1"
+    graceful-fs: "npm:^4.1.2"
+    image-size: "npm:~0.5.0"
+    make-dir: "npm:^2.1.0"
+    mime: "npm:^1.4.1"
+    native-request: "npm:^1.0.5"
+    source-map: "npm:~0.6.0"
+    tslib: "npm:^1.10.0"
+  dependenciesMeta:
+    errno:
+      optional: true
+    graceful-fs:
+      optional: true
+    image-size:
+      optional: true
+    make-dir:
+      optional: true
+    mime:
+      optional: true
+    native-request:
+      optional: true
+    source-map:
+      optional: true
+  bin:
+    lessc: bin/lessc
+  checksum: 10c0/933b57a8a99c707fa1becb25ebc77ad8c09bd87fd5cbb1e92ee6cfa45eb944e2c688eb83766e5904c77ec670818d05c813ae3f70d6198b4ca1286dac491553e8
+  languageName: node
+  linkType: hard
+
 "less@npm:>=4.1.3 <4.6.0":
   version: 4.5.1
   resolution: "less@npm:4.5.1"
@@ -16116,6 +16150,13 @@ __metadata:
   bin:
     napi-postinstall: lib/cli.js
   checksum: 10c0/b33d64150828bdade3a5d07368a8b30da22ee393f8dd8432f1b9e5486867be21c84ec443dd875dd3ef3c7401a079a7ab7e2aa9d3538a889abbcd96495d5104fe
+  languageName: node
+  linkType: hard
+
+"native-request@npm:^1.0.5":
+  version: 1.1.2
+  resolution: "native-request@npm:1.1.2"
+  checksum: 10c0/6126aef460472217e8fdc317e0461505500ca4812bb8c20a2a1ad3bfb6cd16e49a7a3b89f272701f0cb756e045deb428985051069c43140b9355f351c8cba344
   languageName: node
   linkType: hard
 
@@ -20581,7 +20622,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^1.9.3":
+"tslib@npm:^1.10.0, tslib@npm:^1.9.3":
   version: 1.14.1
   resolution: "tslib@npm:1.14.1"
   checksum: 10c0/69ae09c49eea644bc5ebe1bca4fa4cc2c82b7b3e02f43b84bd891504edf66dbc6b2ec0eef31a957042de2269139e4acff911e6d186a258fb14069cd7f6febce2
