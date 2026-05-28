@@ -1943,6 +1943,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/storage-supabase@workspace:libs/storage-strategies/supabase":
+  version: 0.0.0-use.local
+  resolution: "@icore/storage-supabase@workspace:libs/storage-strategies/supabase"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@supabase/supabase-js": "npm:^2.0.0"
+    tslib: "npm:^2.3.0"
+    vitest: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@icore/upload-client@workspace:libs/upload-client":
+  version: 0.0.0-use.local
+  resolution: "@icore/upload-client@workspace:libs/upload-client"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
   resolution: "@isaacs/cliui@npm:8.0.2"
