@@ -5,8 +5,8 @@
   "analytics": false,
   "targetDefaults": {
     "build": { "dependsOn": ["^build"], "cache": true },
-    "lint":  { "cache": true },
-    "test":  { "cache": true }
+    "lint": { "cache": true },
+    "test": { "cache": true }
   },
   "namedInputs": {
     "default": ["{projectRoot}/**/*"],

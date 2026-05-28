@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+MAX_FILES=50
+DASHES="--------------------------------------------------------"
+
+echo_print() {
+  local message="$1"
+  local color="${2:-\033[0m}"
+  printf "%s\n" "$DASHES"
+  printf "%b\n" "${color}${message}\033[0m"
+  printf "%s\n" "$DASHES"
+}
+
+check_command() {
+  local command="$1"
+  local success_message="$2"
+  local failure_message="$3"
+
+  if eval "$command"; then
+    echo_print "✅ $success_message" "\033[32m"
+  else
+    echo_print "❌ $failure_message" "\033[31m"
+    exit 1
+  fi
+}
+
+FILES_CHANGED=$(git diff --cached --name-only | wc -l)
+NON_MD_FILES=$(git diff --cached --name-only | grep -vi '\.md$' | wc -l)
+
+if [ "$FILES_CHANGED" -gt 0 ] && [ "$NON_MD_FILES" -eq 0 ]; then
+  echo_print "📝 Only Markdown files staged. Skipping lint-staged + nx checks." "\033[34m"
+  exit 0
+fi
+
+if [ "$FILES_CHANGED" -gt "$MAX_FILES" ]; then
+  echo "$DASHES"
+  echo "🔹 Max files per commit: $MAX_FILES"
+  echo "❌ You are trying to commit more than $MAX_FILES files."
+  echo "$DASHES"
+  exit 1
+fi
+
+echo_print "✅ Files staged: $FILES_CHANGED" "\033[32m"
+
+check_command "yarn lint-staged --concurrent false --relative" \
+  "lint-staged passed." \
+  "lint-staged failed. Fix the issues before committing."
+
+if [ -d libs ] || [ -d apps ]; then
+  check_command "yarn nx affected -t lint --base=HEAD" \
+    "nx affected lint passed." \
+    "nx affected lint failed."
+  check_command "yarn nx affected -t test --base=HEAD" \
+    "nx affected tests passed." \
+    "nx affected tests failed."
+fi
