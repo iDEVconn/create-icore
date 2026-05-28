@@ -2,8 +2,12 @@ name: Release
 
 # On push to main, changesets/action opens / refreshes a "Version Packages"
 # PR. When that PR merges (no pending changesets), the action runs
-# `changeset publish` which publishes @idevconn/create-icore to npm with
-# provenance attestation via OIDC trusted publishing.
+# `changeset publish` which publishes @idevconn/create-icore to npm.
+#
+# Provenance attestation is OFF for now because the GitHub repo is
+# private — npm requires a PUBLIC source repo for sigstore provenance
+# verification (E422 otherwise). Flip `NPM_CONFIG_PROVENANCE` to `'true'`
+# below once the repo is made public.
 #
 # `workflow_dispatch` stays available as a manual override (e.g. retry
 # a failed publish without an extra commit).
@@ -50,11 +54,13 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: npx changeset publish
+          publish: npx changeset publish --access public
           version: npx changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'
+          # Flip to 'true' once the GitHub repo is public; npm rejects
+          # private-repo provenance bundles with E422.
+          NPM_CONFIG_PROVENANCE: 'false'
       - name: Trigger sync-main-to-dev workflow
         if: steps.changesets.outputs.published == 'true' || steps.changesets.outputs.hasChangesets == 'false'
         env:
