@@ -1,0 +1,30 @@
+{
+  "name": "icore",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "yarn@4.5.0",
+  "workspaces": [
+    "apps/*",
+    "libs/*",
+    "libs/auth-strategies/*",
+    "libs/storage-strategies/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "nx run-many -t build",
+    "lint": "nx run-many -t lint",
+    "test": "nx run-many -t test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.0",
+    "nx": "22.7.2",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.19.0",
+    "vitest": "^2.1.8"
+  }
+}

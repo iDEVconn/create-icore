@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultBase": "dev",
+  "neverConnectToCloud": true,
+  "analytics": false,
+  "targetDefaults": {
+    "build": { "dependsOn": ["^build"], "cache": true },
+    "lint":  { "cache": true },
+    "test":  { "cache": true }
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": ["default", "!{projectRoot}/**/__tests__/**", "!{projectRoot}/**/*.test.ts"]
+  }
+}
