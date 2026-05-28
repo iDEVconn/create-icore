@@ -266,6 +266,27 @@ Message patterns:
 
 Validates MIME allowlist and max size **before** the strategy call. Per-bucket config (`MAX_INVOICE_SIZE_KB`, `ALLOWED_MIME_INVOICES`, etc.) read at module init.
 
+### Client UI library — bootstrap-time choice (locked)
+
+The client UI library is NOT runtime-swappable. Auth and storage abstract over I/O (clean interfaces). UI abstracts over visual+UX+ergonomics — too deep to hide behind one interface without a leaky middleware layer. The choice happens once at scaffolding time, via the `--ui=shadcn|antd|mui` flag of `npx @idevconn/create-icore`.
+
+**Layout (Plan 6):**
+
+```
+apps/
+├── templates/
+│   ├── client-shadcn/    # full Vite + React 19 + TanStack Router + shadcn/Tailwind 4
+│   ├── client-antd/      # full Vite + React 19 + TanStack Router + Ant Design 6
+│   └── client-mui/       # full Vite + React 19 + TanStack Router + MUI 6
+└── client/               # NOT shipped here — populated by the CLI when scaffolding a new project
+```
+
+All three templates share the same routes, the same `api/client.ts` wiring, the same Zustand auth store, the same i18n setup, the same CASL `<Can>` provider. They differ only in the components/pages layer (login form, dashboard, profile) and their tailwind/antd/mui-specific deps.
+
+**CLI behaviour (Plan 7):** `create-icore` prompts UI choice → copies the chosen `apps/templates/client-<ui>/` tree to the new project's `apps/client/` → removes `apps/templates/` from the new project. The new project ships with one client; templates are not preserved in consumer projects.
+
+**Maintenance:** every UI feature added during Plan 6 onward lands in all three templates in lockstep. CI matrix in `create-icore`'s own repo builds + tests all three templates per push so drift is caught immediately.
+
 ### Client (apps/client)
 
 ```
