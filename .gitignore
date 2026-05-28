@@ -18,3 +18,5 @@ coverage
 .DS_Store
 
 vitest.config.*.timestamp*.idea/
+
+vitest.config.*.timestamp*

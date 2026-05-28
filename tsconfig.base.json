@@ -12,7 +12,8 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@icore/shared": ["./libs/shared/src/index.ts"]
+      "@icore/shared": ["./libs/shared/src/index.ts"],
+      "@icore/auth-supabase": ["./libs/auth-strategies/supabase/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]
