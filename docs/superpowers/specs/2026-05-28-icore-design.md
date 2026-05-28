@@ -287,6 +287,37 @@ All three templates share the same routes, the same `api/client.ts` wiring, the 
 
 **Maintenance:** every UI feature added during Plan 6 onward lands in all three templates in lockstep. CI matrix in `create-icore`'s own repo builds + tests all three templates per push so drift is caught immediately.
 
+### Client surface — pages + layouts (locked)
+
+Every template ships the same route tree. Library differences live below the route layer (component implementations + theming).
+
+| Route                  | Auth                                           | Library-agnostic?               | Notes                                                                                                                                                                                                  |
+| ---------------------- | ---------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/` (landing)          | Public                                         | ✅ Yes — plain HTML/CSS + React | Renders the workspace `package.json` version and the versions of the key installed deps (NestJS, React, Vite, the chosen UI lib, the chosen auth/storage providers). Identical across all 3 templates. |
+| `/login`               | Public                                         | ❌ Library-specific             | Email/password form posted to `POST /api/auth/login`                                                                                                                                                   |
+| `/_dashboard` (layout) | Protected (`beforeLoad` redirects to `/login`) | ❌ Library-specific             | Two-pane shell — header + collapsible sider menu + content outlet + footer. Equivalent to `ui-main/apps/client/src/layouts/mainLayout.tsx`.                                                            |
+| `/_dashboard/` (index) | Protected                                      | ❌ Library-specific             | Dashboard landing — welcome card, stats placeholder                                                                                                                                                    |
+| `/_dashboard/profile`  | Protected                                      | ❌ Library-specific             | Profile form using `useDraft(isDirty)` from `@idevconn/use-draft` to block navigation on unsaved changes.                                                                                              |
+
+**`PageLayout` wrapper** — every protected route renders its body inside a `<PageLayout title action subject>` component (template-local) that:
+
+1. Wraps the body in `<Can I={action} a={subject}>` from `@casl/react` — if denied, shows the template's `AccessDeniedPage`.
+2. Shows the page title + optional description + `extra` slot for action buttons (matches `ui-main/apps/client/src/layouts/page.layout.tsx`).
+3. Resets the global dirty flag on unmount via `useDraft(false)`.
+4. Shows the loading spinner from the template's loading store (Zustand).
+
+All three templates ship a `PageLayout` with the same prop signature; bodies are library-specific.
+
+**Shared (template-agnostic) pieces** — landed in libs so all three templates pull them in unchanged:
+
+- `defineAbilitiesFor` + `AppAbility` from `@icore/shared` (already done in Plan 1).
+- `@idevconn/use-draft` for the dirty-form pattern. (Same one warranty ships; private npm.)
+- API client wiring (`@idevconn/api-client` for token refresh + 401 handling), Zustand auth store, React Query, i18next setup. The wiring code is duplicated across templates _only_ where library-specific bits sit (e.g., the notification host) — bare logic lives in shared template helpers.
+
+**`AccessDeniedPage`** — each template ships its own variant (different visual style); same component name + same export.
+
+**`MainLayout` notification host** — antd uses `notification.useNotification()`, mui uses Snackbar via a provider, shadcn uses `<Toaster />` from `sonner`. Each template's `MainLayout` mounts its host once; downstream code calls a `useNotify()` hook with the same `success/error/info/warning` signature so app code never branches on the library.
+
 ### Client (apps/client)
 
 ```
