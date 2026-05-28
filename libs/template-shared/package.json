@@ -6,10 +6,16 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
+    "@casl/react": "^7.0.0",
+    "@icore/shared": "*",
     "@idevconn/api-client": "*",
     "i18next": "^26.0.0",
     "react-i18next": "^17.0.0",
     "tslib": "^2.3.0",
     "zustand": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }
