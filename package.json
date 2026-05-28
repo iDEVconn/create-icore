@@ -85,6 +85,7 @@
     ]
   },
   "dependencies": {
+    "@ant-design/icons": "^6",
     "@casl/ability": "^7",
     "@casl/react": "^7.0.0",
     "@clack/prompts": "^1.4.0",
@@ -105,10 +106,13 @@
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/react-query": "^5.100.14",
     "@tanstack/react-router": "^1.170.8",
+    "antd": "^6",
     "axios": "^1.6.0",
     "class-variance-authority": "^0.7.1",
+    "classnames": "^2.5.1",
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
+    "dayjs": "^1.11.21",
     "firebase-admin": "^13.10.0",
     "i18next": "^26.3.0",
     "kleur": "^4.1.5",
