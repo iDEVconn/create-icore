@@ -7,7 +7,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | Plan | Scope                                          | State      |
 | ---- | ---------------------------------------------- | ---------- |
 | 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done    |
-| 2    | Supabase auth MS + gateway `AuthGuard`         | ⬜ pending |
+| 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done    |
 | 3    | Firebase auth strategy                         | ⬜ pending |
 | 4    | Supabase storage MS + gateway storage routes   | ⬜ pending |
 | 5    | Firebase + Cloudinary storage strategies       | ⬜ pending |
@@ -53,6 +53,31 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 | Provider credentials | concrete strategy | `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`                                                                |
 
 `libs/shared` is env-free. Env IO happens at the MS module boundary.
+
+### Env keys per app / MS (v0.1.0)
+
+| File                             | Keys                                                                                                                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api/.env`                  | `API_ORIGIN`, `API_PORT`, `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT` (+ optional `AUTH_REDIS_URL` / `AUTH_NATS_URL`)                                                                                   |
+| `apps/microservices/auth/.env`   | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER` (`supabase` \| `firebase`), `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `FB_ADMIN_*` (when `AUTH_PROVIDER=firebase`) |
+| `apps/microservices/upload/.env` | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER`, `SUPABASE_*` / `FB_ADMIN_*` / `CLOUDINARY_*` (Plan 4-5)                                                                          |
+
+## Plan 2 deliverables (active)
+
+- `apps/api` — NestJS gateway. Global `/api` prefix. Swagger UI at `/api/docs` (version synced from root `package.json`). `ThrottlerModule` (auth-burst 10/60s). Two global `APP_GUARD`s registered in order: `AuthGuard` (resolves Bearer → `req.user` via auth MS) then `AbilityGuard` (enforces `@CheckAbility` against CASL `defineAbilitiesFor`).
+- `apps/microservices/auth` — NestJS microservice. `createMicroservice(buildTransport('AUTH'))`. `ConfigModule.forRoot` loads `apps/microservices/auth/.env`. Factory provider for `AuthStrategy` reads `AUTH_PROVIDER`. `@MessagePattern` handlers: `auth.verify`, `auth.login`, `auth.signup`, `auth.refresh`, `auth.setRole`.
+- `libs/auth-strategies/supabase` — `SupabaseAuthStrategy` adapting `@supabase/supabase-js`. Passes `runAuthContract` (7 cases) with a mocked `SupabaseClient`.
+- `libs/auth-client` — `AuthClientModule.forRoot()` + `AuthClientService`. Used by gateway `AuthGuard` and `AuthController`.
+
+## Routes (gateway, v0.1.0)
+
+| Route                     | Auth        | CASL | Notes                                 |
+| ------------------------- | ----------- | ---- | ------------------------------------- |
+| `POST /api/auth/register` | `@Public()` | —    | Forwards to auth MS `auth.signup`     |
+| `POST /api/auth/login`    | `@Public()` | —    | Forwards to auth MS `auth.login`      |
+| `POST /api/auth/refresh`  | `@Public()` | —    | Forwards to auth MS `auth.refresh`    |
+| `GET /api/profile`        | Bearer      | —    | Returns `req.user` set by `AuthGuard` |
+| `GET /api/docs`           | Open        | —    | Swagger UI                            |
 
 ## Conventions
 
