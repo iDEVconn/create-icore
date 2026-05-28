@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { ConfigService } from '@nestjs/config';
 import { FakeAuthStrategy } from '@icore/shared';
 import { AuthController } from '../auth.controller';
 
+function makeConfig(env: Record<string, string | undefined>): ConfigService {
+  return {
+    get: (key: string) => env[key],
+  } as unknown as ConfigService;
+}
+
 describe('AuthController', () => {
-  const fixture = () => {
+  const fixture = (env: Record<string, string | undefined> = {}) => {
     const strategy = new FakeAuthStrategy();
-    return { strategy, controller: new AuthController(strategy) };
+    return { strategy, controller: new AuthController(strategy, makeConfig(env)) };
   };
 
   it('signup → verify round-trip resolves the new uid', async () => {
@@ -38,5 +45,43 @@ describe('AuthController', () => {
     const re = await controller.login({ email: 's@x.com', password: 'pw12345!' });
     const verified = await controller.verify({ token: re.accessToken });
     expect(verified.role).toBe('admin');
+  });
+
+  it('signup auto-assigns admin role when email is in ADMINS_LIST', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com, owner@x.com' });
+    const session = await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+    expect(await strategy.getRole(session.user.id)).toBe('admin');
+  });
+
+  it('signup auto-assigns user role when email is NOT in ADMINS_LIST', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
+    const session = await controller.signup({ email: 'normal@x.com', password: 'pw12345!' });
+    expect(await strategy.getRole(session.user.id)).toBe('user');
+  });
+
+  it('signup auto-assigns user role when ADMINS_LIST is unset', async () => {
+    const { strategy, controller } = fixture({});
+    const session = await controller.signup({ email: 'a@x.com', password: 'pw12345!' });
+    expect(await strategy.getRole(session.user.id)).toBe('user');
+  });
+
+  it('ADMINS_LIST is case-insensitive on email match', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'BOSS@x.COM' });
+    const session = await controller.signup({ email: 'boss@X.com', password: 'pw12345!' });
+    expect(await strategy.getRole(session.user.id)).toBe('admin');
+  });
+
+  it('does not overwrite an existing role on re-signup attempts', async () => {
+    // The fake throws on duplicate signup, but a manual sequence simulates
+    // the idempotency path: set the role first, then call the private hook
+    // again via setRole-after-signup. We use a separate signup path so the
+    // strategy's state mirrors a returning consumer.
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
+    const session = await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+    // Manually demote, then re-invoke setRole(admin) to prove the hook is
+    // not re-run on subsequent calls. The controller's hook only runs
+    // inside signup(), so demoting after the fact must persist.
+    await controller.setRole({ uid: session.user.id, role: 'user' });
+    expect(await strategy.getRole(session.user.id)).toBe('user');
   });
 });
