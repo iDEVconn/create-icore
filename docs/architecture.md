@@ -4,15 +4,15 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 
 ## Status
 
-| Plan | Scope                                          | State      |
-| ---- | ---------------------------------------------- | ---------- |
-| 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done    |
-| 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done    |
-| 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done    |
-| 4    | Supabase storage MS + gateway storage routes   | ✅ done    |
-| 5    | Firebase + Cloudinary storage strategies       | ✅ done    |
-| 6    | Client shell (Vite + shadcn + TanStack Router) | ✅ done    |
-| 7    | `@idevconn/create-icore` CLI + publish         | ⬜ pending |
+| Plan | Scope                                          | State   |
+| ---- | ---------------------------------------------- | ------- |
+| 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done |
+| 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done |
+| 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done |
+| 4    | Supabase storage MS + gateway storage routes   | ✅ done |
+| 5    | Firebase + Cloudinary storage strategies       | ✅ done |
+| 6    | Client shell (Vite + shadcn + TanStack Router) | ✅ done |
+| 7    | `@idevconn/create-icore` CLI + publish         | ✅ done |
 
 ## Layout
 
@@ -119,6 +119,15 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - Strategy libs depend on `@icore/shared` for the contract; they do not depend on `@nestjs/*` runtime — DI wiring happens in the consuming MS module.
 - Yarn 4 with `nodeLinker: node-modules` (NOT PnP — PnP blocks `nx g` generators that spawn yarn via corepack).
 - NestJS apps and MSes set `module: node16, moduleResolution: node16` in their tsconfig. Vite client sets `moduleResolution: bundler`. `tsconfig.base.json` deliberately leaves both unset so each project picks what it needs.
+
+## Plan 7 deliverables (active)
+
+- `tools/create-icore/` — `@idevconn/create-icore` CLI built with tsup. Entry: `dist/cli.js`. Templates baked into `tools/create-icore/templates/` by a build-time snapshot of the current monorepo source.
+- Interactive prompts via `@clack/prompts` 1.4+: project name → auth provider → db provider (records the choice, mirrors auth in v0.1.0) → upload provider (with `none` opt-out) → UI library → MS transport → init git → run install.
+- Non-interactive via flags: `--auth=supabase|firebase`, `--db=supabase|firebase`, `--upload=supabase|firebase|cloudinary|none`, `--ui=shadcn|antd|mui`, `--transport=tcp|redis|nats`, `--no-git`, `--no-install`. The legacy `--storage` flag is a deprecated alias that warns and maps to `--upload`.
+- `scaffold()` copies templates, rewrites `.env.example` → `.env` per provider selection, removes the upload stack when `--upload=none`, runs `git init` + initial commit + `yarn install`.
+- 18 tests cover env rewriting, flag parsing, deprecated-storage alias, upload=none stack removal, and full dry-run integration smoke.
+- Published to npm via OIDC trusted publishing + changesets (see `.github/workflows/release.yml`).
 
 ## Cross-links
 
