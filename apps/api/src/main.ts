@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
-import pkg from '../../../package.json';
+import pkg from '@icore/package.json';
 
 const DEFAULT_PORT = 3001;
 

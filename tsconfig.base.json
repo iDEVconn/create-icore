@@ -14,7 +14,8 @@
     "paths": {
       "@icore/shared": ["./libs/shared/src/index.ts"],
       "@icore/auth-supabase": ["./libs/auth-strategies/supabase/src/index.ts"],
-      "@icore/auth-client": ["./libs/auth-client/src/index.ts"]
+      "@icore/auth-client": ["./libs/auth-client/src/index.ts"],
+      "@icore/package.json": ["./package.json"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]
