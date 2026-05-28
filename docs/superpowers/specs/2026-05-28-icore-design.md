@@ -176,6 +176,52 @@ export function buildTransport(prefix: string): ClientOptions {
 
 Gateway uses `buildTransport('AUTH')` and `buildTransport('UPLOAD')`. Each MS bootstraps with the matching block in its `main.ts`. Same env contract on both sides → no per-transport branching elsewhere.
 
+### Env Layering
+
+Three concentric env layers, owned by different parts of the system:
+
+| Layer | Owner | Variables | Where read |
+|------|------|-----------|------------|
+| Transport wiring | gateway + each MS | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_REDIS_URL`, `AUTH_NATS_URL`, `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, … | `buildTransport(prefix)` in `libs/shared/src/transport.ts` |
+| Provider selection | per microservice | `AUTH_PROVIDER` (`supabase` \| `firebase`), `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`) | `useFactory` in the MS module |
+| Provider credentials | concrete strategy | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`; `FB_ADMIN_*` (service-account JSON fields); `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | strategy constructor via `ConfigService` injection |
+
+**`libs/shared` is env-free.** It only exports contracts (`AuthStrategy`, `StorageStrategy`), the contract-test harness, in-memory fakes, and the transport helper. Concrete provider code lives in `libs/auth-strategies/*` and `libs/storage-strategies/*`; env IO happens at the MS module boundary.
+
+**MS bootstrap pattern (mirrors `ui-main/apps/microservices/upload/src/app/upload.module.ts`):**
+
+```ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: [
+        join(process.cwd(), 'apps/microservices/upload/.env'),
+        join(process.cwd(), '.env'),
+      ],
+      isGlobal: true,
+    }),
+  ],
+  providers: [
+    {
+      provide: 'StorageStrategy',
+      useFactory: (cfg: ConfigService) => {
+        switch (cfg.getOrThrow('STORAGE_PROVIDER')) {
+          case 'supabase':   return new SupabaseStorageStrategy(cfg);
+          case 'firebase':   return new FirebaseStorageStrategy(cfg);
+          case 'cloudinary': return new CloudinaryStorageStrategy(cfg);
+          default: throw new Error(`Unknown STORAGE_PROVIDER`);
+        }
+      },
+      inject: [ConfigService],
+    },
+    UploadService,
+  ],
+})
+export class UploadModule {}
+```
+
+**Per-MS `.env` lives at `apps/microservices/<name>/.env`** (gitignored, with a sibling `.env.example` checked in). The MS process loads its own .env on boot; the gateway has its own `apps/api/.env` for transport wiring (no provider credentials in the gateway).
+
 ### Gateway (apps/api)
 
 - Global `AuthGuard` extracts Bearer token, calls `auth-client.verify(token)` over chosen transport, attaches `req.user`.
