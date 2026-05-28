@@ -17,4 +17,5 @@ export interface AuthStrategy {
   signUp(email: string, password: string): Promise<AuthSession>;
   refresh(refreshToken: string): Promise<AuthSession>;
   setRole(uid: string, role: string): Promise<void>;
+  getRole(uid: string): Promise<string | null>;
 }

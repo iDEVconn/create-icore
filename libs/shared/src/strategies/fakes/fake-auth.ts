@@ -46,6 +46,11 @@ export class FakeAuthStrategy implements AuthStrategy {
     user.role = role;
   }
 
+  async getRole(uid: string): Promise<string | null> {
+    const user = this.findById(uid);
+    return user.role ?? null;
+  }
+
   private findById(uid: string): StoredUser {
     for (const user of this.users.values()) {
       if (user.id === uid) return user;

@@ -4,6 +4,9 @@ import type { IdentityToolkitClient } from './identity-toolkit.client';
 export interface FirebaseAdminAuthLike {
   verifyIdToken(idToken: string): Promise<{ uid: string; email?: string; role?: string }>;
   setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
+  getUser(
+    uid: string,
+  ): Promise<{ uid: string; email?: string; customClaims?: Record<string, unknown> }>;
 }
 
 export interface FirebaseAuthStrategyOptions {
@@ -63,5 +66,12 @@ export class FirebaseAuthStrategy implements AuthStrategy {
 
   async setRole(uid: string, role: string): Promise<void> {
     await this.adminAuth.setCustomUserClaims(uid, { role });
+  }
+
+  async getRole(uid: string): Promise<string | null> {
+    const user = await this.adminAuth.getUser(uid);
+    const claims = user.customClaims ?? {};
+    const role = claims['role'];
+    return typeof role === 'string' ? role : null;
   }
 }

@@ -56,6 +56,13 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     if (error) throw new Error(error.message);
   }
 
+  async getRole(uid: string): Promise<string | null> {
+    const { data, error } = await this.client.auth.admin.getUserById(uid);
+    if (error || !data.user) throw new Error(error?.message ?? 'user_missing');
+    const meta = data.user.app_metadata as { role?: string } | undefined;
+    return meta?.role ?? null;
+  }
+
   private toSession(s: {
     access_token: string;
     refresh_token: string;

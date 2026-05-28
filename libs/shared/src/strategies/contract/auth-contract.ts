@@ -51,5 +51,16 @@ export function runAuthContract(name: string, factory: () => AuthStrategy): void
       const verified = await strategy.verifyToken(reLogged.accessToken);
       expect(verified.role).toBe('admin');
     });
+
+    it('getRole returns null when no role has been set', async () => {
+      const session = await strategy.signUp('g@x.com', 'pw12345!');
+      expect(await strategy.getRole(session.user.id)).toBeNull();
+    });
+
+    it('getRole returns the role most recently set via setRole', async () => {
+      const session = await strategy.signUp('h@x.com', 'pw12345!');
+      await strategy.setRole(session.user.id, 'admin');
+      expect(await strategy.getRole(session.user.id)).toBe('admin');
+    });
   });
 }

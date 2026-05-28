@@ -90,6 +90,16 @@ export function createMockSupabaseClient(): SupabaseClient {
         }
         return { data: { user: { id: user.id, email: user.email } }, error: null };
       },
+      async getUserById(uid: string) {
+        const user = findById(uid);
+        if (!user) return { data: { user: null }, error: { message: 'user missing' } };
+        return {
+          data: {
+            user: { id: user.id, email: user.email, app_metadata: { role: user.role } },
+          },
+          error: null,
+        };
+      },
     },
   };
 
