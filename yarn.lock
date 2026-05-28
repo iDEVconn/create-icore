@@ -339,15 +339,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@icore/shared@workspace:libs/shared":
-  version: 0.0.0-use.local
-  resolution: "@icore/shared@workspace:libs/shared"
-  dependencies:
-    "@types/node": "npm:^22.10.0"
-    vitest: "npm:^2.1.8"
-  languageName: unknown
-  linkType: soft
-
 "@isaacs/fs-minipass@npm:^4.0.0":
   version: 4.0.1
   resolution: "@isaacs/fs-minipass@npm:4.0.1"

@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "../../dist/out-tsc/libs/shared-spec",
-    "types": ["vitest/globals"]
-  },
-  "include": ["src/**/__tests__/**/*.ts", "src/**/*.test.ts", "src/**/*.ts"]
-}
