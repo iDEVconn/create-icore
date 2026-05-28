@@ -145,6 +145,11 @@ providers: [
 
 Same pattern for `'StorageStrategy'` in the upload MS.
 
+#### Reuse of existing iDEVconn packages
+
+- `@idevconn/supabase` (v0.12+) is the underlying SDK wrapper for the `SupabaseAuthStrategy` in Plan 2. It already provides `AuthService` (password login, OAuth, magic link, `getCurrentUser`, `onAuthStateChange`) plus `createTableApi<T>()` and unified `SupabaseApiError` handling. The icore `SupabaseAuthStrategy` is a thin adapter that exposes the icore `AuthStrategy` shape over `@idevconn/supabase`'s `AuthService` — do not call `@supabase/supabase-js` directly from icore code.
+- `@idevconn/llm-router` (v0.4+) is the architectural reference for this strategy pattern (`LlmRegistry` + `LlmStrategy` + provider-as-subpath-export model). icore's auth/storage strategies follow the same shape so that when LLM features are added later (currently out of scope) `@idevconn/llm-router` can be wired in unchanged. No icore module imports it in v0.1.0.
+
 ### Transport Helper
 
 ```ts
