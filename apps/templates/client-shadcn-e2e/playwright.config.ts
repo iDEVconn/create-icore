@@ -24,10 +24,11 @@ export default defineConfig({
   },
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'yarn nx run client-shadcn:vite:preview',
+    command: 'yarn nx serve client-shadcn',
     url: 'http://localhost:4200',
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env['CI'],
     cwd: workspaceRoot,
+    timeout: 60_000,
   },
   projects: [
     {
