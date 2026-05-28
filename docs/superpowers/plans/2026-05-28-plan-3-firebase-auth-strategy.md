@@ -93,11 +93,11 @@ Create `libs/auth-strategies/firebase/src/lib/identity-toolkit.client.ts`:
 
 ```ts
 export interface IdentityToolkitSignUpResponse {
-  localId: string;        // firebase uid
+  localId: string; // firebase uid
   email: string;
-  idToken: string;        // access token
+  idToken: string; // access token
   refreshToken: string;
-  expiresIn: string;      // seconds, as string per Firebase response
+  expiresIn: string; // seconds, as string per Firebase response
 }
 
 export interface IdentityToolkitSignInResponse extends IdentityToolkitSignUpResponse {
@@ -480,7 +480,9 @@ function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
       }),
     });
   }
-  const identityToolkit = new HttpIdentityToolkitClient(cfg.getOrThrow<string>('FIREBASE_WEB_API_KEY'));
+  const identityToolkit = new HttpIdentityToolkitClient(
+    cfg.getOrThrow<string>('FIREBASE_WEB_API_KEY'),
+  );
   return new FirebaseAuthStrategy({
     identityToolkit,
     adminAuth: admin.auth(),
