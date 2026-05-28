@@ -1,0 +1,88 @@
+name: Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  detect-affected:
+    name: Detect affected projects
+    runs-on: ubuntu-latest
+    outputs:
+      has-affected: ${{ steps.affected.outputs.has-affected }}
+      projects: ${{ steps.affected.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@v4
+      - name: Compute affected
+        id: affected
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PROJECTS=$(yarn nx show projects --json 2>/dev/null || echo '[]')
+          else
+            PROJECTS=$(yarn nx show projects --affected --json 2>/dev/null || echo '[]')
+          fi
+          {
+            echo "projects<<EOF"
+            echo "$PROJECTS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$PROJECTS" = "[]" ]; then
+            echo "has-affected=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-affected=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  check:
+    name: Check (${{ matrix.task }})
+    needs: [detect-affected]
+    if: needs.detect-affected.outputs.has-affected == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, test, 'format:check']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@v4
+      - name: Run ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "format:check" ]; then
+            yarn format:check
+          else
+            yarn nx affected -t ${{ matrix.task }} --parallel
+          fi
+
+  build:
+    name: Build
+    needs: [check, detect-affected]
+    if: |
+      always() && !cancelled() &&
+      needs.check.result != 'failure' &&
+      needs.detect-affected.outputs.has-affected == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@v4
+      - name: Build affected
+        run: yarn nx affected -t build --parallel

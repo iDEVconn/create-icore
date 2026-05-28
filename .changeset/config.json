@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@icore/shared",
+    "@icore/auth-supabase",
+    "@icore/auth-firebase",
+    "@icore/storage-supabase",
+    "@icore/storage-firebase",
+    "@icore/storage-cloudinary",
+    "@icore/auth-client",
+    "@icore/upload-client",
+    "@icore/template-shared"
+  ]
+}
