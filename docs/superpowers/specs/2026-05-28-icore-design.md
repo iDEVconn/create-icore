@@ -54,27 +54,27 @@ icore/
 ├── .env.example
 ├── nx.json
 ├── package.json
-└── .yarnrc.yml                      # yarn 4 PnP
+└── .yarnrc.yml                      # yarn 4, nodeLinker: node-modules
 ```
 
 ### Stack Decisions
 
-| Concern | Decision |
-|---------|----------|
-| Monorepo | Nx 22.7 |
-| Package manager | yarn 4 PnP |
-| API framework | NestJS 11 |
-| API shape | Gateway + microservices (TCP default, configurable) |
-| MS transport | TCP (default) / Redis / NATS via `*_TRANSPORT` env |
-| Client | Vite + React 19 + TypeScript strict |
-| Styling | Tailwind 4 + shadcn/ui |
-| Router | TanStack Router (file-based) |
-| Data fetching | TanStack Query |
-| Client state | Zustand (persist) |
-| i18n | i18next + react-i18next; en/ru/he with RTL auto |
-| Authorization | CASL.js (`@casl/ability` + `@casl/react`), shared `defineAbilitiesFor` |
-| Unit tests | Vitest (client + CLI) / Jest (api + ms) |
-| E2E | Playwright (smoke only — register → upload → signed-url) |
+| Concern         | Decision                                                               |
+| --------------- | ---------------------------------------------------------------------- |
+| Monorepo        | Nx 22.7                                                                |
+| Package manager | yarn 4 (nodeLinker: node-modules — Nx generators need it)              |
+| API framework   | NestJS 11                                                              |
+| API shape       | Gateway + microservices (TCP default, configurable)                    |
+| MS transport    | TCP (default) / Redis / NATS via `*_TRANSPORT` env                     |
+| Client          | Vite + React 19 + TypeScript strict                                    |
+| Styling         | Tailwind 4 + shadcn/ui                                                 |
+| Router          | TanStack Router (file-based)                                           |
+| Data fetching   | TanStack Query                                                         |
+| Client state    | Zustand (persist)                                                      |
+| i18n            | i18next + react-i18next; en/ru/he with RTL auto                        |
+| Authorization   | CASL.js (`@casl/ability` + `@casl/react`), shared `defineAbilitiesFor` |
+| Unit tests      | Vitest (client + CLI) / Jest (api + ms)                                |
+| E2E             | Playwright (smoke only — register → upload → signed-url)               |
 
 ### Strategy Pattern (the Core Idea)
 
@@ -104,8 +104,15 @@ export interface AuthStrategy {
 
 ```ts
 // libs/shared/src/strategies/storage.ts
-export interface StorageRef { bucket: string; path: string }
-export interface FileInput { buffer: Buffer; filename: string; mimeType: string }
+export interface StorageRef {
+  bucket: string;
+  path: string;
+}
+export interface FileInput {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+}
 
 export interface StorageStrategy {
   upload(userId: string, file: FileInput): Promise<StorageRef>;
@@ -118,20 +125,30 @@ export interface StorageStrategy {
 #### Factory wiring (NestJS module)
 
 ```ts
-providers: [{
-  provide: 'AuthStrategy',
-  useFactory: (cfg: ConfigService) => {
-    switch (cfg.get('AUTH_PROVIDER')) {
-      case 'supabase': return new SupabaseAuthStrategy(cfg);
-      case 'firebase': return new FirebaseAuthStrategy(cfg);
-      default: throw new Error('AUTH_PROVIDER missing');
-    }
+providers: [
+  {
+    provide: 'AuthStrategy',
+    useFactory: (cfg: ConfigService) => {
+      switch (cfg.get('AUTH_PROVIDER')) {
+        case 'supabase':
+          return new SupabaseAuthStrategy(cfg);
+        case 'firebase':
+          return new FirebaseAuthStrategy(cfg);
+        default:
+          throw new Error('AUTH_PROVIDER missing');
+      }
+    },
+    inject: [ConfigService],
   },
-  inject: [ConfigService],
-}]
+];
 ```
 
 Same pattern for `'StorageStrategy'` in the upload MS.
+
+#### Reuse of existing iDEVconn packages
+
+- `@idevconn/supabase` (v0.12+) is the underlying SDK wrapper for the `SupabaseAuthStrategy` in Plan 2. It already provides `AuthService` (password login, OAuth, magic link, `getCurrentUser`, `onAuthStateChange`) plus `createTableApi<T>()` and unified `SupabaseApiError` handling. The icore `SupabaseAuthStrategy` is a thin adapter that exposes the icore `AuthStrategy` shape over `@idevconn/supabase`'s `AuthService` — do not call `@supabase/supabase-js` directly from icore code.
+- `@idevconn/llm-router` (v0.4+) is the architectural reference for this strategy pattern (`LlmRegistry` + `LlmStrategy` + provider-as-subpath-export model). icore's auth/storage strategies follow the same shape so that when LLM features are added later (currently out of scope) `@idevconn/llm-router` can be wired in unchanged. No icore module imports it in v0.1.0.
 
 ### Transport Helper
 
@@ -139,15 +156,75 @@ Same pattern for `'StorageStrategy'` in the upload MS.
 // libs/shared/src/transport.ts
 export function buildTransport(prefix: string): ClientOptions {
   switch (process.env[`${prefix}_TRANSPORT`] ?? 'tcp') {
-    case 'tcp':   return { transport: Transport.TCP,   options: { host: env(`${prefix}_HOST`), port: +env(`${prefix}_PORT`) } };
-    case 'redis': return { transport: Transport.REDIS, options: { url: env(`${prefix}_REDIS_URL`) } };
-    case 'nats':  return { transport: Transport.NATS,  options: { servers: env(`${prefix}_NATS_URL`).split(',') } };
-    default: throw new Error(`Unknown transport: ${process.env[`${prefix}_TRANSPORT`]}`);
+    case 'tcp':
+      return {
+        transport: Transport.TCP,
+        options: { host: env(`${prefix}_HOST`), port: +env(`${prefix}_PORT`) },
+      };
+    case 'redis':
+      return { transport: Transport.REDIS, options: { url: env(`${prefix}_REDIS_URL`) } };
+    case 'nats':
+      return {
+        transport: Transport.NATS,
+        options: { servers: env(`${prefix}_NATS_URL`).split(',') },
+      };
+    default:
+      throw new Error(`Unknown transport: ${process.env[`${prefix}_TRANSPORT`]}`);
   }
 }
 ```
 
 Gateway uses `buildTransport('AUTH')` and `buildTransport('UPLOAD')`. Each MS bootstraps with the matching block in its `main.ts`. Same env contract on both sides → no per-transport branching elsewhere.
+
+### Env Layering
+
+Three concentric env layers, owned by different parts of the system:
+
+| Layer                | Owner             | Variables                                                                                                                                                                                                       | Where read                                                 |
+| -------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Transport wiring     | gateway + each MS | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_REDIS_URL`, `AUTH_NATS_URL`, `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, …                                                                                             | `buildTransport(prefix)` in `libs/shared/src/transport.ts` |
+| Provider selection   | per microservice  | `AUTH_PROVIDER` (`supabase` \| `firebase`), `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`)                                                                                                       | `useFactory` in the MS module                              |
+| Provider credentials | concrete strategy | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`; `FB_ADMIN_*` (service-account JSON fields); `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | strategy constructor via `ConfigService` injection         |
+
+**`libs/shared` is env-free.** It only exports contracts (`AuthStrategy`, `StorageStrategy`), the contract-test harness, in-memory fakes, and the transport helper. Concrete provider code lives in `libs/auth-strategies/*` and `libs/storage-strategies/*`; env IO happens at the MS module boundary.
+
+**MS bootstrap pattern (mirrors `ui-main/apps/microservices/upload/src/app/upload.module.ts`):**
+
+```ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: [
+        join(process.cwd(), 'apps/microservices/upload/.env'),
+        join(process.cwd(), '.env'),
+      ],
+      isGlobal: true,
+    }),
+  ],
+  providers: [
+    {
+      provide: 'StorageStrategy',
+      useFactory: (cfg: ConfigService) => {
+        switch (cfg.getOrThrow('STORAGE_PROVIDER')) {
+          case 'supabase':
+            return new SupabaseStorageStrategy(cfg);
+          case 'firebase':
+            return new FirebaseStorageStrategy(cfg);
+          case 'cloudinary':
+            return new CloudinaryStorageStrategy(cfg);
+          default:
+            throw new Error(`Unknown STORAGE_PROVIDER`);
+        }
+      },
+      inject: [ConfigService],
+    },
+    UploadService,
+  ],
+})
+export class UploadModule {}
+```
+
+**Per-MS `.env` lives at `apps/microservices/<name>/.env`** (gitignored, with a sibling `.env.example` checked in). The MS process loads its own .env on boot; the gateway has its own `apps/api/.env` for transport wiring (no provider credentials in the gateway).
 
 ### Gateway (apps/api)
 
@@ -166,13 +243,13 @@ Gateway uses `buildTransport('AUTH')` and `buildTransport('UPLOAD')`. Each MS bo
 
 Message patterns:
 
-| Pattern | Payload | Returns |
-|---------|---------|---------|
-| `auth.verify` | `{ token }` | `{ uid, email?, role? }` |
-| `auth.login` | `{ email, password }` | `AuthSession` |
-| `auth.register` | `{ email, password }` | `AuthSession` |
-| `auth.refresh` | `{ refreshToken }` | `AuthSession` |
-| `auth.setRole` | `{ uid, role }` | `void` |
+| Pattern         | Payload               | Returns                  |
+| --------------- | --------------------- | ------------------------ |
+| `auth.verify`   | `{ token }`           | `{ uid, email?, role? }` |
+| `auth.login`    | `{ email, password }` | `AuthSession`            |
+| `auth.register` | `{ email, password }` | `AuthSession`            |
+| `auth.refresh`  | `{ refreshToken }`    | `AuthSession`            |
+| `auth.setRole`  | `{ uid, role }`       | `void`                   |
 
 Injects `AuthStrategy` from factory. No direct provider SDK usage in handlers — every call goes through the strategy.
 
@@ -180,14 +257,66 @@ Injects `AuthStrategy` from factory. No direct provider SDK usage in handlers �
 
 Message patterns:
 
-| Pattern | Payload | Returns |
-|---------|---------|---------|
-| `storage.upload` | `{ userId, file }` | `StorageRef` |
-| `storage.remove` | `{ userId, ref }` | `void` |
-| `storage.signedUrl` | `{ userId, ref, ttlSec? }` | `string` |
-| `storage.list` | `{ userId, prefix? }` | `StorageRef[]` |
+| Pattern             | Payload                    | Returns        |
+| ------------------- | -------------------------- | -------------- |
+| `storage.upload`    | `{ userId, file }`         | `StorageRef`   |
+| `storage.remove`    | `{ userId, ref }`          | `void`         |
+| `storage.signedUrl` | `{ userId, ref, ttlSec? }` | `string`       |
+| `storage.list`      | `{ userId, prefix? }`      | `StorageRef[]` |
 
 Validates MIME allowlist and max size **before** the strategy call. Per-bucket config (`MAX_INVOICE_SIZE_KB`, `ALLOWED_MIME_INVOICES`, etc.) read at module init.
+
+### Client UI library — bootstrap-time choice (locked)
+
+The client UI library is NOT runtime-swappable. Auth and storage abstract over I/O (clean interfaces). UI abstracts over visual+UX+ergonomics — too deep to hide behind one interface without a leaky middleware layer. The choice happens once at scaffolding time, via the `--ui=shadcn|antd|mui` flag of `npx @idevconn/create-icore`.
+
+**Layout (Plan 6):**
+
+```
+apps/
+├── templates/
+│   ├── client-shadcn/    # full Vite + React 19 + TanStack Router + shadcn/Tailwind 4
+│   ├── client-antd/      # full Vite + React 19 + TanStack Router + Ant Design 6
+│   └── client-mui/       # full Vite + React 19 + TanStack Router + MUI 6
+└── client/               # NOT shipped here — populated by the CLI when scaffolding a new project
+```
+
+All three templates share the same routes, the same `api/client.ts` wiring, the same Zustand auth store, the same i18n setup, the same CASL `<Can>` provider. They differ only in the components/pages layer (login form, dashboard, profile) and their tailwind/antd/mui-specific deps.
+
+**CLI behaviour (Plan 7):** `create-icore` prompts UI choice → copies the chosen `apps/templates/client-<ui>/` tree to the new project's `apps/client/` → removes `apps/templates/` from the new project. The new project ships with one client; templates are not preserved in consumer projects.
+
+**Maintenance:** every UI feature added during Plan 6 onward lands in all three templates in lockstep. CI matrix in `create-icore`'s own repo builds + tests all three templates per push so drift is caught immediately.
+
+### Client surface — pages + layouts (locked)
+
+Every template ships the same route tree. Library differences live below the route layer (component implementations + theming).
+
+| Route                  | Auth                                           | Library-agnostic?               | Notes                                                                                                                                                                                                  |
+| ---------------------- | ---------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/` (landing)          | Public                                         | ✅ Yes — plain HTML/CSS + React | Renders the workspace `package.json` version and the versions of the key installed deps (NestJS, React, Vite, the chosen UI lib, the chosen auth/storage providers). Identical across all 3 templates. |
+| `/login`               | Public                                         | ❌ Library-specific             | Email/password form posted to `POST /api/auth/login`                                                                                                                                                   |
+| `/_dashboard` (layout) | Protected (`beforeLoad` redirects to `/login`) | ❌ Library-specific             | Two-pane shell — header + collapsible sider menu + content outlet + footer. Equivalent to `ui-main/apps/client/src/layouts/mainLayout.tsx`.                                                            |
+| `/_dashboard/` (index) | Protected                                      | ❌ Library-specific             | Dashboard landing — welcome card, stats placeholder                                                                                                                                                    |
+| `/_dashboard/profile`  | Protected                                      | ❌ Library-specific             | Profile form using `useDraft(isDirty)` from `@idevconn/use-draft` to block navigation on unsaved changes.                                                                                              |
+
+**`PageLayout` wrapper** — every protected route renders its body inside a `<PageLayout title action subject>` component (template-local) that:
+
+1. Wraps the body in `<Can I={action} a={subject}>` from `@casl/react` — if denied, shows the template's `AccessDeniedPage`.
+2. Shows the page title + optional description + `extra` slot for action buttons (matches `ui-main/apps/client/src/layouts/page.layout.tsx`).
+3. Resets the global dirty flag on unmount via `useDraft(false)`.
+4. Shows the loading spinner from the template's loading store (Zustand).
+
+All three templates ship a `PageLayout` with the same prop signature; bodies are library-specific.
+
+**Shared (template-agnostic) pieces** — landed in libs so all three templates pull them in unchanged:
+
+- `defineAbilitiesFor` + `AppAbility` from `@icore/shared` (already done in Plan 1).
+- `@idevconn/use-draft` for the dirty-form pattern. (Same one warranty ships; private npm.)
+- API client wiring (`@idevconn/api-client` for token refresh + 401 handling), Zustand auth store, React Query, i18next setup. The wiring code is duplicated across templates _only_ where library-specific bits sit (e.g., the notification host) — bare logic lives in shared template helpers.
+
+**`AccessDeniedPage`** — each template ships its own variant (different visual style); same component name + same export.
+
+**`MainLayout` notification host** — antd uses `notification.useNotification()`, mui uses Snackbar via a provider, shadcn uses `<Toaster />` from `sonner`. Each template's `MainLayout` mounts its host once; downstream code calls a `useNotify()` hook with the same `success/error/info/warning` signature so app code never branches on the library.
 
 ### Client (apps/client)
 
@@ -240,6 +369,12 @@ Steps:
 
 Built with `tsup`, distributed as `@idevconn/create-icore` npm package (scoped under the same `@idevconn` org used by `@idevconn/api-client`, `@idevconn/use-draft`, etc.). Tested with Vitest (CLI snapshot tests + dry-run integration test).
 
+**Naming locked:**
+
+- GitHub repo: `iDEVconn/create-icore` (entire monorepo lives here)
+- npm CLI: `@idevconn/create-icore` (invoked via `npm init @idevconn/icore my-app` per npm `create-<name>` convention)
+- Internal workspace libs keep `@icore/*` scope (`@icore/shared`, `@icore/auth-supabase`, `@icore/auth-firebase`, `@icore/auth-client`, …) — published only if/when consumers need them; private inside the monorepo until then.
+
 ## Testing Strategy
 
 ### Unit tests
@@ -267,18 +402,18 @@ No real Supabase/Firebase/Cloudinary calls in CI.
 
 Each phase ships a green build and merges as its own PR onto `dev`. `main` stays untouched until v0.1.0 is fully assembled.
 
-| Phase | Deliverable |
-|-------|-------------|
-| 0 | Skeleton: `nx init`, yarn 4 PnP, base tsconfig, eslint, prettier, githooks, root `AGENTS.md` |
-| 1 | `libs/shared`: types, `defineAbilitiesFor`, strategy contracts, `buildTransport`, contract test suite |
-| 2 | Auth MS + Supabase auth strategy + `libs/auth-client`; contract suite passes for Supabase |
-| 3 | Gateway with `AuthGuard`, `/auth/*` routes, throttler, CASL `AbilityGuard`; E2E register→login→`/me` |
-| 4 | Firebase auth strategy — same contract suite passes, CI matrix expands |
-| 5 | Upload MS + Supabase storage strategy + `libs/upload-client` + gateway `/storage/*` with `assertOwnership` |
-| 6 | Firebase + Cloudinary storage strategies; CI matrix completes 2×3 |
-| 7 | Client shell: Vite + shadcn + Tailwind + TanStack Router/Query + Zustand + i18n + CASL; Playwright smoke |
-| 8 | `tools/create-icore` CLI (published as `@idevconn/create-icore`) with `tsup` build and Vitest tests |
-| 9 | Docs (`docs/architecture.md`, `docs/strategies/*.md`, `docs/runbooks/swap-provider.md`); publish CLI; tag v0.1.0; manual merge `dev → main` |
+| Phase | Deliverable                                                                                                                                 |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Skeleton: `nx init`, yarn 4 PnP, base tsconfig, eslint, prettier, githooks, root `AGENTS.md`                                                |
+| 1     | `libs/shared`: types, `defineAbilitiesFor`, strategy contracts, `buildTransport`, contract test suite                                       |
+| 2     | Auth MS + Supabase auth strategy + `libs/auth-client`; contract suite passes for Supabase                                                   |
+| 3     | Gateway with `AuthGuard`, `/auth/*` routes, throttler, CASL `AbilityGuard`; E2E register→login→`/me`                                        |
+| 4     | Firebase auth strategy — same contract suite passes, CI matrix expands                                                                      |
+| 5     | Upload MS + Supabase storage strategy + `libs/upload-client` + gateway `/storage/*` with `assertOwnership`                                  |
+| 6     | Firebase + Cloudinary storage strategies; CI matrix completes 2×3                                                                           |
+| 7     | Client shell: Vite + shadcn + Tailwind + TanStack Router/Query + Zustand + i18n + CASL; Playwright smoke                                    |
+| 8     | `tools/create-icore` CLI (published as `@idevconn/create-icore`) with `tsup` build and Vitest tests                                         |
+| 9     | Docs (`docs/architecture.md`, `docs/strategies/*.md`, `docs/runbooks/swap-provider.md`); publish CLI; tag v0.1.0; manual merge `dev → main` |
 
 ## Open Questions
 

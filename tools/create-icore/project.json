@@ -1,0 +1,35 @@
+{
+  "name": "create-icore",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/create-icore/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "snapshot-templates": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/create-icore/scripts/snapshot-templates.ts"
+      }
+    },
+    "build": {
+      "dependsOn": ["snapshot-templates"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsup --config tools/create-icore/tsup.config.ts",
+        "cwd": "tools/create-icore"
+      },
+      "outputs": ["{projectRoot}/dist", "{projectRoot}/templates"]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../coverage/tools/create-icore"
+      }
+    }
+  }
+}

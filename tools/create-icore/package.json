@@ -1,0 +1,36 @@
+{
+  "name": "@idevconn/create-icore",
+  "version": "0.1.0",
+  "description": "Bootstrap a new project from the icore scaffold (Nx + NestJS + React + Vite + shadcn/Tailwind, swappable auth + storage providers).",
+  "license": "Apache-2.0",
+  "author": "iDEVconn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iDEVconn/create-icore.git",
+    "directory": "tools/create-icore"
+  },
+  "type": "module",
+  "bin": "./dist/cli.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "kleur": "^4.1.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "vitest": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

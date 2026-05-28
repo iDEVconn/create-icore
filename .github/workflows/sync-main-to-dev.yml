@@ -1,0 +1,108 @@
+name: "Sync main → dev"
+
+# Fires on every push to main. The release job in release.yml bumps the
+# package.json version and tags a release directly on main; the resulting
+# commit (carrying [skip ci]) never makes it back to dev, so the next
+# dev → main PR errors with "out-of-date base branch". This workflow opens
+# a sync PR back into dev whenever main moves ahead so the gap stays small.
+
+on:
+  # `push: [main]` alone misses release-job bumps because those commits carry
+  # `[skip ci]`, which GitHub Actions honors by skipping ALL workflows on that
+  # SHA — sync included. The release job in release.yml therefore explicitly
+  # `gh workflow run sync-main-to-dev.yml --ref main` after pushing the bump,
+  # which fires the workflow_dispatch trigger below.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-main-to-dev
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: "Open sync PR if dev is behind main"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Skip if dev already contains main
+        id: check
+        run: |
+          git fetch origin dev main
+          if git merge-base --is-ancestor origin/main origin/dev; then
+            echo "needs-sync=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs-sync=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip if THIS sha already has an open sync PR
+        if: steps.check.outputs.needs-sync == 'true'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Idempotency on workflow re-runs: same sha → same branch name →
+          # same PR. We only skip if the SPECIFIC PR for this commit already
+          # exists. Older sync PRs from earlier shas must NOT block a fresh
+          # sync — each main commit needs its own PR, and the user merges
+          # them in order. (Previous broader pattern check matched any open
+          # chore/sync-main-to-dev-* PR and dropped genuine syncs.)
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BRANCH="chore/sync-main-to-dev-${SHORT_SHA}"
+          COUNT=$(gh pr list --base dev --head "$BRANCH" --state open --json number --jq 'length')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has-open=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Open sync PR for ${SHORT_SHA} already exists; skipping."
+          else
+            echo "has-open=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create sync branch
+        if: steps.check.outputs.needs-sync == 'true' && steps.existing.outputs.has-open != 'true'
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BRANCH="chore/sync-main-to-dev-${SHORT_SHA}"
+          # If the branch already exists upstream (e.g. previous run created it
+          # but the PR step failed) reuse it instead of erroring.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::notice::Branch ${BRANCH} already exists on origin; reusing."
+          else
+            git checkout -b "$BRANCH" "origin/main"
+            git push origin "$BRANCH"
+          fi
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+
+      - name: Open PR
+        if: steps.check.outputs.needs-sync == 'true' && steps.existing.outputs.has-open != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          BODY_FILE=$(mktemp)
+          {
+            echo "Automated sync of new commits on main back into dev."
+            echo ""
+            echo "This usually contains a CI-driven version bump from the @idevconn/create-icore release job."
+            echo "Merge to keep dev current so the next dev → main PR stays merge-clean."
+            echo ""
+            echo "Triggered by: ${TRIGGER_SHA}"
+          } > "$BODY_FILE"
+          gh pr create \
+            --base dev \
+            --head "$BRANCH" \
+            --title "chore: auto-sync main → dev (${SHORT_SHA})" \
+            --body-file "$BODY_FILE"
