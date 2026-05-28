@@ -24,12 +24,20 @@ async function bootstrap() {
   await app.listen(port);
 }
 
-bootstrap().then(() => {
-  const logger = new Logger('API-Bootstrap');
-  logger.log(
-    `API Bootstrap completed successfully: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? DEFAULT_PORT}/api`,
-  );
-  logger.log(
-    `Swagger UI: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? DEFAULT_PORT}/api/docs`,
-  );
-});
+bootstrap()
+  .then(() => {
+    const logger = new Logger('API-Bootstrap');
+    logger.log(
+      `API Bootstrap completed successfully: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? DEFAULT_PORT}/api`,
+    );
+    logger.log(
+      `Swagger UI: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? DEFAULT_PORT}/api/docs`,
+    );
+  })
+  .catch((err) => {
+    new Logger('API-Bootstrap').error(
+      'Gateway bootstrap failed',
+      err instanceof Error ? err.stack : err,
+    );
+    process.exit(1);
+  });

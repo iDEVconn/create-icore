@@ -1,4 +1,4 @@
-import { Transport, type ClientOptions } from '@nestjs/microservices';
+import { Transport, type ClientOptions, type MicroserviceOptions } from '@nestjs/microservices';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -42,4 +42,14 @@ export function buildTransport(prefix: string): ClientOptions {
     default:
       throw new Error(`Unknown transport: ${kind}`);
   }
+}
+
+/**
+ * Same env contract as {@link buildTransport}, but typed for the server
+ * side: pass the result directly to `NestFactory.createMicroservice(...)`.
+ * Eliminates the `as unknown as MicroserviceOptions` cast at every MS
+ * bootstrap site.
+ */
+export function buildTransportMS(prefix: string): MicroserviceOptions {
+  return buildTransport(prefix) as unknown as MicroserviceOptions;
 }

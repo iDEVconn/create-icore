@@ -1,10 +1,14 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { Throttle, seconds } from '@nestjs/throttler';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthClientService } from '@icore/auth-client';
 import { Public } from './public.decorator';
 
+// 10 auth-burst requests / 60s across register + login + refresh.
+// Server-side gate against credential-stuffing; gateway only.
 @ApiTags('auth')
 @Controller('auth')
+@Throttle({ 'auth-burst': { limit: 10, ttl: seconds(60) } })
 export class AuthController {
   constructor(private readonly authClient: AuthClientService) {}
 
