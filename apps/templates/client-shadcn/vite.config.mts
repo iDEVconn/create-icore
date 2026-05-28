@@ -1,8 +1,16 @@
 /// <reference types='vitest' />
+import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
+
+const rootPackageJsonPath = new URL('../../../package.json', import.meta.url);
+const rootPackageJson = JSON.parse(
+  fs.readFileSync(rootPackageJsonPath, 'utf-8'),
+) as { version: string };
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
@@ -15,7 +23,26 @@ export default defineConfig(() => ({
     port: 4200,
     host: 'localhost',
   },
-  plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(rootPackageJson.version),
+  },
+  plugins: [
+    TanStackRouterVite({
+      target: 'react',
+      autoCodeSplitting: true,
+      routeFileIgnorePattern: '(__tests__|\\.test\\.(t|j)sx?$)',
+    }),
+    react(),
+    tailwindcss(),
+    nxViteTsPaths(),
+    nxCopyAssetsPlugin(['*.md']),
+    {
+      name: 'inject-app-version-meta',
+      transformIndexHtml(html: string) {
+        return html.replace('%APP_VERSION%', rootPackageJson.version);
+      },
+    },
+  ],
   // Uncomment this if you are using workers.
   // worker: {
   //   plugins: () => [ nxViteTsPaths() ],
