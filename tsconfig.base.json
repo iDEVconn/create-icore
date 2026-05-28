@@ -18,7 +18,8 @@
       "@icore/package.json": ["./package.json"],
       "@icore/auth-firebase": ["./libs/auth-strategies/firebase/src/index.ts"],
       "@icore/storage-supabase": ["./libs/storage-strategies/supabase/src/index.ts"],
-      "@icore/upload-client": ["./libs/upload-client/src/index.ts"]
+      "@icore/upload-client": ["./libs/upload-client/src/index.ts"],
+      "@icore/storage-firebase": ["./libs/storage-strategies/firebase/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]
