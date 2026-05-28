@@ -4,15 +4,15 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 
 ## Status
 
-| Plan | Scope | State |
-|------|-------|-------|
-| 1 | Workspace + shared contracts (`libs/shared`) | ✅ done |
-| 2 | Supabase auth MS + gateway `AuthGuard` | ⬜ pending |
-| 3 | Firebase auth strategy | ⬜ pending |
-| 4 | Supabase storage MS + gateway storage routes | ⬜ pending |
-| 5 | Firebase + Cloudinary storage strategies | ⬜ pending |
-| 6 | Client shell (Vite + shadcn + TanStack Router) | ⬜ pending |
-| 7 | `@idevconn/create-icore` CLI + publish | ⬜ pending |
+| Plan | Scope                                          | State      |
+| ---- | ---------------------------------------------- | ---------- |
+| 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done    |
+| 2    | Supabase auth MS + gateway `AuthGuard`         | ⬜ pending |
+| 3    | Firebase auth strategy                         | ⬜ pending |
+| 4    | Supabase storage MS + gateway storage routes   | ⬜ pending |
+| 5    | Firebase + Cloudinary storage strategies       | ⬜ pending |
+| 6    | Client shell (Vite + shadcn + TanStack Router) | ⬜ pending |
+| 7    | `@idevconn/create-icore` CLI + publish         | ⬜ pending |
 
 ## Layout
 
@@ -46,11 +46,11 @@ icore/
 
 Both auth and storage hide behind a single interface. NestJS module wires a factory provider that reads the provider name from `ConfigService` and returns the concrete strategy. Three env layers:
 
-| Layer | Owner | Example vars |
-|-------|-------|--------------|
-| Transport wiring | gateway + each MS | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `UPLOAD_TRANSPORT`, … |
-| Provider selection | per microservice | `AUTH_PROVIDER` (`supabase` \| `firebase`), `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`) |
-| Provider credentials | concrete strategy | `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*` |
+| Layer                | Owner             | Example vars                                                                                              |
+| -------------------- | ----------------- | --------------------------------------------------------------------------------------------------------- |
+| Transport wiring     | gateway + each MS | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `UPLOAD_TRANSPORT`, …                                         |
+| Provider selection   | per microservice  | `AUTH_PROVIDER` (`supabase` \| `firebase`), `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`) |
+| Provider credentials | concrete strategy | `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`                                                                |
 
 `libs/shared` is env-free. Env IO happens at the MS module boundary.
 

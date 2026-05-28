@@ -55,6 +55,7 @@ Frontend never imports a provider SDK directly. All auth + storage traffic goes 
   - **Provider credentials** (per concrete strategy): `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`; injected via `ConfigService`.
 
   Each MS loads its own `.env` from `apps/microservices/<name>/.env` via `ConfigModule.forRoot({envFilePath: ...})`. `libs/shared` is env-free.
+
 - **Auth flow:** Client sends credentials to `POST /api/auth/{login,register,refresh}` on the gateway. Gateway calls the auth MS over the chosen transport. Auth MS delegates to the configured `AuthStrategy`. Subsequent requests carry `Authorization: Bearer <token>`. Global `AuthGuard` on the gateway extracts and verifies the token by round-tripping to the auth MS (`auth.verify`). `@Public()` decorator exempts routes from the guard.
 - **Data fetching:** React Query hooks in `apps/client/src/queries/`. API client `apps/client/src/api/client.ts` wires the external `@idevconn/api-client` pkg — auto token refresh, typed `ApiError(status, body)`, and an `onError` hook for centralized error reporting.
 - **Global state:** Zustand store `apps/client/src/stores/auth.ts` (persist middleware). Draft/dirty-form tracking lives in `@idevconn/use-draft`.
@@ -72,6 +73,7 @@ The strategy pattern abstracts the provider at runtime, but each concrete strate
 ### Supabase (auth + storage)
 
 **Env vars (per MS that uses it):**
+
 ```
 AUTH_PROVIDER=supabase               # or STORAGE_PROVIDER=supabase
 SUPABASE_URL=https://<ref>.supabase.co
@@ -81,15 +83,18 @@ SUPABASE_STORAGE_BUCKET=uploads      # storage MS only
 ```
 
 **Setup:**
+
 1. Create a project at https://app.supabase.com.
 2. Copy URL + anon key + service role key into the MS `.env`.
 3. For storage: create the bucket in the Supabase dashboard. Set it private (`public: false`). MIME allowlist and ownership prefix are enforced by the `SupabaseStorageStrategy`, not by Supabase RLS — the strategy uses the service-role client to bypass RLS and applies ownership in code.
 
 **Migrations (Supabase Postgres):**
+
 - All schema lives in `supabase/migrations/<TIMESTAMP>_<name>.sql`, checked in.
 - CI runs `supabase db push` to apply pending migrations on deploy.
 
 **Supabase MCP migration gotcha:** NEVER use `mcp__plugin_supabase_supabase__apply_migration` for changes that have a local file in `supabase/migrations/`. The MCP tool inserts a row into `supabase_migrations.schema_migrations` with its own auto-generated timestamp, which won't match your local file's timestamp — the next `supabase db push` in CI fails with "Remote migration versions not found in local migrations directory". Correct workflow:
+
 1. Write the migration file under `supabase/migrations/<TIMESTAMP>_<name>.sql`.
 2. Apply the DDL via `mcp__plugin_supabase_supabase__execute_sql` (NOT `apply_migration`).
 3. **Immediately** insert the matching registry row so CI's `supabase db push` skips the file:
@@ -122,6 +127,7 @@ FIREBASE_STORAGE_BUCKET=<project-id>.appspot.com  # storage MS only
 ```
 
 **Setup:**
+
 1. Create a Firebase project at https://console.firebase.google.com.
 2. Project Settings → Service accounts → Generate new private key. Download the JSON.
 3. Copy the JSON fields into the MS `.env` as `FB_ADMIN_*` variables. The private key must keep its `\n` newline escapes — quote it with single quotes in the .env file.
@@ -146,6 +152,7 @@ CLOUDINARY_API_SECRET=<secret>
 ```
 
 **Setup:**
+
 1. Create an account at https://cloudinary.com.
 2. Copy cloud name + API key + API secret from the dashboard.
 3. The `CloudinaryStorageStrategy` calls `cloudinary.config({...})` on first upload; no global init is required.
