@@ -79,8 +79,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       user: null,
-      setAuth: ({ accessToken, refreshToken, user }) =>
-        set({ accessToken, refreshToken, user }),
+      setAuth: ({ accessToken, refreshToken, user }) => set({ accessToken, refreshToken, user }),
       logout: () => set({ accessToken: null, refreshToken: null, user: null }),
     }),
     { name: 'icore-auth' },
@@ -663,8 +662,14 @@ export const Route = createFileRoute('/')({
         { name: 'react', version: pkg.dependencies['react'] ?? '?' },
         { name: 'vite', version: pkg.devDependencies?.['vite'] ?? '?' },
         { name: 'tailwindcss', version: pkg.dependencies['tailwindcss'] ?? '?' },
-        { name: '@tanstack/react-router', version: pkg.dependencies['@tanstack/react-router'] ?? '?' },
-        { name: '@tanstack/react-query', version: pkg.dependencies['@tanstack/react-query'] ?? '?' },
+        {
+          name: '@tanstack/react-router',
+          version: pkg.dependencies['@tanstack/react-router'] ?? '?',
+        },
+        {
+          name: '@tanstack/react-query',
+          version: pkg.dependencies['@tanstack/react-query'] ?? '?',
+        },
         { name: 'zustand', version: pkg.dependencies['zustand'] ?? '?' },
         { name: '@casl/ability', version: pkg.dependencies['@casl/ability'] ?? '?' },
       ]}
@@ -687,7 +692,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
-import { AbilityProvider, createIcoreApi, createIcoreI18n, ICORE_LOCALES } from '@icore/template-shared';
+import {
+  AbilityProvider,
+  createIcoreApi,
+  createIcoreI18n,
+  ICORE_LOCALES,
+} from '@icore/template-shared';
 import { I18nextProvider } from 'react-i18next';
 import { Toaster } from 'sonner';
 import { routeTree } from './routeTree.gen';
@@ -736,10 +746,14 @@ import { setNotifier } from '@icore/template-shared';
 
 export function wireShadcnNotifier() {
   setNotifier({
-    success: (title, opts) => toast.success(title, { description: opts?.description, duration: opts?.duration }),
-    error: (title, opts) => toast.error(title, { description: opts?.description, duration: opts?.duration }),
-    info: (title, opts) => toast(title, { description: opts?.description, duration: opts?.duration }),
-    warning: (title, opts) => toast.warning(title, { description: opts?.description, duration: opts?.duration }),
+    success: (title, opts) =>
+      toast.success(title, { description: opts?.description, duration: opts?.duration }),
+    error: (title, opts) =>
+      toast.error(title, { description: opts?.description, duration: opts?.duration }),
+    info: (title, opts) =>
+      toast(title, { description: opts?.description, duration: opts?.duration }),
+    warning: (title, opts) =>
+      toast.warning(title, { description: opts?.description, duration: opts?.duration }),
   });
 }
 ```
@@ -884,8 +898,8 @@ export function PageLayout({
 
 - Landing page (library-agnostic, shows package versions) → Task 7 + Task 10 step 3 ✅
 - /login → Task 11 ✅
-- /_dashboard (protected, MainLayout shell) → Task 12 ✅
-- /_dashboard/profile with useDraft → Task 14 ✅
+- /\_dashboard (protected, MainLayout shell) → Task 12 ✅
+- /\_dashboard/profile with useDraft → Task 14 ✅
 - PageLayout with CASL `<Can>` gating → Task 13 ✅
 - AccessDeniedPage → Task 13 ✅
 - useNotify() abstraction with sonner impl → Task 5 + Task 10 step 4 ✅
