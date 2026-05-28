@@ -1,0 +1,13 @@
+import { create } from 'zustand';
+
+interface LoadingState {
+  loading: boolean;
+  setLoading: (v: boolean) => void;
+}
+
+export const useLoadingStore = create<LoadingState>((set) => ({
+  loading: false,
+  setLoading: (loading) => set({ loading }),
+}));
+
+export const useLoading = () => useLoadingStore((s) => s.loading);
