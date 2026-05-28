@@ -18,18 +18,18 @@
 
 ## File Map
 
-| Path                                                                       | Purpose                                                          |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `libs/storage-strategies/firebase/`                                        | `FirebaseStorageStrategy` (generated via `@nx/js:lib`)           |
-| `libs/storage-strategies/firebase/src/lib/firebase-storage.strategy.ts`    | implements `StorageStrategy` over a `FirebaseStorageBucketLike`  |
-| `libs/storage-strategies/firebase/src/lib/testing/mock-firebase-storage.ts`| in-memory bucket double                                          |
-| `libs/storage-strategies/cloudinary/`                                      | `CloudinaryStorageStrategy` (generated via `@nx/js:lib`)         |
-| `libs/storage-strategies/cloudinary/src/lib/cloudinary-storage.strategy.ts`| implements `StorageStrategy` over a `CloudinaryApiLike`          |
-| `libs/storage-strategies/cloudinary/src/lib/testing/mock-cloudinary.ts`    | in-memory Cloudinary API double                                  |
-| `apps/microservices/upload/src/app/app.module.ts`                          | add `case 'firebase':` + `case 'cloudinary':` to the factory     |
-| `apps/microservices/upload/package.json`                                   | declare both strategy libs + `firebase-admin` + `cloudinary`     |
-| `apps/microservices/upload/.env.example`                                   | document `FB_ADMIN_*` + `FIREBASE_STORAGE_BUCKET` + `CLOUDINARY_*` |
-| `docs/architecture.md`                                                     | flip Plan 5 to ✅                                                |
+| Path                                                                        | Purpose                                                            |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `libs/storage-strategies/firebase/`                                         | `FirebaseStorageStrategy` (generated via `@nx/js:lib`)             |
+| `libs/storage-strategies/firebase/src/lib/firebase-storage.strategy.ts`     | implements `StorageStrategy` over a `FirebaseStorageBucketLike`    |
+| `libs/storage-strategies/firebase/src/lib/testing/mock-firebase-storage.ts` | in-memory bucket double                                            |
+| `libs/storage-strategies/cloudinary/`                                       | `CloudinaryStorageStrategy` (generated via `@nx/js:lib`)           |
+| `libs/storage-strategies/cloudinary/src/lib/cloudinary-storage.strategy.ts` | implements `StorageStrategy` over a `CloudinaryApiLike`            |
+| `libs/storage-strategies/cloudinary/src/lib/testing/mock-cloudinary.ts`     | in-memory Cloudinary API double                                    |
+| `apps/microservices/upload/src/app/app.module.ts`                           | add `case 'firebase':` + `case 'cloudinary':` to the factory       |
+| `apps/microservices/upload/package.json`                                    | declare both strategy libs + `firebase-admin` + `cloudinary`       |
+| `apps/microservices/upload/.env.example`                                    | document `FB_ADMIN_*` + `FIREBASE_STORAGE_BUCKET` + `CLOUDINARY_*` |
+| `docs/architecture.md`                                                      | flip Plan 5 to ✅                                                  |
 
 ---
 
@@ -74,7 +74,10 @@ We don't take a direct `firebase-admin` dep here — the strategy talks to a `Fi
 Create `libs/storage-strategies/firebase/src/lib/testing/mock-firebase-storage.ts`:
 
 ```ts
-import type { FirebaseStorageBucketLike, FirebaseStorageFileLike } from '../firebase-storage.strategy';
+import type {
+  FirebaseStorageBucketLike,
+  FirebaseStorageFileLike,
+} from '../firebase-storage.strategy';
 
 interface StoredObject {
   bytes: Buffer;
@@ -278,7 +281,10 @@ export function createMockCloudinary(): CloudinaryApiLike {
       const publicId = opts.public_id;
       if (objects.has(publicId)) throw new Error('exists');
       objects.set(publicId, { bytes: buffer, resourceType: opts.resource_type ?? 'raw' });
-      return { public_id: publicId, secure_url: `https://mock.cloudinary/raw/${publicId}` } satisfies CloudinaryUploadResult;
+      return {
+        public_id: publicId,
+        secure_url: `https://mock.cloudinary/raw/${publicId}`,
+      } satisfies CloudinaryUploadResult;
     },
     async destroy(publicId) {
       if (!objects.has(publicId)) throw new Error('not_found');
@@ -493,7 +499,10 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
       return cloudinary.utils.private_download_url(publicId, format ?? '', opts);
     },
     async resources(opts) {
-      const res = await cloudinary.api.resources({ prefix: opts.prefix, type: opts.type ?? 'upload' });
+      const res = await cloudinary.api.resources({
+        prefix: opts.prefix,
+        type: opts.type ?? 'upload',
+      });
       return {
         resources: (res.resources ?? []).map((r) => ({ public_id: r.public_id })),
       };
