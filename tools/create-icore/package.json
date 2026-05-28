@@ -13,6 +13,7 @@
     "url": "https://github.com/iDEVconn/create-icore/issues"
   },
   "homepage": "https://github.com/iDEVconn/create-icore#readme",
+  "type": "module",
   "keywords": [
     "icore",
     "scaffold",
