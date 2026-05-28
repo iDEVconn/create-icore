@@ -1,11 +1,20 @@
-# create-icore
+# @idevconn/create-icore
 
-Scaffold a new icore monorepo project in seconds.
+Scaffold a new iCore monorepo project in seconds.
 
 ## Usage
 
 ```bash
 npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+```
+
+`npm init @idevconn/icore` follows the standard npm convention — npm resolves it to `@idevconn/create-icore` and runs the bundled `create-icore` binary. Equivalent invocations:
+
+```bash
+yarn create @idevconn/icore my-saas                # yarn berry / classic
+pnpm create @idevconn/icore my-saas                # pnpm
+npx @idevconn/create-icore my-saas                 # direct
+npm i -g @idevconn/create-icore && create-icore my-saas
 ```
 
 ## Flags

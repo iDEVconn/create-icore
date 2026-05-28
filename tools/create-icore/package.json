@@ -1,7 +1,7 @@
 {
   "name": "@idevconn/create-icore",
-  "version": "0.2.0",
-  "description": "Bootstrap a new project from the icore scaffold (Nx + NestJS + React + Vite + shadcn/Tailwind, swappable auth + storage providers).",
+  "version": "0.1.0",
+  "description": "Bootstrap a new project from the iCore scaffold (Nx + NestJS + React + Vite + shadcn/Tailwind, swappable auth + storage providers).",
   "license": "Apache-2.0",
   "author": "iDEVconn",
   "repository": {
@@ -9,10 +9,39 @@
     "url": "git+https://github.com/iDEVconn/create-icore.git",
     "directory": "tools/create-icore"
   },
+  "bugs": {
+    "url": "https://github.com/iDEVconn/create-icore/issues"
+  },
+  "homepage": "https://github.com/iDEVconn/create-icore#readme",
   "type": "module",
-  "bin": "./dist/cli.js",
-  "main": "./dist/index.js",
+  "keywords": [
+    "icore",
+    "scaffold",
+    "bootstrap",
+    "nestjs",
+    "react",
+    "vite",
+    "shadcn",
+    "tailwind",
+    "supabase",
+    "firebase",
+    "cloudinary",
+    "tanstack-router",
+    "create-app"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "create-icore": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "templates",
@@ -21,6 +50,15 @@
   ],
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",

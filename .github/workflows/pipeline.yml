@@ -22,6 +22,7 @@ jobs:
     outputs:
       has-affected: ${{ steps.affected.outputs.has-affected }}
       projects: ${{ steps.affected.outputs.projects }}
+      buildable: ${{ steps.affected.outputs.buildable }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,14 +34,21 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             PROJECTS=$(yarn nx show projects --json 2>/dev/null || echo '[]')
+            BUILDABLE=$(yarn nx show projects --with-target=build --json 2>/dev/null || echo '[]')
           else
             PROJECTS=$(yarn nx show projects --affected --json 2>/dev/null || echo '[]')
+            BUILDABLE=$(yarn nx show projects --affected --with-target=build --json 2>/dev/null || echo '[]')
           fi
+
           {
             echo "projects<<EOF"
             echo "$PROJECTS"
             echo "EOF"
+            echo "buildable<<EOF"
+            echo "$BUILDABLE"
+            echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
           if [ "$PROJECTS" = "[]" ]; then
             echo "has-affected=false" >> "$GITHUB_OUTPUT"
           else
@@ -71,18 +79,34 @@ jobs:
           fi
 
   build:
-    name: Build
+    name: Build ${{ matrix.project }}
     needs: [check, detect-affected]
     if: |
       always() && !cancelled() &&
       needs.check.result != 'failure' &&
-      needs.detect-affected.outputs.has-affected == 'true'
+      needs.detect-affected.outputs.has-affected == 'true' &&
+      needs.detect-affected.outputs.buildable != '[]'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.detect-affected.outputs.buildable) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: nrwl/nx-set-shas@v4
-      - name: Build affected
-        run: yarn nx affected -t build --parallel
+      - name: Build ${{ matrix.project }}
+        run: yarn nx build ${{ matrix.project }}
+      - name: Upload dist
+        if: github.ref == 'refs/heads/main' && hashFiles(format('apps/{0}/dist/**', matrix.project)) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.project }}
+          path: |
+            apps/**/dist
+            libs/**/dist
+            tools/**/dist
+          if-no-files-found: ignore
+          retention-days: 7

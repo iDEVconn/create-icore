@@ -4,10 +4,15 @@ name: Release
 # PR. When that PR merges (no pending changesets), the action runs
 # `changeset publish` which publishes @idevconn/create-icore to npm with
 # provenance attestation via OIDC trusted publishing.
+#
+# TEMPORARILY DISABLED — first publish runs manually until OIDC trusted
+# publishing is wired on the npm side. Re-enable by removing the `if`
+# guard below (or just switching back to the unconditional `on: push`).
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,6 +25,9 @@ concurrency:
 
 jobs:
   release:
+    # Manual gate while we're verifying the first publish by hand.
+    # Trigger explicitly via the Actions tab once OIDC is set up.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
