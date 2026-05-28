@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@icore/shared": ["./libs/shared/src/index.ts"],
+      "@icore/auth-supabase": ["./libs/auth-strategies/supabase/src/index.ts"],
+      "@icore/auth-client": ["./libs/auth-client/src/index.ts"],
+      "@icore/package.json": ["./package.json"],
+      "@icore/auth-firebase": ["./libs/auth-strategies/firebase/src/index.ts"],
+      "@icore/storage-supabase": ["./libs/storage-strategies/supabase/src/index.ts"],
+      "@icore/upload-client": ["./libs/upload-client/src/index.ts"],
+      "@icore/storage-firebase": ["./libs/storage-strategies/firebase/src/index.ts"],
+      "@icore/storage-cloudinary": ["./libs/storage-strategies/cloudinary/src/index.ts"],
+      "@icore/template-shared": ["./libs/template-shared/src/index.ts"],
+      "@idevconn/create-icore": ["./tools/create-icore/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".nx"]
+}
