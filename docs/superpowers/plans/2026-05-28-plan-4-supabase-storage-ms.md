@@ -18,25 +18,25 @@
 
 ## File Map
 
-| Path                                                                                  | Purpose                                                              |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `apps/microservices/upload/`                                                          | NestJS MS (generated via `@nx/nest:app`)                             |
-| `apps/microservices/upload/src/main.ts`                                                | `createMicroservice(buildTransportMS('UPLOAD'))`                     |
-| `apps/microservices/upload/src/app/app.module.ts`                                      | `ConfigModule.forRoot` + factory provider for `StorageStrategy`      |
-| `apps/microservices/upload/src/app/storage.controller.ts`                              | `@MessagePattern('storage.upload' \| 'storage.remove' \| 'storage.signedUrl' \| 'storage.list')` |
-| `apps/microservices/upload/.env.example`                                               | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER`, `SUPABASE_*` |
-| `libs/storage-strategies/supabase/`                                                    | concrete `SupabaseStorageStrategy` (generated via `@nx/js:lib`)      |
-| `libs/storage-strategies/supabase/src/lib/supabase-storage.strategy.ts`                | `SupabaseStorageStrategy implements StorageStrategy`                 |
-| `libs/storage-strategies/supabase/src/lib/testing/mock-supabase-storage.ts`            | in-memory `SupabaseClient.storage` mock                              |
-| `libs/storage-strategies/supabase/src/lib/__tests__/supabase-storage.contract.unit.test.ts` | invokes `runStorageContract`                                    |
-| `libs/upload-client/`                                                                  | gateway → upload MS NestJS module (generated via `@nx/js:lib`)       |
-| `libs/upload-client/src/lib/upload-client.module.ts`                                   | `ClientsModule.registerAsync` using `buildTransport('UPLOAD')`       |
-| `libs/upload-client/src/lib/upload-client.service.ts`                                  | typed wrappers around `client.send('storage.*', ...)`                |
-| `apps/api/src/app/storage/storage.module.ts`                                           | gateway-side storage module (controller + UploadClientModule)        |
-| `apps/api/src/app/storage/storage.controller.ts`                                       | `POST /api/storage/upload` + GET/DELETE/list                         |
-| `apps/api/src/app/storage/assert-ownership.ts`                                         | `assertOwnership(ref, userId)` helper                                |
-| `apps/api/.env.example`                                                                | add `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `MAX_FILE_SIZE_KB` |
-| `docs/architecture.md`                                                                 | flip Plan 4 to ✅, add storage routes table + env entries            |
+| Path                                                                                        | Purpose                                                                                          |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `apps/microservices/upload/`                                                                | NestJS MS (generated via `@nx/nest:app`)                                                         |
+| `apps/microservices/upload/src/main.ts`                                                     | `createMicroservice(buildTransportMS('UPLOAD'))`                                                 |
+| `apps/microservices/upload/src/app/app.module.ts`                                           | `ConfigModule.forRoot` + factory provider for `StorageStrategy`                                  |
+| `apps/microservices/upload/src/app/storage.controller.ts`                                   | `@MessagePattern('storage.upload' \| 'storage.remove' \| 'storage.signedUrl' \| 'storage.list')` |
+| `apps/microservices/upload/.env.example`                                                    | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER`, `SUPABASE_*`               |
+| `libs/storage-strategies/supabase/`                                                         | concrete `SupabaseStorageStrategy` (generated via `@nx/js:lib`)                                  |
+| `libs/storage-strategies/supabase/src/lib/supabase-storage.strategy.ts`                     | `SupabaseStorageStrategy implements StorageStrategy`                                             |
+| `libs/storage-strategies/supabase/src/lib/testing/mock-supabase-storage.ts`                 | in-memory `SupabaseClient.storage` mock                                                          |
+| `libs/storage-strategies/supabase/src/lib/__tests__/supabase-storage.contract.unit.test.ts` | invokes `runStorageContract`                                                                     |
+| `libs/upload-client/`                                                                       | gateway → upload MS NestJS module (generated via `@nx/js:lib`)                                   |
+| `libs/upload-client/src/lib/upload-client.module.ts`                                        | `ClientsModule.registerAsync` using `buildTransport('UPLOAD')`                                   |
+| `libs/upload-client/src/lib/upload-client.service.ts`                                       | typed wrappers around `client.send('storage.*', ...)`                                            |
+| `apps/api/src/app/storage/storage.module.ts`                                                | gateway-side storage module (controller + UploadClientModule)                                    |
+| `apps/api/src/app/storage/storage.controller.ts`                                            | `POST /api/storage/upload` + GET/DELETE/list                                                     |
+| `apps/api/src/app/storage/assert-ownership.ts`                                              | `assertOwnership(ref, userId)` helper                                                            |
+| `apps/api/.env.example`                                                                     | add `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `MAX_FILE_SIZE_KB`                         |
+| `docs/architecture.md`                                                                      | flip Plan 4 to ✅, add storage routes table + env entries                                        |
 
 ---
 
@@ -104,10 +104,19 @@ interface StoredObject {
 }
 
 interface MockBucketHandle {
-  upload(path: string, body: Buffer, opts?: { contentType?: string }): Promise<{ data: { path: string } | null; error: { message: string } | null }>;
+  upload(
+    path: string,
+    body: Buffer,
+    opts?: { contentType?: string },
+  ): Promise<{ data: { path: string } | null; error: { message: string } | null }>;
   remove(paths: string[]): Promise<{ data: unknown; error: { message: string } | null }>;
-  createSignedUrl(path: string, ttlSec: number): Promise<{ data: { signedUrl: string } | null; error: { message: string } | null }>;
-  list(prefix?: string): Promise<{ data: Array<{ name: string }> | null; error: { message: string } | null }>;
+  createSignedUrl(
+    path: string,
+    ttlSec: number,
+  ): Promise<{ data: { signedUrl: string } | null; error: { message: string } | null }>;
+  list(
+    prefix?: string,
+  ): Promise<{ data: Array<{ name: string }> | null; error: { message: string } | null }>;
 }
 
 export function createMockSupabaseStorageClient(bucket = 'icore-uploads'): SupabaseClient {
@@ -117,16 +126,27 @@ export function createMockSupabaseStorageClient(bucket = 'icore-uploads'): Supab
     if (name !== bucket) {
       // Most tests use the default bucket; surface mismatches clearly
       return {
-        async upload() { return { data: null, error: { message: `unknown_bucket:${name}` } }; },
-        async remove() { return { data: null, error: { message: `unknown_bucket:${name}` } }; },
-        async createSignedUrl() { return { data: null, error: { message: `unknown_bucket:${name}` } }; },
-        async list() { return { data: null, error: { message: `unknown_bucket:${name}` } }; },
+        async upload() {
+          return { data: null, error: { message: `unknown_bucket:${name}` } };
+        },
+        async remove() {
+          return { data: null, error: { message: `unknown_bucket:${name}` } };
+        },
+        async createSignedUrl() {
+          return { data: null, error: { message: `unknown_bucket:${name}` } };
+        },
+        async list() {
+          return { data: null, error: { message: `unknown_bucket:${name}` } };
+        },
       };
     }
     return {
       async upload(path, body, opts) {
         if (objects.has(path)) return { data: null, error: { message: 'duplicate' } };
-        objects.set(path, { bytes: body, mimeType: opts?.contentType ?? 'application/octet-stream' });
+        objects.set(path, {
+          bytes: body,
+          mimeType: opts?.contentType ?? 'application/octet-stream',
+        });
         return { data: { path }, error: null };
       },
       async remove(paths) {
@@ -655,9 +675,7 @@ export class UploadClientService {
   }
 
   signedUrl(userId: string, ref: StorageRef, ttlSec?: number): Promise<string> {
-    return firstValueFrom(
-      this.client.send<string>('storage.signedUrl', { userId, ref, ttlSec }),
-    );
+    return firstValueFrom(this.client.send<string>('storage.signedUrl', { userId, ref, ttlSec }));
   }
 
   list(userId: string, prefix?: string): Promise<StorageRef[]> {
@@ -740,7 +758,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UploadClientService } from '@icore/upload-client';
 import type { StorageRef, VerifiedToken } from '@icore/shared';
 import type { Request } from 'express';
@@ -799,11 +824,7 @@ export class StorageController {
   ): Promise<string> {
     const ref: StorageRef = { bucket, path };
     assertOwnership(ref, req.user!.uid);
-    return this.uploadClient.signedUrl(
-      req.user!.uid,
-      ref,
-      ttlSec ? Number(ttlSec) : undefined,
-    );
+    return this.uploadClient.signedUrl(req.user!.uid, ref, ttlSec ? Number(ttlSec) : undefined);
   }
 
   @Delete('remove')
@@ -882,15 +903,13 @@ import { assertOwnership } from '../assert-ownership';
 
 describe('assertOwnership', () => {
   it('passes when the path starts with userId/', () => {
-    expect(() =>
-      assertOwnership({ bucket: 'b', path: 'user-1/foo.txt' }, 'user-1'),
-    ).not.toThrow();
+    expect(() => assertOwnership({ bucket: 'b', path: 'user-1/foo.txt' }, 'user-1')).not.toThrow();
   });
 
   it('throws ForbiddenException on a foreign prefix', () => {
-    expect(() =>
-      assertOwnership({ bucket: 'b', path: 'attacker/foo.txt' }, 'user-1'),
-    ).toThrow(ForbiddenException);
+    expect(() => assertOwnership({ bucket: 'b', path: 'attacker/foo.txt' }, 'user-1')).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('throws when path has no prefix at all', () => {
@@ -901,9 +920,9 @@ describe('assertOwnership', () => {
 
   it('treats userId-substring-but-not-prefix as foreign', () => {
     // "user-12/x" should NOT match "user-1" — prefix must terminate at `/`
-    expect(() =>
-      assertOwnership({ bucket: 'b', path: 'user-12/x' }, 'user-1'),
-    ).toThrow(ForbiddenException);
+    expect(() => assertOwnership({ bucket: 'b', path: 'user-12/x' }, 'user-1')).toThrow(
+      ForbiddenException,
+    );
   });
 });
 ```
