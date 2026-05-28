@@ -1708,11 +1708,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/auth-supabase@workspace:libs/auth-strategies/supabase"
   dependencies:
+    "@icore/shared": "npm:*"
+    "@supabase/supabase-js": "npm:^2.0.0"
     tslib: "npm:^2.3.0"
+    vitest: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
-"@icore/shared@workspace:libs/shared":
+"@icore/shared@npm:*, @icore/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@icore/shared@workspace:libs/shared"
   dependencies:
@@ -2643,6 +2646,20 @@ __metadata:
     class-validator:
       optional: true
   checksum: 10c0/73e9909ba8522b0cf70560de3534cfdc58a16393cb030ca0e365b69bdf6e4a4f9fbb81afa5035edc79d2b8a2b898d2bed36f5fb625dc3b21d235010b293812af
+  languageName: node
+  linkType: hard
+
+"@nestjs/config@npm:^4.0.4":
+  version: 4.0.4
+  resolution: "@nestjs/config@npm:4.0.4"
+  dependencies:
+    dotenv: "npm:17.4.1"
+    dotenv-expand: "npm:12.0.3"
+    lodash: "npm:4.18.1"
+  peerDependencies:
+    "@nestjs/common": ^10.0.0 || ^11.0.0
+    rxjs: ^7.1.0
+  checksum: 10c0/d1cd320a591864a2216fc702cb8fc5abd756de64d7a220494e4176ad5b0d4f0cbb6fe6f614c643efbd9fe59864989cb6644c49a037c60b257204af28535c7964
   languageName: node
   linkType: hard
 
@@ -4364,7 +4381,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@supabase/supabase-js@npm:^2.106.2":
+"@supabase/supabase-js@npm:^2.0.0, @supabase/supabase-js@npm:^2.106.2":
   version: 2.106.2
   resolution: "@supabase/supabase-js@npm:2.106.2"
   dependencies:
@@ -7596,6 +7613,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dotenv@npm:17.4.1":
+  version: 17.4.1
+  resolution: "dotenv@npm:17.4.1"
+  checksum: 10c0/eb6ae592ee1e8f6b7f62e0f0c2827c4f27bbe9e00abe9d7910e06456e63dccd42f011de94da9450a63c07ccc52c318f527c1b56ad8e2c81a1a16314b53d4fd99
+  languageName: node
+  linkType: hard
+
 "dotenv@npm:^16.4.5":
   version: 16.6.1
   resolution: "dotenv@npm:16.6.1"
@@ -9047,6 +9071,7 @@ __metadata:
     "@casl/ability": "npm:^7"
     "@eslint/js": "npm:^10.0.1"
     "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.1.24"
     "@nestjs/microservices": "npm:^11.1.24"
     "@nestjs/platform-express": "npm:^11.0.0"
@@ -10449,6 +10474,13 @@ __metadata:
   version: 4.5.0
   resolution: "lodash.uniq@npm:4.5.0"
   checksum: 10c0/262d400bb0952f112162a320cc4a75dea4f66078b9e7e3075ffbc9c6aa30b3e9df3cf20e7da7d566105e1ccf7804e4fbd7d804eee0b53de05d83f16ffbf41c5e
+  languageName: node
+  linkType: hard
+
+"lodash@npm:4.18.1":
+  version: 4.18.1
+  resolution: "lodash@npm:4.18.1"
+  checksum: 10c0/757228fc68805c59789e82185135cf85f05d0b2d3d54631d680ca79ec21944ec8314d4533639a14b8bcfbd97a517e78960933041a5af17ecb693ec6eecb99a27
   languageName: node
   linkType: hard
 
