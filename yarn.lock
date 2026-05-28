@@ -1974,6 +1974,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/template-shared@workspace:libs/template-shared":
+  version: 0.0.0-use.local
+  resolution: "@icore/template-shared@workspace:libs/template-shared"
+  dependencies:
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@icore/upload-client@npm:*, @icore/upload-client@workspace:libs/upload-client":
   version: 0.0.0-use.local
   resolution: "@icore/upload-client@workspace:libs/upload-client"
@@ -1985,6 +1993,13 @@ __metadata:
     tslib: "npm:^2.3.0"
   languageName: unknown
   linkType: soft
+
+"@idevconn/api-client@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@idevconn/api-client@npm:0.3.0"
+  checksum: 10c0/d1819f6cd42649b321a1ccbc03fde941f672f5a6b951f59f8eba3f401af6c139be1d02e436dede900a249d89f1c89f9fac9b7a2d403e1c35916b0ba9ce511b03
+  languageName: node
+  linkType: hard
 
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
@@ -9915,6 +9930,7 @@ __metadata:
   dependencies:
     "@casl/ability": "npm:^7"
     "@eslint/js": "npm:^10.0.1"
+    "@idevconn/api-client": "npm:^0.3.0"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.1.24"
@@ -9959,6 +9975,7 @@ __metadata:
     vite: "npm:^8.0.0"
     vitest: "npm:^4"
     webpack-cli: "npm:^5.1.4"
+    zustand: "npm:^5.0.14"
   languageName: unknown
   linkType: soft
 
@@ -16312,5 +16329,26 @@ __metadata:
   version: 1.2.2
   resolution: "yocto-queue@npm:1.2.2"
   checksum: 10c0/36d4793e9cf7060f9da543baf67c55e354f4862c8d3d34de1a1b1d7c382d44171315cc54abf84d8900b8113d742b830108a1434f4898fb244f9b7e8426d4b8f5
+  languageName: node
+  linkType: hard
+
+"zustand@npm:^5.0.14":
+  version: 5.0.14
+  resolution: "zustand@npm:5.0.14"
+  peerDependencies:
+    "@types/react": ">=18.0.0"
+    immer: ">=9.0.6"
+    react: ">=18.0.0"
+    use-sync-external-store: ">=1.2.0"
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+    immer:
+      optional: true
+    react:
+      optional: true
+    use-sync-external-store:
+      optional: true
+  checksum: 10c0/89de0c8119f1e0861b2f896a0b4df0d67994a373ecee02628d4e7b97cee1885207f646917d3ede395c3a5083316d48846855cfbc84aced7cd23a6db3238930a8
   languageName: node
   linkType: hard

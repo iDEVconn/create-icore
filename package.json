@@ -63,6 +63,7 @@
   },
   "dependencies": {
     "@casl/ability": "^7",
+    "@idevconn/api-client": "^0.3.0",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.24",
@@ -75,6 +76,7 @@
     "cloudinary": "^2.10.0",
     "firebase-admin": "^13.10.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zustand": "^5.0.14"
   }
 }

@@ -6,6 +6,8 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
-    "tslib": "^2.3.0"
+    "@idevconn/api-client": "*",
+    "tslib": "^2.3.0",
+    "zustand": "^5.0.0"
   }
 }
