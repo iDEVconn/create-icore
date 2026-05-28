@@ -9,6 +9,7 @@
     "@casl/react": "^7.0.0",
     "@icore/shared": "*",
     "@idevconn/api-client": "*",
+    "@idevconn/use-draft": "*",
     "i18next": "^26.0.0",
     "react-i18next": "^17.0.0",
     "tslib": "^2.3.0",

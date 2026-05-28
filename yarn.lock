@@ -1988,11 +1988,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/template-shared@workspace:libs/template-shared"
   dependencies:
+    "@casl/react": "npm:^7.0.0"
+    "@icore/shared": "npm:*"
     "@idevconn/api-client": "npm:*"
     i18next: "npm:^26.0.0"
     react-i18next: "npm:^17.0.0"
     tslib: "npm:^2.3.0"
     zustand: "npm:^5.0.0"
+  peerDependencies:
+    react: ^19.0.0
+    react-dom: ^19.0.0
   languageName: unknown
   linkType: soft
 
@@ -2012,6 +2017,17 @@ __metadata:
   version: 0.3.0
   resolution: "@idevconn/api-client@npm:0.3.0"
   checksum: 10c0/d1819f6cd42649b321a1ccbc03fde941f672f5a6b951f59f8eba3f401af6c139be1d02e436dede900a249d89f1c89f9fac9b7a2d403e1c35916b0ba9ce511b03
+  languageName: node
+  linkType: hard
+
+"@idevconn/use-draft@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@idevconn/use-draft@npm:0.2.0"
+  peerDependencies:
+    "@tanstack/react-router": ">=1.100.0"
+    react: ">=18.0.0"
+    zustand: ">=4.0.0"
+  checksum: 10c0/c8f7c9c500fe69c5b699f802f717b62c222f485b8cae791d4ea2db0392acbba2dad692dfb60866a3a56ebab97f9a46d57ffceaab992723312f3d299efc7f137d
   languageName: node
   linkType: hard
 
@@ -9967,6 +9983,7 @@ __metadata:
     "@casl/react": "npm:^7.0.0"
     "@eslint/js": "npm:^10.0.1"
     "@idevconn/api-client": "npm:^0.3.0"
+    "@idevconn/use-draft": "npm:^0.2.0"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.1.24"
