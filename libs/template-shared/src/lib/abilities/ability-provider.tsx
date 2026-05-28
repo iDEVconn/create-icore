@@ -1,9 +1,10 @@
-import { createContextualCan } from '@casl/react';
-import { createContext, type ReactNode, useMemo } from 'react';
-import { defineAbilitiesFor, emptyAbility, type AppAbility } from '@icore/shared';
+import { AbilityProvider as CaslAbilityProvider, Can } from '@casl/react';
+import type { ReactNode } from 'react';
+import { useMemo } from 'react';
+import { defineAbilitiesFor, type AppAbility } from '@icore/shared';
 import { useAuthStore } from '../stores/auth.store.js';
 
-export const AbilityContext = createContext<AppAbility>(emptyAbility());
+export { Can };
 
 export function AbilityProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -14,7 +15,5 @@ export function AbilityProvider({ children }: { children: ReactNode }) {
         : defineAbilitiesFor(null),
     [user],
   );
-  return <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>;
+  return <CaslAbilityProvider value={ability}>{children}</CaslAbilityProvider>;
 }
-
-export const Can = createContextualCan(AbilityContext.Consumer);
