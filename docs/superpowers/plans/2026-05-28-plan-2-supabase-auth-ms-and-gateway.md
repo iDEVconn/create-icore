@@ -18,34 +18,34 @@
 
 ## File Map
 
-| Path | Purpose |
-|------|---------|
-| `apps/api/` | NestJS gateway (generated via `@nx/nest:app`) |
-| `apps/api/src/main.ts` | bootstrap, listen on `PORT_API` |
-| `apps/api/src/app/app.module.ts` | wires AuthModule, ConfigModule, ThrottlerModule, AbilitiesModule |
-| `apps/api/src/app/auth/auth.module.ts` | gateway-side auth (controller + AuthGuard + AuthClient) |
-| `apps/api/src/app/auth/auth.controller.ts` | `/api/auth/{login,register,refresh,logout}` routes |
-| `apps/api/src/app/auth/auth.guard.ts` | global guard — pulls Bearer, calls `auth-client.verify` |
-| `apps/api/src/app/auth/public.decorator.ts` | `@Public()` skip-guard marker |
-| `apps/api/src/app/profile/profile.module.ts` | `/api/profile` (returns `req.user`) |
-| `apps/api/src/app/profile/profile.controller.ts` | `GET /api/profile` |
-| `apps/api/src/app/abilities/abilities.module.ts` | `AbilityFactory` + `AbilityGuard` (uses `defineAbilitiesFor` from `@icore/shared`) |
-| `apps/api/src/app/abilities/ability.factory.ts` | `forUser(verifiedToken) → AppAbility` |
-| `apps/api/src/app/abilities/ability.guard.ts` | reads `@CheckAbility` metadata, throws ForbiddenException |
-| `apps/api/src/app/abilities/check-ability.decorator.ts` | `@CheckAbility(action, subject)` |
-| `apps/api/.env.example` | `PORT_API`, `AUTH_TRANSPORT=tcp`, `AUTH_HOST`, `AUTH_PORT`, `THROTTLE_*` |
-| `apps/microservices/auth/` | NestJS MS (generated via `@nx/nest:app`) |
-| `apps/microservices/auth/src/main.ts` | `createMicroservice(buildTransport('AUTH'))` |
-| `apps/microservices/auth/src/app/auth.module.ts` | `ConfigModule.forRoot` + factory provider for `AuthStrategy` |
-| `apps/microservices/auth/src/app/auth.controller.ts` | `@MessagePattern('auth.verify' \| 'auth.login' \| 'auth.signup' \| 'auth.refresh' \| 'auth.setRole')` |
-| `apps/microservices/auth/.env.example` | `AUTH_TRANSPORT=tcp`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER=supabase`, `SUPABASE_*` |
-| `libs/auth-strategies/supabase/` | concrete `SupabaseAuthStrategy` (generated via `@nx/js:lib`) |
-| `libs/auth-strategies/supabase/src/lib/supabase-auth.strategy.ts` | `SupabaseAuthStrategy implements AuthStrategy` over `@idevconn/supabase` |
-| `libs/auth-strategies/supabase/src/lib/__tests__/supabase-auth.contract.unit.test.ts` | invokes `runAuthContract` against the strategy with a stubbed `@idevconn/supabase` client |
-| `libs/auth-client/` | gateway → auth MS NestJS module (generated via `@nx/js:lib`) |
-| `libs/auth-client/src/lib/auth-client.module.ts` | `forRootAsync({useFactory: () => buildTransport('AUTH')})` |
-| `libs/auth-client/src/lib/auth-client.service.ts` | typed wrappers around `client.send('auth.verify', ...)` etc. |
-| `docs/architecture.md` | flip Plan 2 status to ✅, document the new env keys, link `@idevconn/supabase` |
+| Path                                                                                  | Purpose                                                                                               |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `apps/api/`                                                                           | NestJS gateway (generated via `@nx/nest:app`)                                                         |
+| `apps/api/src/main.ts`                                                                | bootstrap, listen on `PORT_API`                                                                       |
+| `apps/api/src/app/app.module.ts`                                                      | wires AuthModule, ConfigModule, ThrottlerModule, AbilitiesModule                                      |
+| `apps/api/src/app/auth/auth.module.ts`                                                | gateway-side auth (controller + AuthGuard + AuthClient)                                               |
+| `apps/api/src/app/auth/auth.controller.ts`                                            | `/api/auth/{login,register,refresh,logout}` routes                                                    |
+| `apps/api/src/app/auth/auth.guard.ts`                                                 | global guard — pulls Bearer, calls `auth-client.verify`                                               |
+| `apps/api/src/app/auth/public.decorator.ts`                                           | `@Public()` skip-guard marker                                                                         |
+| `apps/api/src/app/profile/profile.module.ts`                                          | `/api/profile` (returns `req.user`)                                                                   |
+| `apps/api/src/app/profile/profile.controller.ts`                                      | `GET /api/profile`                                                                                    |
+| `apps/api/src/app/abilities/abilities.module.ts`                                      | `AbilityFactory` + `AbilityGuard` (uses `defineAbilitiesFor` from `@icore/shared`)                    |
+| `apps/api/src/app/abilities/ability.factory.ts`                                       | `forUser(verifiedToken) → AppAbility`                                                                 |
+| `apps/api/src/app/abilities/ability.guard.ts`                                         | reads `@CheckAbility` metadata, throws ForbiddenException                                             |
+| `apps/api/src/app/abilities/check-ability.decorator.ts`                               | `@CheckAbility(action, subject)`                                                                      |
+| `apps/api/.env.example`                                                               | `PORT_API`, `AUTH_TRANSPORT=tcp`, `AUTH_HOST`, `AUTH_PORT`, `THROTTLE_*`                              |
+| `apps/microservices/auth/`                                                            | NestJS MS (generated via `@nx/nest:app`)                                                              |
+| `apps/microservices/auth/src/main.ts`                                                 | `createMicroservice(buildTransport('AUTH'))`                                                          |
+| `apps/microservices/auth/src/app/auth.module.ts`                                      | `ConfigModule.forRoot` + factory provider for `AuthStrategy`                                          |
+| `apps/microservices/auth/src/app/auth.controller.ts`                                  | `@MessagePattern('auth.verify' \| 'auth.login' \| 'auth.signup' \| 'auth.refresh' \| 'auth.setRole')` |
+| `apps/microservices/auth/.env.example`                                                | `AUTH_TRANSPORT=tcp`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER=supabase`, `SUPABASE_*`                |
+| `libs/auth-strategies/supabase/`                                                      | concrete `SupabaseAuthStrategy` (generated via `@nx/js:lib`)                                          |
+| `libs/auth-strategies/supabase/src/lib/supabase-auth.strategy.ts`                     | `SupabaseAuthStrategy implements AuthStrategy` over `@idevconn/supabase`                              |
+| `libs/auth-strategies/supabase/src/lib/__tests__/supabase-auth.contract.unit.test.ts` | invokes `runAuthContract` against the strategy with a stubbed `@idevconn/supabase` client             |
+| `libs/auth-client/`                                                                   | gateway → auth MS NestJS module (generated via `@nx/js:lib`)                                          |
+| `libs/auth-client/src/lib/auth-client.module.ts`                                      | `forRootAsync({useFactory: () => buildTransport('AUTH')})`                                            |
+| `libs/auth-client/src/lib/auth-client.service.ts`                                     | typed wrappers around `client.send('auth.verify', ...)` etc.                                          |
+| `docs/architecture.md`                                                                | flip Plan 2 status to ✅, document the new env keys, link `@idevconn/supabase`                        |
 
 ---
 
@@ -221,10 +221,7 @@ The lib will import `@idevconn/supabase` (subpath exports). Match Plan 1's `libs
   },
   "files": [],
   "include": [],
-  "references": [
-    { "path": "./tsconfig.lib.json" },
-    { "path": "./tsconfig.spec.json" }
-  ]
+  "references": [{ "path": "./tsconfig.lib.json" }, { "path": "./tsconfig.spec.json" }]
 }
 ```
 
@@ -570,7 +567,9 @@ export class AuthController {
   }
 
   @MessagePattern('auth.signup')
-  signup(@Payload() { email, password }: { email: string; password: string }): Promise<AuthSession> {
+  signup(
+    @Payload() { email, password }: { email: string; password: string },
+  ): Promise<AuthSession> {
     return this.strategy.signUp(email, password);
   }
 
@@ -921,9 +920,7 @@ import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([
-      { name: 'auth-burst', ttl: seconds(60), limit: 10 },
-    ]),
+    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),
     AuthModule,
   ],
 })
@@ -941,7 +938,10 @@ import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { AuthGuard } from '../auth.guard';
 
 function ctx(headers: Record<string, string | undefined>, isPublic = false): ExecutionContext {
-  const req = { headers, user: undefined } as { headers: Record<string, string | undefined>; user: unknown };
+  const req = { headers, user: undefined } as {
+    headers: Record<string, string | undefined>;
+    user: unknown;
+  };
   return {
     getHandler: () => undefined,
     getClass: () => undefined,
@@ -961,7 +961,9 @@ describe('AuthGuard', () => {
 
   it('rejects missing Bearer header', async () => {
     (reflector.getAllAndOverride as ReturnType<typeof vi.fn>).mockReturnValueOnce(false);
-    await expect(guard.canActivate(ctx({ authorization: undefined }))).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(guard.canActivate(ctx({ authorization: undefined }))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it('verifies token and attaches user on success', async () => {
@@ -976,7 +978,9 @@ describe('AuthGuard', () => {
   it('rejects when verify throws', async () => {
     (reflector.getAllAndOverride as ReturnType<typeof vi.fn>).mockReturnValueOnce(false);
     client.verify.mockRejectedValueOnce(new Error('bad'));
-    await expect(guard.canActivate(ctx({ authorization: 'Bearer abc' }))).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(guard.canActivate(ctx({ authorization: 'Bearer abc' }))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 });
 ```
@@ -1085,10 +1089,10 @@ export class AbilityGuard implements CanActivate {
   ) {}
 
   canActivate(ctx: ExecutionContext): boolean {
-    const required = this.reflector.getAllAndOverride<RequiredRule | undefined>(
-      CHECK_ABILITY_KEY,
-      [ctx.getHandler(), ctx.getClass()],
-    );
+    const required = this.reflector.getAllAndOverride<RequiredRule | undefined>(CHECK_ABILITY_KEY, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
     if (!required) return true;
 
     const req = ctx.switchToHttp().getRequest<Request & { user?: VerifiedToken }>();
@@ -1110,10 +1114,7 @@ import { AbilityFactory } from './ability.factory';
 import { AbilityGuard } from './ability.guard';
 
 @Module({
-  providers: [
-    AbilityFactory,
-    { provide: APP_GUARD, useClass: AbilityGuard },
-  ],
+  providers: [AbilityFactory, { provide: APP_GUARD, useClass: AbilityGuard }],
   exports: [AbilityFactory],
 })
 export class AbilitiesModule {}
@@ -1165,19 +1166,25 @@ describe('AbilityGuard', () => {
   const factory = new AbilityFactory();
 
   it('passes when no @CheckAbility metadata', () => {
-    const reflector = { getAllAndOverride: vi.fn().mockReturnValue(undefined) } as unknown as Reflector;
+    const reflector = {
+      getAllAndOverride: vi.fn().mockReturnValue(undefined),
+    } as unknown as Reflector;
     const guard = new AbilityGuard(reflector, factory);
     expect(guard.canActivate(ctx({ uid: 'u', role: 'user' }))).toBe(true);
   });
 
   it('admin passes manage/all', () => {
-    const reflector = { getAllAndOverride: vi.fn().mockReturnValue({ action: 'manage', subject: 'all' }) } as unknown as Reflector;
+    const reflector = {
+      getAllAndOverride: vi.fn().mockReturnValue({ action: 'manage', subject: 'all' }),
+    } as unknown as Reflector;
     const guard = new AbilityGuard(reflector, factory);
     expect(guard.canActivate(ctx({ uid: 'u', role: 'admin' }))).toBe(true);
   });
 
   it('regular user fails manage/all', () => {
-    const reflector = { getAllAndOverride: vi.fn().mockReturnValue({ action: 'manage', subject: 'all' }) } as unknown as Reflector;
+    const reflector = {
+      getAllAndOverride: vi.fn().mockReturnValue({ action: 'manage', subject: 'all' }),
+    } as unknown as Reflector;
     const guard = new AbilityGuard(reflector, factory);
     expect(() => guard.canActivate(ctx({ uid: 'u', role: 'user' }))).toThrow(ForbiddenException);
   });
@@ -1277,9 +1284,9 @@ Below the existing 3-layer env table, add a per-MS .env table:
 ```markdown
 ### Env keys per app/MS (v0.1.0)
 
-| File | Keys |
-|------|------|
-| `apps/api/.env` | `PORT_API`, `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT` |
+| File                           | Keys                                                                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/.env`                | `PORT_API`, `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`                                                                        |
 | `apps/microservices/auth/.env` | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
 ```
 
