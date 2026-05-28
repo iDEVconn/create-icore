@@ -4,7 +4,7 @@ import type {
   IdentityToolkitRefreshResponse,
   IdentityToolkitSignInResponse,
   IdentityToolkitSignUpResponse,
-} from '../../identity-toolkit.client';
+} from '../identity-toolkit.client';
 
 interface FakeUser {
   localId: string;
