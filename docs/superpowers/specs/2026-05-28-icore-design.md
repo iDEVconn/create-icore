@@ -317,6 +317,12 @@ Steps:
 
 Built with `tsup`, distributed as `@idevconn/create-icore` npm package (scoped under the same `@idevconn` org used by `@idevconn/api-client`, `@idevconn/use-draft`, etc.). Tested with Vitest (CLI snapshot tests + dry-run integration test).
 
+**Naming locked:**
+
+- GitHub repo: `iDEVconn/create-icore` (entire monorepo lives here)
+- npm CLI: `@idevconn/create-icore` (invoked via `npm init @idevconn/icore my-app` per npm `create-<name>` convention)
+- Internal workspace libs keep `@icore/*` scope (`@icore/shared`, `@icore/auth-supabase`, `@icore/auth-firebase`, `@icore/auth-client`, …) — published only if/when consumers need them; private inside the monorepo until then.
+
 ## Testing Strategy
 
 ### Unit tests
