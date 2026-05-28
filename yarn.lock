@@ -1915,7 +1915,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/auth-firebase@workspace:libs/auth-strategies/firebase"
   dependencies:
+    "@icore/shared": "npm:*"
     tslib: "npm:^2.3.0"
+    vitest: "npm:^4.0.0"
   languageName: unknown
   linkType: soft
 
