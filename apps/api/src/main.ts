@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
 
-async function bootstrap() {
+async function appBootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
 
@@ -16,10 +16,16 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = Number(process.env.PORT_API ?? 3001);
+  const port = Number(process.env.API_PORT ?? 3001);
   await app.listen(port);
-  Logger.log(`Gateway listening on http://localhost:${port}/api`);
-  Logger.log(`Swagger UI: http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+appBootstrap().then(() => {
+  const logger = new Logger('appBootstrap');
+  logger.log(
+    `API Bootstrap completed successfully: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? '3001'}/api`,
+  );
+  logger.log(
+    `Swagger UI: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? '3001'}/api/docs`,
+  );
+});
