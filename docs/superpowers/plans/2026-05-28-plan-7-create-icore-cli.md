@@ -143,12 +143,24 @@ function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { projectName
     const key = k.slice(2);
     const v = vIn as string;
     switch (key) {
-      case 'auth': out.authProvider = v as 'supabase' | 'firebase'; break;
-      case 'storage': out.storageProvider = v as 'supabase' | 'firebase' | 'cloudinary'; break;
-      case 'ui': out.ui = v as 'shadcn' | 'antd' | 'mui'; break;
-      case 'transport': out.transport = v as 'tcp' | 'redis' | 'nats'; break;
-      case 'no-git': out.initGit = false; break;
-      case 'no-install': out.install = false; break;
+      case 'auth':
+        out.authProvider = v as 'supabase' | 'firebase';
+        break;
+      case 'storage':
+        out.storageProvider = v as 'supabase' | 'firebase' | 'cloudinary';
+        break;
+      case 'ui':
+        out.ui = v as 'shadcn' | 'antd' | 'mui';
+        break;
+      case 'transport':
+        out.transport = v as 'tcp' | 'redis' | 'nats';
+        break;
+      case 'no-git':
+        out.initGit = false;
+        break;
+      case 'no-install':
+        out.install = false;
+        break;
     }
   }
   return out;
@@ -161,11 +173,11 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
 
   const projectName =
     flags.projectName ??
-    (await p.text({
+    ((await p.text({
       message: 'Project name',
       placeholder: 'my-app',
       validate: (v) => (v && /^[a-z0-9-]+$/i.test(v) ? undefined : 'Use letters, digits, hyphens'),
-    })) as string;
+    })) as string);
   if (p.isCancel(projectName)) throw new Error('cancelled');
 
   const authProvider =
@@ -217,8 +229,12 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as 'tcp' | 'redis' | 'nats');
   if (p.isCancel(transport)) throw new Error('cancelled');
 
-  const initGit = flags.initGit ?? !(await p.confirm({ message: 'Initialise git repo?', initialValue: true })) === false;
-  const install = flags.install ?? !(await p.confirm({ message: 'Run yarn install?', initialValue: true })) === false;
+  const initGit =
+    flags.initGit ??
+    !(await p.confirm({ message: 'Initialise git repo?', initialValue: true })) === false;
+  const install =
+    flags.install ??
+    !(await p.confirm({ message: 'Run yarn install?', initialValue: true })) === false;
 
   return {
     projectName,
@@ -689,7 +705,9 @@ beforeEach(async () => {
   );
   await writeFile(
     join(dir, 'apps/api/.env.example'),
-    ['AUTH_TRANSPORT=tcp', '# AUTH_REDIS_URL=redis://localhost:6379', 'UPLOAD_TRANSPORT=tcp'].join('\n'),
+    ['AUTH_TRANSPORT=tcp', '# AUTH_REDIS_URL=redis://localhost:6379', 'UPLOAD_TRANSPORT=tcp'].join(
+      '\n',
+    ),
   );
 });
 
@@ -806,13 +824,25 @@ import { scaffold } from '../scaffold';
 async function makeFakeTemplates(): Promise<string> {
   const tplDir = await mkdtemp(join(tmpdir(), 'icore-tpl-'));
   // minimal subset — root + the three apps + a stub libs dir + a stub client-shadcn
-  await writeFile(join(tplDir, 'package.json'), JSON.stringify({ name: 'icore', version: '0.1.0' }, null, 2));
+  await writeFile(
+    join(tplDir, 'package.json'),
+    JSON.stringify({ name: 'icore', version: '0.1.0' }, null, 2),
+  );
   await mkdir(join(tplDir, 'apps/api'), { recursive: true });
-  await writeFile(join(tplDir, 'apps/api/.env.example'), 'AUTH_TRANSPORT=tcp\nUPLOAD_TRANSPORT=tcp\n');
+  await writeFile(
+    join(tplDir, 'apps/api/.env.example'),
+    'AUTH_TRANSPORT=tcp\nUPLOAD_TRANSPORT=tcp\n',
+  );
   await mkdir(join(tplDir, 'apps/microservices/auth'), { recursive: true });
-  await writeFile(join(tplDir, 'apps/microservices/auth/.env.example'), 'AUTH_TRANSPORT=tcp\nAUTH_PROVIDER=supabase\n');
+  await writeFile(
+    join(tplDir, 'apps/microservices/auth/.env.example'),
+    'AUTH_TRANSPORT=tcp\nAUTH_PROVIDER=supabase\n',
+  );
   await mkdir(join(tplDir, 'apps/microservices/upload'), { recursive: true });
-  await writeFile(join(tplDir, 'apps/microservices/upload/.env.example'), 'UPLOAD_TRANSPORT=tcp\nSTORAGE_PROVIDER=supabase\n');
+  await writeFile(
+    join(tplDir, 'apps/microservices/upload/.env.example'),
+    'UPLOAD_TRANSPORT=tcp\nSTORAGE_PROVIDER=supabase\n',
+  );
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-shadcn/package.json'), '{}');
   return tplDir;
@@ -842,7 +872,9 @@ describe('scaffold (integration, dry-run)', () => {
       templatesDir,
     );
 
-    const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as { name: string };
+    const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as {
+      name: string;
+    };
     expect(pkg.name).toBe('my-app');
 
     const authEnv = await readFile(join(outputDir, 'apps/microservices/auth/.env'), 'utf8');
@@ -958,6 +990,283 @@ git commit -m "docs(create-icore): README + LICENSE"
 ```
 
 ---
+
+## Task 9: CI/CD pipelines
+
+Add three GitHub Actions workflows, modelled on `warranty/.github/workflows/` (nx affected pipeline + sync-main-to-dev) and `use-draft/.github/workflows/release.yml` (changesets-driven npm publish).
+
+### Files to create
+
+- `.github/actions/setup/action.yml` — composite action: checkout already happened upstream, this sets up yarn 4 + caches node_modules
+- `.github/workflows/pipeline.yml` — pushes/PRs against `main` + `dev`: detect affected → lint/test/format matrix → build matrix
+- `.github/workflows/release.yml` — pushes to `main`: changesets-driven `@idevconn/create-icore` publish with OIDC trusted publishing + npm provenance
+- `.github/workflows/sync-main-to-dev.yml` — pushes to `main`: open auto-PR back to `dev` so the next dev→main PR stays merge-clean
+- `.changeset/config.json` — changesets config gated to `@idevconn/create-icore` only
+- `.changeset/README.md` — pointer for contributors
+
+### Steps
+
+- [ ] **Step 1: Install changesets**
+
+```bash
+yarn add -D @changesets/cli
+yarn changeset init
+```
+
+This creates `.changeset/config.json` + `.changeset/README.md`. Edit the config so only `@idevconn/create-icore` is in the public list and everything under `@icore/*` is `ignore`d (internal workspace libs, never published):
+
+```json
+{
+  "$schema": "https://unpkg.com/@changesets/config@3/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@icore/shared",
+    "@icore/auth-supabase",
+    "@icore/auth-firebase",
+    "@icore/storage-supabase",
+    "@icore/storage-firebase",
+    "@icore/storage-cloudinary",
+    "@icore/auth-client",
+    "@icore/upload-client",
+    "@icore/template-shared"
+  ]
+}
+```
+
+- [ ] **Step 2: Composite setup action**
+
+Create `.github/actions/setup/action.yml`:
+
+```yaml
+name: Setup
+description: Set up Node + yarn 4 + cache
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    - name: Enable corepack
+      shell: bash
+      run: corepack enable
+    - name: Cache yarn
+      uses: actions/cache@v4
+      with:
+        path: |
+          .yarn/cache
+          .yarn/install-state.gz
+          node_modules
+        key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+        restore-keys: |
+          yarn-${{ runner.os }}-
+    - name: Install
+      shell: bash
+      run: yarn install --immutable
+```
+
+- [ ] **Step 3: Pipeline workflow**
+
+Create `.github/workflows/pipeline.yml`:
+
+```yaml
+name: Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  detect-affected:
+    name: Detect affected projects
+    runs-on: ubuntu-latest
+    outputs:
+      has-affected: ${{ steps.affected.outputs.has-affected }}
+      projects: ${{ steps.affected.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@v4
+      - name: Compute affected
+        id: affected
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PROJECTS=$(yarn nx show projects --json 2>/dev/null || echo '[]')
+          else
+            PROJECTS=$(yarn nx show projects --affected --json 2>/dev/null || echo '[]')
+          fi
+          {
+            echo "projects<<EOF"
+            echo "$PROJECTS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$PROJECTS" = "[]" ]; then
+            echo "has-affected=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-affected=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  check:
+    name: Check (${{ matrix.task }})
+    needs: [detect-affected]
+    if: needs.detect-affected.outputs.has-affected == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, test, 'format:check']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@v4
+      - name: Run ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "format:check" ]; then
+            yarn format:check
+          else
+            yarn nx affected -t ${{ matrix.task }} --parallel
+          fi
+
+  build:
+    name: Build
+    needs: [check, detect-affected]
+    if: |
+      always() && !cancelled() &&
+      needs.check.result != 'failure' &&
+      needs.detect-affected.outputs.has-affected == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: nrwl/nx-set-shas@v4
+      - name: Build affected
+        run: yarn nx affected -t build --parallel
+```
+
+- [ ] **Step 4: Release workflow**
+
+Create `.github/workflows/release.yml`:
+
+```yaml
+name: Release
+
+# On push to main, changesets/action opens / refreshes a "Version Packages"
+# PR. When that PR merges (no pending changesets), the action runs
+# `changeset publish` which publishes @idevconn/create-icore to npm with
+# provenance attestation via OIDC trusted publishing.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install
+        run: yarn install --immutable
+      - name: Build CLI
+        run: yarn nx build create-icore
+      - name: Clean deprecated npm config
+        run: |
+          npm config delete always-auth --location=user 2>/dev/null || true
+          npm config delete always-auth --location=project 2>/dev/null || true
+          rm -f .npmrc
+      - name: Ensure npm has OIDC trusted publishing support
+        run: npm install -g npm@latest
+      - name: Create Release PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: npx changeset publish
+          version: npx changeset version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
+```
+
+The job DOES NOT need `NPM_TOKEN` because we use OIDC trusted publishing — the npm `package.json` `publishConfig.access` must be `public` (already set in Task 1) and the npm registry must have the GitHub Actions OIDC integration enabled for `@idevconn/create-icore`. Document this in the README.
+
+- [ ] **Step 5: Sync main-to-dev workflow**
+
+Copy `warranty/.github/workflows/sync-main-to-dev.yml` verbatim to `.github/workflows/sync-main-to-dev.yml`. Update the GitHub Actions notice text to reference `@idevconn/create-icore` if any string mentions warranty.
+
+- [ ] **Step 6: Trigger sync from release**
+
+Edit `release.yml` — after the `changesets/action@v1` step, add:
+
+```yaml
+- name: Trigger sync-main-to-dev workflow
+  if: steps.changesets.outputs.published == 'true' || steps.changesets.outputs.hasChangesets == 'false'
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  run: gh workflow run sync-main-to-dev.yml --ref main
+```
+
+(Adjust the step ID on changesets/action.)
+
+This handles the `[skip ci]` problem warranty's pipeline calls out: when the release job pushes the version-bump commit, `[skip ci]` prevents normal push-triggered workflows from running, but `workflow_dispatch` from the release job bypasses that and keeps `dev` in sync.
+
+- [ ] **Step 7: Add changeset for v0.1.0**
+
+Create `.changeset/initial-release.md`:
+
+```markdown
+---
+'@idevconn/create-icore': minor
+---
+
+Initial release: bootstrap CLI that scaffolds an icore monorepo with the chosen auth provider (Supabase / Firebase), storage provider (Supabase / Firebase / Cloudinary), microservice transport (TCP / Redis / NATS), and UI library (shadcn for v0.1.0; antd + mui fall back to shadcn until 6.1 / 6.2 ship).
+```
+
+- [ ] **Step 8: Commit + push**
+
+```bash
+git add .github .changeset
+git commit -m "ci: pipeline + release + sync-main-to-dev workflows + initial changeset"
+git push origin dev
+```
+
+After this lands on `dev` and is promoted to `main`, the release workflow will open a "Version Packages" PR; merging that publishes `@idevconn/create-icore@0.1.0` to npm.
 
 ## Task 8: Final verify + docs
 
