@@ -1,6 +1,6 @@
 import * as p from '@clack/prompts';
 import { resolve } from 'node:path';
-import type { CreateIcoreOptions } from './options.js';
+import type { AuthProvider, DbProvider, UploadProvider, CreateIcoreOptions } from './options.js';
 
 export interface PromptInput {
   argv: string[];
@@ -22,10 +22,17 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
     const v = (vIn ?? '') as string;
     switch (key) {
       case 'auth':
-        out.authProvider = v as 'supabase' | 'firebase';
+        out.authProvider = v as AuthProvider;
+        break;
+      case 'db':
+        out.dbProvider = v as DbProvider;
+        break;
+      case 'upload':
+        out.upload = v as UploadProvider;
         break;
       case 'storage':
-        out.storageProvider = v as 'supabase' | 'firebase' | 'cloudinary';
+        process.stderr.write('Warning: --storage is deprecated, use --upload\n');
+        out.upload = v as UploadProvider;
         break;
       case 'ui':
         out.ui = v as 'shadcn' | 'antd' | 'mui';
@@ -66,20 +73,39 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'supabase', label: 'Supabase' },
         { value: 'firebase', label: 'Firebase' },
       ],
-    })) as 'supabase' | 'firebase');
+    })) as AuthProvider);
   if (p.isCancel(authProvider)) throw new Error('cancelled');
 
-  const storageProvider =
-    flags.storageProvider ??
+  const dbProvider =
+    flags.dbProvider ??
     ((await p.select({
-      message: 'Storage provider',
+      message: 'Database backend',
+      options: [
+        { value: 'supabase', label: 'Supabase Postgres' },
+        { value: 'firebase', label: 'Firestore' },
+      ],
+      initialValue: authProvider as DbProvider,
+    })) as DbProvider);
+  if (p.isCancel(dbProvider)) throw new Error('cancelled');
+
+  if (dbProvider !== authProvider) {
+    p.log.info(
+      'Note: in v0.1.0 the DB choice mirrors auth; independent db swap arrives in Plan 8.',
+    );
+  }
+
+  const upload =
+    flags.upload ??
+    ((await p.select({
+      message: 'File upload provider',
       options: [
         { value: 'supabase', label: 'Supabase Storage' },
         { value: 'firebase', label: 'Firebase Cloud Storage' },
         { value: 'cloudinary', label: 'Cloudinary' },
+        { value: 'none', label: 'None — skip the upload microservice' },
       ],
-    })) as 'supabase' | 'firebase' | 'cloudinary');
-  if (p.isCancel(storageProvider)) throw new Error('cancelled');
+    })) as UploadProvider);
+  if (p.isCancel(upload)) throw new Error('cancelled');
 
   const ui =
     flags.ui ??
@@ -124,7 +150,8 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     projectName,
     targetDir: resolve(cwd, projectName),
     authProvider,
-    storageProvider,
+    dbProvider,
+    upload,
     ui: ui === 'shadcn' ? 'shadcn' : 'shadcn', // antd/mui fall back to shadcn for v0.1.0
     transport,
     initGit,

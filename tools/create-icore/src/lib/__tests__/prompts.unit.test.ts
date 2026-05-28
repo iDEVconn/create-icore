@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 // Re-import the parser via a back-door — tests should exercise the public
 // surface where possible. For Plan 7 v0.1.0 we only need to confirm CLI
@@ -16,8 +16,28 @@ describe('parseFlags', () => {
     expect(parseFlags(['my-app', '--auth=firebase']).authProvider).toBe('firebase');
   });
 
-  it('reads space-separated flag value', () => {
-    expect(parseFlags(['my-app', '--storage', 'cloudinary']).storageProvider).toBe('cloudinary');
+  it('reads --db=firebase', () => {
+    expect(parseFlags(['my-app', '--db=firebase']).dbProvider).toBe('firebase');
+  });
+
+  it('reads --upload=none', () => {
+    expect(parseFlags(['my-app', '--upload=none']).upload).toBe('none');
+  });
+
+  it('reads --upload=cloudinary', () => {
+    expect(parseFlags(['my-app', '--upload=cloudinary']).upload).toBe('cloudinary');
+  });
+
+  it('--storage is a deprecated alias that maps to upload', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const result = parseFlags(['my-app', '--storage=firebase']);
+    expect(result.upload).toBe('firebase');
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('--storage is deprecated'));
+    stderrSpy.mockRestore();
+  });
+
+  it('reads space-separated --upload flag value', () => {
+    expect(parseFlags(['my-app', '--upload', 'cloudinary']).upload).toBe('cloudinary');
   });
 
   it('honours --no-git', () => {

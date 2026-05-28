@@ -58,10 +58,11 @@ export async function writeAuthEnv(targetDir: string, opts: CreateIcoreOptions):
 }
 
 export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  if (opts.upload === 'none') return;
   const envExample = join(targetDir, 'apps/microservices/upload/.env.example');
   const env = await readFile(envExample, 'utf8');
   let next = env
-    .replace(/^STORAGE_PROVIDER=.*$/m, `STORAGE_PROVIDER=${opts.storageProvider}`)
+    .replace(/^STORAGE_PROVIDER=.*$/m, `STORAGE_PROVIDER=${opts.upload}`)
     .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
   if (opts.transport !== 'tcp') {
     next = next.replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
@@ -81,6 +82,47 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
       .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
   }
   await writeFile(join(targetDir, 'apps/api/.env'), next);
+}
+
+export async function removeUploadStack(targetDir: string): Promise<void> {
+  const paths = [
+    'apps/microservices/upload',
+    'apps/microservices/upload-e2e',
+    'libs/storage-strategies',
+    'libs/upload-client',
+    'apps/api/src/app/storage',
+  ];
+  for (const p of paths) {
+    await rm(join(targetDir, p), { recursive: true, force: true });
+  }
+  // Also strip the StorageModule import + Storage routes from apps/api/src/app/app.module.ts
+  const appModulePath = join(targetDir, 'apps/api/src/app/app.module.ts');
+  try {
+    const appModule = await readFile(appModulePath, 'utf8');
+    const next = appModule
+      .replace(/^import \{ StorageModule \} from '\.\/storage\/storage\.module';\n/m, '')
+      .replace(/,\s*StorageModule/g, '');
+    await writeFile(appModulePath, next);
+  } catch {
+    // Ignore — app.module.ts may not exist in test scaffolds.
+  }
+  // Strip UPLOAD_* keys from the gateway .env (already present-style edit is fine; consumers rebuild)
+  const gatewayEnv = join(targetDir, 'apps/api/.env');
+  try {
+    const env = await readFile(gatewayEnv, 'utf8');
+    const next = env
+      .split('\n')
+      .filter(
+        (line) =>
+          !line.startsWith('UPLOAD_') &&
+          !line.startsWith('# UPLOAD_') &&
+          !line.startsWith('MAX_FILE_SIZE_KB'),
+      )
+      .join('\n');
+    await writeFile(gatewayEnv, next);
+  } catch {
+    // Ignore — .env may not exist in test scaffolds.
+  }
 }
 
 export async function selectClientTemplate(
@@ -126,6 +168,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await writeUploadEnv(opts.targetDir, opts);
   await writeGatewayEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
+  if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.install) yarnInstall(opts.targetDir);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }
