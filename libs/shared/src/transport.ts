@@ -6,6 +6,15 @@ function required(name: string): string {
   return value;
 }
 
+function requiredPort(name: string): number {
+  const raw = required(name);
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error(`Invalid ${name}: expected integer 1-65535, got ${raw}`);
+  }
+  return port;
+}
+
 export function buildTransport(prefix: string): ClientOptions {
   const kind = (process.env[`${prefix}_TRANSPORT`] ?? 'tcp').toLowerCase();
   switch (kind) {
@@ -14,7 +23,7 @@ export function buildTransport(prefix: string): ClientOptions {
         transport: Transport.TCP,
         options: {
           host: required(`${prefix}_HOST`),
-          port: Number(required(`${prefix}_PORT`)),
+          port: requiredPort(`${prefix}_PORT`),
         },
       };
     case 'redis':

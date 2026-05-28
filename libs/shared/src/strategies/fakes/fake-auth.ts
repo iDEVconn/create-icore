@@ -29,6 +29,7 @@ export class FakeAuthStrategy implements AuthStrategy {
   async refresh(refreshToken: string): Promise<AuthSession> {
     const uid = this.refreshToUid.get(refreshToken);
     if (!uid) throw new Error('invalid_refresh_token');
+    this.refreshToUid.delete(refreshToken);
     const user = this.findById(uid);
     return this.issueSession(user);
   }

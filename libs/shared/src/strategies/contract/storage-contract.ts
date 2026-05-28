@@ -49,5 +49,10 @@ export function runStorageContract(name: string, factory: () => StorageStrategy)
       const ref = await strategy.upload('owner', fixture());
       await expect(strategy.getSignedUrl('attacker', ref)).rejects.toThrow();
     });
+
+    it('remove by a foreign user throws', async () => {
+      const ref = await strategy.upload('owner', fixture());
+      await expect(strategy.remove('attacker', ref)).rejects.toThrow();
+    });
   });
 }

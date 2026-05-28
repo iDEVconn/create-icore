@@ -17,4 +17,4 @@ coverage
 .env.local
 .DS_Store
 
-vitest.config.*.timestamp*
+vitest.config.*.timestamp*.idea/

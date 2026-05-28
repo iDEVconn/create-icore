@@ -38,6 +38,12 @@ export function runAuthContract(name: string, factory: () => AuthStrategy): void
       expect(next.user.id).toBe(first.user.id);
     });
 
+    it('used refresh token is rejected after rotation', async () => {
+      const first = await strategy.signUp('f@x.com', 'pw12345!');
+      await strategy.refresh(first.refreshToken);
+      await expect(strategy.refresh(first.refreshToken)).rejects.toThrow();
+    });
+
     it('setRole writes a role visible on verifyToken', async () => {
       const session = await strategy.signUp('e@x.com', 'pw12345!');
       await strategy.setRole(session.user.id, 'admin');
