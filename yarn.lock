@@ -1704,6 +1704,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@icore/auth-client@workspace:libs/auth-client":
+  version: 0.0.0-use.local
+  resolution: "@icore/auth-client@workspace:libs/auth-client"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@icore/auth-supabase@workspace:libs/auth-strategies/supabase":
   version: 0.0.0-use.local
   resolution: "@icore/auth-supabase@workspace:libs/auth-strategies/supabase"
