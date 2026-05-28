@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "module": "commonjs",
+    "types": ["node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2021",
+    "moduleResolution": "node",
+    "paths": {
+      "@casl/ability": ["node_modules/@casl/ability/dist/types/index.d.ts"],
+      "@icore/shared": ["libs/shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}
