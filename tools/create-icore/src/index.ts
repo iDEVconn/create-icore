@@ -1,1 +1,3 @@
-// exports wired in Task 4 (tsup build)
+export * from './lib/options.js';
+export { scaffold } from './lib/scaffold.js';
+export { collectOptions } from './lib/prompts.js';

@@ -37,9 +37,9 @@ export async function rewriteRootPackageJson(
   const pkgPath = join(targetDir, 'package.json');
   const raw = await readFile(pkgPath, 'utf8');
   const pkg = JSON.parse(raw) as Record<string, unknown>;
-  pkg.name = opts.projectName;
-  pkg.version = '0.0.1';
-  pkg.private = true;
+  pkg['name'] = opts.projectName;
+  pkg['version'] = '0.0.1';
+  pkg['private'] = true;
   delete (pkg as { description?: string }).description;
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }

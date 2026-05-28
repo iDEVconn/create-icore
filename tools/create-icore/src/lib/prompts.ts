@@ -11,13 +11,15 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
   const out: Partial<CreateIcoreOptions> & { projectName?: string } = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (!a.startsWith('--')) {
-      if (!out.projectName) out.projectName = a;
+    if (!a || !a.startsWith('--')) {
+      if (a && !out.projectName) out.projectName = a;
       continue;
     }
-    const [k, vIn] = a.includes('=') ? a.split('=', 2) : [a, argv[++i]];
+    const parts = a.includes('=') ? a.split('=', 2) : [a, argv[++i]];
+    const k = parts[0] ?? '';
+    const vIn = parts[1];
     const key = k.slice(2);
-    const v = vIn as string;
+    const v = (vIn ?? '') as string;
     switch (key) {
       case 'auth':
         out.authProvider = v as 'supabase' | 'firebase';
@@ -84,11 +86,17 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     ((await p.select({
       message: 'UI library',
       options: [
-        { value: 'shadcn', label: 'shadcn/ui + Tailwind' },
-        { value: 'antd', label: 'Ant Design (coming soon — falls back to shadcn)' },
-        { value: 'mui', label: 'MUI (coming soon — falls back to shadcn)' },
+        { value: 'shadcn' as 'shadcn' | 'antd' | 'mui', label: 'shadcn/ui + Tailwind' },
+        {
+          value: 'antd' as 'shadcn' | 'antd' | 'mui',
+          label: 'Ant Design (coming soon — falls back to shadcn)',
+        },
+        {
+          value: 'mui' as 'shadcn' | 'antd' | 'mui',
+          label: 'MUI (coming soon — falls back to shadcn)',
+        },
       ],
-      initialValue: 'shadcn',
+      initialValue: 'shadcn' as 'shadcn' | 'antd' | 'mui',
     })) as 'shadcn' | 'antd' | 'mui');
   if (p.isCancel(ui)) throw new Error('cancelled');
 
@@ -97,11 +105,11 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     ((await p.select({
       message: 'Microservice transport',
       options: [
-        { value: 'tcp', label: 'TCP (default, no broker required)' },
-        { value: 'redis', label: 'Redis' },
-        { value: 'nats', label: 'NATS' },
+        { value: 'tcp' as 'tcp' | 'redis' | 'nats', label: 'TCP (default, no broker required)' },
+        { value: 'redis' as 'tcp' | 'redis' | 'nats', label: 'Redis' },
+        { value: 'nats' as 'tcp' | 'redis' | 'nats', label: 'NATS' },
       ],
-      initialValue: 'tcp',
+      initialValue: 'tcp' as 'tcp' | 'redis' | 'nats',
     })) as 'tcp' | 'redis' | 'nats');
   if (p.isCancel(transport)) throw new Error('cancelled');
 
