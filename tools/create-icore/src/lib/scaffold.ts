@@ -1,0 +1,131 @@
+import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import type { CreateIcoreOptions } from './options.js';
+
+const IGNORE_TOP = new Set([
+  '.git',
+  'node_modules',
+  '.yarn/cache',
+  '.yarn/unplugged',
+  '.yarn/install-state.gz',
+  '.nx',
+  'dist',
+  'tmp',
+  'coverage',
+  '.idea',
+  '.vscode',
+]);
+
+export async function copyTree(src: string, dest: string): Promise<void> {
+  await mkdir(dest, { recursive: true });
+  const entries = await readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    if (IGNORE_TOP.has(entry.name)) continue;
+    const s = join(src, entry.name);
+    const d = join(dest, entry.name);
+    if (entry.isDirectory()) await copyTree(s, d);
+    else if (entry.isFile()) await copyFile(s, d);
+    // symlinks skipped intentionally
+  }
+}
+
+export async function rewriteRootPackageJson(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  const pkgPath = join(targetDir, 'package.json');
+  const raw = await readFile(pkgPath, 'utf8');
+  const pkg = JSON.parse(raw) as Record<string, unknown>;
+  pkg.name = opts.projectName;
+  pkg.version = '0.0.1';
+  pkg.private = true;
+  delete (pkg as { description?: string }).description;
+  await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+}
+
+export async function writeAuthEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  const envExample = join(targetDir, 'apps/microservices/auth/.env.example');
+  const env = await readFile(envExample, 'utf8');
+  let next = env
+    .replace(/^AUTH_PROVIDER=.*$/m, `AUTH_PROVIDER=${opts.authProvider}`)
+    .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`);
+  if (opts.transport !== 'tcp') {
+    // Uncomment the matching transport URL line
+    next = next.replace(/^# (AUTH_(?:REDIS|NATS)_URL=)/m, '$1');
+  }
+  await writeFile(join(targetDir, 'apps/microservices/auth/.env'), next);
+}
+
+export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  const envExample = join(targetDir, 'apps/microservices/upload/.env.example');
+  const env = await readFile(envExample, 'utf8');
+  let next = env
+    .replace(/^STORAGE_PROVIDER=.*$/m, `STORAGE_PROVIDER=${opts.storageProvider}`)
+    .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
+  if (opts.transport !== 'tcp') {
+    next = next.replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
+  }
+  await writeFile(join(targetDir, 'apps/microservices/upload/.env'), next);
+}
+
+export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  const envExample = join(targetDir, 'apps/api/.env.example');
+  const env = await readFile(envExample, 'utf8');
+  let next = env
+    .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`)
+    .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
+  if (opts.transport !== 'tcp') {
+    next = next
+      .replace(/^# (AUTH_(?:REDIS|NATS)_URL=)/m, '$1')
+      .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
+  }
+  await writeFile(join(targetDir, 'apps/api/.env'), next);
+}
+
+export async function selectClientTemplate(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  // v0.1.0 ships only shadcn. Drop the templates dir altogether and move the
+  // chosen template into apps/client.
+  const templatesRoot = join(targetDir, 'apps/templates');
+  const chosen = join(templatesRoot, `client-${opts.ui}`);
+  const destClient = join(targetDir, 'apps/client');
+  try {
+    const s = await stat(chosen);
+    if (!s.isDirectory()) throw new Error('not a dir');
+  } catch {
+    // antd / mui not yet implemented — fall back to shadcn
+    await copyTree(join(templatesRoot, 'client-shadcn'), destClient);
+    await rm(templatesRoot, { recursive: true, force: true });
+    return;
+  }
+  await copyTree(chosen, destClient);
+  await rm(templatesRoot, { recursive: true, force: true });
+}
+
+function gitInit(cwd: string, projectName: string): void {
+  spawnSync('git', ['init'], { cwd, stdio: 'inherit' });
+  spawnSync('git', ['add', '.'], { cwd, stdio: 'inherit' });
+  spawnSync(
+    'git',
+    ['commit', '-m', `chore: bootstrap ${projectName} from @idevconn/create-icore`],
+    { cwd, stdio: 'inherit' },
+  );
+}
+
+function yarnInstall(cwd: string): void {
+  spawnSync('yarn', ['install'], { cwd, stdio: 'inherit' });
+}
+
+export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): Promise<void> {
+  await copyTree(templatesDir, opts.targetDir);
+  await rewriteRootPackageJson(opts.targetDir, opts);
+  await writeAuthEnv(opts.targetDir, opts);
+  await writeUploadEnv(opts.targetDir, opts);
+  await writeGatewayEnv(opts.targetDir, opts);
+  await selectClientTemplate(opts.targetDir, opts);
+  if (opts.install) yarnInstall(opts.targetDir);
+  if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
+}
