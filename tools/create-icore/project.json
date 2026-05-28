@@ -1,0 +1,19 @@
+{
+  "name": "create-icore",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/create-icore/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/tools/create-icore",
+        "main": "tools/create-icore/src/index.ts",
+        "tsConfig": "tools/create-icore/tsconfig.lib.json",
+        "assets": ["tools/create-icore/*.md"]
+      }
+    }
+  }
+}
