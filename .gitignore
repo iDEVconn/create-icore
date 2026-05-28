@@ -11,6 +11,7 @@ tmp
 .nx/cache
 .nx/workspace-data
 coverage
+.eslintcache
 *.log
 .env
 .env.local

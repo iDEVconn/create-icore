@@ -47,10 +47,10 @@ check_command "yarn lint-staged --concurrent false --relative" \
   "lint-staged failed. Fix the issues before committing."
 
 if [ -d libs ] || [ -d apps ]; then
-  check_command "yarn nx affected -t lint --base=HEAD" \
+  check_command "yarn nx affected -t lint" \
     "nx affected lint passed." \
     "nx affected lint failed."
-  check_command "yarn nx affected -t test --base=HEAD" \
+  check_command "yarn nx affected -t test" \
     "nx affected tests passed." \
     "nx affected tests failed."
 fi
