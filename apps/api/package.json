@@ -2,9 +2,13 @@
   "name": "api",
   "version": "0.0.1",
   "private": true,
+  "devDependencies": {
+    "@types/multer": "*"
+  },
   "dependencies": {
     "@icore/auth-client": "*",
     "@icore/shared": "*",
+    "@icore/upload-client": "*",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.24",

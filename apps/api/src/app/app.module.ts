@@ -4,6 +4,7 @@ import { ThrottlerModule, seconds } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { AbilitiesModule } from './abilities/abilities.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AbilitiesModule } from './abilities/abilities.module';
     AuthModule,
     AbilitiesModule,
     ProfileModule,
+    StorageModule,
   ],
 })
 export class AppModule {}

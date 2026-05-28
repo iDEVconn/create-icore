@@ -36,6 +36,7 @@
     "@swc-node/register": "~1.11.1",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^10.0.0",
