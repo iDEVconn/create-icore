@@ -1,7 +1,0 @@
-node_modules
-.yarn
-.pnp.*
-dist
-.nx
-coverage
-yarn.lock
