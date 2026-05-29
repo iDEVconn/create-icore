@@ -41,6 +41,10 @@ export async function rewriteRootPackageJson(
   pkg['version'] = '0.0.1';
   pkg['private'] = true;
   delete (pkg as { description?: string }).description;
+  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
+  if (opts.packageManager !== 'yarn') {
+    delete (pkg as { packageManager?: string }).packageManager;
+  }
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
@@ -573,8 +577,10 @@ function gitInit(cwd: string, projectName: string): void {
   );
 }
 
-function yarnInstall(cwd: string): void {
-  spawnSync('yarn', ['install'], { cwd, stdio: 'inherit' });
+function runInstall(cwd: string, pm: string): void {
+  const [cmd, ...args] =
+    pm === 'npm' ? ['npm', 'install'] : pm === 'pnpm' ? ['pnpm', 'install'] : ['yarn', 'install'];
+  spawnSync(cmd, args, { cwd, stdio: 'inherit' });
 }
 
 export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): Promise<void> {
@@ -598,7 +604,12 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   // (e.g. in the user's $HOME), causing
   //   "The nearest package directory doesn't seem to be part of the project"
   // on first `yarn install`.
-  await writeFile(join(opts.targetDir, 'yarn.lock'), '');
-  if (opts.install) yarnInstall(opts.targetDir);
+  // Empty yarn.lock anchors yarn 4 to this directory (prevents walking up to parent workspaces).
+  // Only needed when using yarn; for npm/pnpm it's harmless but we skip it to keep the
+  // generated project tidy.
+  if (opts.packageManager === 'yarn') {
+    await writeFile(join(opts.targetDir, 'yarn.lock'), '');
+  }
+  if (opts.install) runInstall(opts.targetDir, opts.packageManager);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }

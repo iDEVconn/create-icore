@@ -6,6 +6,7 @@ export type JobsProvider = 'bullmq' | 'none';
 export type ExampleMode = 'notes' | 'none';
 export type UiLibrary = 'shadcn' | 'antd' | 'mui';
 export type MsTransport = 'tcp' | 'redis' | 'nats';
+export type PackageManager = 'yarn' | 'npm' | 'pnpm';
 
 export interface CreateIcoreOptions {
   projectName: string;
@@ -18,6 +19,7 @@ export interface CreateIcoreOptions {
   example: ExampleMode;
   ui: UiLibrary;
   transport: MsTransport;
+  packageManager: PackageManager;
   initGit: boolean;
   install: boolean;
 }

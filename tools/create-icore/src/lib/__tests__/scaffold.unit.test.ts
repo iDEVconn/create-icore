@@ -23,8 +23,10 @@ const baseOpts: CreateIcoreOptions = {
   upload: 'cloudinary',
   payment: 'none',
   jobs: 'none',
+  example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
+  packageManager: 'yarn',
   initGit: false,
   install: false,
 };
