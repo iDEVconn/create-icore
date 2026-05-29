@@ -18,6 +18,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env       | ✅ done |
 | 6.3  | Unified light/dark theme switching             | ✅ done |
 | 6.4  | Magic-link email sign-in (passwordless)        | ✅ done |
+| 6.5  | OAuth (Google + GitHub) server-mediated        | ✅ done |
 
 ## Layout
 
@@ -173,6 +174,15 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - **Gateway** — `POST /api/auth/magic-link` and `POST /api/auth/magic-link/verify`, both `@Public()` and inside the existing `auth-burst` Throttle. `requestMagicLink` builds `${CLIENT_ORIGIN ?? 'http://localhost:4200'}/auth/callback` as the redirect target so the link lands on the client's callback page.
 - **All three templates** — `/login` now has a Password / Magic-link mode switch (shadcn `Button` toggle, antd `Segmented`, MUI `Tabs`). After Send → confirmation panel with "Use a different email" reset. New `/auth/callback` route reads `?token=…` / `?token_hash=…` (Supabase) or `?oobCode=…&email=…` (Firebase), composes the opaque token, and POSTs to `/auth/magic-link/verify` → `setAuth` → redirect to `/_dashboard/dashboard`. All copy goes through new i18n keys: `auth.withPassword`, `auth.withMagicLink`, `auth.sendMagicLink`, `auth.magicLinkSent`, `auth.magicLinkSentDescription`, `auth.magicLinkUseDifferentEmail`, `auth.callbackVerifying`, `auth.callbackFailed`, `auth.callbackMissingToken`.
 - **Vendor chunking** — each template's `vite.config.mts` now defines a `build.rolldownOptions.output.manualChunks` that splits `node_modules` into library-specific vendor bundles (`vendor-react`, `vendor-tanstack`, `vendor-i18n`, `vendor-casl`, `vendor-state`, `vendor-idevconn` + library: `vendor-ui`/`vendor-antd`/`vendor-mui`+`vendor-emotion`). Pattern mirrors the warranty project's vite config but without route-area splits since templates ship minimal route surfaces.
+
+## Plan 6.5 deliverables (complete)
+
+- `AuthStrategy` gains `startOAuth(provider, callbackUrl)` and `completeOAuth(provider, code, state)`. `runAuthContract` accepts an optional `helpers.getOAuthCode(strategy, provider, email)` — when omitted, the OAuth contract cases skip.
+- `FakeAuthStrategy` ships an in-memory OAuth state map + `getLastOAuthChallenge(provider, email)` accessor used by its own contract test.
+- **Supabase** — `signInWithOAuth({ provider, options: { skipBrowserRedirect: true } })` returns the provider URL; `exchangeCodeForSession(code)` completes the flow. Mock adds matching `signInWithOAuth` + `exchangeCodeForSession` + a `{code → email}` registry exposed via `getOAuthChallenge`.
+- **Firebase** — builds Google/GitHub authorize URLs directly (env-driven `clientId`); exchange via a new `OAuthTokenClient` (`HttpOAuthTokenClient` for prod, mock for tests) then mints a Firebase session via Identity Toolkit `signInWithIdp`. New strategy options `oauth` (per-provider client id + secret) and `oauthTokenClient`.
+- **Gateway** — `GET /api/auth/oauth/:provider` writes an `HttpOnly + SameSite=Lax` `oauth_state` cookie + redirects to the provider. `GET /api/auth/oauth/:provider/callback` verifies the cookie state vs. the query `state`, calls `auth.oauth.complete`, then redirects to `${CLIENT_ORIGIN}/auth/oauth/callback#accessToken=…&refreshToken=…&userId=…&email=…`. Cookie-parser added to the gateway main bootstrap.
+- **All three templates** — `/login` now sports "Continue with Google" + "Continue with GitHub" buttons (shadcn outline + lucide, antd `Button` + `@ant-design/icons` Google/Github, MUI outlined `Button` + `@mui/icons-material` Google/GitHub). New `/auth/oauth/callback` route parses the URL fragment, calls `setAuth`, redirects to the dashboard. i18n keys added: `auth.continueWithGoogle`, `auth.continueWithGithub`, `auth.oauthFailed`, `auth.oauthCallbackMissingTokens`.
 
 ## Cross-links
 
