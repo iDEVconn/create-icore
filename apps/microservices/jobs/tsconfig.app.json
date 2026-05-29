@@ -3,11 +3,12 @@
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc",
     "module": "node16",
-    "types": ["node"],
+    "types": ["node", "vitest/globals"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2021",
     "moduleResolution": "node16"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/__tests__/**", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

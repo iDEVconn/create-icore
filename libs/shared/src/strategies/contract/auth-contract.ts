@@ -1,4 +1,3 @@
-import { describe, expect, it, beforeEach } from 'vitest';
 import type { AuthStrategy, OAuthProvider } from '../auth';
 
 export interface AuthContractHelpers {
