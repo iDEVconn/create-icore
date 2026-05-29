@@ -33,6 +33,7 @@ const PATHS_TO_COPY = [
   'docker-compose.yml',
   '.env.docker.example',
   '.dockerignore',
+  'tools/remove-notes.mjs',
 ];
 
 const SHELL_OVERRIDES = ['package.json'];
