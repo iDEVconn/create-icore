@@ -23,6 +23,7 @@ High-level view of how iCore is assembled. Detailed design lives in `docs/superp
 | 10   | Notes sample MS + gateway CRUD + templates UI  | ✅ done |
 | 11   | docker-compose local dev stack + Dockerfiles   | ✅ done |
 | 12   | BullMQ jobs MS + bull-board admin UI           | ✅ done |
+| 13   | `--example=none` flag + `yarn remove-notes` post-generate script | ✅ done |
 
 ## Layout
 
