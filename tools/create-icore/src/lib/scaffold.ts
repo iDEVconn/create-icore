@@ -41,6 +41,10 @@ export async function rewriteRootPackageJson(
   pkg['version'] = '0.0.1';
   pkg['private'] = true;
   delete (pkg as { description?: string }).description;
+  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
+  if (opts.packageManager !== 'yarn') {
+    delete (pkg as { packageManager?: string }).packageManager;
+  }
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
@@ -276,6 +280,198 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
   }
 }
 
+async function stripTsconfigPath(targetDir: string, alias: string): Promise<void> {
+  const tsconfigPath = join(targetDir, 'tsconfig.base.json');
+  try {
+    const src = await readFile(tsconfigPath, 'utf8');
+    // Try pretty-printed regex first (preserves formatting for real tsconfig files)
+    const escaped = alias.replace(/[@/]/g, (c) => (c === '@' ? '@' : '\\/'));
+    const pretty = src.replace(new RegExp(`^\\s*"${escaped}": \\[[^\\]]*\\],?\\n`, 'm'), '');
+    if (pretty !== src) {
+      await writeFile(tsconfigPath, pretty);
+      return;
+    }
+    // Fall back to JSON parse+rewrite for compact JSON (test scaffolds)
+    const parsed = JSON.parse(src) as {
+      compilerOptions?: { paths?: Record<string, unknown> };
+    };
+    if (parsed.compilerOptions?.paths) {
+      delete parsed.compilerOptions.paths[alias];
+    }
+    await writeFile(tsconfigPath, JSON.stringify(parsed));
+  } catch {
+    // ignore — tsconfig may not exist in test scaffolds
+  }
+}
+
+export async function removeUnusedAuthStrategies(
+  targetDir: string,
+  authProvider: string,
+): Promise<void> {
+  const modulePath = join(targetDir, 'apps/microservices/auth/src/app/app.module.ts');
+
+  if (authProvider === 'supabase') {
+    await rm(join(targetDir, 'libs/auth-strategies/firebase'), { recursive: true, force: true });
+    await stripDeps(join(targetDir, 'apps/microservices/auth/package.json'), [
+      '@icore/auth-firebase',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/auth-firebase');
+    try {
+      const src = await readFile(modulePath, 'utf8');
+      const next = src
+        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*FirebaseAuthStrategy[^}]*\} from '@icore\/auth-firebase';\n/m, '')
+        .replace(/^function makeFirebaseStrategy\b[\s\S]*?\n^}\n/m, '')
+        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStrategy\(cfg\);\n/, '');
+      await writeFile(modulePath, next);
+    } catch {
+      // ignore
+    }
+  }
+
+  if (authProvider === 'firebase') {
+    await rm(join(targetDir, 'libs/auth-strategies/supabase'), { recursive: true, force: true });
+    await stripDeps(join(targetDir, 'apps/microservices/auth/package.json'), [
+      '@icore/auth-supabase',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/auth-supabase');
+    try {
+      const src = await readFile(modulePath, 'utf8');
+      const next = src
+        .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
+        .replace(/^import \{[^}]*SupabaseAuthStrategy[^}]*\} from '@icore\/auth-supabase';\n/m, '')
+        .replace(
+          /\n {10}case 'supabase': \{[\s\S]*?return new SupabaseAuthStrategy\(\{ client \}\);\n {10}\}\n/m,
+          '',
+        );
+      await writeFile(modulePath, next);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export async function removeUnusedStorageStrategies(
+  targetDir: string,
+  uploadProvider: string,
+): Promise<void> {
+  if (uploadProvider === 'none') return;
+  const modulePath = join(targetDir, 'apps/microservices/upload/src/app/app.module.ts');
+
+  if (uploadProvider !== 'firebase') {
+    await rm(join(targetDir, 'libs/storage-strategies/firebase'), { recursive: true, force: true });
+    await stripDeps(join(targetDir, 'apps/microservices/upload/package.json'), [
+      '@icore/storage-firebase',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/storage-firebase');
+  }
+  if (uploadProvider !== 'cloudinary') {
+    await rm(join(targetDir, 'libs/storage-strategies/cloudinary'), {
+      recursive: true,
+      force: true,
+    });
+    await stripDeps(join(targetDir, 'apps/microservices/upload/package.json'), [
+      '@icore/storage-cloudinary',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/storage-cloudinary');
+  }
+  if (uploadProvider !== 'supabase') {
+    await rm(join(targetDir, 'libs/storage-strategies/supabase'), { recursive: true, force: true });
+    await stripDeps(join(targetDir, 'apps/microservices/upload/package.json'), [
+      '@icore/storage-supabase',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/storage-supabase');
+  }
+
+  try {
+    let src = await readFile(modulePath, 'utf8');
+    if (uploadProvider !== 'firebase') {
+      src = src
+        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(
+          /^import \{[^}]*FirebaseStorageStrategy[^}]*\} from '@icore\/storage-firebase';\n/m,
+          '',
+        )
+        .replace(/^function makeFirebaseStorage\b[\s\S]*?\n^}\n/m, '')
+        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStorage\(cfg\);\n/, '');
+    }
+    if (uploadProvider !== 'cloudinary') {
+      src = src
+        .replace(/^import \{ v2 as cloudinary \} from 'cloudinary';\n/m, '')
+        .replace(
+          /^import \{[^}]*CloudinaryStorageStrategy[^}]*\} from '@icore\/storage-cloudinary';\n/m,
+          '',
+        )
+        .replace(/^function makeCloudinaryStorage\b[\s\S]*?\n^}\n/m, '')
+        .replace(/(?<=\n) *case 'cloudinary':\n *return makeCloudinaryStorage\(cfg\);\n/, '');
+    }
+    if (uploadProvider !== 'supabase') {
+      src = src
+        .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
+        .replace(
+          /^import \{[^}]*SupabaseStorageStrategy[^}]*\} from '@icore\/storage-supabase';\n/m,
+          '',
+        )
+        .replace(
+          /\n {10}case 'supabase': \{[\s\S]*?bucket: requireEnv\(cfg, 'SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
+          '',
+        );
+    }
+    await writeFile(modulePath, src);
+  } catch {
+    // ignore
+  }
+}
+
+export async function removeUnusedDbStrategies(
+  targetDir: string,
+  dbProvider: string,
+): Promise<void> {
+  const modulePath = join(targetDir, 'apps/microservices/notes/src/app/app.module.ts');
+
+  if (dbProvider === 'supabase') {
+    await rm(join(targetDir, 'libs/db-strategies/firestore'), { recursive: true, force: true });
+    await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
+      '@icore/db-firestore',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/db-firestore');
+    try {
+      const src = await readFile(modulePath, 'utf8');
+      const next = src
+        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*FirestoreDBStrategy[^}]*\} from '@icore\/db-firestore';\n/m, '')
+        .replace(
+          /\n {8}if \(provider === 'firestore'[\s\S]*?return new FirestoreDBStrategy\(\{[\s\S]*?\}\);\n {8}\}\n/m,
+          '',
+        );
+      await writeFile(modulePath, next);
+    } catch {
+      // ignore
+    }
+  }
+
+  if (dbProvider === 'firebase') {
+    await rm(join(targetDir, 'libs/db-strategies/supabase'), { recursive: true, force: true });
+    await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
+      '@icore/db-supabase',
+    ]);
+    await stripTsconfigPath(targetDir, '@icore/db-supabase');
+    try {
+      const src = await readFile(modulePath, 'utf8');
+      const next = src
+        .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
+        .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/m, '')
+        .replace(
+          /\n {8}if \(provider === 'supabase'\) \{[\s\S]*?return new SupabaseDBStrategy\(\{ client \}\);\n {8}\}\n/m,
+          '',
+        );
+      await writeFile(modulePath, next);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export async function removeUploadStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/upload',
@@ -381,8 +577,10 @@ function gitInit(cwd: string, projectName: string): void {
   );
 }
 
-function yarnInstall(cwd: string): void {
-  spawnSync('yarn', ['install'], { cwd, stdio: 'inherit' });
+function runInstall(cwd: string, pm: string): void {
+  const [cmd, ...args] =
+    pm === 'npm' ? ['npm', 'install'] : pm === 'pnpm' ? ['pnpm', 'install'] : ['yarn', 'install'];
+  spawnSync(cmd, args, { cwd, stdio: 'inherit' });
 }
 
 export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): Promise<void> {
@@ -398,12 +596,20 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
   if (opts.example === 'none') await removeNotesStack(opts.targetDir);
+  await removeUnusedAuthStrategies(opts.targetDir, opts.authProvider);
+  await removeUnusedStorageStrategies(opts.targetDir, opts.upload);
+  await removeUnusedDbStrategies(opts.targetDir, opts.dbProvider);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
   // through parent directories and may pick up a stray package.json/yarn.lock
   // (e.g. in the user's $HOME), causing
   //   "The nearest package directory doesn't seem to be part of the project"
   // on first `yarn install`.
-  await writeFile(join(opts.targetDir, 'yarn.lock'), '');
-  if (opts.install) yarnInstall(opts.targetDir);
+  // Empty yarn.lock anchors yarn 4 to this directory (prevents walking up to parent workspaces).
+  // Only needed when using yarn; for npm/pnpm it's harmless but we skip it to keep the
+  // generated project tidy.
+  if (opts.packageManager === 'yarn') {
+    await writeFile(join(opts.targetDir, 'yarn.lock'), '');
+  }
+  if (opts.install) runInstall(opts.targetDir, opts.packageManager);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }

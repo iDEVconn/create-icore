@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type {
   AuthSession,
   AuthStrategy,
@@ -33,7 +32,7 @@ export class FakeAuthStrategy implements AuthStrategy {
 
   async signUp(email: string, password: string): Promise<AuthSession> {
     if (this.users.has(email)) throw new Error('user_exists');
-    const user: StoredUser = { id: randomUUID(), email, password };
+    const user: StoredUser = { id: globalThis.crypto.randomUUID(), email, password };
     this.users.set(email, user);
     return this.issueSession(user);
   }
@@ -72,10 +71,10 @@ export class FakeAuthStrategy implements AuthStrategy {
   async sendMagicLink(req: MagicLinkRequest): Promise<void> {
     let user = this.users.get(req.email);
     if (!user) {
-      user = { id: randomUUID(), email: req.email, password: '' };
+      user = { id: globalThis.crypto.randomUUID(), email: req.email, password: '' };
       this.users.set(req.email, user);
     }
-    const token = randomUUID();
+    const token = globalThis.crypto.randomUUID();
     this.magicLinkTokens.set(token, user.id);
     this.magicLinkByEmail.set(req.email, token);
   }
@@ -95,7 +94,7 @@ export class FakeAuthStrategy implements AuthStrategy {
   }
 
   async startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult> {
-    const state = randomUUID();
+    const state = globalThis.crypto.randomUUID();
     this.lastOAuthState = state;
     const url = new URL(`https://fake-${provider}.example.com/authorize`);
     url.searchParams.set('redirect_uri', callbackUrl);
@@ -111,7 +110,7 @@ export class FakeAuthStrategy implements AuthStrategy {
     this.oauthCodes.delete(code);
     let user = this.users.get(pending.email);
     if (!user) {
-      user = { id: randomUUID(), email: pending.email, password: '' };
+      user = { id: globalThis.crypto.randomUUID(), email: pending.email, password: '' };
       this.users.set(pending.email, user);
     }
     return this.issueSession(user);
@@ -123,7 +122,7 @@ export class FakeAuthStrategy implements AuthStrategy {
   getLastOAuthChallenge(provider: OAuthProvider, email: string): { code: string; state: string } {
     if (!this.lastOAuthState) throw new Error('no startOAuth called yet');
     const state = this.lastOAuthState;
-    const code = randomUUID();
+    const code = globalThis.crypto.randomUUID();
     this.oauthStates.set(state, { provider, email });
     this.oauthCodes.set(code, state);
     return { code, state };
@@ -137,8 +136,8 @@ export class FakeAuthStrategy implements AuthStrategy {
   }
 
   private issueSession(user: StoredUser): AuthSession {
-    const accessToken = randomUUID();
-    const refreshToken = randomUUID();
+    const accessToken = globalThis.crypto.randomUUID();
+    const refreshToken = globalThis.crypto.randomUUID();
     this.tokensToUid.set(accessToken, user.id);
     this.refreshToUid.set(refreshToken, user.id);
     return {
