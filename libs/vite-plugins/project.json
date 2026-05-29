@@ -1,0 +1,19 @@
+{
+  "name": "vite-plugins",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/vite-plugins/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/vite-plugins",
+        "main": "libs/vite-plugins/src/index.ts",
+        "tsConfig": "libs/vite-plugins/tsconfig.lib.json",
+        "assets": ["libs/vite-plugins/*.md"]
+      }
+    }
+  }
+}

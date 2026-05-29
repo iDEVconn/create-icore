@@ -3016,6 +3016,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/vite-plugins@workspace:libs/vite-plugins":
+  version: 0.0.0-use.local
+  resolution: "@icore/vite-plugins@workspace:libs/vite-plugins"
+  dependencies:
+    tslib: "npm:^2.3.0"
+  peerDependencies:
+    vite: ">=5"
+  languageName: unknown
+  linkType: soft
+
 "@idevconn/api-client@npm:*, @idevconn/api-client@npm:^0.3.0":
   version: 0.3.0
   resolution: "@idevconn/api-client@npm:0.3.0"
