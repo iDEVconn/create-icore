@@ -14,6 +14,7 @@ import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as DashboardProfileRouteImport } from './routes/_dashboard/profile'
+import { Route as DashboardNotesRouteImport } from './routes/_dashboard/notes'
 import { Route as DashboardDashboardRouteImport } from './routes/_dashboard/dashboard'
 import { Route as AuthOauthCallbackRouteImport } from './routes/auth.oauth.callback'
 
@@ -41,6 +42,11 @@ const DashboardProfileRoute = DashboardProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardNotesRoute = DashboardNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardDashboardRoute = DashboardDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -56,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof DashboardDashboardRoute
+  '/notes': typeof DashboardNotesRoute
   '/profile': typeof DashboardProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof DashboardDashboardRoute
+  '/notes': typeof DashboardNotesRoute
   '/profile': typeof DashboardProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
@@ -74,6 +82,7 @@ export interface FileRoutesById {
   '/_dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/_dashboard/dashboard': typeof DashboardDashboardRoute
+  '/_dashboard/notes': typeof DashboardNotesRoute
   '/_dashboard/profile': typeof DashboardProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
@@ -84,6 +93,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
+    | '/notes'
     | '/profile'
     | '/auth/callback'
     | '/auth/oauth/callback'
@@ -92,6 +102,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
+    | '/notes'
     | '/profile'
     | '/auth/callback'
     | '/auth/oauth/callback'
@@ -101,6 +112,7 @@ export interface FileRouteTypes {
     | '/_dashboard'
     | '/login'
     | '/_dashboard/dashboard'
+    | '/_dashboard/notes'
     | '/_dashboard/profile'
     | '/auth/callback'
     | '/auth/oauth/callback'
@@ -151,6 +163,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardProfileRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/notes': {
+      id: '/_dashboard/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof DashboardNotesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/dashboard': {
       id: '/_dashboard/dashboard'
       path: '/dashboard'
@@ -170,11 +189,13 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardDashboardRoute: typeof DashboardDashboardRoute
+  DashboardNotesRoute: typeof DashboardNotesRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardDashboardRoute: DashboardDashboardRoute,
+  DashboardNotesRoute: DashboardNotesRoute,
   DashboardProfileRoute: DashboardProfileRoute,
 }
 

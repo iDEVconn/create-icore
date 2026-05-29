@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Layout, Menu, type MenuProps } from 'antd';
-import { DashboardOutlined, UserOutlined } from '@ant-design/icons';
+import { DashboardOutlined, FileTextOutlined, UserOutlined } from '@ant-design/icons';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
@@ -9,13 +9,22 @@ export function LayoutSider() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const selectedKey = pathname.includes('/profile') ? 'profile' : 'dashboard';
+  const selectedKey = pathname.includes('/notes')
+    ? 'notes'
+    : pathname.includes('/profile')
+      ? 'profile'
+      : 'dashboard';
 
   const items: MenuProps['items'] = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: <Link to="/_dashboard/dashboard">{t('nav.dashboard')}</Link>,
+    },
+    {
+      key: 'notes',
+      icon: <FileTextOutlined />,
+      label: <Link to="/_dashboard/notes">{t('notes.title')}</Link>,
     },
     {
       key: 'profile',

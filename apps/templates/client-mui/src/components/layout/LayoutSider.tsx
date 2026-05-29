@@ -1,6 +1,7 @@
 import { Drawer, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import NoteOutlinedIcon from '@mui/icons-material/NoteOutlined';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
@@ -33,6 +34,17 @@ export function LayoutSider() {
             <DashboardOutlinedIcon />
           </ListItemIcon>
           <ListItemText primary={t('nav.dashboard')} />
+        </ListItemButton>
+
+        <ListItemButton
+          component={Link}
+          to="/_dashboard/notes"
+          selected={pathname.includes('/notes')}
+        >
+          <ListItemIcon>
+            <NoteOutlinedIcon />
+          </ListItemIcon>
+          <ListItemText primary={t('notes.title')} />
         </ListItemButton>
 
         <ListItemButton
