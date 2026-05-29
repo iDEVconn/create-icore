@@ -396,6 +396,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
+  if (opts.example === 'none') await removeNotesStack(opts.targetDir);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
   // through parent directories and may pick up a stray package.json/yarn.lock
   // (e.g. in the user's $HOME), causing
