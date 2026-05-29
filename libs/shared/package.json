@@ -5,6 +5,16 @@
   "type": "commonjs",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./src/index.js",
+      "types": "./src/index.d.ts"
+    },
+    "./client": {
+      "require": "./src/client.js",
+      "types": "./src/client.d.ts"
+    }
+  },
   "dependencies": {
     "@casl/ability": "^7.0.0",
     "@nestjs/microservices": "^11.0.0",

@@ -7,7 +7,9 @@ import { v2 as cloudinary } from 'cloudinary';
 import { SupabaseStorageStrategy } from '@icore/storage-supabase';
 import { FirebaseStorageStrategy } from '@icore/storage-firebase';
 import { CloudinaryStorageStrategy, type CloudinaryApiLike } from '@icore/storage-cloudinary';
+import { FakeStorageStrategy } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
+import { Logger } from '@nestjs/common';
 import { StorageController } from './storage.controller';
 
 function requireEnv(cfg: ConfigService, key: string): string {
@@ -95,25 +97,33 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
     {
       provide: 'StorageStrategy',
       useFactory: (cfg: ConfigService): StorageStrategy => {
-        const provider = requireEnv(cfg, 'STORAGE_PROVIDER');
-        switch (provider) {
-          case 'supabase': {
-            const client = createClient(
-              requireEnv(cfg, 'SUPABASE_URL'),
-              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-              { auth: { autoRefreshToken: false, persistSession: false } },
-            );
-            return new SupabaseStorageStrategy({
-              client,
-              bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
-            });
+        try {
+          const provider = requireEnv(cfg, 'STORAGE_PROVIDER');
+          switch (provider) {
+            case 'supabase': {
+              const client = createClient(
+                requireEnv(cfg, 'SUPABASE_URL'),
+                requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+                { auth: { autoRefreshToken: false, persistSession: false } },
+              );
+              return new SupabaseStorageStrategy({
+                client,
+                bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
+              });
+            }
+            case 'firebase':
+              return makeFirebaseStorage(cfg);
+            case 'cloudinary':
+              return makeCloudinaryStorage(cfg);
+            default:
+              throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}`);
           }
-          case 'firebase':
-            return makeFirebaseStorage(cfg);
-          case 'cloudinary':
-            return makeCloudinaryStorage(cfg);
-          default:
-            throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}`);
+        } catch (err) {
+          new Logger('StorageStrategy').warn(
+            `Not configured: ${err instanceof Error ? err.message : String(err)}. ` +
+              `Requests will fail until apps/microservices/upload/.env is set.`,
+          );
+          return new FakeStorageStrategy();
         }
       },
       inject: [ConfigService],
