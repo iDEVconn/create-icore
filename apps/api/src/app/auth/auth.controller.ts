@@ -1,4 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Throttle, seconds } from '@nestjs/throttler';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthClientService } from '@icore/auth-client';
@@ -10,7 +11,10 @@ import { Public } from './public.decorator';
 @Controller('auth')
 @Throttle({ 'auth-burst': { limit: 10, ttl: seconds(60) } })
 export class AuthController {
-  constructor(private readonly authClient: AuthClientService) {}
+  constructor(
+    private readonly authClient: AuthClientService,
+    private readonly cfg: ConfigService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -58,5 +62,35 @@ export class AuthController {
   })
   refresh(@Body() body: { refreshToken: string }) {
     return this.authClient.refresh(body.refreshToken);
+  }
+
+  @Public()
+  @Post('magic-link')
+  @ApiOperation({ summary: 'Send a passwordless sign-in link to the email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: { email: { type: 'string', format: 'email' } },
+    },
+  })
+  requestMagicLink(@Body() body: { email: string }) {
+    const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
+    const callbackUrl = `${origin}/auth/callback`;
+    return this.authClient.sendMagicLink(body.email, callbackUrl);
+  }
+
+  @Public()
+  @Post('magic-link/verify')
+  @ApiOperation({ summary: 'Exchange a magic-link token for an auth session' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['token'],
+      properties: { token: { type: 'string' } },
+    },
+  })
+  verifyMagicLink(@Body() body: { token: string }) {
+    return this.authClient.verifyMagicLink(body.token);
   }
 }

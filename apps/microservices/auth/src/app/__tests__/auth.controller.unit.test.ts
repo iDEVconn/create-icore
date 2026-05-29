@@ -71,6 +71,27 @@ describe('AuthController', () => {
     expect(await strategy.getRole(session.user.id)).toBe('admin');
   });
 
+  it('sendMagicLink forwards email + callbackUrl to the strategy', async () => {
+    const { strategy, controller } = fixture();
+    await controller.sendMagicLink({ email: 'ml@x.com', callbackUrl: 'http://localhost/cb' });
+    const token = strategy.getLastMagicLinkToken('ml@x.com');
+    expect(token).toBeTruthy();
+  });
+
+  it('verifyMagicLink round-trips a session and assigns initial role', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
+    await controller.sendMagicLink({ email: 'boss@x.com', callbackUrl: 'http://localhost/cb' });
+    const token = strategy.getLastMagicLinkToken('boss@x.com');
+    const session = await controller.verifyMagicLink({ token });
+    expect(session.user.email).toBe('boss@x.com');
+    expect(await strategy.getRole(session.user.id)).toBe('admin');
+  });
+
+  it('verifyMagicLink rejects an unknown token', async () => {
+    const { controller } = fixture();
+    await expect(controller.verifyMagicLink({ token: 'not-a-token' })).rejects.toThrow();
+  });
+
   it('does not overwrite an existing role on re-signup attempts', async () => {
     // The fake throws on duplicate signup, but a manual sequence simulates
     // the idempotency path: set the role first, then call the private hook

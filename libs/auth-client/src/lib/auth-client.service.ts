@@ -27,4 +27,12 @@ export class AuthClientService {
   setRole(uid: string, role: string): Promise<void> {
     return firstValueFrom(this.client.send<void>('auth.setRole', { uid, role }));
   }
+
+  sendMagicLink(email: string, callbackUrl: string): Promise<void> {
+    return firstValueFrom(this.client.send<void>('auth.magicLink.send', { email, callbackUrl }));
+  }
+
+  verifyMagicLink(token: string): Promise<AuthSession> {
+    return firstValueFrom(this.client.send<AuthSession>('auth.magicLink.verify', { token }));
+  }
 }

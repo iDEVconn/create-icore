@@ -39,6 +39,18 @@ export class AuthController {
     return this.strategy.setRole(payload.uid, payload.role);
   }
 
+  @MessagePattern('auth.magicLink.send')
+  sendMagicLink(@Payload() payload: { email: string; callbackUrl: string }): Promise<void> {
+    return this.strategy.sendMagicLink(payload);
+  }
+
+  @MessagePattern('auth.magicLink.verify')
+  async verifyMagicLink(@Payload() payload: { token: string }): Promise<AuthSession> {
+    const session = await this.strategy.verifyMagicLink(payload.token);
+    await this.assignInitialRole(session.user.id, session.user.email);
+    return session;
+  }
+
   // Idempotent: skips work when a role already exists. Admin emails come
   // from ADMINS_LIST (comma-separated). Everyone else gets 'user'.
   private async assignInitialRole(uid: string, email: string): Promise<void> {
