@@ -24,11 +24,11 @@ jobs:
       projects: ${{ steps.affected.outputs.projects }}
       buildable: ${{ steps.affected.outputs.buildable }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
       - name: Compute affected
         id: affected
         run: |
@@ -65,11 +65,11 @@ jobs:
       matrix:
         task: [lint, test, 'format:check']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
       - name: Run ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "format:check" ]; then
@@ -92,16 +92,16 @@ jobs:
       matrix:
         project: ${{ fromJSON(needs.detect-affected.outputs.buildable) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
       - name: Build ${{ matrix.project }}
         run: yarn nx build ${{ matrix.project }}
       - name: Upload dist
         if: github.ref == 'refs/heads/main' && hashFiles(format('apps/{0}/dist/**', matrix.project)) != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: dist-${{ matrix.project }}
           path: |
