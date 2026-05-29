@@ -56,7 +56,12 @@ jobs:
           version: npx changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'
+          # Provenance attestation triggers npm's quarantine flag, which yarn 4
+          # treats as "tag latest is quarantined" until npm's transparency-log
+          # replicates (~30-60 min). That window is unusable from yarn create.
+          # Disabled until npm/yarn align — re-enable when consumers stop
+          # tripping over the quarantine.
+          NPM_CONFIG_PROVENANCE: 'false'
       - name: Trigger sync-main-to-dev workflow
         if: steps.changesets.outputs.published == 'true' || steps.changesets.outputs.hasChangesets == 'false'
         env:
