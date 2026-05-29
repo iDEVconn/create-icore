@@ -150,7 +150,9 @@ export class HttpOAuthTokenClient implements OAuthTokenClient {
     if (!res.ok) throw new Error(`google_token_exchange_failed_${res.status}`);
     const data = (await res.json()) as { id_token: string; access_token: string };
     // Google's id_token is a JWT; parse the email claim out of the payload.
-    const [, payloadB64] = data.id_token.split('.');
+    const parts = data.id_token.split('.');
+    if (parts.length < 2) throw new Error('google_token_invalid_jwt');
+    const payloadB64 = parts[1] as string;
     const claims = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8')) as {
       email: string;
     };

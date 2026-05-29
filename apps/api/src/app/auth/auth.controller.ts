@@ -1,9 +1,30 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle, seconds } from '@nestjs/throttler';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import { AuthClientService } from '@icore/auth-client';
+import type { OAuthProvider } from '@icore/shared';
 import { Public } from './public.decorator';
+
+const OAUTH_PROVIDERS: ReadonlySet<OAuthProvider> = new Set(['google', 'github']);
+
+function assertProvider(value: string): OAuthProvider {
+  if (!OAUTH_PROVIDERS.has(value as OAuthProvider)) {
+    throw new UnauthorizedException(`unknown_oauth_provider: ${value}`);
+  }
+  return value as OAuthProvider;
+}
 
 // 10 auth-burst requests / 60s across register + login + refresh.
 // Server-side gate against credential-stuffing; gateway only.
@@ -92,5 +113,51 @@ export class AuthController {
   })
   verifyMagicLink(@Body() body: { token: string }) {
     return this.authClient.verifyMagicLink(body.token);
+  }
+
+  @Public()
+  @Get('oauth/:provider')
+  @ApiOperation({ summary: 'Start an OAuth flow — redirects to the provider' })
+  @ApiParam({ name: 'provider', enum: ['google', 'github'] })
+  async oauthStart(@Param('provider') providerRaw: string, @Res() res: Response) {
+    const provider = assertProvider(providerRaw);
+    const origin = this.cfg.get<string>('API_ORIGIN') ?? 'http://localhost:3001';
+    const callbackUrl = `${origin}/api/auth/oauth/${provider}/callback`;
+    const { redirectUrl, state } = await this.authClient.startOAuth(provider, callbackUrl);
+    res.cookie('oauth_state', state, {
+      httpOnly: true,
+      secure: this.cfg.get<string>('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000,
+    });
+    return res.redirect(redirectUrl);
+  }
+
+  @Public()
+  @Get('oauth/:provider/callback')
+  @ApiOperation({ summary: 'Provider redirected back — exchange code for session' })
+  @ApiParam({ name: 'provider', enum: ['google', 'github'] })
+  async oauthCallback(
+    @Param('provider') providerRaw: string,
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const provider = assertProvider(providerRaw);
+    const cookieState = (req.cookies as Record<string, string> | undefined)?.['oauth_state'];
+    if (!cookieState || cookieState !== state) {
+      throw new UnauthorizedException('oauth_state_mismatch');
+    }
+    const session = await this.authClient.completeOAuth(provider, code, state);
+    res.clearCookie('oauth_state');
+    const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
+    const fragment = new URLSearchParams({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      userId: session.user.id,
+      email: session.user.email,
+    });
+    return res.redirect(`${origin}/auth/oauth/callback#${fragment.toString()}`);
   }
 }

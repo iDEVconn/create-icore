@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import type { AuthSession, VerifiedToken } from '@icore/shared';
+import type { AuthSession, OAuthProvider, OAuthStartResult, VerifiedToken } from '@icore/shared';
 import { AUTH_CLIENT } from './auth-client.module';
 
 @Injectable()
@@ -34,5 +34,17 @@ export class AuthClientService {
 
   verifyMagicLink(token: string): Promise<AuthSession> {
     return firstValueFrom(this.client.send<AuthSession>('auth.magicLink.verify', { token }));
+  }
+
+  startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult> {
+    return firstValueFrom(
+      this.client.send<OAuthStartResult>('auth.oauth.start', { provider, callbackUrl }),
+    );
+  }
+
+  completeOAuth(provider: OAuthProvider, code: string, state: string): Promise<AuthSession> {
+    return firstValueFrom(
+      this.client.send<AuthSession>('auth.oauth.complete', { provider, code, state }),
+    );
   }
 }
