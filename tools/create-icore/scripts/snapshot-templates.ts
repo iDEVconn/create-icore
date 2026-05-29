@@ -10,6 +10,9 @@ const PATHS_TO_COPY = [
   'apps/api',
   'apps/microservices/auth',
   'apps/microservices/upload',
+  'apps/microservices/payment',
+  'apps/microservices/notes',
+  'apps/microservices/jobs',
   'apps/templates',
   'libs',
   'tools/create-icore/_template-shell',
@@ -20,8 +23,16 @@ const PATHS_TO_COPY = [
   '.prettierrc',
   '.prettierignore',
   '.yarnrc.yml',
+  '.yarn/releases',
   'eslint.config.mjs',
   '.husky/pre-commit',
+  'Dockerfile.gateway',
+  'Dockerfile.ms-auth',
+  'Dockerfile.ms-upload',
+  'Dockerfile.ms-jobs',
+  'docker-compose.yml',
+  '.env.docker.example',
+  '.dockerignore',
 ];
 
 const SHELL_OVERRIDES = ['package.json'];
