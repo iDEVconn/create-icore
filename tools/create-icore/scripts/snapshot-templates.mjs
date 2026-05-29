@@ -12,6 +12,7 @@ const PATHS_TO_COPY = [
   'apps/microservices/upload',
   'apps/microservices/payment',
   'apps/microservices/notes',
+  'apps/microservices/notes-e2e',
   'apps/microservices/jobs',
   'apps/templates',
   'libs',

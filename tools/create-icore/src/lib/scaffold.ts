@@ -197,6 +197,7 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
   // Delete MS, lib, gateway module, and shadcn-only notes components dir
   for (const p of [
     'apps/microservices/notes',
+    'apps/microservices/notes-e2e',
     'libs/notes-client',
     'apps/api/src/app/notes',
     'apps/client/src/components/notes',

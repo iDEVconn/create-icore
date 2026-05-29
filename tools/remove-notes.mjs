@@ -28,6 +28,7 @@ async function tryEdit(path, fn) {
 async function main() {
   // 1. Remove Nx projects via generator — handles dir deletion + tsconfig.base.json paths
   nx(['g', '@nx/workspace:remove', '--projectName=notes', '--no-interactive']);
+  nx(['g', '@nx/workspace:remove', '--projectName=notes-e2e', '--no-interactive']);
   nx(['g', '@nx/workspace:remove', '--projectName=notes-client', '--no-interactive']);
 
   // 2. Delete non-Nx paths (gateway module + client UI) that nx g remove doesn't touch
