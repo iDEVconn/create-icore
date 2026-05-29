@@ -7,3 +7,4 @@ export * from './lib/i18n/keys.js';
 export * from './lib/notify/use-notify.js';
 export * from './lib/draft/index.js';
 export * from './lib/landing/LandingPage.js';
+export * from './lib/stores/theme.store.js';
