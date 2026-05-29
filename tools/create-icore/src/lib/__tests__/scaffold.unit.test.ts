@@ -9,6 +9,9 @@ import {
   writeRootEnv,
   removeUploadStack,
   removeNotesStack,
+  removeUnusedAuthStrategies,
+  removeUnusedStorageStrategies,
+  removeUnusedDbStrategies,
 } from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
 
@@ -236,6 +239,221 @@ describe('removeNotesStack', () => {
     const keys = await readFile(join(dir, 'libs/template-shared/src/lib/i18n/keys.ts'), 'utf8');
     expect(keys).not.toContain('notes:');
     expect(keys).toContain('nav:');
+  });
+});
+
+describe('removeUnusedAuthStrategies', () => {
+  it('auth=supabase removes firebase lib and strips its import/function/case from auth module', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-auth-'));
+
+    await mkdir(join(dir, 'libs/auth-strategies/firebase/src'), { recursive: true });
+    await writeFile(join(dir, 'libs/auth-strategies/firebase/src/index.ts'), 'export {};');
+    await mkdir(join(dir, 'libs/auth-strategies/supabase/src'), { recursive: true });
+    await writeFile(join(dir, 'libs/auth-strategies/supabase/src/index.ts'), 'export {};');
+    await mkdir(join(dir, 'apps/microservices/auth/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/auth/src/app/app.module.ts'),
+      `import * as admin from 'firebase-admin';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nfunction makeFirebaseStrategy() { return admin.app(); }\ncase 'firebase': return makeFirebaseStrategy();\ncase 'supabase': return new SupabaseAuthStrategy();`,
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      `{"compilerOptions":{"paths":{"@icore/auth-supabase":["./libs/auth-strategies/supabase/src/index.ts"],"@icore/auth-firebase":["./libs/auth-strategies/firebase/src/index.ts"]}}}`,
+    );
+    await mkdir(join(dir, 'apps/microservices/auth'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/auth/package.json'),
+      JSON.stringify(
+        {
+          name: 'auth',
+          dependencies: { '@icore/auth-supabase': '*', '@icore/auth-firebase': '*' },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await removeUnusedAuthStrategies(dir, 'supabase');
+
+    await expect(access(join(dir, 'libs/auth-strategies/firebase'))).rejects.toThrow();
+    const mod = await readFile(join(dir, 'apps/microservices/auth/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('@icore/auth-firebase');
+    expect(mod).not.toContain('firebase-admin');
+    expect(mod).not.toContain('makeFirebaseStrategy');
+    expect(mod).toContain('SupabaseAuthStrategy');
+    const tsconfig = await readFile(join(dir, 'tsconfig.base.json'), 'utf8');
+    expect(tsconfig).not.toContain('@icore/auth-firebase');
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/auth/package.json'), 'utf8'),
+    ) as { dependencies: Record<string, string> };
+    expect(pkg.dependencies).not.toHaveProperty('@icore/auth-firebase');
+  });
+
+  it('auth=firebase removes supabase lib and strips its import/case from auth module', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-auth-'));
+
+    await mkdir(join(dir, 'libs/auth-strategies/supabase/src'), { recursive: true });
+    await writeFile(join(dir, 'libs/auth-strategies/supabase/src/index.ts'), 'export {};');
+    await mkdir(join(dir, 'libs/auth-strategies/firebase/src'), { recursive: true });
+    await writeFile(join(dir, 'libs/auth-strategies/firebase/src/index.ts'), 'export {};');
+    await mkdir(join(dir, 'apps/microservices/auth/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/auth/src/app/app.module.ts'),
+      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\ncase 'supabase': return new SupabaseAuthStrategy(createClient('', ''));\ncase 'firebase': return new FirebaseAuthStrategy();`,
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      `{"compilerOptions":{"paths":{"@icore/auth-supabase":["./libs/auth-strategies/supabase/src/index.ts"],"@icore/auth-firebase":["./libs/auth-strategies/firebase/src/index.ts"]}}}`,
+    );
+    await mkdir(join(dir, 'apps/microservices/auth'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/auth/package.json'),
+      JSON.stringify(
+        {
+          name: 'auth',
+          dependencies: { '@icore/auth-supabase': '*', '@icore/auth-firebase': '*' },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await removeUnusedAuthStrategies(dir, 'firebase');
+
+    await expect(access(join(dir, 'libs/auth-strategies/supabase'))).rejects.toThrow();
+    const mod = await readFile(join(dir, 'apps/microservices/auth/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('@icore/auth-supabase');
+    expect(mod).not.toContain('@supabase/supabase-js');
+    expect(mod).toContain('FirebaseAuthStrategy');
+  });
+});
+
+describe('removeUnusedStorageStrategies', () => {
+  it('upload=supabase removes firebase+cloudinary libs and strips from upload module', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-storage-'));
+
+    for (const s of ['supabase', 'firebase', 'cloudinary']) {
+      await mkdir(join(dir, `libs/storage-strategies/${s}/src`), { recursive: true });
+      await writeFile(join(dir, `libs/storage-strategies/${s}/src/index.ts`), 'export {};');
+    }
+    await mkdir(join(dir, 'apps/microservices/upload/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/upload/src/app/app.module.ts'),
+      `import * as admin from 'firebase-admin';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nfunction makeFirebaseStorage() {}\nfunction makeCloudinaryStorage() {}\ncase 'firebase': return makeFirebaseStorage();\ncase 'cloudinary': return makeCloudinaryStorage();\ncase 'supabase': return new SupabaseStorageStrategy();`,
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      `{"compilerOptions":{"paths":{"@icore/storage-supabase":[""],"@icore/storage-firebase":[""],"@icore/storage-cloudinary":[""]}}}`,
+    );
+    await mkdir(join(dir, 'apps/microservices/upload'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/upload/package.json'),
+      JSON.stringify(
+        {
+          name: 'upload',
+          dependencies: {
+            '@icore/storage-supabase': '*',
+            '@icore/storage-firebase': '*',
+            '@icore/storage-cloudinary': '*',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await removeUnusedStorageStrategies(dir, 'supabase');
+
+    await expect(access(join(dir, 'libs/storage-strategies/firebase'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/storage-strategies/cloudinary'))).rejects.toThrow();
+    const mod = await readFile(
+      join(dir, 'apps/microservices/upload/src/app/app.module.ts'),
+      'utf8',
+    );
+    expect(mod).not.toContain('@icore/storage-firebase');
+    expect(mod).not.toContain('@icore/storage-cloudinary');
+    expect(mod).not.toContain('firebase-admin');
+    expect(mod).not.toContain("from 'cloudinary'");
+    expect(mod).not.toContain('makeFirebaseStorage');
+    expect(mod).not.toContain('makeCloudinaryStorage');
+    expect(mod).toContain('SupabaseStorageStrategy');
+  });
+
+  it('upload=none is a no-op (upload stack already removed)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-storage-none-'));
+    await removeUnusedStorageStrategies(dir, 'none');
+    // Should not throw even with no dirs present
+  });
+});
+
+describe('removeUnusedDbStrategies', () => {
+  it('db=supabase removes firestore lib and strips from notes module', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-db-'));
+
+    for (const s of ['supabase', 'firestore']) {
+      await mkdir(join(dir, `libs/db-strategies/${s}/src`), { recursive: true });
+      await writeFile(join(dir, `libs/db-strategies/${s}/src/index.ts`), 'export {};');
+    }
+    await mkdir(join(dir, 'apps/microservices/notes/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/notes/src/app/app.module.ts'),
+      `import * as admin from 'firebase-admin';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nif (provider === 'firestore') { return new FirestoreDBStrategy(admin.firestore()); }\nif (provider === 'supabase') { return new SupabaseDBStrategy(); }`,
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      `{"compilerOptions":{"paths":{"@icore/db-supabase":[""],"@icore/db-firestore":[""]}}}`,
+    );
+    await mkdir(join(dir, 'apps/microservices/notes'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/notes/package.json'),
+      JSON.stringify(
+        { name: 'notes', dependencies: { '@icore/db-supabase': '*', '@icore/db-firestore': '*' } },
+        null,
+        2,
+      ),
+    );
+
+    await removeUnusedDbStrategies(dir, 'supabase');
+
+    await expect(access(join(dir, 'libs/db-strategies/firestore'))).rejects.toThrow();
+    const mod = await readFile(join(dir, 'apps/microservices/notes/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('@icore/db-firestore');
+    expect(mod).not.toContain('firebase-admin');
+    expect(mod).toContain('SupabaseDBStrategy');
+  });
+
+  it('db=firebase removes supabase lib and strips from notes module', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-db-'));
+
+    for (const s of ['supabase', 'firestore']) {
+      await mkdir(join(dir, `libs/db-strategies/${s}/src`), { recursive: true });
+      await writeFile(join(dir, `libs/db-strategies/${s}/src/index.ts`), 'export {};');
+    }
+    await mkdir(join(dir, 'apps/microservices/notes/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/notes/src/app/app.module.ts'),
+      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nif (provider === 'supabase') { const c = createClient('', ''); return new SupabaseDBStrategy({ client: c }); }\nif (provider === 'firestore') { return new FirestoreDBStrategy(); }`,
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      `{"compilerOptions":{"paths":{"@icore/db-supabase":[""],"@icore/db-firestore":[""]}}}`,
+    );
+    await mkdir(join(dir, 'apps/microservices/notes'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/notes/package.json'),
+      JSON.stringify(
+        { name: 'notes', dependencies: { '@icore/db-supabase': '*', '@icore/db-firestore': '*' } },
+        null,
+        2,
+      ),
+    );
+
+    await removeUnusedDbStrategies(dir, 'firebase');
+
+    await expect(access(join(dir, 'libs/db-strategies/supabase'))).rejects.toThrow();
+    const mod = await readFile(join(dir, 'apps/microservices/notes/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('@icore/db-supabase');
+    expect(mod).not.toContain('@supabase/supabase-js');
+    expect(mod).toContain('FirestoreDBStrategy');
   });
 });
 
