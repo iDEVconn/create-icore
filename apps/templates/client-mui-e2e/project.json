@@ -1,0 +1,10 @@
+{
+  "name": "client-mui-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/templates/client-mui-e2e/src",
+  "tags": [],
+  "implicitDependencies": ["client-mui"],
+  "// targets": "to see all targets run: nx show project client-mui-e2e --web",
+  "targets": {}
+}
