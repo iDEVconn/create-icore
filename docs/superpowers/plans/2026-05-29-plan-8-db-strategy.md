@@ -20,18 +20,18 @@
 
 ## File Map
 
-| Path | Purpose |
-|------|---------|
-| `libs/shared/src/strategies/db.ts` | `DBStrategy`, `WhereClause`, `QueryOptions`, `DocumentId` types |
-| `libs/shared/src/strategies/contract/db-contract.ts` | `runDBContract(name, factory)` |
-| `libs/shared/src/strategies/fakes/fake-db.ts` | `FakeDBStrategy` in-memory impl |
-| `libs/shared/src/strategies/__tests__/fake-db.contract.unit.test.ts` | validate fake against contract |
-| `libs/db-strategies/supabase/` | `SupabaseDBStrategy` (generated via `@nx/js:lib`) |
-| `libs/db-strategies/firestore/` | `FirestoreDBStrategy` (generated via `@nx/js:lib`) |
-| `tools/create-icore/src/lib/prompts.ts` | tighten `--db` prompt label (drop "mirrors auth in v0.1.0") |
-| `tools/create-icore/src/lib/scaffold.ts` | write `DB_PROVIDER` to the generated `.env` (currently records but doesn't emit) |
-| `docs/architecture.md` | flip Plan 8 to ✅ + document the new lib + 3-layer env note |
-| `tools/create-icore/README.md` + workspace `README.md` | brag-command examples that mix providers (Firebase auth + Supabase DB, etc.) |
+| Path                                                                 | Purpose                                                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `libs/shared/src/strategies/db.ts`                                   | `DBStrategy`, `WhereClause`, `QueryOptions`, `DocumentId` types                  |
+| `libs/shared/src/strategies/contract/db-contract.ts`                 | `runDBContract(name, factory)`                                                   |
+| `libs/shared/src/strategies/fakes/fake-db.ts`                        | `FakeDBStrategy` in-memory impl                                                  |
+| `libs/shared/src/strategies/__tests__/fake-db.contract.unit.test.ts` | validate fake against contract                                                   |
+| `libs/db-strategies/supabase/`                                       | `SupabaseDBStrategy` (generated via `@nx/js:lib`)                                |
+| `libs/db-strategies/firestore/`                                      | `FirestoreDBStrategy` (generated via `@nx/js:lib`)                               |
+| `tools/create-icore/src/lib/prompts.ts`                              | tighten `--db` prompt label (drop "mirrors auth in v0.1.0")                      |
+| `tools/create-icore/src/lib/scaffold.ts`                             | write `DB_PROVIDER` to the generated `.env` (currently records but doesn't emit) |
+| `docs/architecture.md`                                               | flip Plan 8 to ✅ + document the new lib + 3-layer env note                      |
+| `tools/create-icore/README.md` + workspace `README.md`               | brag-command examples that mix providers (Firebase auth + Supabase DB, etc.)     |
 
 ---
 
@@ -93,12 +93,17 @@ Update `libs/shared/src/strategies/index.ts` to export from `./db`.
 import { describe, expect, it, beforeEach } from 'vitest';
 import type { DBStrategy } from '../db';
 
-interface User { name: string; age: number }
+interface User {
+  name: string;
+  age: number;
+}
 
 export function runDBContract(name: string, factory: () => DBStrategy): void {
   describe(`DBStrategy contract: ${name}`, () => {
     let db: DBStrategy;
-    beforeEach(() => { db = factory(); });
+    beforeEach(() => {
+      db = factory();
+    });
 
     it('get returns null for missing documents', async () => {
       expect(await db.get('users', 'nope')).toBeNull();
@@ -184,13 +189,20 @@ import type { DBDocument, DBStrategy, QueryOptions, WhereClause } from '../db';
 function matchClause<T>(doc: T, clause: WhereClause): boolean {
   const fieldValue = (doc as Record<string, unknown>)[clause.field];
   switch (clause.op) {
-    case '==': return fieldValue === clause.value;
-    case '!=': return fieldValue !== clause.value;
-    case '<':  return (fieldValue as number) < (clause.value as number);
-    case '<=': return (fieldValue as number) <= (clause.value as number);
-    case '>':  return (fieldValue as number) > (clause.value as number);
-    case '>=': return (fieldValue as number) >= (clause.value as number);
-    case 'in': return Array.isArray(clause.value) && (clause.value as unknown[]).includes(fieldValue);
+    case '==':
+      return fieldValue === clause.value;
+    case '!=':
+      return fieldValue !== clause.value;
+    case '<':
+      return (fieldValue as number) < (clause.value as number);
+    case '<=':
+      return (fieldValue as number) <= (clause.value as number);
+    case '>':
+      return (fieldValue as number) > (clause.value as number);
+    case '>=':
+      return (fieldValue as number) >= (clause.value as number);
+    case 'in':
+      return Array.isArray(clause.value) && (clause.value as unknown[]).includes(fieldValue);
   }
 }
 
@@ -344,13 +356,27 @@ export class SupabaseDBStrategy implements DBStrategy {
         // Postgres filters apply against the JSONB body (`data->>field`).
         const path = `data->>${c.field}`;
         switch (c.op) {
-          case '==': q = q.eq(path, String(c.value)); break;
-          case '!=': q = q.neq(path, String(c.value)); break;
-          case '<':  q = q.lt(path, c.value as number); break;
-          case '<=': q = q.lte(path, c.value as number); break;
-          case '>':  q = q.gt(path, c.value as number); break;
-          case '>=': q = q.gte(path, c.value as number); break;
-          case 'in': q = q.in(path, c.value as unknown[]); break;
+          case '==':
+            q = q.eq(path, String(c.value));
+            break;
+          case '!=':
+            q = q.neq(path, String(c.value));
+            break;
+          case '<':
+            q = q.lt(path, c.value as number);
+            break;
+          case '<=':
+            q = q.lte(path, c.value as number);
+            break;
+          case '>':
+            q = q.gt(path, c.value as number);
+            break;
+          case '>=':
+            q = q.gte(path, c.value as number);
+            break;
+          case 'in':
+            q = q.in(path, c.value as unknown[]);
+            break;
         }
       }
     }
@@ -421,7 +447,9 @@ export interface FirestoreDocumentLike {
 
 export type FirestoreOp = '==' | '!=' | '<' | '<=' | '>' | '>=' | 'in';
 
-export interface FirestoreDBStrategyOptions { db: FirestoreLike }
+export interface FirestoreDBStrategyOptions {
+  db: FirestoreLike;
+}
 
 export class FirestoreDBStrategy implements DBStrategy {
   constructor(private readonly opts: FirestoreDBStrategyOptions) {}
@@ -432,13 +460,19 @@ export class FirestoreDBStrategy implements DBStrategy {
   }
 
   async set<T>(collection: string, id: string, data: T): Promise<void> {
-    await this.opts.db.collection(collection).doc(id).set(data as unknown as Record<string, unknown>);
+    await this.opts.db
+      .collection(collection)
+      .doc(id)
+      .set(data as unknown as Record<string, unknown>);
   }
 
   async update<T>(collection: string, id: string, patch: Partial<T>): Promise<void> {
     const existing = await this.opts.db.collection(collection).doc(id).get();
     if (!existing.exists) throw new Error(`not_found: ${collection}/${id}`);
-    await this.opts.db.collection(collection).doc(id).update(patch as Record<string, unknown>);
+    await this.opts.db
+      .collection(collection)
+      .doc(id)
+      .update(patch as Record<string, unknown>);
   }
 
   async delete(collection: string, id: string): Promise<void> {
@@ -497,6 +531,7 @@ yarn nx lint db-firestore
 Pick **(B)** — workspace-root `.env` is more portable. Auth MS + future data MSes both read it.
 
 Steps:
+
 - After `writeAuthEnv` / `writeUploadEnv`, also write `${targetDir}/.env` containing `DB_PROVIDER=${opts.dbProvider}\n`.
 - Add `.env.example` to the template snapshot copy list (if not already there) with `DB_PROVIDER=supabase` as a default + a comment line documenting the choices.
 
