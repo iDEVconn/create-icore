@@ -39,7 +39,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "bin": "./dist/cli.js",
+  "bin": {
+    "create-icore": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "templates",
