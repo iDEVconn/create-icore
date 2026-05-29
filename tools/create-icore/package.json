@@ -1,6 +1,6 @@
 {
   "name": "@idevconn/create-icore",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Bootstrap a new project from the iCore scaffold (Nx + NestJS + React + Vite + shadcn/Tailwind, swappable auth + storage providers).",
   "license": "Apache-2.0",
   "author": "iDEVconn",
