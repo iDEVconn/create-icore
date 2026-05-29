@@ -35,6 +35,19 @@ services:
     networks: [icore]
     restart: unless-stopped
 
+  jobs:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-jobs
+    env_file: .env.docker
+    environment:
+      JOBS_REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [icore]
+    restart: unless-stopped
+
   gateway:
     build:
       context: .
@@ -46,6 +59,7 @@ services:
       AUTH_REDIS_URL: redis://redis:6379
       UPLOAD_TRANSPORT: redis
       UPLOAD_REDIS_URL: redis://redis:6379
+      JOBS_REDIS_URL: redis://redis:6379
     ports:
       - '3001:3001'
     depends_on:
@@ -54,6 +68,8 @@ services:
       auth:
         condition: service_started
       upload:
+        condition: service_started
+      jobs:
         condition: service_started
     networks: [icore]
     restart: unless-stopped

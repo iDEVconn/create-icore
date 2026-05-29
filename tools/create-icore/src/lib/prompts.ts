@@ -5,6 +5,7 @@ import type {
   DbProvider,
   UploadProvider,
   PaymentProvider,
+  JobsProvider,
   CreateIcoreOptions,
 } from './options.js';
 
@@ -42,6 +43,9 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
         break;
       case 'payment':
         out.payment = v as PaymentProvider;
+        break;
+      case 'jobs':
+        out.jobs = v as JobsProvider;
         break;
       case 'ui':
         out.ui = v as 'shadcn' | 'antd' | 'mui';
@@ -122,6 +126,18 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as PaymentProvider);
   if (p.isCancel(payment)) throw new Error('cancelled');
 
+  const jobs =
+    flags.jobs ??
+    ((await p.select({
+      message: 'Job queue (BullMQ + bull-board)',
+      options: [
+        { value: 'none', label: 'None — skip jobs MS' },
+        { value: 'bullmq', label: 'BullMQ + bull-board admin UI (requires Redis)' },
+      ],
+      initialValue: 'none' as JobsProvider,
+    })) as JobsProvider);
+  if (p.isCancel(jobs)) throw new Error('cancelled');
+
   const ui =
     flags.ui ??
     ((await p.select({
@@ -168,6 +184,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     dbProvider,
     upload,
     payment,
+    jobs,
     ui,
     transport,
     initGit,

@@ -111,6 +111,40 @@ export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOption
   }
 }
 
+export async function removeJobsStack(targetDir: string): Promise<void> {
+  const paths = [
+    'apps/microservices/jobs',
+    'libs/jobs-client',
+    'apps/api/src/app/admin',
+    'Dockerfile.ms-jobs',
+  ];
+  for (const p of paths) {
+    await rm(join(targetDir, p), { recursive: true, force: true });
+  }
+  const appModulePath = join(targetDir, 'apps/api/src/app/app.module.ts');
+  try {
+    const appModule = await readFile(appModulePath, 'utf8');
+    const next = appModule
+      .replace(/^import \{ AdminModule \} from '\.\/admin\/admin\.module';\n/m, '')
+      .replace(/,\s*AdminModule/g, '');
+    await writeFile(appModulePath, next);
+  } catch {
+    // ignore
+  }
+  // Strip the `jobs:` service block from docker-compose.yml + its depends_on entry.
+  const composePath = join(targetDir, 'docker-compose.yml');
+  try {
+    const compose = await readFile(composePath, 'utf8');
+    const next = compose
+      .replace(/\n {2}jobs:[\s\S]+?(?=\n {2}\w+:|\nnetworks:)/m, '\n')
+      .replace(/\n {6}jobs:\n {8}condition: service_started/g, '')
+      .replace(/\n {6}JOBS_REDIS_URL:[^\n]*/g, '');
+    await writeFile(composePath, next);
+  } catch {
+    // ignore
+  }
+}
+
 export async function removePaymentStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/payment',
@@ -221,6 +255,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await selectClientTemplate(opts.targetDir, opts);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
+  if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
   if (opts.install) yarnInstall(opts.targetDir);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }

@@ -48,6 +48,14 @@ describe('parseFlags', () => {
     expect(parseFlags(['my-app', '--payment=none']).payment).toBe('none');
   });
 
+  it('reads --jobs=bullmq', () => {
+    expect(parseFlags(['my-app', '--jobs=bullmq']).jobs).toBe('bullmq');
+  });
+
+  it('reads --jobs=none', () => {
+    expect(parseFlags(['my-app', '--jobs=none']).jobs).toBe('none');
+  });
+
   it('honours --no-git', () => {
     expect(parseFlags(['my-app', '--no-git']).initGit).toBe(false);
   });

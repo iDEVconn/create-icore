@@ -18,6 +18,7 @@ const baseOpts: CreateIcoreOptions = {
   dbProvider: 'supabase',
   upload: 'cloudinary',
   payment: 'none',
+  jobs: 'none',
   ui: 'shadcn',
   transport: 'tcp',
   initGit: false,

@@ -22,6 +22,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 9    | Payment MS via @idevconn/payment               | ✅ done |
 | 10   | Notes sample MS + gateway CRUD + templates UI  | ✅ done |
 | 11   | docker-compose local dev stack + Dockerfiles   | ✅ done |
+| 12   | BullMQ jobs MS + bull-board admin UI           | ✅ done |
 
 ## Layout
 
@@ -214,6 +215,16 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `docs/runbooks/local-docker.md` — walks through `.env.docker` setup, `docker compose up --build`, troubleshooting, targeted rebuilds.
 - CI — new `docker-build` matrix job in `.github/workflows/pipeline.yml`. Builds all three Dockerfiles in parallel on every push to `dev`/`main` using buildx + GitHub Actions cache. Push disabled — verify-only.
 - **Out of scope (per spec):** no Postgres / Firestore / storage emulators, no SPA service, no traefik/TLS, no Helm. Consumers add what they need.
+
+## Plan 12 deliverables (complete)
+
+- `libs/shared/src/jobs.ts` — `ICORE_QUEUES` registry (`email` / `image-process` / `cleanup`) + typed `JobsMap` payload types. Exported from `@icore/shared`.
+- `libs/jobs-client` (`@icore/jobs-client`) — `JobsClientService.enqueue<K extends keyof JobsMap>(name, data, opts?)` writes directly to Redis via BullMQ `Queue`. One `IORedis` connection per process; `Queue` instances cached per queue name. Closes both on `OnModuleDestroy`. `JOBS_REDIS_URL` defaults to `redis://localhost:6379`.
+- `apps/microservices/jobs` — standalone Nest app (`createApplicationContext`, no HTTP). Three `Worker` classes (`EmailWorker`, `ImageProcessWorker`, `CleanupWorker`) implement `OnModuleInit` + `OnModuleDestroy` so they live for the process lifetime. Concurrency configurable via `JOBS_WORKER_CONCURRENCY` (default 5). Default handlers log + ack — consumers swap in real logic.
+- `apps/api/src/app/admin` — `AdminModule` mounts `@bull-board/express` at `/api/admin/queues` via NestJS `MiddlewareConsumer`. Bull-board reads queue handles from `JobsClientService.getQueue(...)`. **Security caveat:** raw express middleware bypasses the global `AuthGuard`. Document that consumers must front bull-board with their own reverse-proxy auth (basic auth, Cloudflare Access, etc.) before exposing publicly. Better admin-gate lands when a Nest controller wraps the route — out of scope for v0.1.
+- `Dockerfile.ms-jobs` — Node 24 alpine multi-stage build for the jobs MS, same pattern as auth/upload.
+- `docker-compose.yml` — new `jobs` service + `JOBS_REDIS_URL` env entries on gateway and jobs containers.
+- **CLI** — new `--jobs=bullmq|none` flag (default `none`). `removeJobsStack` deletes the MS, lib, gateway admin module, Dockerfile, and the `jobs:` block from `docker-compose.yml` when opted out.
 
 ## Cross-links
 
