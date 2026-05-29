@@ -21,6 +21,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 6.5  | OAuth (Google + GitHub) server-mediated        | ✅ done |
 | 9    | Payment MS via @idevconn/payment               | ✅ done |
 | 10   | Notes sample MS + gateway CRUD + templates UI  | ✅ done |
+| 11   | docker-compose local dev stack + Dockerfiles   | ✅ done |
 
 ## Layout
 
@@ -203,6 +204,16 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `apps/api/src/app/notes` — gateway controller with `Get /notes`, `Get /notes/:id`, `Post /notes`, `Patch /notes/:id`, `Delete /notes/:id`. Owner-scoped via `req.user.uid`; admin sees all (passes `ownerId=null` to MS). CASL gates each non-list operation via `subject('Note', loadedNote)`. 9 controller tests covering 403/404/admin paths.
 - **All three templates** — new `/_dashboard/notes` route + TanStack Query hooks (`useNotesList/useCreateNote/useUpdateNote/useDeleteNote`) + library-specific UI (shadcn: custom Table + Dialog primitives; antd: `Table` + `Modal` + `Popconfirm`; MUI: `Table` + `Dialog` + `TablePagination`). Sidebar nav item added to each. New i18n keys: `notes.*`.
 - `libs/template-shared` `PageLayout` (shadcn) gains an `actions` slot rendered next to the title (mirrors antd's existing `extra` + MUI's existing layout).
+
+## Plan 11 deliverables (complete)
+
+- Three Node 24 alpine multi-stage Dockerfiles at the repo root: `Dockerfile.gateway` (apps/api), `Dockerfile.ms-auth`, `Dockerfile.ms-upload`. Each runs `corepack enable` + `yarn install --immutable` in the builder stage, then `yarn nx build <target>`, and copies `dist/` + `node_modules/` + `package.json` into the runtime stage.
+- `docker-compose.yml` — orchestrates `redis` + `auth` + `upload` + `gateway` on an internal `icore` bridge network. Healthcheck on redis (`redis-cli ping`); MSes wait for redis healthy, gateway waits for redis + auth + upload. `AUTH_TRANSPORT=redis` + `UPLOAD_TRANSPORT=redis` injected directly so they always speak through the broker (closer to production than the default TCP transport). Only the gateway publishes a port (`3001:3001`).
+- `.env.docker.example` — single env file consumed by all four services; documents provider creds for Supabase / Firebase / Cloudinary + OAuth client IDs + `CLIENT_ORIGIN` / `API_ORIGIN`.
+- `.dockerignore` — excludes `node_modules`, `dist`, `.nx`, `.yarn/cache`, `.git`, `.husky`, `.changeset`, etc. so the build context stays small.
+- `docs/runbooks/local-docker.md` — walks through `.env.docker` setup, `docker compose up --build`, troubleshooting, targeted rebuilds.
+- CI — new `docker-build` matrix job in `.github/workflows/pipeline.yml`. Builds all three Dockerfiles in parallel on every push to `dev`/`main` using buildx + GitHub Actions cache. Push disabled — verify-only.
+- **Out of scope (per spec):** no Postgres / Firestore / storage emulators, no SPA service, no traefik/TLS, no Helm. Consumers add what they need.
 
 ## Cross-links
 

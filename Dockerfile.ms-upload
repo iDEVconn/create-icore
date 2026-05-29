@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24-alpine AS builder
+WORKDIR /workspace
+RUN corepack enable
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
+COPY tsconfig.base.json nx.json ./
+RUN yarn install --immutable
+COPY . .
+RUN yarn nx build upload
+
+FROM node:24-alpine AS runtime
+WORKDIR /app
+RUN corepack enable
+COPY --from=builder /workspace/dist/apps/microservices/upload ./dist
+COPY --from=builder /workspace/node_modules ./node_modules
+COPY --from=builder /workspace/package.json ./
+ENV NODE_ENV=production
+CMD ["node", "dist/main.js"]

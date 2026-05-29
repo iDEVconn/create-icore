@@ -110,3 +110,24 @@ jobs:
             tools/**/dist
           if-no-files-found: ignore
           retention-days: 7
+
+  docker-build:
+    name: Docker build (${{ matrix.image }})
+    needs: [check]
+    if: always() && !cancelled() && needs.check.result != 'failure'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [gateway, ms-auth, ms-upload]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.image }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
