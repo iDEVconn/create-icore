@@ -114,7 +114,9 @@ jobs:
   docker-build:
     name: Docker build (${{ matrix.image }})
     needs: [check]
-    if: always() && !cancelled() && needs.check.result != 'failure'
+    if: |
+      always() && !cancelled() && needs.check.result != 'failure' &&
+      (github.ref == 'refs/heads/main' || github.base_ref == 'main')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
