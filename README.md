@@ -12,8 +12,7 @@ Pick whichever package manager you already have. All three resolve to the same `
 # npm
 npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=supabase --ui=shadcn
 
-# yarn (4+). If `latest` is mid-quarantine right after a fresh publish, pin the version:
-#   yarn dlx @idevconn/create-icore@0.2.1 my-saas --auth=…
+# yarn (4+)
 yarn create @idevconn/icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
 
 # pnpm
