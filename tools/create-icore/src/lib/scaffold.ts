@@ -317,8 +317,8 @@ export async function removeUnusedAuthStrategies(
       const next = src
         .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirebaseAuthStrategy[^}]*\} from '@icore\/auth-firebase';\n/m, '')
-        .replace(/^function makeFirebaseStrategy\b[\s\S]*?(?:^}\n|\}\n?$)/m, '')
-        .replace(/[^\n]*'firebase'[^\n]*makeFirebaseStrategy[^\n]*\n?/g, '');
+        .replace(/^function makeFirebaseStrategy\b[\s\S]*?\n^}\n/m, '')
+        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStrategy\(cfg\);\n/, '');
       await writeFile(modulePath, next);
     } catch {
       // ignore
@@ -388,8 +388,8 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*FirebaseStorageStrategy[^}]*\} from '@icore\/storage-firebase';\n/m,
           '',
         )
-        .replace(/^function makeFirebaseStorage\b[\s\S]*?(?:^}\n|\}\n?$)/m, '')
-        .replace(/[^\n]*'firebase'[^\n]*makeFirebaseStorage[^\n]*\n?/g, '');
+        .replace(/^function makeFirebaseStorage\b[\s\S]*?\n^}\n/m, '')
+        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStorage\(cfg\);\n/, '');
     }
     if (uploadProvider !== 'cloudinary') {
       src = src
@@ -398,8 +398,8 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*CloudinaryStorageStrategy[^}]*\} from '@icore\/storage-cloudinary';\n/m,
           '',
         )
-        .replace(/^function makeCloudinaryStorage\b[\s\S]*?(?:^}\n|\}\n?$)/m, '')
-        .replace(/[^\n]*'cloudinary'[^\n]*makeCloudinaryStorage[^\n]*\n?/g, '');
+        .replace(/^function makeCloudinaryStorage\b[\s\S]*?\n^}\n/m, '')
+        .replace(/(?<=\n) *case 'cloudinary':\n *return makeCloudinaryStorage\(cfg\);\n/, '');
     }
     if (uploadProvider !== 'supabase') {
       src = src
@@ -409,7 +409,7 @@ export async function removeUnusedStorageStrategies(
           '',
         )
         .replace(
-          /\n {10}case 'supabase': \{[\s\S]*?bucket: [^)]+\('SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
+          /\n {10}case 'supabase': \{[\s\S]*?bucket: cfg\.getOrThrow<string>\('SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
           '',
         );
     }

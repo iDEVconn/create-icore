@@ -253,7 +253,7 @@ describe('removeUnusedAuthStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/auth/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/auth/src/app/app.module.ts'),
-      `import * as admin from 'firebase-admin';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nfunction makeFirebaseStrategy() { return admin.app(); }\ncase 'firebase': return makeFirebaseStrategy();\ncase 'supabase': return new SupabaseAuthStrategy();`,
+      `import * as admin from 'firebase-admin';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nfunction makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {\n  return admin.app() as unknown as AuthStrategy;\n}\n          case 'firebase':\n            return makeFirebaseStrategy(cfg);\n          case 'supabase': return new SupabaseAuthStrategy();`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
@@ -338,7 +338,7 @@ describe('removeUnusedStorageStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/upload/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/upload/src/app/app.module.ts'),
-      `import * as admin from 'firebase-admin';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nfunction makeFirebaseStorage() {}\nfunction makeCloudinaryStorage() {}\ncase 'firebase': return makeFirebaseStorage();\ncase 'cloudinary': return makeCloudinaryStorage();\ncase 'supabase': return new SupabaseStorageStrategy();`,
+      `import * as admin from 'firebase-admin';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nfunction makeFirebaseStorage(cfg: ConfigService): StorageStrategy {\n  return new FirebaseStorageStrategy({ bucket: admin.storage().bucket() as never });\n}\nfunction makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {\n  return new CloudinaryStorageStrategy({ api: {} as never, bucket: 'cloudinary' });\n}\n          case 'firebase':\n            return makeFirebaseStorage(cfg);\n          case 'cloudinary':\n            return makeCloudinaryStorage(cfg);\n          case 'supabase': return new SupabaseStorageStrategy();`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
