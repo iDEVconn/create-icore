@@ -74,6 +74,21 @@ export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions
   await writeFile(join(targetDir, 'apps/microservices/upload/.env'), next);
 }
 
+export async function writeNotesEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  if (opts.example === 'none') return;
+  const envExample = join(targetDir, 'apps/microservices/notes/.env.example');
+  try {
+    const env = await readFile(envExample, 'utf8');
+    let next = env.replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`);
+    if (opts.transport !== 'tcp') {
+      next = next.replace(/^# (NOTES_(?:REDIS|NATS)_URL=)/m, '$1');
+    }
+    await writeFile(join(targetDir, 'apps/microservices/notes/.env'), next);
+  } catch {
+    // notes .env.example may not exist in older snapshots
+  }
+}
+
 export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   const envExample = join(targetDir, 'apps/api/.env.example');
   const env = await readFile(envExample, 'utf8');
@@ -588,6 +603,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await rewriteRootPackageJson(opts.targetDir, opts);
   await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
+  await writeNotesEnv(opts.targetDir, opts);
   await writePaymentEnv(opts.targetDir, opts);
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);

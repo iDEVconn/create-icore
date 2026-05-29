@@ -5,7 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
 import { SupabaseAuthStrategy } from '@icore/auth-supabase';
 import { FirebaseAuthStrategy, HttpIdentityToolkitClient } from '@icore/auth-firebase';
+import { FakeAuthStrategy } from '@icore/shared';
 import type { AuthStrategy } from '@icore/shared';
+import { Logger } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 
 function requireEnv(cfg: ConfigService, key: string): string {
@@ -47,20 +49,28 @@ function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
     {
       provide: 'AuthStrategy',
       useFactory: (cfg: ConfigService): AuthStrategy => {
-        const provider = requireEnv(cfg, 'AUTH_PROVIDER');
-        switch (provider) {
-          case 'supabase': {
-            const client = createClient(
-              requireEnv(cfg, 'SUPABASE_URL'),
-              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-              { auth: { autoRefreshToken: false, persistSession: false } },
-            );
-            return new SupabaseAuthStrategy({ client });
+        try {
+          const provider = requireEnv(cfg, 'AUTH_PROVIDER');
+          switch (provider) {
+            case 'supabase': {
+              const client = createClient(
+                requireEnv(cfg, 'SUPABASE_URL'),
+                requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+                { auth: { autoRefreshToken: false, persistSession: false } },
+              );
+              return new SupabaseAuthStrategy({ client });
+            }
+            case 'firebase':
+              return makeFirebaseStrategy(cfg);
+            default:
+              throw new Error(`Unsupported AUTH_PROVIDER: ${provider}`);
           }
-          case 'firebase':
-            return makeFirebaseStrategy(cfg);
-          default:
-            throw new Error(`Unsupported AUTH_PROVIDER: ${provider}`);
+        } catch (err) {
+          new Logger('AuthStrategy').warn(
+            `Not configured: ${err instanceof Error ? err.message : String(err)}. ` +
+              `Requests will fail until apps/microservices/auth/.env is set.`,
+          );
+          return new FakeAuthStrategy();
         }
       },
       inject: [ConfigService],
