@@ -3,6 +3,7 @@ export type DbProvider = 'supabase' | 'firebase';
 export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'none';
 export type PaymentProvider = 'paypal' | 'none';
 export type JobsProvider = 'bullmq' | 'none';
+export type ExampleMode = 'notes' | 'none';
 export type UiLibrary = 'shadcn' | 'antd' | 'mui';
 export type MsTransport = 'tcp' | 'redis' | 'nats';
 
@@ -14,6 +15,7 @@ export interface CreateIcoreOptions {
   upload: UploadProvider;
   payment: PaymentProvider;
   jobs: JobsProvider;
+  example: ExampleMode;
   ui: UiLibrary;
   transport: MsTransport;
   initGit: boolean;

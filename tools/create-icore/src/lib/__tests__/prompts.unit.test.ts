@@ -56,6 +56,18 @@ describe('parseFlags', () => {
     expect(parseFlags(['my-app', '--jobs=none']).jobs).toBe('none');
   });
 
+  it('parses --example=none', () => {
+    expect(parseFlags(['my-app', '--example=none']).example).toBe('none');
+  });
+
+  it('parses --example=notes', () => {
+    expect(parseFlags(['my-app', '--example=notes']).example).toBe('notes');
+  });
+
+  it('defaults example to undefined when flag absent', () => {
+    expect(parseFlags(['my-app']).example).toBeUndefined();
+  });
+
   it('honours --no-git', () => {
     expect(parseFlags(['my-app', '--no-git']).initGit).toBe(false);
   });

@@ -9,6 +9,7 @@ import type {
   UploadProvider,
   PaymentProvider,
   JobsProvider,
+  ExampleMode,
   CreateIcoreOptions,
 } from './options.js';
 
@@ -78,6 +79,9 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
         break;
       case 'jobs':
         out.jobs = v as JobsProvider;
+        break;
+      case 'example':
+        out.example = v as ExampleMode;
         break;
       case 'ui':
         out.ui = v as 'shadcn' | 'antd' | 'mui';
@@ -182,6 +186,18 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as JobsProvider);
   if (p.isCancel(jobs)) throw new Error('cancelled');
 
+  const example =
+    flags.example ??
+    ((await p.select({
+      message: 'Include notes sample feature? (CRUD demo — remove before production)',
+      options: [
+        { value: 'notes' as ExampleMode, label: 'Yes — include notes sample' },
+        { value: 'none' as ExampleMode, label: 'No — skip notes (clean slate)' },
+      ],
+      initialValue: 'notes' as ExampleMode,
+    })) as ExampleMode);
+  if (p.isCancel(example)) throw new Error('cancelled');
+
   const ui =
     flags.ui ??
     ((await p.select({
@@ -229,6 +245,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     upload,
     payment,
     jobs,
+    example,
     ui,
     transport,
     initGit,
