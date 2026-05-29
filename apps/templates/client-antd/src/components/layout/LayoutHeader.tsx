@@ -2,6 +2,7 @@ import { Button, Dropdown, Layout, Space, type MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useAuthStore, setStoredLocale, type IcoreLocale } from '@icore/template-shared';
+import { ThemeToggle } from '../ThemeToggle';
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '0.0.0-dev';
 
@@ -83,6 +84,8 @@ export function LayoutHeader() {
             </Button>
           ))}
         </Space>
+
+        <ThemeToggle />
 
         <Dropdown menu={{ items: userMenuItems }} trigger={['click']}>
           <Button type="text" style={{ color: 'rgba(255,255,255,0.85)' }}>

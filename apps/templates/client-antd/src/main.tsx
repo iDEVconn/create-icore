@@ -10,6 +10,7 @@ import {
   createIcoreApi,
   createIcoreI18n,
   ICORE_LOCALES,
+  useThemeStore,
 } from '@icore/template-shared';
 import { routeTree } from './routeTree.gen';
 
@@ -33,18 +34,26 @@ export const api = createIcoreApi({
   onUnauthorized: () => router.navigate({ to: '/login' }),
 });
 
+function Root() {
+  const mode = useThemeStore((s) => s.mode);
+  const algorithm = mode === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm;
+  return (
+    <ConfigProvider theme={{ algorithm }}>
+      <AntApp>
+        <QueryClientProvider client={queryClient}>
+          <AbilityProvider>
+            <RouterProvider router={router} />
+          </AbilityProvider>
+        </QueryClientProvider>
+      </AntApp>
+    </ConfigProvider>
+  );
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
-      <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
-        <AntApp>
-          <QueryClientProvider client={queryClient}>
-            <AbilityProvider>
-              <RouterProvider router={router} />
-            </AbilityProvider>
-          </QueryClientProvider>
-        </AntApp>
-      </ConfigProvider>
+      <Root />
     </I18nextProvider>
   </StrictMode>,
 );
