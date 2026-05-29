@@ -16,6 +16,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 6.1  | Ant Design 6 client template                   | ✅ done |
 | 6.2  | MUI 6 client template                          | ✅ done |
 | 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env       | ✅ done |
+| 6.3  | Unified light/dark theme switching             | ✅ done |
 
 ## Layout
 
@@ -152,6 +153,13 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `libs/db-strategies/supabase` — `SupabaseDBStrategy` over `@supabase/supabase-js`'s Postgres surface. Convention: each `collection` is a Postgres table shaped `(id text primary key, data jsonb)`. Filters use the `data->>'field'` JSONB path. Future Plan 8.1 can ship a migration generator for the convention.
 - `libs/db-strategies/firestore` — `FirestoreDBStrategy` over a `FirestoreLike` narrowed interface. Consumers wire the real `admin.firestore()` at boot. `update`/`delete` pre-check `.get()` to enforce the contract's "throw on missing" invariant even though real Firestore is lenient.
 - CLI writes `DB_PROVIDER` to the generated workspace-root `.env`. The `--db` flag is now a fully independent runtime dimension — `--auth=firebase --db=supabase` is a first-class combo.
+
+## Plan 6.3 deliverables (complete)
+
+- `libs/template-shared/src/lib/stores/theme.store.ts` — Zustand `persist` store with `mode: 'light' | 'dark'`, `setMode(m)`, and `toggle()`. Persisted to localStorage key `icore-theme`. `detectInitial()` reads `prefers-color-scheme: dark` matchMedia on first load; subsequent loads restore from storage. `useTheme()` is a convenience re-export of the full store.
+- **shadcn template** — `useThemeStore` subscribed in `main.tsx` before React mounts; toggles `html.dark` class on `document.documentElement`. Tailwind 4 `@layer base { html.dark { … } }` in `globals.css` already defined dark token overrides. `ThemeToggle.tsx` uses shadcn `Button variant="ghost" size="icon"` with `lucide-react` `Sun`/`Moon` icons. Mounted in `LayoutHeader` between the locale switcher and user controls.
+- **antd template** — `main.tsx` refactored to a `Root` component that subscribes to `useThemeStore` and passes `theme.darkAlgorithm` or `theme.defaultAlgorithm` to `ConfigProvider.theme.algorithm`. `ThemeToggle.tsx` uses antd `Button type="text" size="small"` with `@ant-design/icons` `MoonOutlined`/`SunOutlined`. Mounted in `LayoutHeader` alongside the locale switcher. The `export const api` and the router/queryClient singletons remain outside `Root`.
+- **MUI template** — same `Root` component pattern; `createTheme({ palette: { mode } })` wrapped in `useMemo` to avoid re-creating the theme on every render. `ThemeToggle.tsx` uses MUI `IconButton color="inherit"` with `@mui/icons-material` `LightModeIcon`/`DarkModeIcon`. Mounted in `LayoutHeader` alongside the locale switcher and account icon.
 
 ## Cross-links
 
