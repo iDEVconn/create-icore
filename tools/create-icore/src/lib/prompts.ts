@@ -1,6 +1,12 @@
 import * as p from '@clack/prompts';
 import { resolve } from 'node:path';
-import type { AuthProvider, DbProvider, UploadProvider, CreateIcoreOptions } from './options.js';
+import type {
+  AuthProvider,
+  DbProvider,
+  UploadProvider,
+  PaymentProvider,
+  CreateIcoreOptions,
+} from './options.js';
 
 export interface PromptInput {
   argv: string[];
@@ -33,6 +39,9 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
       case 'storage':
         process.stderr.write('Warning: --storage is deprecated, use --upload\n');
         out.upload = v as UploadProvider;
+        break;
+      case 'payment':
+        out.payment = v as PaymentProvider;
         break;
       case 'ui':
         out.ui = v as 'shadcn' | 'antd' | 'mui';
@@ -101,6 +110,18 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as UploadProvider);
   if (p.isCancel(upload)) throw new Error('cancelled');
 
+  const payment =
+    flags.payment ??
+    ((await p.select({
+      message: 'Payment provider',
+      options: [
+        { value: 'none', label: 'None — skip the payment microservice' },
+        { value: 'paypal', label: 'PayPal (via @idevconn/payment)' },
+      ],
+      initialValue: 'none' as PaymentProvider,
+    })) as PaymentProvider);
+  if (p.isCancel(payment)) throw new Error('cancelled');
+
   const ui =
     flags.ui ??
     ((await p.select({
@@ -146,6 +167,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     authProvider,
     dbProvider,
     upload,
+    payment,
     ui,
     transport,
     initGit,

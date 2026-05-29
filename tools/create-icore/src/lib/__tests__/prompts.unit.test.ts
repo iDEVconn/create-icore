@@ -40,6 +40,14 @@ describe('parseFlags', () => {
     expect(parseFlags(['my-app', '--upload', 'cloudinary']).upload).toBe('cloudinary');
   });
 
+  it('reads --payment=paypal', () => {
+    expect(parseFlags(['my-app', '--payment=paypal']).payment).toBe('paypal');
+  });
+
+  it('reads --payment=none', () => {
+    expect(parseFlags(['my-app', '--payment=none']).payment).toBe('none');
+  });
+
   it('honours --no-git', () => {
     expect(parseFlags(['my-app', '--no-git']).initGit).toBe(false);
   });

@@ -24,7 +24,8 @@
       "@icore/template-shared": ["./libs/template-shared/src/index.ts"],
       "@idevconn/create-icore": ["./tools/create-icore/src/index.ts"],
       "@icore/db-supabase": ["./libs/db-strategies/supabase/src/index.ts"],
-      "@icore/db-firestore": ["./libs/db-strategies/firestore/src/index.ts"]
+      "@icore/db-firestore": ["./libs/db-strategies/firestore/src/index.ts"],
+      "@icore/payment-client": ["./libs/payment-client/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]

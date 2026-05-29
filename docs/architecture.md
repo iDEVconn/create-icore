@@ -19,6 +19,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 6.3  | Unified light/dark theme switching             | ✅ done |
 | 6.4  | Magic-link email sign-in (passwordless)        | ✅ done |
 | 6.5  | OAuth (Google + GitHub) server-mediated        | ✅ done |
+| 9    | Payment MS via @idevconn/payment               | ✅ done |
 
 ## Layout
 
@@ -183,6 +184,14 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - **Firebase** — builds Google/GitHub authorize URLs directly (env-driven `clientId`); exchange via a new `OAuthTokenClient` (`HttpOAuthTokenClient` for prod, mock for tests) then mints a Firebase session via Identity Toolkit `signInWithIdp`. New strategy options `oauth` (per-provider client id + secret) and `oauthTokenClient`.
 - **Gateway** — `GET /api/auth/oauth/:provider` writes an `HttpOnly + SameSite=Lax` `oauth_state` cookie + redirects to the provider. `GET /api/auth/oauth/:provider/callback` verifies the cookie state vs. the query `state`, calls `auth.oauth.complete`, then redirects to `${CLIENT_ORIGIN}/auth/oauth/callback#accessToken=…&refreshToken=…&userId=…&email=…`. Cookie-parser added to the gateway main bootstrap.
 - **All three templates** — `/login` now sports "Continue with Google" + "Continue with GitHub" buttons (shadcn outline + lucide, antd `Button` + `@ant-design/icons` Google/Github, MUI outlined `Button` + `@mui/icons-material` Google/GitHub). New `/auth/oauth/callback` route parses the URL fragment, calls `setAuth`, redirects to the dashboard. i18n keys added: `auth.continueWithGoogle`, `auth.continueWithGithub`, `auth.oauthFailed`, `auth.oauthCallbackMissingTokens`.
+
+## Plan 9 deliverables (complete)
+
+- `apps/microservices/payment` — Nest MS hosting `@idevconn/payment`'s `PaymentRegistry`. Factory reads `PAYMENT_PROVIDER` (defaults to `paypal`) and wires `PaypalStrategy` with `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET` + `PAYPAL_ENVIRONMENT`. Three `@MessagePattern` handlers: `payment.createOrder`, `payment.captureOrder`, `payment.providers`.
+- `libs/payment-client` (`@icore/payment-client`) — NestJS module + service wrapping the MS over the standard `buildTransport('PAYMENT')` transport. Carries `Idempotency-Key` through as `RequestOptions.idempotencyKey`.
+- `apps/api/src/app/payment` — gateway routes `POST /api/payment/orders`, `POST /api/payment/orders/:id/capture`, `GET /api/payment/providers`. All auth-guarded; `Idempotency-Key` HTTP header forwarded as `RequestOptions`.
+- **CLI** — new `--payment=paypal|none` flag (default `none`). When `paypal`, scaffold writes `PAYMENT_PROVIDER=paypal` + transport-matched URLs to the MS `.env`. When `none`, `removePaymentStack` deletes `apps/microservices/payment`, `libs/payment-client`, `apps/api/src/app/payment`, and strips `PaymentModule` from `app.module.ts`.
+- **Scope kept tight** — webhook signature verification + `getOrder` are out of scope because `@idevconn/payment` v1.2 doesn't expose them. Add when the package does.
 
 ## Cross-links
 

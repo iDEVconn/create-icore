@@ -94,6 +94,45 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 
+export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  if (opts.payment === 'none') return;
+  const envExample = join(targetDir, 'apps/microservices/payment/.env.example');
+  try {
+    const env = await readFile(envExample, 'utf8');
+    let next = env
+      .replace(/^PAYMENT_PROVIDER=.*$/m, `PAYMENT_PROVIDER=${opts.payment}`)
+      .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
+    if (opts.transport !== 'tcp') {
+      next = next.replace(/^# (PAYMENT_(?:REDIS|NATS)_URL=)/m, '$1');
+    }
+    await writeFile(join(targetDir, 'apps/microservices/payment/.env'), next);
+  } catch {
+    // payment MS not present in template — older snapshots predate Plan 9
+  }
+}
+
+export async function removePaymentStack(targetDir: string): Promise<void> {
+  const paths = [
+    'apps/microservices/payment',
+    'apps/microservices/payment-e2e',
+    'libs/payment-client',
+    'apps/api/src/app/payment',
+  ];
+  for (const p of paths) {
+    await rm(join(targetDir, p), { recursive: true, force: true });
+  }
+  const appModulePath = join(targetDir, 'apps/api/src/app/app.module.ts');
+  try {
+    const appModule = await readFile(appModulePath, 'utf8');
+    const next = appModule
+      .replace(/^import \{ PaymentModule \} from '\.\/payment\/payment\.module';\n/m, '')
+      .replace(/,\s*PaymentModule/g, '');
+    await writeFile(appModulePath, next);
+  } catch {
+    // ignore
+  }
+}
+
 export async function removeUploadStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/upload',
@@ -176,10 +215,12 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await rewriteRootPackageJson(opts.targetDir, opts);
   await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
+  await writePaymentEnv(opts.targetDir, opts);
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
+  if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.install) yarnInstall(opts.targetDir);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }
