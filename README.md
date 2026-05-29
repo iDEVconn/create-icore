@@ -10,10 +10,10 @@ Pick whichever package manager you already have. All three resolve to the same `
 
 ```bash
 # npm
-npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+npm init @idevconn/icore@latest my-saas -- --auth=supabase --db=supabase --upload=supabase --ui=shadcn
 
 # yarn (4+)
-yarn create @idevconn/icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+yarn create @idevconn/icore@latest my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
 
 # pnpm
 pnpm create @idevconn/icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn

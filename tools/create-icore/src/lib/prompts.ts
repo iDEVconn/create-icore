@@ -1,5 +1,8 @@
 import * as p from '@clack/prompts';
 import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
   AuthProvider,
   DbProvider,
@@ -8,6 +11,35 @@ import type {
   JobsProvider,
   CreateIcoreOptions,
 } from './options.js';
+
+async function readSelfVersion(): Promise<string | null> {
+  try {
+    // dist/cli.js → ../package.json (after tsup bundle)
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkgRaw = await readFile(join(here, '..', 'package.json'), 'utf8');
+    const pkg = JSON.parse(pkgRaw) as { version?: string };
+    return pkg.version ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchLatestVersion(timeoutMs = 1500): Promise<string | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const res = await fetch(
+      'https://registry.npmjs.org/-/package/@idevconn/create-icore/dist-tags',
+      { signal: ctrl.signal },
+    );
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { latest?: string };
+    return data.latest ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export interface PromptInput {
   argv: string[];
@@ -67,7 +99,19 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
 export async function collectOptions({ argv, cwd }: PromptInput): Promise<CreateIcoreOptions> {
   const flags = parseFlags(argv);
 
-  p.intro('icore — bootstrap a new project');
+  const [selfVersion, latestVersion] = await Promise.all([readSelfVersion(), fetchLatestVersion()]);
+
+  const versionTag = selfVersion ? ` v${selfVersion}` : '';
+  p.intro(`iCore${versionTag} — bootstrap a new project`);
+
+  if (selfVersion && latestVersion && selfVersion !== latestVersion) {
+    p.note(
+      `You are running v${selfVersion} but v${latestVersion} is on npm.\n` +
+        `Re-run with @latest to refresh:\n` +
+        `  npm init @idevconn/icore@latest <name> -- …`,
+      'Newer version available',
+    );
+  }
 
   const projectName =
     flags.projectName ??
