@@ -2875,6 +2875,31 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/notes-client@npm:*, @icore/notes-client@workspace:libs/notes-client":
+  version: 0.0.0-use.local
+  resolution: "@icore/notes-client@workspace:libs/notes-client"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
+"@icore/payment-client@npm:*, @icore/payment-client@workspace:libs/payment-client":
+  version: 0.0.0-use.local
+  resolution: "@icore/payment-client@workspace:libs/payment-client"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@idevconn/payment": "npm:^1.2.0"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@icore/shared@npm:*, @icore/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@icore/shared@workspace:libs/shared"
@@ -10172,9 +10197,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "api@workspace:apps/api"
   dependencies:
+    "@casl/ability": "npm:^7.0.0"
     "@icore/auth-client": "npm:*"
+    "@icore/notes-client": "npm:*"
+    "@icore/payment-client": "npm:*"
     "@icore/shared": "npm:*"
     "@icore/upload-client": "npm:*"
+    "@idevconn/payment": "npm:^1.2.0"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.1.24"
@@ -19232,14 +19261,6 @@ __metadata:
   checksum: 10c0/c118dc5a8b5c4166011b2b70608762e260085180bb9e33e80a50dcdb1e78c010b1624f4280c492c92b05fc276715a4c357d1f9edc570f8f1b3d90b6839ebaca1
   languageName: node
   linkType: hard
-
-"payment-client@workspace:libs/payment-client":
-  version: 0.0.0-use.local
-  resolution: "payment-client@workspace:libs/payment-client"
-  dependencies:
-    tslib: "npm:^2.3.0"
-  languageName: unknown
-  linkType: soft
 
 "pend@npm:~1.2.0":
   version: 1.2.0

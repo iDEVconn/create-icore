@@ -6,7 +6,9 @@
     "@types/multer": "*"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.0",
     "@icore/auth-client": "*",
+    "@icore/notes-client": "*",
     "@icore/payment-client": "*",
     "@icore/shared": "*",
     "@icore/upload-client": "*",

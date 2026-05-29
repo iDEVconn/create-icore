@@ -62,7 +62,8 @@
       "plugin": "@nx/jest/plugin",
       "options": {
         "targetName": "test"
-      }
+      },
+      "exclude": ["apps/microservices/notes-e2e/**/*"]
     }
   ],
   "targetDefaults": {
