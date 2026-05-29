@@ -4,25 +4,25 @@ High-level view of how iCore is assembled. Detailed design lives in `docs/superp
 
 ## Status
 
-| Plan | Scope                                          | State   |
-| ---- | ---------------------------------------------- | ------- |
-| 1    | Workspace + shared contracts (`libs/shared`)   | ✅ done |
-| 2    | Supabase auth MS + gateway `AuthGuard` + CASL  | ✅ done |
-| 3    | Firebase auth strategy + ADMINS_LIST hook      | ✅ done |
-| 4    | Supabase storage MS + gateway storage routes   | ✅ done |
-| 5    | Firebase + Cloudinary storage strategies       | ✅ done |
-| 6    | Client shell (Vite + shadcn + TanStack Router) | ✅ done |
-| 7    | `@idevconn/create-icore` CLI + publish         | ✅ done |
-| 6.1  | Ant Design 6 client template                   | ✅ done |
-| 6.2  | MUI 6 client template                          | ✅ done |
-| 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env       | ✅ done |
-| 6.3  | Unified light/dark theme switching             | ✅ done |
-| 6.4  | Magic-link email sign-in (passwordless)        | ✅ done |
-| 6.5  | OAuth (Google + GitHub) server-mediated        | ✅ done |
-| 9    | Payment MS via @idevconn/payment               | ✅ done |
-| 10   | Notes sample MS + gateway CRUD + templates UI  | ✅ done |
-| 11   | docker-compose local dev stack + Dockerfiles   | ✅ done |
-| 12   | BullMQ jobs MS + bull-board admin UI           | ✅ done |
+| Plan | Scope                                                            | State   |
+| ---- | ---------------------------------------------------------------- | ------- |
+| 1    | Workspace + shared contracts (`libs/shared`)                     | ✅ done |
+| 2    | Supabase auth MS + gateway `AuthGuard` + CASL                    | ✅ done |
+| 3    | Firebase auth strategy + ADMINS_LIST hook                        | ✅ done |
+| 4    | Supabase storage MS + gateway storage routes                     | ✅ done |
+| 5    | Firebase + Cloudinary storage strategies                         | ✅ done |
+| 6    | Client shell (Vite + shadcn + TanStack Router)                   | ✅ done |
+| 7    | `@idevconn/create-icore` CLI + publish                           | ✅ done |
+| 6.1  | Ant Design 6 client template                                     | ✅ done |
+| 6.2  | MUI 6 client template                                            | ✅ done |
+| 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env                         | ✅ done |
+| 6.3  | Unified light/dark theme switching                               | ✅ done |
+| 6.4  | Magic-link email sign-in (passwordless)                          | ✅ done |
+| 6.5  | OAuth (Google + GitHub) server-mediated                          | ✅ done |
+| 9    | Payment MS via @idevconn/payment                                 | ✅ done |
+| 10   | Notes sample MS + gateway CRUD + templates UI                    | ✅ done |
+| 11   | docker-compose local dev stack + Dockerfiles                     | ✅ done |
+| 12   | BullMQ jobs MS + bull-board admin UI                             | ✅ done |
 | 13   | `--example=none` flag + `yarn remove-notes` post-generate script | ✅ done |
 
 ## Layout

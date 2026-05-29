@@ -1,5 +1,5 @@
 ---
-"@idevconn/create-icore": minor
+'@idevconn/create-icore': minor
 ---
 
 feat: --example=notes|none flag and yarn remove-notes post-generate script
