@@ -409,7 +409,7 @@ export async function removeUnusedStorageStrategies(
           '',
         )
         .replace(
-          /\n {10}case 'supabase': \{[\s\S]*?bucket: cfg\.getOrThrow<string>\('SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
+          /\n {10}case 'supabase': \{[\s\S]*?bucket: requireEnv\(cfg, 'SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
           '',
         );
     }
