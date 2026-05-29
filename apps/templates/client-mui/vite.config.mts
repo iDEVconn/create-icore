@@ -14,11 +14,7 @@ const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf-8')
 };
 
 function depVersion(name: string): string {
-  return (
-    rootPackageJson.dependencies?.[name] ??
-    rootPackageJson.devDependencies?.[name] ??
-    '?'
-  );
+  return rootPackageJson.dependencies?.[name] ?? rootPackageJson.devDependencies?.[name] ?? '?';
 }
 
 export default defineConfig(() => ({
@@ -41,9 +37,7 @@ export default defineConfig(() => ({
     'import.meta.env.VITE_DEP_TANSTACK_ROUTER': JSON.stringify(
       depVersion('@tanstack/react-router'),
     ),
-    'import.meta.env.VITE_DEP_TANSTACK_QUERY': JSON.stringify(
-      depVersion('@tanstack/react-query'),
-    ),
+    'import.meta.env.VITE_DEP_TANSTACK_QUERY': JSON.stringify(depVersion('@tanstack/react-query')),
     'import.meta.env.VITE_DEP_ZUSTAND': JSON.stringify(depVersion('zustand')),
     'import.meta.env.VITE_DEP_CASL': JSON.stringify(depVersion('@casl/ability')),
   },
@@ -56,6 +50,19 @@ export default defineConfig(() => ({
     react(),
     nxViteTsPaths(),
     nxCopyAssetsPlugin(['*.md']),
+    {
+      name: 'no-server-modules',
+      enforce: 'pre' as const,
+      resolveId(id: string, importer?: string) {
+        if (/^(@nestjs\/|firebase-admin$|bullmq$|ioredis$)/.test(id)) {
+          throw new Error(
+            `Server-only module "${id}" imported in client code` +
+              (importer ? ` (from ${importer})` : '') +
+              '. Use @icore/shared/client instead of @icore/shared for browser-safe imports.',
+          );
+        }
+      },
+    },
     {
       name: 'inject-app-version-meta',
       transformIndexHtml(html: string) {
