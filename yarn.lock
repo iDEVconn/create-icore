@@ -3019,10 +3019,13 @@ __metadata:
 "@icore/vite-plugins@workspace:libs/vite-plugins":
   version: 0.0.0-use.local
   resolution: "@icore/vite-plugins@workspace:libs/vite-plugins"
-  dependencies:
-    tslib: "npm:^2.3.0"
   peerDependencies:
-    vite: ">=5"
+    tslib: ^2.3.0
+    vite: ^8.0.0
+    vitest: ~4.1.0
+  peerDependenciesMeta:
+    vite:
+      optional: false
   languageName: unknown
   linkType: soft
 
