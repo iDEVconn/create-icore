@@ -119,7 +119,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         },
         {
           value: 'mui' as 'shadcn' | 'antd' | 'mui',
-          label: 'MUI (coming soon — falls back to shadcn)',
+          label: 'MUI 6 (Material Design)',
         },
       ],
       initialValue: 'shadcn' as 'shadcn' | 'antd' | 'mui',
@@ -152,7 +152,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     authProvider,
     dbProvider,
     upload,
-    ui: ui === 'mui' ? 'shadcn' : ui, // only mui still falls back to shadcn (Plan 6.2); antd ships
+    ui,
     transport,
     initGit,
     install,
