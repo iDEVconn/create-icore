@@ -20,6 +20,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 6.4  | Magic-link email sign-in (passwordless)        | ✅ done |
 | 6.5  | OAuth (Google + GitHub) server-mediated        | ✅ done |
 | 9    | Payment MS via @idevconn/payment               | ✅ done |
+| 10   | Notes sample MS + gateway CRUD + templates UI  | ✅ done |
 
 ## Layout
 
@@ -192,6 +193,16 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `apps/api/src/app/payment` — gateway routes `POST /api/payment/orders`, `POST /api/payment/orders/:id/capture`, `GET /api/payment/providers`. All auth-guarded; `Idempotency-Key` HTTP header forwarded as `RequestOptions`.
 - **CLI** — new `--payment=paypal|none` flag (default `none`). When `paypal`, scaffold writes `PAYMENT_PROVIDER=paypal` + transport-matched URLs to the MS `.env`. When `none`, `removePaymentStack` deletes `apps/microservices/payment`, `libs/payment-client`, `apps/api/src/app/payment`, and strips `PaymentModule` from `app.module.ts`.
 - **Scope kept tight** — webhook signature verification + `getOrder` are out of scope because `@idevconn/payment` v1.2 doesn't expose them. Add when the package does.
+
+## Plan 10 deliverables (complete)
+
+- `libs/shared/src/types/note.ts` — `Note` + `ListNotesOptions` types exported from `@icore/shared`.
+- `libs/shared/src/abilities/ability.ts` — `defineAbilitiesFor` now grants `read/update/delete Note { ownerId: user.id }` to plain users + `create Note` unconditionally; admin still gets `manage all`. Added 5 contract tests (46 total).
+- `apps/microservices/notes` — Nest MS hosting `DBStrategy` factory that wires SupabaseDBStrategy or FirestoreDBStrategy from `DB_PROVIDER`. Five `@MessagePattern` handlers: `notes.list/get/create/update/delete`. 7 unit tests against `FakeDBStrategy`.
+- `libs/notes-client` (`@icore/notes-client`) — NestJS module + service wrapping the MS over `buildTransport('NOTES')`.
+- `apps/api/src/app/notes` — gateway controller with `Get /notes`, `Get /notes/:id`, `Post /notes`, `Patch /notes/:id`, `Delete /notes/:id`. Owner-scoped via `req.user.uid`; admin sees all (passes `ownerId=null` to MS). CASL gates each non-list operation via `subject('Note', loadedNote)`. 9 controller tests covering 403/404/admin paths.
+- **All three templates** — new `/_dashboard/notes` route + TanStack Query hooks (`useNotesList/useCreateNote/useUpdateNote/useDeleteNote`) + library-specific UI (shadcn: custom Table + Dialog primitives; antd: `Table` + `Modal` + `Popconfirm`; MUI: `Table` + `Dialog` + `TablePagination`). Sidebar nav item added to each. New i18n keys: `notes.*`.
+- `libs/template-shared` `PageLayout` (shadcn) gains an `actions` slot rendered next to the title (mirrors antd's existing `extra` + MUI's existing layout).
 
 ## Cross-links
 
