@@ -2,11 +2,8 @@
 FROM node:24-alpine AS builder
 WORKDIR /workspace
 RUN corepack enable
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
-COPY tsconfig.base.json nx.json ./
-RUN yarn install --immutable
 COPY . .
+RUN yarn install --immutable
 RUN yarn nx build jobs
 
 FROM node:24-alpine AS runtime
