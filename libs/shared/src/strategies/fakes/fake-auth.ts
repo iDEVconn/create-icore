@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AuthSession, AuthStrategy, VerifiedToken } from '../auth';
+import type { AuthSession, AuthStrategy, MagicLinkRequest, VerifiedToken } from '../auth';
 
 interface StoredUser {
   id: string;
@@ -12,6 +12,8 @@ export class FakeAuthStrategy implements AuthStrategy {
   private readonly users = new Map<string, StoredUser>();
   private readonly tokensToUid = new Map<string, string>();
   private readonly refreshToUid = new Map<string, string>();
+  private readonly magicLinkTokens = new Map<string, string>();
+  private readonly magicLinkByEmail = new Map<string, string>();
 
   async signUp(email: string, password: string): Promise<AuthSession> {
     if (this.users.has(email)) throw new Error('user_exists');
@@ -49,6 +51,31 @@ export class FakeAuthStrategy implements AuthStrategy {
   async getRole(uid: string): Promise<string | null> {
     const user = this.findById(uid);
     return user.role ?? null;
+  }
+
+  async sendMagicLink(req: MagicLinkRequest): Promise<void> {
+    let user = this.users.get(req.email);
+    if (!user) {
+      user = { id: randomUUID(), email: req.email, password: '' };
+      this.users.set(req.email, user);
+    }
+    const token = randomUUID();
+    this.magicLinkTokens.set(token, user.id);
+    this.magicLinkByEmail.set(req.email, token);
+  }
+
+  async verifyMagicLink(token: string): Promise<AuthSession> {
+    const uid = this.magicLinkTokens.get(token);
+    if (!uid) throw new Error('invalid_magic_link');
+    this.magicLinkTokens.delete(token);
+    const user = this.findById(uid);
+    return this.issueSession(user);
+  }
+
+  getLastMagicLinkToken(email: string): string {
+    const token = this.magicLinkByEmail.get(email);
+    if (!token) throw new Error(`no magic-link issued for ${email}`);
+    return token;
   }
 
   private findById(uid: string): StoredUser {
