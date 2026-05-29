@@ -2958,6 +2958,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@idevconn/payment@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "@idevconn/payment@npm:1.2.0"
+  dependencies:
+    axios: "npm:^1.7.9"
+    zod: "npm:^4.4.3"
+  peerDependencies:
+    express: ^5.0.0
+  checksum: 10c0/0473eb63923c4acc4afa20355ea5029e9c1e8b0bad63e705d68b469bab11cc0b7927a33e10cfd822fd2d9aa65fe08847379d231fb716ff59822490178ed03432
+  languageName: node
+  linkType: hard
+
 "@idevconn/use-draft@npm:*, @idevconn/use-draft@npm:^0.2.0":
   version: 0.2.0
   resolution: "@idevconn/use-draft@npm:0.2.0"
@@ -9858,6 +9870,7 @@ __metadata:
     "@nestjs/swagger": "npm:^11.4.4"
     "@nestjs/throttler": "npm:^6.5.0"
     "@types/multer": "npm:*"
+    cookie-parser: "npm:^1.4.7"
     express: "npm:^4.22.2"
   languageName: unknown
   linkType: soft
@@ -10151,7 +10164,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.6.0":
+"axios@npm:^1.6.0, axios@npm:^1.7.9":
   version: 1.16.1
   resolution: "axios@npm:1.16.1"
   dependencies:
@@ -14679,6 +14692,7 @@ __metadata:
     "@emotion/styled": "npm:^11"
     "@eslint/js": "npm:^10.0.1"
     "@idevconn/api-client": "npm:^0.3.0"
+    "@idevconn/payment": "npm:^1.2.0"
     "@idevconn/use-draft": "npm:^0.2.0"
     "@mui/icons-material": "npm:^6"
     "@mui/material": "npm:^6"

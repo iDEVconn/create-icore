@@ -93,6 +93,7 @@
     "@emotion/react": "^11",
     "@emotion/styled": "^11",
     "@idevconn/api-client": "^0.3.0",
+    "@idevconn/payment": "^1.2.0",
     "@idevconn/use-draft": "^0.2.0",
     "@mui/icons-material": "^6",
     "@mui/material": "^6",
