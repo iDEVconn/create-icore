@@ -193,6 +193,88 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
   ]);
 }
 
+export async function removeNotesStack(targetDir: string): Promise<void> {
+  // Delete MS, lib, gateway module, and shadcn-only notes components dir
+  for (const p of [
+    'apps/microservices/notes',
+    'libs/notes-client',
+    'apps/api/src/app/notes',
+    'apps/client/src/components/notes',
+  ]) {
+    await rm(join(targetDir, p), { recursive: true, force: true });
+  }
+
+  // Delete individual client files
+  await rm(join(targetDir, 'apps/client/src/routes/_dashboard/notes.tsx'), { force: true });
+  await rm(join(targetDir, 'apps/client/src/queries/notes.ts'), { force: true });
+
+  // Strip NotesModule from gateway app.module.ts
+  const appModulePath = join(targetDir, 'apps/api/src/app/app.module.ts');
+  try {
+    const src = await readFile(appModulePath, 'utf8');
+    const next = src
+      .replace(/^import \{ NotesModule \} from '\.\/notes\/notes\.module';\n/m, '')
+      .replace(/,\s*NotesModule/g, '');
+    await writeFile(appModulePath, next);
+  } catch {
+    // ignore — app.module.ts may not exist in test scaffolds
+  }
+
+  // Strip @icore/notes-client dep from api/package.json
+  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/notes-client']);
+
+  // Strip @icore/notes-client path alias from tsconfig.base.json
+  const tsconfigPath = join(targetDir, 'tsconfig.base.json');
+  try {
+    const src = await readFile(tsconfigPath, 'utf8');
+    const next = src.replace(/^\s*"@icore\/notes-client": \[[^\]]*\],?\n/m, '');
+    await writeFile(tsconfigPath, next);
+  } catch {
+    // ignore
+  }
+
+  // Strip notes nav from LayoutSider — handles shadcn, antd and mui variants
+  const siderPath = join(targetDir, 'apps/client/src/components/layout/LayoutSider.tsx');
+  try {
+    const src = await readFile(siderPath, 'utf8');
+    const next = src
+      // shadcn: remove StickyNote from lucide import + notes Link block
+      .replace(', StickyNote', '')
+      .replace(/\n {8}<Link\n {10}to="\/_dashboard\/notes"[\s\S]*?<\/Link>/, '')
+      // antd: remove FileTextOutlined + selectedKey notes branch + notes items entry
+      .replace(', FileTextOutlined', '')
+      .replace(
+        "const selectedKey = pathname.includes('/notes')\n    ? 'notes'\n    : pathname.includes('/profile')",
+        "const selectedKey = pathname.includes('/profile')",
+      )
+      .replace(
+        "\n    {\n      key: 'notes',\n      icon: <FileTextOutlined />,\n      label: <Link to=\"/_dashboard/notes\">{t('notes.title')}</Link>,\n    },",
+        '',
+      )
+      // mui: remove NoteOutlinedIcon import + notes ListItemButton
+      .replace("import NoteOutlinedIcon from '@mui/icons-material/NoteOutlined';\n", '')
+      .replace(
+        /\n {8}<ListItemButton\n {10}component=\{Link\}\n {10}to="\/_dashboard\/notes"[\s\S]*?<\/ListItemButton>/,
+        '',
+      )
+      // test stub: remove simple notes link
+      .replace(/\n\s*<Link to="\/_dashboard\/notes">[\s\S]*?<\/Link>/m, '');
+    await writeFile(siderPath, next);
+  } catch {
+    // ignore
+  }
+
+  // Strip notes block from template-shared i18n keys.ts
+  const keysPath = join(targetDir, 'libs/template-shared/src/lib/i18n/keys.ts');
+  try {
+    const src = await readFile(keysPath, 'utf8');
+    const next = src.replace(/^\s{4}notes: \{\n(?:\s+.*\n)*?\s{4}\},\n/m, '');
+    await writeFile(keysPath, next);
+  } catch {
+    // ignore
+  }
+}
+
 export async function removeUploadStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/upload',
