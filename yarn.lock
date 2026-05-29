@@ -1593,6 +1593,38 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bull-board/api@npm:7.1.5, @bull-board/api@npm:^7.1.5":
+  version: 7.1.5
+  resolution: "@bull-board/api@npm:7.1.5"
+  dependencies:
+    redis-info: "npm:^3.1.0"
+  peerDependencies:
+    "@bull-board/ui": 7.1.5
+  checksum: 10c0/019b068aca11d403823ab50aa3745c099ad4b5fc340bb81dc57df29042f03e348aca7a929fb1f08aaf003de71773ddee094c44778c0185dcbe420d860d07395a
+  languageName: node
+  linkType: hard
+
+"@bull-board/express@npm:^7.1.5":
+  version: 7.1.5
+  resolution: "@bull-board/express@npm:7.1.5"
+  dependencies:
+    "@bull-board/api": "npm:7.1.5"
+    "@bull-board/ui": "npm:7.1.5"
+    ejs: "npm:^5.0.2"
+    express: "npm:^5.2.1"
+  checksum: 10c0/5ced9048a4ce3f055d90ac431f5ac72725899aa75e8ca965909bb8c5b75ca3d27bde61562406ff01253f9bb6748da9400dfa823fb7860ab11da9ff44ddef5bba
+  languageName: node
+  linkType: hard
+
+"@bull-board/ui@npm:7.1.5":
+  version: 7.1.5
+  resolution: "@bull-board/ui@npm:7.1.5"
+  dependencies:
+    "@bull-board/api": "npm:7.1.5"
+  checksum: 10c0/ae1d7c0e67525d2d7133b80c121b19785de0e045769875292e78204ec4d83728ec9fcd2092dca3a21ed8779ca9ba5f8b458c4d73457d0961c70ec746038bd5c5
+  languageName: node
+  linkType: hard
+
 "@casl/ability@npm:^7, @casl/ability@npm:^7.0.0":
   version: 7.0.0
   resolution: "@casl/ability@npm:7.0.0"
@@ -2875,7 +2907,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/jobs-client@workspace:libs/jobs-client":
+"@icore/jobs-client@npm:*, @icore/jobs-client@workspace:libs/jobs-client":
   version: 0.0.0-use.local
   resolution: "@icore/jobs-client@workspace:libs/jobs-client"
   dependencies:
@@ -10273,8 +10305,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "api@workspace:apps/api"
   dependencies:
+    "@bull-board/api": "npm:^7.1.5"
+    "@bull-board/express": "npm:^7.1.5"
     "@casl/ability": "npm:^7.0.0"
     "@icore/auth-client": "npm:*"
+    "@icore/jobs-client": "npm:*"
     "@icore/notes-client": "npm:*"
     "@icore/payment-client": "npm:*"
     "@icore/shared": "npm:*"
@@ -12661,6 +12696,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ejs@npm:^5.0.2":
+  version: 5.0.2
+  resolution: "ejs@npm:5.0.2"
+  bin:
+    ejs: bin/cli.js
+  checksum: 10c0/6377ba83487e9e818dd77ab92d67a5f6c0d093689fa500aa0654305f4c19af13a30a606cc6286b8dfef1cf8aae89a71130af16aca5b72dc500a4a44ac3aa13bf
+  languageName: node
+  linkType: hard
+
 "electron-to-chromium@npm:^1.5.328":
   version: 1.5.363
   resolution: "electron-to-chromium@npm:1.5.363"
@@ -13638,7 +13682,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"express@npm:5.2.1":
+"express@npm:5.2.1, express@npm:^5.2.1":
   version: 5.2.1
   resolution: "express@npm:5.2.1"
   dependencies:
@@ -17869,7 +17913,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:4.18.1, lodash@npm:^4.17.23":
+"lodash@npm:4.18.1, lodash@npm:^4.17.11, lodash@npm:^4.17.23":
   version: 4.18.1
   resolution: "lodash@npm:4.18.1"
   checksum: 10c0/757228fc68805c59789e82185135cf85f05d0b2d3d54631d680ca79ec21944ec8314d4533639a14b8bcfbd97a517e78960933041a5af17ecb693ec6eecb99a27
@@ -20636,6 +20680,15 @@ __metadata:
   version: 1.2.0
   resolution: "redis-errors@npm:1.2.0"
   checksum: 10c0/5b316736e9f532d91a35bff631335137a4f974927bb2fb42bf8c2f18879173a211787db8ac4c3fde8f75ed6233eb0888e55d52510b5620e30d69d7d719c8b8a7
+  languageName: node
+  linkType: hard
+
+"redis-info@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "redis-info@npm:3.1.0"
+  dependencies:
+    lodash: "npm:^4.17.11"
+  checksum: 10c0/ec0f31d97893c5828cec7166486d74198c92160c60073b6f2fe805cdf575a10ddcccc7641737d44b8f451355f0ab5b6c7b0d79e8fc24742b75dd625f91ffee38
   languageName: node
   linkType: hard
 

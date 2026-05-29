@@ -6,8 +6,11 @@
     "@types/multer": "*"
   },
   "dependencies": {
+    "@bull-board/api": "^7.1.5",
+    "@bull-board/express": "^7.1.5",
     "@casl/ability": "^7.0.0",
     "@icore/auth-client": "*",
+    "@icore/jobs-client": "*",
     "@icore/notes-client": "*",
     "@icore/payment-client": "*",
     "@icore/shared": "*",
