@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Paper,
   Stack,
   Tab,
@@ -11,6 +12,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
+import GitHubIcon from '@mui/icons-material/GitHub';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '../main';
@@ -81,15 +84,36 @@ function LoginPage() {
         </Typography>
 
         {mode !== 'magicLinkSent' && (
-          <Tabs
-            value={mode}
-            onChange={(_, v: Mode) => setMode(v)}
-            variant="fullWidth"
-            sx={{ mb: 2 }}
-          >
-            <Tab label={t('auth.withPassword')} value="password" />
-            <Tab label={t('auth.withMagicLink')} value="magicLinkRequest" />
-          </Tabs>
+          <>
+            <Tabs
+              value={mode}
+              onChange={(_, v: Mode) => setMode(v)}
+              variant="fullWidth"
+              sx={{ mb: 2 }}
+            >
+              <Tab label={t('auth.withPassword')} value="password" />
+              <Tab label={t('auth.withMagicLink')} value="magicLinkRequest" />
+            </Tabs>
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<GoogleIcon />}
+                onClick={() => window.location.assign('/api/auth/oauth/google')}
+              >
+                {t('auth.continueWithGoogle')}
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<GitHubIcon />}
+                onClick={() => window.location.assign('/api/auth/oauth/github')}
+              >
+                {t('auth.continueWithGithub')}
+              </Button>
+            </Stack>
+            <Divider sx={{ mb: 2 }} />
+          </>
         )}
 
         {mode === 'password' && (

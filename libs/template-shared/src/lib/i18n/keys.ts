@@ -22,6 +22,10 @@ export const ICORE_LOCALES = {
       callbackVerifying: 'Verifying…',
       callbackFailed: 'Verification failed',
       callbackMissingToken: 'Missing magic-link token',
+      continueWithGoogle: 'Continue with Google',
+      continueWithGithub: 'Continue with GitHub',
+      oauthFailed: 'Sign-in failed',
+      oauthCallbackMissingTokens: 'Missing tokens on callback',
     },
     nav: {
       dashboard: 'Dashboard',

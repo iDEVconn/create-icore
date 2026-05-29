@@ -72,26 +72,46 @@ function LoginPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {mode !== 'magicLinkSent' && (
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={mode === 'password' ? 'default' : 'outline'}
-                size="sm"
-                className="flex-1"
-                onClick={() => setMode('password')}
-              >
-                {t('auth.withPassword')}
-              </Button>
-              <Button
-                type="button"
-                variant={mode === 'magicLinkRequest' ? 'default' : 'outline'}
-                size="sm"
-                className="flex-1"
-                onClick={() => setMode('magicLinkRequest')}
-              >
-                {t('auth.withMagicLink')}
-              </Button>
-            </div>
+            <>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={mode === 'password' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setMode('password')}
+                >
+                  {t('auth.withPassword')}
+                </Button>
+                <Button
+                  type="button"
+                  variant={mode === 'magicLinkRequest' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setMode('magicLinkRequest')}
+                >
+                  {t('auth.withMagicLink')}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => window.location.assign('/api/auth/oauth/google')}
+                >
+                  {t('auth.continueWithGoogle')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => window.location.assign('/api/auth/oauth/github')}
+                >
+                  {t('auth.continueWithGithub')}
+                </Button>
+              </div>
+            </>
           )}
 
           {mode === 'password' && (

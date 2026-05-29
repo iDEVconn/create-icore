@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Button, Card, Form, Input, Result, Segmented } from 'antd';
+import { Button, Card, Form, Input, Result, Segmented, Space } from 'antd';
+import { GithubOutlined, GoogleOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, useNotify } from '@icore/template-shared';
@@ -77,16 +78,34 @@ function LoginPage() {
         </p>
 
         {mode !== 'magicLinkSent' && (
-          <Segmented
-            block
-            value={mode}
-            onChange={(v) => setMode(v as Mode)}
-            options={[
-              { label: t('auth.withPassword'), value: 'password' },
-              { label: t('auth.withMagicLink'), value: 'magicLinkRequest' },
-            ]}
-            style={{ marginBottom: 16 }}
-          />
+          <>
+            <Segmented
+              block
+              value={mode}
+              onChange={(v) => setMode(v as Mode)}
+              options={[
+                { label: t('auth.withPassword'), value: 'password' },
+                { label: t('auth.withMagicLink'), value: 'magicLinkRequest' },
+              ]}
+              style={{ marginBottom: 16 }}
+            />
+            <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+              <Button
+                block
+                icon={<GoogleOutlined />}
+                onClick={() => window.location.assign('/api/auth/oauth/google')}
+              >
+                {t('auth.continueWithGoogle')}
+              </Button>
+              <Button
+                block
+                icon={<GithubOutlined />}
+                onClick={() => window.location.assign('/api/auth/oauth/github')}
+              >
+                {t('auth.continueWithGithub')}
+              </Button>
+            </Space>
+          </>
         )}
 
         {mode === 'password' && (
