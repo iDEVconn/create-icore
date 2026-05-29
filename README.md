@@ -14,6 +14,9 @@ npm init @idevconn/icore my-saas -- \
   --upload=supabase \
   --ui=shadcn
 
+# Firebase auth + Supabase Postgres for app data (mix-and-match)
+npm init @idevconn/icore my-saas -- --auth=firebase --db=supabase --upload=cloudinary --ui=shadcn
+
 # Ant Design + Cloudinary
 npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=cloudinary --ui=antd
 
@@ -23,13 +26,13 @@ npm init @idevconn/icore my-saas -- --auth=firebase --db=firebase --upload=cloud
 
 The CLI prompts (interactive) or accepts flags (non-interactive) for:
 
-| Dimension       | Choices                                                      |
-| --------------- | ------------------------------------------------------------ |
-| **Auth**        | Supabase, Firebase                                           |
-| **Database**    | Supabase, Firebase (mirrors auth in v0.1.0)                  |
-| **File upload** | Supabase Storage, Firebase Cloud Storage, Cloudinary, `none` |
-| **UI library**  | shadcn/Tailwind, **Ant Design**, **MUI**                     |
-| **Transport**   | TCP, Redis, NATS                                             |
+| Dimension       | Choices                                                        |
+| --------------- | -------------------------------------------------------------- |
+| **Auth**        | Supabase, Firebase                                             |
+| **Database**    | Supabase Postgres or Firestore — fully independent of `--auth` |
+| **File upload** | Supabase Storage, Firebase Cloud Storage, Cloudinary, `none`   |
+| **UI library**  | shadcn/Tailwind, **Ant Design**, **MUI**                       |
+| **Transport**   | TCP, Redis, NATS                                               |
 
 After scaffolding:
 

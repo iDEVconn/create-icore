@@ -15,6 +15,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 7    | `@idevconn/create-icore` CLI + publish         | ✅ done |
 | 6.1  | Ant Design 6 client template                   | ✅ done |
 | 6.2  | MUI 6 client template                          | ✅ done |
+| 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env       | ✅ done |
 
 ## Layout
 
@@ -48,11 +49,12 @@ icore/
 
 Both auth and storage hide behind a single interface. NestJS module wires a factory provider that reads the provider name from `ConfigService` and returns the concrete strategy. Three env layers:
 
-| Layer                | Owner             | Example vars                                                                                              |
-| -------------------- | ----------------- | --------------------------------------------------------------------------------------------------------- |
-| Transport wiring     | gateway + each MS | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `UPLOAD_TRANSPORT`, …                                         |
-| Provider selection   | per microservice  | `AUTH_PROVIDER` (`supabase` \| `firebase`), `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`) |
-| Provider credentials | concrete strategy | `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`                                                                |
+| Layer                | Owner             | Example vars                                                                                                     |
+| -------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Workspace root       | generated `.env`  | `DB_PROVIDER` (`supabase` \| `firebase`) — readable by any MS via `ConfigModule.forRoot({ envFilePath: [...] })` |
+| Transport wiring     | gateway + each MS | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `UPLOAD_TRANSPORT`, …                                                |
+| Provider selection   | per microservice  | `AUTH_PROVIDER` (`supabase` \| `firebase`), `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`)        |
+| Provider credentials | concrete strategy | `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`                                                                       |
 
 `libs/shared` is env-free. Env IO happens at the MS module boundary.
 
@@ -60,6 +62,7 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 
 | File                             | Keys                                                                                                                                                                                                                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspace `.env` (root)          | `DB_PROVIDER` (`supabase` \| `firebase`) — written by the CLI; consumed by any application-data MS that wires `DBStrategy`                                                                                                                                                            |
 | `apps/api/.env`                  | `API_ORIGIN`, `API_PORT`, `AUTH_TRANSPORT`/`AUTH_HOST`/`AUTH_PORT`, `UPLOAD_TRANSPORT`/`UPLOAD_HOST`/`UPLOAD_PORT`, `MAX_FILE_SIZE_KB` (+ optional `AUTH_REDIS_URL` / `AUTH_NATS_URL` / `UPLOAD_REDIS_URL` / `UPLOAD_NATS_URL`)                                                       |
 | `apps/microservices/auth/.env`   | `AUTH_TRANSPORT`, `AUTH_HOST`, `AUTH_PORT`, `AUTH_PROVIDER` (`supabase` \| `firebase`), `ADMINS_LIST` (CSV emails), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FB_ADMIN_*` + `FIREBASE_WEB_API_KEY` (when `AUTH_PROVIDER=firebase`)                                                |
 | `apps/microservices/upload/.env` | `UPLOAD_TRANSPORT`, `UPLOAD_HOST`, `UPLOAD_PORT`, `STORAGE_PROVIDER` (`supabase` \| `firebase` \| `cloudinary`), `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_STORAGE_BUCKET` (when supabase), `FB_ADMIN_*` + `FIREBASE_STORAGE_BUCKET` (Plan 5), `CLOUDINARY_*` (Plan 5) |
@@ -142,6 +145,13 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `scaffold()` copies templates, rewrites `.env.example` → `.env` per provider selection, removes the upload stack when `--upload=none`, runs `git init` + initial commit + `yarn install`.
 - 19 tests cover env rewriting, flag parsing, deprecated-storage alias, upload=none stack removal, antd template selection, and full dry-run integration smoke.
 - Published to npm via OIDC trusted publishing + changesets (see `.github/workflows/release.yml`).
+
+## Plan 8 deliverables (complete)
+
+- `libs/shared/src/strategies/db.ts` — `DBStrategy` contract + `WhereClause` / `QueryOptions` / `DBDocument<T>` types. Generic per-collection CRUD (`get`/`set`/`update`/`delete`/`list`) that works for both relational (Postgres tables) and schemaless (Firestore documents) backends. `runDBContract` (12 cases) + `FakeDBStrategy` (in-memory) ship alongside in `@icore/shared`.
+- `libs/db-strategies/supabase` — `SupabaseDBStrategy` over `@supabase/supabase-js`'s Postgres surface. Convention: each `collection` is a Postgres table shaped `(id text primary key, data jsonb)`. Filters use the `data->>'field'` JSONB path. Future Plan 8.1 can ship a migration generator for the convention.
+- `libs/db-strategies/firestore` — `FirestoreDBStrategy` over a `FirestoreLike` narrowed interface. Consumers wire the real `admin.firestore()` at boot. `update`/`delete` pre-check `.get()` to enforce the contract's "throw on missing" invariant even though real Firestore is lenient.
+- CLI writes `DB_PROVIDER` to the generated workspace-root `.env`. The `--db` flag is now a fully independent runtime dimension — `--auth=firebase --db=supabase` is a first-class combo.
 
 ## Cross-links
 

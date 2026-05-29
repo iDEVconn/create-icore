@@ -88,12 +88,6 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as DbProvider);
   if (p.isCancel(dbProvider)) throw new Error('cancelled');
 
-  if (dbProvider !== authProvider) {
-    p.log.info(
-      'Note: in v0.1.0 the DB choice mirrors auth; independent db swap arrives in Plan 8.',
-    );
-  }
-
   const upload =
     flags.upload ??
     ((await p.select({

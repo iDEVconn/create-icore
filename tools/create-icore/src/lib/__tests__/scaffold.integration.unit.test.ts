@@ -103,6 +103,9 @@ describe('scaffold (integration, dry-run)', () => {
     const uploadEnv = await readFile(join(outputDir, 'apps/microservices/upload/.env'), 'utf8');
     expect(uploadEnv).toContain('STORAGE_PROVIDER=cloudinary');
 
+    const rootEnv = await readFile(join(outputDir, '.env'), 'utf8');
+    expect(rootEnv).toContain('DB_PROVIDER=supabase');
+
     // apps/templates should be gone, apps/client should exist
     const apps = await readdir(join(outputDir, 'apps'));
     expect(apps).toContain('client');

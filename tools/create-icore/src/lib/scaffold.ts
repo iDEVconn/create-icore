@@ -84,6 +84,16 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   await writeFile(join(targetDir, 'apps/api/.env'), next);
 }
 
+export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  const lines = [
+    `# Database provider used by application data microservices.`,
+    `# Independent of AUTH_PROVIDER — mix-and-match supported.`,
+    `DB_PROVIDER=${opts.dbProvider}`,
+    ``,
+  ];
+  await writeFile(join(targetDir, '.env'), lines.join('\n'));
+}
+
 export async function removeUploadStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/upload',
@@ -167,6 +177,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
   await writeGatewayEnv(opts.targetDir, opts);
+  await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.install) yarnInstall(opts.targetDir);
