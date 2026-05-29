@@ -1,6 +1,6 @@
-# icore — Agent Instructions
+# iCore — Agent Instructions
 
-icore is a bootstrap scaffold for Nx + NestJS + React projects. It ships infrastructure only — auth, storage, and authorization wired through strategy interfaces so the underlying provider (Supabase vs Firebase for auth; Supabase vs Firebase vs Cloudinary for storage) is swappable via env. No business domain.
+iCore is a bootstrap scaffold for Nx + NestJS + React projects. It ships infrastructure only — auth (password + magic-link + OAuth Google/GitHub), storage, authorization, optional payment (PayPal via `@idevconn/payment`), optional jobs (BullMQ + bull-board), all wired through strategy interfaces so the underlying provider is swappable via env. Includes a notes sample feature to verify the wiring end-to-end. No business domain beyond the demo.
 
 ## 🚀 Workflow & Verification
 

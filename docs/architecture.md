@@ -1,6 +1,6 @@
-# icore Architecture
+# iCore Architecture
 
-High-level view of how icore is assembled. Detailed design lives in `docs/superpowers/specs/2026-05-28-icore-design.md`; build plans in `docs/superpowers/plans/`.
+High-level view of how iCore is assembled. Detailed design lives in `docs/superpowers/specs/2026-05-28-icore-design.md`; build plans in `docs/superpowers/plans/`.
 
 ## Status
 
@@ -29,19 +29,29 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 ```
 icore/
 ├── apps/
-│   ├── api/                 # NestJS gateway (only public surface)
+│   ├── api/                                          # NestJS gateway (only public surface)
 │   ├── microservices/
-│   │   ├── auth/            # AuthStrategy consumer
-│   │   └── upload/          # StorageStrategy consumer
-│   └── client/              # Vite + React 19 + shadcn
+│   │   ├── auth/                                     # AuthStrategy consumer (password / magic-link / OAuth)
+│   │   ├── upload/                                   # StorageStrategy consumer
+│   │   ├── payment/                                  # @idevconn/payment registry (opt-in via --payment=paypal)
+│   │   ├── notes/                                    # DBStrategy-backed sample CRUD
+│   │   └── jobs/                                     # BullMQ workers (opt-in via --jobs=bullmq)
+│   └── templates/{client-shadcn,client-antd,client-mui}/  # Vite + React 19 — CLI picks one
 ├── libs/
-│   ├── shared/              # types, CASL, strategy contracts, transport helper
+│   ├── shared/                                       # types, CASL, contracts, transport, ICORE_QUEUES
 │   ├── auth-strategies/{supabase,firebase}/
 │   ├── storage-strategies/{supabase,firebase,cloudinary}/
-│   ├── auth-client/         # gateway → auth MS client (NestJS module)
-│   └── upload-client/       # gateway → upload MS client (NestJS module)
+│   ├── db-strategies/{supabase,firestore}/
+│   ├── auth-client/                                  # gateway → auth MS
+│   ├── upload-client/                                # gateway → upload MS
+│   ├── payment-client/                               # gateway → payment MS
+│   ├── notes-client/                                 # gateway → notes MS
+│   ├── jobs-client/                                  # any consumer → Redis (BullMQ Queue)
+│   └── template-shared/                              # library-agnostic React foundation
+├── Dockerfile.{gateway,ms-auth,ms-upload,ms-jobs}
+├── docker-compose.yml
 └── tools/
-    └── create-icore/        # npx CLI source
+    └── create-icore/                                 # npx CLI source
 ```
 
 ## Shared library (`libs/shared`) — current contents
@@ -106,7 +116,7 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 
 - `libs/template-shared` — library-agnostic React foundation shared by every UI template. Exports the Zustand `useAuthStore`, `createIcoreApi` wrapper around `@idevconn/api-client`, i18next bootstrap (`createIcoreI18n` + `ICORE_LOCALES`) with en/ru/he + RTL helpers, `AbilityProvider` + `Can` bound to the auth store, `useLoading`/`useLoadingStore`, the `useNotify` / `setNotifier` abstraction, a re-export of `@idevconn/use-draft`, and the inline-styled `LandingPage` component.
 - `apps/templates/client-shadcn` — Vite 6 + React 19 + Tailwind 4 + shadcn/ui + TanStack Router + TanStack Query. Routes: `/` (landing reading `VITE_APP_VERSION` from the root `package.json`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` files. Sonner toaster wired through `setNotifier`. `PageLayout` gates with `<Can>` from `@casl/react@7` (passThrough + render-prop) and resets the global dirty flag via `useDraft(false)`; the profile page enables blocking with `useDraft(dirty)`.
-- `apps/templates/client-shadcn-e2e` — Playwright smoke suite (4 cases): landing heading contains `icore v`, login form labels visible, `/dashboard` and `/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
+- `apps/templates/client-shadcn-e2e` — Playwright smoke suite (4 cases): landing heading contains `iCore v`, login form labels visible, `/dashboard` and `/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
 - Antd template shipped in Plan 6.1 (see below). MUI template shipped in Plan 6.2 (see below) — same shared lib, same route tree, library-specific layout + form components.
 
 ## Routes (gateway, v0.1.0)
@@ -135,13 +145,13 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 ## Plan 6.1 deliverables (complete)
 
 - `apps/templates/client-antd/` — Vite 6 + React 19 + Ant Design 6 + TanStack Router + TanStack Query. Routes mirror `client-shadcn`: `/` (landing reading `VITE_APP_VERSION`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. Ant Design `ConfigProvider` with dark algorithm wired at `main.tsx`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` using `antd` `Layout.*` subcomponents. `notification.useNotification()` wired via `setNotifier` (same abstraction as shadcn's Sonner binding). `PageLayout` gates with `<Can>` and resets global dirty flag.
-- `apps/templates/client-antd-e2e/` — Playwright smoke suite (4 cases): landing heading contains `icore v` and `antd` text visible, login form labels visible, `/_dashboard/dashboard` and `/_dashboard/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
+- `apps/templates/client-antd-e2e/` — Playwright smoke suite (4 cases): landing heading contains `iCore v` and `antd` text visible, login form labels visible, `/_dashboard/dashboard` and `/_dashboard/profile` redirect to `/login` when unauthenticated. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
 - `tools/create-icore` CLI updated: `--ui=antd` now routes to the real `apps/templates/client-antd` snapshot instead of falling back to shadcn. The UI library prompt label changed from "Ant Design (coming soon — falls back to shadcn)" to "Ant Design 6". Only `mui` still fell back to shadcn (Plan 6.2). CLI test count grew by 1 (antd selection path).
 
 ## Plan 6.2 deliverables (complete)
 
 - `apps/templates/client-mui/` — Vite 6 + React 19 + MUI 6 (Material Design) + TanStack Router + TanStack Query. Routes mirror `client-shadcn` and `client-antd`: `/` (landing reading `VITE_APP_VERSION`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. `ThemeProvider` with dark mode (`createTheme({ palette: { mode: 'dark' } })`) wired at `main.tsx`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` using MUI `AppBar`, `Drawer`, and `Box` subcomponents. Custom `MuiNotifierHost` Snackbar host wired via `setNotifier` — Zustand-backed queue renders stacked `Alert` toasts inside a `Snackbar`. `PageLayout` gates with `<Can>` and resets global dirty flag.
-- `apps/templates/client-mui-e2e/` — Playwright smoke suite (4 cases): landing heading contains `icore v` and `mui` text visible, login form labels visible, `/_dashboard/dashboard` and `/_dashboard/profile` redirect to `/login` when unauthenticated. `playwright.config.ts` `webServer` targets `yarn nx serve client-mui` on port `:4202`. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
+- `apps/templates/client-mui-e2e/` — Playwright smoke suite (4 cases): landing heading contains `iCore v` and `mui` text visible, login form labels visible, `/_dashboard/dashboard` and `/_dashboard/profile` redirect to `/login` when unauthenticated. `playwright.config.ts` `webServer` targets `yarn nx serve client-mui` on port `:4202`. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
 - `tools/create-icore` CLI updated: `--ui=mui` now routes to the real `apps/templates/client-mui` snapshot; no fallback to shadcn. The UI library prompt label changed from "MUI (coming soon — falls back to shadcn)" to "MUI 6 (Material Design)". All three UI dimensions (`shadcn`, `antd`, `mui`) are first-class — no choice falls back any more. CLI test count grew by 1 (mui selection path).
 
 ## Plan 7 deliverables (complete)
@@ -196,6 +206,44 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - **CLI** — new `--payment=paypal|none` flag (default `none`). When `paypal`, scaffold writes `PAYMENT_PROVIDER=paypal` + transport-matched URLs to the MS `.env`. When `none`, `removePaymentStack` deletes `apps/microservices/payment`, `libs/payment-client`, `apps/api/src/app/payment`, and strips `PaymentModule` from `app.module.ts`.
 - **Scope kept tight** — webhook signature verification + `getOrder` are out of scope because `@idevconn/payment` v1.2 doesn't expose them. Add when the package does.
 
+### Payment — usage
+
+```ts
+// Client side — react-query mutation creating a PayPal order
+const createOrder = useMutation({
+  mutationFn: (cart: { amount: string; currency: string }) =>
+    api<{ orderId: string; status: string; approveUrl?: string }>('/payment/orders', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify(cart),
+    }),
+  onSuccess: (order) => {
+    if (order.approveUrl) window.location.assign(order.approveUrl);
+  },
+});
+
+// After the buyer returns from PayPal, capture the order
+const captureOrder = useMutation({
+  mutationFn: (orderId: string) =>
+    api<{ orderId: string; status: string }>(`/payment/orders/${orderId}/capture`, {
+      method: 'POST',
+    }),
+});
+```
+
+```ts
+// Server-side (any MS) — enqueue a follow-up job after capture
+constructor(private readonly jobs: JobsClientService) {}
+
+async onPaymentCaptured(orderId: string, buyerEmail: string) {
+  await this.jobs.enqueue('email', {
+    to: buyerEmail,
+    subject: 'Receipt',
+    body: `Thanks! Order ${orderId} is paid.`,
+  });
+}
+```
+
 ## Plan 10 deliverables (complete)
 
 - `libs/shared/src/types/note.ts` — `Note` + `ListNotesOptions` types exported from `@icore/shared`.
@@ -226,9 +274,52 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `docker-compose.yml` — new `jobs` service + `JOBS_REDIS_URL` env entries on gateway and jobs containers.
 - **CLI** — new `--jobs=bullmq|none` flag (default `none`). `removeJobsStack` deletes the MS, lib, gateway admin module, Dockerfile, and the `jobs:` block from `docker-compose.yml` when opted out.
 
+### Jobs — usage
+
+```ts
+// Inject anywhere a NestJS provider lives (gateway, any MS)
+import { JobsClientService } from '@icore/jobs-client';
+
+@Injectable()
+export class SignupHook {
+  constructor(private readonly jobs: JobsClientService) {}
+
+  async onUserSignup(email: string) {
+    // Typed by JobsMap — wrong payload shape is a TS error
+    await this.jobs.enqueue('email', {
+      to: email,
+      subject: 'Welcome',
+      body: 'Glad you joined.',
+    });
+
+    // Delayed cleanup — runs in 24h
+    await this.jobs.enqueue(
+      'cleanup',
+      { kind: 'expired-magic-links', olderThanMs: 86_400_000 },
+      { delay: 86_400_000 },
+    );
+  }
+}
+```
+
+```ts
+// Worker (apps/microservices/jobs/src/app/workers/email.worker.ts) — replace the stub
+async (job: Job<EmailJob>) => {
+  await this.mailer.send({
+    to: job.data.to,
+    subject: job.data.subject,
+    html: job.data.body,
+  });
+};
+```
+
+Admin queue dashboard: `http://localhost:3001/api/admin/queues` (front with reverse-proxy auth before exposing publicly — bull-board mounts as raw Express middleware and bypasses `AuthGuard`).
+
 ## Cross-links
 
-- Detailed design + decision log → `docs/superpowers/specs/2026-05-28-icore-design.md`
-- Plan-by-plan build sequence → `docs/superpowers/plans/`
-- Day-to-day agent rules → `AGENTS.md`
-- Provider setup walk-throughs → `AGENTS.md` § Provider-specific Setup
+- Detailed design + decision log → [`docs/superpowers/specs/2026-05-28-icore-design.md`](./superpowers/specs/2026-05-28-icore-design.md)
+- Plan-by-plan build sequence → [`docs/superpowers/plans/`](./superpowers/plans/)
+- Per-plan design notes (OAuth, payment, notes, docker-compose, BullMQ) → [`docs/superpowers/specs/`](./superpowers/specs/)
+- Local docker stack runbook → [`docs/runbooks/local-docker.md`](./runbooks/local-docker.md)
+- Day-to-day agent rules → [`AGENTS.md`](../AGENTS.md)
+- Provider setup walk-throughs → [`AGENTS.md` § Provider-specific Setup](../AGENTS.md#provider-specific-setup)
