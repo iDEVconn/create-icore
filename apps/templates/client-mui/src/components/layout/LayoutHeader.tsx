@@ -13,6 +13,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, setStoredLocale, type IcoreLocale } from '@icore/template-shared';
+import { ThemeToggle } from '../ThemeToggle';
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '0.0.0-dev';
 
@@ -71,6 +72,8 @@ export function LayoutHeader() {
               </Button>
             ))}
           </Box>
+
+          <ThemeToggle />
 
           <IconButton onClick={handleMenuOpen} color="inherit" aria-label="user menu">
             <AccountCircleIcon />
