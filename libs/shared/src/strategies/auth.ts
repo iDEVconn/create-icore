@@ -16,6 +16,13 @@ export interface MagicLinkRequest {
   callbackUrl: string;
 }
 
+export type OAuthProvider = 'google' | 'github';
+
+export interface OAuthStartResult {
+  redirectUrl: string;
+  state: string;
+}
+
 export interface AuthStrategy {
   verifyToken(token: string): Promise<VerifiedToken>;
   signIn(email: string, password: string): Promise<AuthSession>;
@@ -25,4 +32,6 @@ export interface AuthStrategy {
   getRole(uid: string): Promise<string | null>;
   sendMagicLink(req: MagicLinkRequest): Promise<void>;
   verifyMagicLink(token: string): Promise<AuthSession>;
+  startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult>;
+  completeOAuth(provider: OAuthProvider, code: string, state: string): Promise<AuthSession>;
 }

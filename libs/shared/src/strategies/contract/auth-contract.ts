@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import type { AuthStrategy } from '../auth';
+import type { AuthStrategy, OAuthProvider } from '../auth';
 
 export interface AuthContractHelpers {
   /**
@@ -9,6 +9,16 @@ export interface AuthContractHelpers {
    * internal map. Lets the contract round-trip without depending on real email.
    */
   getMagicLinkToken: (strategy: AuthStrategy, email: string) => string;
+  /**
+   * Pre-register an OAuth code+state pair so `completeOAuth` can be exercised
+   * without an actual provider redirect. Optional — when absent, the OAuth
+   * round-trip contract cases skip.
+   */
+  getOAuthCode?: (
+    strategy: AuthStrategy,
+    provider: OAuthProvider,
+    email: string,
+  ) => { code: string; state: string };
 }
 
 export function runAuthContract(
@@ -89,6 +99,23 @@ export function runAuthContract(
 
       it('verifyMagicLink rejects bogus token', async () => {
         await expect(strategy.verifyMagicLink('not-a-real-token')).rejects.toThrow();
+      });
+    }
+
+    if (helpers?.getOAuthCode) {
+      it('startOAuth + completeOAuth round-trips a session', async () => {
+        const email = 'oauth@x.com';
+        const start = await strategy.startOAuth('google', 'http://localhost/cb');
+        expect(start.redirectUrl).toBeTruthy();
+        const { code, state } = helpers.getOAuthCode!(strategy, 'google', email);
+        const session = await strategy.completeOAuth('google', code, state);
+        expect(session.user.email).toBe(email);
+        expect(session.accessToken).toBeTruthy();
+      });
+
+      it('completeOAuth rejects mismatched state', async () => {
+        await strategy.startOAuth('google', 'http://localhost/cb');
+        await expect(strategy.completeOAuth('google', 'anything', 'wrong-state')).rejects.toThrow();
       });
     }
   });
