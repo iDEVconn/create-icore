@@ -111,6 +111,23 @@ export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOption
   }
 }
 
+async function stripDeps(pkgPath: string, names: string[]): Promise<void> {
+  try {
+    const raw = await readFile(pkgPath, 'utf8');
+    const pkg = JSON.parse(raw) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    for (const n of names) {
+      if (pkg.dependencies) delete pkg.dependencies[n];
+      if (pkg.devDependencies) delete pkg.devDependencies[n];
+    }
+    await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  } catch {
+    // ignore — pkg may not exist in test scaffolds
+  }
+}
+
 export async function removeJobsStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/jobs',
@@ -131,6 +148,11 @@ export async function removeJobsStack(targetDir: string): Promise<void> {
   } catch {
     // ignore
   }
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/jobs-client',
+    '@bull-board/api',
+    '@bull-board/express',
+  ]);
   // Strip the `jobs:` service block from docker-compose.yml + its depends_on entry.
   const composePath = join(targetDir, 'docker-compose.yml');
   try {
@@ -165,6 +187,10 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
   } catch {
     // ignore
   }
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/payment-client',
+    '@idevconn/payment',
+  ]);
 }
 
 export async function removeUploadStack(targetDir: string): Promise<void> {
@@ -206,6 +232,10 @@ export async function removeUploadStack(targetDir: string): Promise<void> {
   } catch {
     // Ignore — .env may not exist in test scaffolds.
   }
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/upload-client',
+    '@types/multer',
+  ]);
 }
 
 export async function selectClientTemplate(
@@ -213,21 +243,49 @@ export async function selectClientTemplate(
   opts: CreateIcoreOptions,
 ): Promise<void> {
   // Drop the templates dir altogether and move the chosen template into apps/client.
-  // shadcn (v0.1.0) and antd (v0.2.0) are fully implemented. mui falls back to shadcn.
   const templatesRoot = join(targetDir, 'apps/templates');
   const chosen = join(templatesRoot, `client-${opts.ui}`);
   const destClient = join(targetDir, 'apps/client');
+  let chosenUi = opts.ui;
   try {
     const s = await stat(chosen);
     if (!s.isDirectory()) throw new Error('not a dir');
+    await copyTree(chosen, destClient);
   } catch {
-    // mui not yet implemented (Plan 6.2) — fall back to shadcn
+    chosenUi = 'shadcn';
     await copyTree(join(templatesRoot, 'client-shadcn'), destClient);
-    await rm(templatesRoot, { recursive: true, force: true });
-    return;
   }
-  await copyTree(chosen, destClient);
   await rm(templatesRoot, { recursive: true, force: true });
+  await rewriteClientPaths(destClient, chosenUi);
+}
+
+async function rewriteClientPaths(clientDir: string, ui: string): Promise<void> {
+  // Templates lived under `apps/templates/client-<ui>/` — 3 levels deep.
+  // Scaffolded into `apps/client/` — 2 levels deep. Every `../../../` path
+  // anchored at the repo root needs to lose one segment, and the original
+  // `client-<ui>` folder name baked into cacheDir/outDir strings becomes
+  // plain `client`.
+  const candidates = [
+    'vite.config.mts',
+    'tsconfig.json',
+    'tsconfig.app.json',
+    'tsconfig.spec.json',
+    'project.json',
+    'eslint.config.mjs',
+  ];
+  for (const rel of candidates) {
+    const path = join(clientDir, rel);
+    try {
+      const raw = await readFile(path, 'utf8');
+      const next = raw
+        .replaceAll('../../../', '../../')
+        .replaceAll(`apps/templates/client-${ui}`, 'apps/client')
+        .replaceAll(`client-${ui}`, 'client');
+      if (next !== raw) await writeFile(path, next);
+    } catch {
+      // file may not exist in this template variant
+    }
+  }
 }
 
 function gitInit(cwd: string, projectName: string): void {
@@ -256,6 +314,12 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
+  // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
+  // through parent directories and may pick up a stray package.json/yarn.lock
+  // (e.g. in the user's $HOME), causing
+  //   "The nearest package directory doesn't seem to be part of the project"
+  // on first `yarn install`.
+  await writeFile(join(opts.targetDir, 'yarn.lock'), '');
   if (opts.install) yarnInstall(opts.targetDir);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }
