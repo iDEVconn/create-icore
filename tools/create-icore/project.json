@@ -8,7 +8,7 @@
     "snapshot-templates": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsx tools/create-icore/scripts/snapshot-templates.ts"
+        "command": "node tools/create-icore/scripts/snapshot-templates.mjs"
       }
     },
     "build": {
