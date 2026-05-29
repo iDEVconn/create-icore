@@ -1,0 +1,19 @@
+{
+  "name": "jobs-client",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/jobs-client/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/jobs-client",
+        "main": "libs/jobs-client/src/index.ts",
+        "tsConfig": "libs/jobs-client/tsconfig.lib.json",
+        "assets": ["libs/jobs-client/*.md"]
+      }
+    }
+  }
+}
