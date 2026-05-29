@@ -10,14 +10,20 @@ import { CloudinaryStorageStrategy, type CloudinaryApiLike } from '@icore/storag
 import type { StorageStrategy } from '@icore/shared';
 import { StorageController } from './storage.controller';
 
+function requireEnv(cfg: ConfigService, key: string): string {
+  const val = cfg.getOrThrow<string>(key);
+  if (!val) throw new Error(`${key} is not set — check apps/microservices/upload/.env`);
+  return val;
+}
+
 function makeFirebaseStorage(cfg: ConfigService): StorageStrategy {
-  const bucketName = cfg.getOrThrow<string>('FIREBASE_STORAGE_BUCKET');
+  const bucketName = requireEnv(cfg, 'FIREBASE_STORAGE_BUCKET');
   if (admin.apps.length === 0) {
     admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: cfg.getOrThrow<string>('FB_ADMIN_PROJECT_ID'),
-        clientEmail: cfg.getOrThrow<string>('FB_ADMIN_CLIENT_EMAIL'),
-        privateKey: cfg.getOrThrow<string>('FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
+        projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
+        clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
+        privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
       }),
     });
   }
@@ -30,9 +36,9 @@ function makeFirebaseStorage(cfg: ConfigService): StorageStrategy {
 
 function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
   cloudinary.config({
-    cloud_name: cfg.getOrThrow<string>('CLOUDINARY_CLOUD_NAME'),
-    api_key: cfg.getOrThrow<string>('CLOUDINARY_API_KEY'),
-    api_secret: cfg.getOrThrow<string>('CLOUDINARY_API_SECRET'),
+    cloud_name: requireEnv(cfg, 'CLOUDINARY_CLOUD_NAME'),
+    api_key: requireEnv(cfg, 'CLOUDINARY_API_KEY'),
+    api_secret: requireEnv(cfg, 'CLOUDINARY_API_SECRET'),
     secure: true,
   });
 
@@ -89,17 +95,17 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
     {
       provide: 'StorageStrategy',
       useFactory: (cfg: ConfigService): StorageStrategy => {
-        const provider = cfg.getOrThrow<string>('STORAGE_PROVIDER');
+        const provider = requireEnv(cfg, 'STORAGE_PROVIDER');
         switch (provider) {
           case 'supabase': {
             const client = createClient(
-              cfg.getOrThrow<string>('SUPABASE_URL'),
-              cfg.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY'),
+              requireEnv(cfg, 'SUPABASE_URL'),
+              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
               { auth: { autoRefreshToken: false, persistSession: false } },
             );
             return new SupabaseStorageStrategy({
               client,
-              bucket: cfg.getOrThrow<string>('SUPABASE_STORAGE_BUCKET'),
+              bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
             });
           }
           case 'firebase':

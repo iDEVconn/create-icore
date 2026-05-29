@@ -10,8 +10,17 @@ import type {
   PaymentProvider,
   JobsProvider,
   ExampleMode,
+  PackageManager,
   CreateIcoreOptions,
 } from './options.js';
+
+function detectPackageManager(): PackageManager {
+  const ua = process.env['npm_config_user_agent'] ?? '';
+  if (ua.startsWith('yarn/')) return 'yarn';
+  if (ua.startsWith('pnpm/')) return 'pnpm';
+  if (ua.startsWith('npm/')) return 'npm';
+  return 'yarn';
+}
 
 async function readSelfVersion(): Promise<string | null> {
   try {
@@ -88,6 +97,9 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
         break;
       case 'transport':
         out.transport = v as 'tcp' | 'redis' | 'nats';
+        break;
+      case 'package-manager':
+        out.packageManager = v as PackageManager;
         break;
       case 'no-git':
         out.initGit = false;
@@ -230,12 +242,17 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as 'tcp' | 'redis' | 'nats');
   if (p.isCancel(transport)) throw new Error('cancelled');
 
+  const packageManager = flags.packageManager ?? detectPackageManager();
+
   const initGit =
     flags.initGit ??
     !(await p.confirm({ message: 'Initialise git repo?', initialValue: true })) === false;
   const install =
     flags.install ??
-    !(await p.confirm({ message: 'Run yarn install?', initialValue: true })) === false;
+    !(await p.confirm({
+      message: `Run ${packageManager} install?`,
+      initialValue: true,
+    })) === false;
 
   return {
     projectName,
@@ -248,6 +265,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     example,
     ui,
     transport,
+    packageManager,
     initGit,
     install,
   };

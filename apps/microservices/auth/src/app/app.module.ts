@@ -8,20 +8,24 @@ import { FirebaseAuthStrategy, HttpIdentityToolkitClient } from '@icore/auth-fir
 import type { AuthStrategy } from '@icore/shared';
 import { AuthController } from './auth.controller';
 
+function requireEnv(cfg: ConfigService, key: string): string {
+  const val = cfg.getOrThrow<string>(key);
+  if (!val) throw new Error(`${key} is not set — check apps/microservices/auth/.env`);
+  return val;
+}
+
 function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
-  const projectId = cfg.getOrThrow<string>('FB_ADMIN_PROJECT_ID');
+  const projectId = requireEnv(cfg, 'FB_ADMIN_PROJECT_ID');
   if (admin.apps.length === 0) {
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId,
-        clientEmail: cfg.getOrThrow<string>('FB_ADMIN_CLIENT_EMAIL'),
-        privateKey: cfg.getOrThrow<string>('FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
+        clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
+        privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
       }),
     });
   }
-  const identityToolkit = new HttpIdentityToolkitClient(
-    cfg.getOrThrow<string>('FIREBASE_WEB_API_KEY'),
-  );
+  const identityToolkit = new HttpIdentityToolkitClient(requireEnv(cfg, 'FIREBASE_WEB_API_KEY'));
   return new FirebaseAuthStrategy({
     identityToolkit,
     adminAuth: admin.auth(),
@@ -43,12 +47,12 @@ function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
     {
       provide: 'AuthStrategy',
       useFactory: (cfg: ConfigService): AuthStrategy => {
-        const provider = cfg.getOrThrow<string>('AUTH_PROVIDER');
+        const provider = requireEnv(cfg, 'AUTH_PROVIDER');
         switch (provider) {
           case 'supabase': {
             const client = createClient(
-              cfg.getOrThrow<string>('SUPABASE_URL'),
-              cfg.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY'),
+              requireEnv(cfg, 'SUPABASE_URL'),
+              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
               { auth: { autoRefreshToken: false, persistSession: false } },
             );
             return new SupabaseAuthStrategy({ client });

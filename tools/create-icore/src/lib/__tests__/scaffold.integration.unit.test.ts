@@ -92,6 +92,101 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/queries'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/queries/notes.ts'), 'export {};');
 
+  // Auth strategy stubs
+  for (const s of ['supabase', 'firebase']) {
+    await mkdir(join(tplDir, `libs/auth-strategies/${s}/src`), { recursive: true });
+    await writeFile(join(tplDir, `libs/auth-strategies/${s}/src/index.ts`), 'export {};');
+  }
+
+  // Storage strategy stubs
+  for (const s of ['supabase', 'firebase', 'cloudinary']) {
+    await mkdir(join(tplDir, `libs/storage-strategies/${s}/src`), { recursive: true });
+    await writeFile(join(tplDir, `libs/storage-strategies/${s}/src/index.ts`), 'export {};');
+  }
+
+  // DB strategy stubs
+  for (const s of ['supabase', 'firestore']) {
+    await mkdir(join(tplDir, `libs/db-strategies/${s}/src`), { recursive: true });
+    await writeFile(join(tplDir, `libs/db-strategies/${s}/src/index.ts`), 'export {};');
+  }
+
+  // tsconfig.base.json with all strategy paths
+  await writeFile(
+    join(tplDir, 'tsconfig.base.json'),
+    JSON.stringify(
+      {
+        compilerOptions: {
+          paths: {
+            '@icore/auth-supabase': ['./libs/auth-strategies/supabase/src/index.ts'],
+            '@icore/auth-firebase': ['./libs/auth-strategies/firebase/src/index.ts'],
+            '@icore/storage-supabase': ['./libs/storage-strategies/supabase/src/index.ts'],
+            '@icore/storage-firebase': ['./libs/storage-strategies/firebase/src/index.ts'],
+            '@icore/storage-cloudinary': ['./libs/storage-strategies/cloudinary/src/index.ts'],
+            '@icore/db-supabase': ['./libs/db-strategies/supabase/src/index.ts'],
+            '@icore/db-firestore': ['./libs/db-strategies/firestore/src/index.ts'],
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  // Auth MS package.json
+  await mkdir(join(tplDir, 'apps/microservices/auth'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/microservices/auth/package.json'),
+    JSON.stringify(
+      { name: 'auth', dependencies: { '@icore/auth-supabase': '*', '@icore/auth-firebase': '*' } },
+      null,
+      2,
+    ),
+  );
+  await mkdir(join(tplDir, 'apps/microservices/auth/src/app'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/microservices/auth/src/app/app.module.ts'),
+    `import * as admin from 'firebase-admin';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\n`,
+  );
+
+  // Upload MS package.json
+  await mkdir(join(tplDir, 'apps/microservices/upload'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/microservices/upload/package.json'),
+    JSON.stringify(
+      {
+        name: 'upload',
+        dependencies: {
+          '@icore/storage-supabase': '*',
+          '@icore/storage-firebase': '*',
+          '@icore/storage-cloudinary': '*',
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  await mkdir(join(tplDir, 'apps/microservices/upload/src/app'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/microservices/upload/src/app/app.module.ts'),
+    `import * as admin from 'firebase-admin';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nfunction makeFirebaseStorage() {}\nfunction makeCloudinaryStorage() {}\n`,
+  );
+
+  // Notes MS package.json
+  await mkdir(join(tplDir, 'apps/microservices/notes'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/microservices/notes/package.json'),
+    JSON.stringify(
+      { name: 'notes', dependencies: { '@icore/db-supabase': '*', '@icore/db-firestore': '*' } },
+      null,
+      2,
+    ),
+  );
+  await mkdir(join(tplDir, 'apps/microservices/notes/src/app'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/microservices/notes/src/app/app.module.ts'),
+    `import * as admin from 'firebase-admin';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\n`,
+  );
+
   return tplDir;
 }
 
@@ -117,6 +212,7 @@ describe('scaffold (integration, dry-run)', () => {
         ui: 'shadcn',
         transport: 'redis',
         initGit: false,
+        packageManager: 'yarn',
         install: false,
       },
       templatesDir,
@@ -158,6 +254,7 @@ describe('scaffold (integration, dry-run)', () => {
         ui: 'shadcn',
         transport: 'tcp',
         initGit: false,
+        packageManager: 'yarn',
         install: false,
       },
       templatesDir,
@@ -198,6 +295,7 @@ describe('scaffold (integration, dry-run)', () => {
         ui: 'antd',
         transport: 'tcp',
         initGit: false,
+        packageManager: 'yarn',
         install: false,
       },
       templatesDir,
@@ -228,6 +326,7 @@ describe('scaffold (integration, dry-run)', () => {
         ui: 'mui',
         transport: 'tcp',
         initGit: false,
+        packageManager: 'yarn',
         install: false,
       },
       templatesDir,
@@ -258,6 +357,7 @@ describe('scaffold (integration, dry-run)', () => {
         ui: 'shadcn',
         transport: 'tcp',
         initGit: false,
+        packageManager: 'yarn',
         install: false,
       },
       templatesDir,
@@ -281,5 +381,53 @@ describe('scaffold (integration, dry-run)', () => {
       name: string;
     };
     expect(pkg.name).toBe('no-notes-app');
+  });
+
+  it('prunes unused strategies when auth=supabase, upload=supabase, db=supabase', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'supabase-app');
+    await scaffold(
+      {
+        projectName: 'supabase-app',
+        targetDir: outputDir,
+        authProvider: 'supabase',
+        dbProvider: 'supabase',
+        upload: 'supabase',
+        payment: 'none',
+        jobs: 'none',
+        example: 'notes',
+        ui: 'shadcn',
+        transport: 'tcp',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      templatesDir,
+    );
+
+    // Unused libs removed
+    await expect(access(join(outputDir, 'libs/auth-strategies/firebase'))).rejects.toThrow();
+    await expect(access(join(outputDir, 'libs/storage-strategies/firebase'))).rejects.toThrow();
+    await expect(access(join(outputDir, 'libs/storage-strategies/cloudinary'))).rejects.toThrow();
+    await expect(access(join(outputDir, 'libs/db-strategies/firestore'))).rejects.toThrow();
+
+    // Selected libs kept
+    const authLibExists = await access(join(outputDir, 'libs/auth-strategies/supabase'))
+      .then(() => true)
+      .catch(() => false);
+    expect(authLibExists).toBe(true);
+
+    // Auth module no longer imports firebase
+    const authMod = await readFile(
+      join(outputDir, 'apps/microservices/auth/src/app/app.module.ts'),
+      'utf8',
+    );
+    expect(authMod).not.toContain('@icore/auth-firebase');
+    expect(authMod).not.toContain('firebase-admin');
+
+    // tsconfig has no firebase/cloudinary paths
+    const tsconfig = await readFile(join(outputDir, 'tsconfig.base.json'), 'utf8');
+    expect(tsconfig).not.toContain('@icore/auth-firebase');
+    expect(tsconfig).not.toContain('@icore/storage-firebase');
+    expect(tsconfig).not.toContain('@icore/storage-cloudinary');
   });
 });

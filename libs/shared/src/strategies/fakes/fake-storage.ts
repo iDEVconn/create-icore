@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { FileInput, StorageRef, StorageStrategy } from '../storage';
 
 interface StoredFile {
@@ -13,7 +12,7 @@ export class FakeStorageStrategy implements StorageStrategy {
   private readonly files = new Map<string, StoredFile>();
 
   async upload(userId: string, file: FileInput): Promise<StorageRef> {
-    const path = `${userId}/${randomUUID()}-${file.filename}`;
+    const path = `${userId}/${globalThis.crypto.randomUUID()}-${file.filename}`;
     const ref: StorageRef = { bucket: this.bucket, path };
     this.files.set(this.key(ref), {
       ownerId: userId,
