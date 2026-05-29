@@ -1,9 +1,21 @@
 import { useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Box, Button, Container, Paper, TextField, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Container,
+  Paper,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '../main';
+
+type Mode = 'password' | 'magicLinkRequest' | 'magicLinkSent';
 
 function LoginPage() {
   const { t } = useTranslation();
@@ -11,30 +23,46 @@ function LoginPage() {
   const notify = useNotify();
   const setAuth = useAuthStore((s) => s.setAuth);
 
+  const [mode, setMode] = useState<Mode>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [sentEmail, setSentEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     try {
       const session = await api<{
-        access_token: string;
-        refresh_token: string;
+        accessToken: string;
+        refreshToken: string;
         user: { id: string; email: string; role?: string };
       }>('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      setAuth({
-        accessToken: session.access_token,
-        refreshToken: session.refresh_token,
-        user: session.user,
-      });
+      setAuth(session);
       notify.success(t('auth.login'));
       await navigate({ to: '/_dashboard/dashboard' });
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : t('error.unknown'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleMagicLinkSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await api('/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      setSentEmail(email);
+      setMode('magicLinkSent');
     } catch (err) {
       notify.error(err instanceof Error ? err.message : t('error.unknown'));
     } finally {
@@ -48,35 +76,99 @@ function LoginPage() {
         <Typography variant="h5" component="h1" fontWeight={600} mb={0.5}>
           {t('auth.login')}
         </Typography>
-        <Typography variant="body2" color="text.secondary" mb={3}>
+        <Typography variant="body2" color="text.secondary" mb={2}>
           {t('auth.email')} &amp; {t('auth.password')}
         </Typography>
 
-        <Box component="form" onSubmit={handleSubmit} autoComplete="on" noValidate={false}>
-          <TextField
-            label={t('auth.email')}
-            type="email"
-            autoComplete="email"
-            required
-            fullWidth
-            margin="normal"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            label={t('auth.password')}
-            type="password"
-            autoComplete="current-password"
-            required
-            fullWidth
-            margin="normal"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button type="submit" variant="contained" fullWidth disabled={submitting} sx={{ mt: 2 }}>
-            {t('auth.login')}
-          </Button>
-        </Box>
+        {mode !== 'magicLinkSent' && (
+          <Tabs
+            value={mode}
+            onChange={(_, v: Mode) => setMode(v)}
+            variant="fullWidth"
+            sx={{ mb: 2 }}
+          >
+            <Tab label={t('auth.withPassword')} value="password" />
+            <Tab label={t('auth.withMagicLink')} value="magicLinkRequest" />
+          </Tabs>
+        )}
+
+        {mode === 'password' && (
+          <Box component="form" onSubmit={handlePasswordSubmit} autoComplete="on">
+            <TextField
+              label={t('auth.email')}
+              type="email"
+              autoComplete="email"
+              required
+              fullWidth
+              margin="normal"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextField
+              label={t('auth.password')}
+              type="password"
+              autoComplete="current-password"
+              required
+              fullWidth
+              margin="normal"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={submitting}
+              sx={{ mt: 2 }}
+            >
+              {t('auth.login')}
+            </Button>
+          </Box>
+        )}
+
+        {mode === 'magicLinkRequest' && (
+          <Box component="form" onSubmit={handleMagicLinkSubmit} autoComplete="on">
+            <TextField
+              label={t('auth.email')}
+              type="email"
+              autoComplete="email"
+              required
+              fullWidth
+              margin="normal"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={submitting}
+              sx={{ mt: 2 }}
+            >
+              {t('auth.sendMagicLink')}
+            </Button>
+          </Box>
+        )}
+
+        {mode === 'magicLinkSent' && (
+          <Stack spacing={2} alignItems="center" textAlign="center">
+            <Typography variant="h6">{t('auth.magicLinkSent')}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('auth.magicLinkSentDescription', { email: sentEmail })}
+            </Typography>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+                setEmail('');
+                setSentEmail('');
+                setMode('magicLinkRequest');
+              }}
+            >
+              {t('auth.magicLinkUseDifferentEmail')}
+            </Button>
+          </Stack>
+        )}
       </Paper>
     </Container>
   );
