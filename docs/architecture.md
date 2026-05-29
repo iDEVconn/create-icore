@@ -17,6 +17,7 @@ High-level view of how icore is assembled. Detailed design lives in `docs/superp
 | 6.2  | MUI 6 client template                          | ✅ done |
 | 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env       | ✅ done |
 | 6.3  | Unified light/dark theme switching             | ✅ done |
+| 6.4  | Magic-link email sign-in (passwordless)        | ✅ done |
 
 ## Layout
 
@@ -160,6 +161,18 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - **shadcn template** — `useThemeStore` subscribed in `main.tsx` before React mounts; toggles `html.dark` class on `document.documentElement`. Tailwind 4 `@layer base { html.dark { … } }` in `globals.css` already defined dark token overrides. `ThemeToggle.tsx` uses shadcn `Button variant="ghost" size="icon"` with `lucide-react` `Sun`/`Moon` icons. Mounted in `LayoutHeader` between the locale switcher and user controls.
 - **antd template** — `main.tsx` refactored to a `Root` component that subscribes to `useThemeStore` and passes `theme.darkAlgorithm` or `theme.defaultAlgorithm` to `ConfigProvider.theme.algorithm`. `ThemeToggle.tsx` uses antd `Button type="text" size="small"` with `@ant-design/icons` `MoonOutlined`/`SunOutlined`. Mounted in `LayoutHeader` alongside the locale switcher. The `export const api` and the router/queryClient singletons remain outside `Root`.
 - **MUI template** — same `Root` component pattern; `createTheme({ palette: { mode } })` wrapped in `useMemo` to avoid re-creating the theme on every render. `ThemeToggle.tsx` uses MUI `IconButton color="inherit"` with `@mui/icons-material` `LightModeIcon`/`DarkModeIcon`. Mounted in `LayoutHeader` alongside the locale switcher and account icon.
+
+## Plan 6.4 deliverables (complete)
+
+- `AuthStrategy` gains `sendMagicLink({ email, callbackUrl })` and `verifyMagicLink(token)` (`libs/shared/src/strategies/auth.ts`). `runAuthContract` accepts an optional `helpers.getMagicLinkToken(strategy, email)` so each concrete strategy can plug in its provider mock's token registry without leaking a side-channel on the production interface; when omitted, the magic-link contract cases skip (kept Plan 6.4 backward-compatible for any future strategy that doesn't support magic-link).
+- `FakeAuthStrategy` — in-memory `magicLinkTokens` map + `getLastMagicLinkToken(email)` accessor used by the Fake's own contract test.
+- **Supabase** (`libs/auth-strategies/supabase`) — `signInWithOtp({ email, options: { emailRedirectTo } })` to send + `verifyOtp({ type: 'magiclink', token_hash })` to redeem. `createMockSupabaseClient()` now returns `{ client, getMagicLinkToken }`; the existing auth-MS Supabase integration test reads `.client` to keep the constructor signature unchanged.
+- **Firebase** (`libs/auth-strategies/firebase`) — `HttpIdentityToolkitClient` gains `sendOobCode` + `signInWithEmailLink`. Because `signInWithEmailLink` needs BOTH the email AND the `oobCode`, the strategy serialises them as `base64(email):oobCode` so the contract's single-string `token` shape stays intact; verify decodes and re-issues. Mock toolkit exposes `getOobCode(email)` so the contract harness composes the token the same way.
+- **Auth MS** — two new `@MessagePattern`s: `auth.magicLink.send` and `auth.magicLink.verify`. Verify reuses `assignInitialRole(uid, email)` so first-time magic-link sign-ups land in the ADMINS_LIST → role hook just like password signup.
+- **auth-client** — `sendMagicLink(email, callbackUrl)` and `verifyMagicLink(token)` typed wrappers.
+- **Gateway** — `POST /api/auth/magic-link` and `POST /api/auth/magic-link/verify`, both `@Public()` and inside the existing `auth-burst` Throttle. `requestMagicLink` builds `${CLIENT_ORIGIN ?? 'http://localhost:4200'}/auth/callback` as the redirect target so the link lands on the client's callback page.
+- **All three templates** — `/login` now has a Password / Magic-link mode switch (shadcn `Button` toggle, antd `Segmented`, MUI `Tabs`). After Send → confirmation panel with "Use a different email" reset. New `/auth/callback` route reads `?token=…` / `?token_hash=…` (Supabase) or `?oobCode=…&email=…` (Firebase), composes the opaque token, and POSTs to `/auth/magic-link/verify` → `setAuth` → redirect to `/_dashboard/dashboard`. All copy goes through new i18n keys: `auth.withPassword`, `auth.withMagicLink`, `auth.sendMagicLink`, `auth.magicLinkSent`, `auth.magicLinkSentDescription`, `auth.magicLinkUseDifferentEmail`, `auth.callbackVerifying`, `auth.callbackFailed`, `auth.callbackMissingToken`.
+- **Vendor chunking** — each template's `vite.config.mts` now defines a `build.rolldownOptions.output.manualChunks` that splits `node_modules` into library-specific vendor bundles (`vendor-react`, `vendor-tanstack`, `vendor-i18n`, `vendor-casl`, `vendor-state`, `vendor-idevconn` + library: `vendor-ui`/`vendor-antd`/`vendor-mui`+`vendor-emotion`). Pattern mirrors the warranty project's vite config but without route-area splits since templates ship minimal route surfaces.
 
 ## Cross-links
 
