@@ -5,7 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
 import { SupabaseDBStrategy } from '@icore/db-supabase';
 import { FirestoreDBStrategy } from '@icore/db-firestore';
+import { FakeDBStrategy } from '@icore/shared';
 import type { DBStrategy } from '@icore/shared';
+import { Logger } from '@nestjs/common';
 import { NotesController } from './notes.controller';
 
 function requireEnv(cfg: ConfigService, key: string): string {
@@ -29,32 +31,40 @@ function requireEnv(cfg: ConfigService, key: string): string {
     {
       provide: 'DBStrategy',
       useFactory: (cfg: ConfigService): DBStrategy => {
-        const provider = requireEnv(cfg, 'DB_PROVIDER');
-        if (provider === 'supabase') {
-          const client = createClient(
-            requireEnv(cfg, 'SUPABASE_URL'),
-            requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-            { auth: { autoRefreshToken: false, persistSession: false } },
-          );
-          return new SupabaseDBStrategy({ client });
-        }
-        if (provider === 'firestore' || provider === 'firebase') {
-          if (admin.apps.length === 0) {
-            admin.initializeApp({
-              credential: admin.credential.cert({
-                projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
-                clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
-                privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
-              }),
+        try {
+          const provider = requireEnv(cfg, 'DB_PROVIDER');
+          if (provider === 'supabase') {
+            const client = createClient(
+              requireEnv(cfg, 'SUPABASE_URL'),
+              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+              { auth: { autoRefreshToken: false, persistSession: false } },
+            );
+            return new SupabaseDBStrategy({ client });
+          }
+          if (provider === 'firestore' || provider === 'firebase') {
+            if (admin.apps.length === 0) {
+              admin.initializeApp({
+                credential: admin.credential.cert({
+                  projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
+                  clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
+                  privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
+                }),
+              });
+            }
+            return new FirestoreDBStrategy({
+              db: admin.firestore() as unknown as ConstructorParameters<
+                typeof FirestoreDBStrategy
+              >[0]['db'],
             });
           }
-          return new FirestoreDBStrategy({
-            db: admin.firestore() as unknown as ConstructorParameters<
-              typeof FirestoreDBStrategy
-            >[0]['db'],
-          });
+          throw new Error(`Unsupported DB_PROVIDER: ${provider}`);
+        } catch (err) {
+          new Logger('DBStrategy').warn(
+            `Not configured: ${err instanceof Error ? err.message : String(err)}. ` +
+              `Requests will fail until apps/microservices/notes/.env is set.`,
+          );
+          return new FakeDBStrategy();
         }
-        throw new Error(`Unsupported DB_PROVIDER: ${provider}`);
       },
       inject: [ConfigService],
     },

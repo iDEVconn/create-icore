@@ -1,7 +1,7 @@
 import { AbilityProvider as CaslAbilityProvider, Can } from '@casl/react';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { defineAbilitiesFor, type AppAbility } from '@icore/shared';
+import { defineAbilitiesFor, type AppAbility } from '@icore/shared/client';
 import { useAuthStore } from '../stores/auth.store.js';
 
 export { Can };
