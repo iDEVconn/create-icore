@@ -1,14 +1,14 @@
-# icore — Bootstrap Scaffold for Nx + NestJS + React Projects
+# iCore — Bootstrap Scaffold for Nx + NestJS + React Projects
 
 **Date:** 2026-05-28
-**Status:** Approved (design)
+**Status:** Approved (design) — extended by Plans 6.1–6.5 (templates, theme, magic-link, OAuth), 8 (DBStrategy), 9 (Payment), 10 (Notes sample), 11 (docker-compose), 12 (BullMQ).
 **Author:** Vladimir Tkach
 
 ## Purpose
 
-icore is a reusable scaffold that lets new projects start from a hardened baseline matching the patterns already proven in `warranty` and `ui-main`. It ships infrastructure only — no business domain — so consumers add their own products/invoices/whatever on top.
+iCore is a reusable scaffold that lets new projects start from a hardened baseline matching the patterns already proven in `warranty` and `ui-main`. It ships infrastructure only — no business domain (beyond a notes demo) — so consumers add their own products/invoices/whatever on top.
 
-Consumers bootstrap a new project via `npx @idevconn/create-icore <name>`, choose providers (auth + storage) at prompt time, and get a working monorepo with gateway + microservices, a shadcn/Tailwind/TanStack client, CASL authorization, and i18n (en/ru/he with RTL).
+Consumers bootstrap a new project via `npm init @idevconn/icore <name>` (or `npx @idevconn/create-icore <name>`), pick providers at prompt time, and get a working monorepo with gateway + microservices (auth + upload + optional payment + optional jobs + notes sample), a shadcn / antd / mui client, CASL authorization, i18n (en/ru/he with RTL), and an optional `docker compose up` local dev stack.
 
 ## Goals
 

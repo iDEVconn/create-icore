@@ -1,0 +1,19 @@
+{
+  "name": "db-supabase",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/db-strategies/supabase/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/db-strategies/supabase",
+        "main": "libs/db-strategies/supabase/src/index.ts",
+        "tsConfig": "libs/db-strategies/supabase/tsconfig.lib.json",
+        "assets": ["libs/db-strategies/supabase/*.md"]
+      }
+    }
+  }
+}

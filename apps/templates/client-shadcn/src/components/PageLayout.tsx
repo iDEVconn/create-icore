@@ -11,10 +11,19 @@ interface PageLayoutProps {
   action?: AbilityAction;
   /** CASL subject gate. When provided together with `action`, renders AccessDeniedPage if the ability check fails. */
   subject?: AbilitySubject;
+  /** Optional right-aligned action area rendered next to the title (e.g. a "New" button). */
+  actions?: ReactNode;
   children: ReactNode;
 }
 
-export function PageLayout({ title, description, action, subject, children }: PageLayoutProps) {
+export function PageLayout({
+  title,
+  description,
+  action,
+  subject,
+  actions,
+  children,
+}: PageLayoutProps) {
   const { t } = useTranslation();
   const isLoading = useLoading();
 
@@ -23,9 +32,12 @@ export function PageLayout({ title, description, action, subject, children }: Pa
 
   const content = (
     <div className="p-4 md:p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+          {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+        </div>
+        {actions && <div>{actions}</div>}
       </div>
 
       {isLoading && (

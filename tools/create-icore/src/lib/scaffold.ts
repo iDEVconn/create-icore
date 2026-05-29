@@ -84,6 +84,89 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   await writeFile(join(targetDir, 'apps/api/.env'), next);
 }
 
+export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  const lines = [
+    `# Database provider used by application data microservices.`,
+    `# Independent of AUTH_PROVIDER — mix-and-match supported.`,
+    `DB_PROVIDER=${opts.dbProvider}`,
+    ``,
+  ];
+  await writeFile(join(targetDir, '.env'), lines.join('\n'));
+}
+
+export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  if (opts.payment === 'none') return;
+  const envExample = join(targetDir, 'apps/microservices/payment/.env.example');
+  try {
+    const env = await readFile(envExample, 'utf8');
+    let next = env
+      .replace(/^PAYMENT_PROVIDER=.*$/m, `PAYMENT_PROVIDER=${opts.payment}`)
+      .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
+    if (opts.transport !== 'tcp') {
+      next = next.replace(/^# (PAYMENT_(?:REDIS|NATS)_URL=)/m, '$1');
+    }
+    await writeFile(join(targetDir, 'apps/microservices/payment/.env'), next);
+  } catch {
+    // payment MS not present in template — older snapshots predate Plan 9
+  }
+}
+
+export async function removeJobsStack(targetDir: string): Promise<void> {
+  const paths = [
+    'apps/microservices/jobs',
+    'libs/jobs-client',
+    'apps/api/src/app/admin',
+    'Dockerfile.ms-jobs',
+  ];
+  for (const p of paths) {
+    await rm(join(targetDir, p), { recursive: true, force: true });
+  }
+  const appModulePath = join(targetDir, 'apps/api/src/app/app.module.ts');
+  try {
+    const appModule = await readFile(appModulePath, 'utf8');
+    const next = appModule
+      .replace(/^import \{ AdminModule \} from '\.\/admin\/admin\.module';\n/m, '')
+      .replace(/,\s*AdminModule/g, '');
+    await writeFile(appModulePath, next);
+  } catch {
+    // ignore
+  }
+  // Strip the `jobs:` service block from docker-compose.yml + its depends_on entry.
+  const composePath = join(targetDir, 'docker-compose.yml');
+  try {
+    const compose = await readFile(composePath, 'utf8');
+    const next = compose
+      .replace(/\n {2}jobs:[\s\S]+?(?=\n {2}\w+:|\nnetworks:)/m, '\n')
+      .replace(/\n {6}jobs:\n {8}condition: service_started/g, '')
+      .replace(/\n {6}JOBS_REDIS_URL:[^\n]*/g, '');
+    await writeFile(composePath, next);
+  } catch {
+    // ignore
+  }
+}
+
+export async function removePaymentStack(targetDir: string): Promise<void> {
+  const paths = [
+    'apps/microservices/payment',
+    'apps/microservices/payment-e2e',
+    'libs/payment-client',
+    'apps/api/src/app/payment',
+  ];
+  for (const p of paths) {
+    await rm(join(targetDir, p), { recursive: true, force: true });
+  }
+  const appModulePath = join(targetDir, 'apps/api/src/app/app.module.ts');
+  try {
+    const appModule = await readFile(appModulePath, 'utf8');
+    const next = appModule
+      .replace(/^import \{ PaymentModule \} from '\.\/payment\/payment\.module';\n/m, '')
+      .replace(/,\s*PaymentModule/g, '');
+    await writeFile(appModulePath, next);
+  } catch {
+    // ignore
+  }
+}
+
 export async function removeUploadStack(targetDir: string): Promise<void> {
   const paths = [
     'apps/microservices/upload',
@@ -129,8 +212,8 @@ export async function selectClientTemplate(
   targetDir: string,
   opts: CreateIcoreOptions,
 ): Promise<void> {
-  // v0.1.0 ships only shadcn. Drop the templates dir altogether and move the
-  // chosen template into apps/client.
+  // Drop the templates dir altogether and move the chosen template into apps/client.
+  // shadcn (v0.1.0) and antd (v0.2.0) are fully implemented. mui falls back to shadcn.
   const templatesRoot = join(targetDir, 'apps/templates');
   const chosen = join(templatesRoot, `client-${opts.ui}`);
   const destClient = join(targetDir, 'apps/client');
@@ -138,7 +221,7 @@ export async function selectClientTemplate(
     const s = await stat(chosen);
     if (!s.isDirectory()) throw new Error('not a dir');
   } catch {
-    // antd / mui not yet implemented — fall back to shadcn
+    // mui not yet implemented (Plan 6.2) — fall back to shadcn
     await copyTree(join(templatesRoot, 'client-shadcn'), destClient);
     await rm(templatesRoot, { recursive: true, force: true });
     return;
@@ -166,9 +249,13 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await rewriteRootPackageJson(opts.targetDir, opts);
   await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
+  await writePaymentEnv(opts.targetDir, opts);
   await writeGatewayEnv(opts.targetDir, opts);
+  await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
+  if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
+  if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
   if (opts.install) yarnInstall(opts.targetDir);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
 }

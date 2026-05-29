@@ -15,4 +15,5 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../../coverage/upload-e2e',
+  passWithNoTests: true,
 };

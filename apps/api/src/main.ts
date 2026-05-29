@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app/app.module';
 import pkg from '@icore/package.json';
 
@@ -10,6 +11,7 @@ const DEFAULT_PORT = 3001;
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
+  app.use(cookieParser());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('iCore API')

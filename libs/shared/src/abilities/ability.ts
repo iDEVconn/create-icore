@@ -12,6 +12,10 @@ export function defineAbilitiesFor(user: AbilityUser | null): AppAbility {
   const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
   if (user?.role === 'admin') {
     can('manage', 'all');
+  } else if (user) {
+    can('read', 'Note', { ownerId: user.id } as never);
+    can('create', 'Note');
+    can(['update', 'delete'], 'Note', { ownerId: user.id } as never);
   }
   return build();
 }

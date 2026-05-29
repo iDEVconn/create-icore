@@ -8,6 +8,7 @@ import {
   createIcoreApi,
   createIcoreI18n,
   ICORE_LOCALES,
+  useThemeStore,
 } from '@icore/template-shared';
 import { I18nextProvider } from 'react-i18next';
 import { Toaster } from 'sonner';
@@ -35,6 +36,13 @@ export const api = createIcoreApi({
 });
 
 wireShadcnNotifier();
+
+// Apply the theme class before React mounts so the first paint is correct
+const applyTheme = (mode: 'light' | 'dark') => {
+  document.documentElement.classList.toggle('dark', mode === 'dark');
+};
+applyTheme(useThemeStore.getState().mode);
+useThemeStore.subscribe((s) => applyTheme(s.mode));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

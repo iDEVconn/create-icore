@@ -1,0 +1,79 @@
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+    networks: [icore]
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-auth
+    env_file: .env.docker
+    environment:
+      AUTH_TRANSPORT: redis
+      AUTH_REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [icore]
+    restart: unless-stopped
+
+  upload:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-upload
+    env_file: .env.docker
+    environment:
+      UPLOAD_TRANSPORT: redis
+      UPLOAD_REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [icore]
+    restart: unless-stopped
+
+  jobs:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-jobs
+    env_file: .env.docker
+    environment:
+      JOBS_REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [icore]
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    env_file: .env.docker
+    environment:
+      API_PORT: 3001
+      AUTH_TRANSPORT: redis
+      AUTH_REDIS_URL: redis://redis:6379
+      UPLOAD_TRANSPORT: redis
+      UPLOAD_REDIS_URL: redis://redis:6379
+      JOBS_REDIS_URL: redis://redis:6379
+    ports:
+      - '3001:3001'
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_started
+      upload:
+        condition: service_started
+      jobs:
+        condition: service_started
+    networks: [icore]
+    restart: unless-stopped
+
+networks:
+  icore:
+    driver: bridge

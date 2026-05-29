@@ -76,6 +76,22 @@ export default defineConfig(() => ({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+    rolldownOptions: {
+      output: {
+        manualChunks: (id: string) => {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('scheduler'))
+            return 'vendor-react';
+          if (id.includes('@tanstack')) return 'vendor-tanstack';
+          if (id.includes('i18next') || id.includes('react-i18next')) return 'vendor-i18n';
+          if (id.includes('@casl')) return 'vendor-casl';
+          if (id.includes('lucide-react') || id.includes('@radix-ui')) return 'vendor-ui';
+          if (id.includes('zustand')) return 'vendor-state';
+          if (id.includes('@idevconn')) return 'vendor-idevconn';
+          return 'vendor-core';
+        },
+      },
+    },
   },
   test: {
     name: 'client-shadcn',

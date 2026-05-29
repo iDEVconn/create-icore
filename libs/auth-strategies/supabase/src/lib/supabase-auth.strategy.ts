@@ -1,5 +1,13 @@
+import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthSession, AuthStrategy, VerifiedToken } from '@icore/shared';
+import type {
+  AuthSession,
+  AuthStrategy,
+  MagicLinkRequest,
+  OAuthProvider,
+  OAuthStartResult,
+  VerifiedToken,
+} from '@icore/shared';
 
 export interface SupabaseAuthStrategyOptions {
   client: SupabaseClient;
@@ -54,6 +62,46 @@ export class SupabaseAuthStrategy implements AuthStrategy {
       app_metadata: { role },
     });
     if (error) throw new Error(error.message);
+  }
+
+  async sendMagicLink(req: MagicLinkRequest): Promise<void> {
+    const { error } = await this.client.auth.signInWithOtp({
+      email: req.email,
+      options: { emailRedirectTo: req.callbackUrl },
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult> {
+    const { data, error } = await this.client.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: callbackUrl, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) throw new Error(error?.message ?? 'oauth_start_failed');
+    const url = new URL(data.url);
+    const state = url.searchParams.get('state') ?? randomUUID();
+    return { redirectUrl: data.url, state };
+  }
+
+  async completeOAuth(
+    _provider: OAuthProvider,
+    code: string,
+    _state: string,
+  ): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.exchangeCodeForSession(code);
+    if (error || !data?.session) throw new Error(error?.message ?? 'oauth_complete_failed');
+    return this.toSession(data.session);
+  }
+
+  async verifyMagicLink(token: string): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.verifyOtp({
+      type: 'magiclink',
+      token_hash: token,
+    });
+    if (error || !data.session) {
+      throw new Error(error?.message ?? 'invalid_magic_link');
+    }
+    return this.toSession(data.session);
   }
 
   async getRole(uid: string): Promise<string | null> {

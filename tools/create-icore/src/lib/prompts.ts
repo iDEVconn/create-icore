@@ -1,6 +1,13 @@
 import * as p from '@clack/prompts';
 import { resolve } from 'node:path';
-import type { AuthProvider, DbProvider, UploadProvider, CreateIcoreOptions } from './options.js';
+import type {
+  AuthProvider,
+  DbProvider,
+  UploadProvider,
+  PaymentProvider,
+  JobsProvider,
+  CreateIcoreOptions,
+} from './options.js';
 
 export interface PromptInput {
   argv: string[];
@@ -33,6 +40,12 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
       case 'storage':
         process.stderr.write('Warning: --storage is deprecated, use --upload\n');
         out.upload = v as UploadProvider;
+        break;
+      case 'payment':
+        out.payment = v as PaymentProvider;
+        break;
+      case 'jobs':
+        out.jobs = v as JobsProvider;
         break;
       case 'ui':
         out.ui = v as 'shadcn' | 'antd' | 'mui';
@@ -88,12 +101,6 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as DbProvider);
   if (p.isCancel(dbProvider)) throw new Error('cancelled');
 
-  if (dbProvider !== authProvider) {
-    p.log.info(
-      'Note: in v0.1.0 the DB choice mirrors auth; independent db swap arrives in Plan 8.',
-    );
-  }
-
   const upload =
     flags.upload ??
     ((await p.select({
@@ -107,6 +114,30 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as UploadProvider);
   if (p.isCancel(upload)) throw new Error('cancelled');
 
+  const payment =
+    flags.payment ??
+    ((await p.select({
+      message: 'Payment provider',
+      options: [
+        { value: 'none', label: 'None — skip the payment microservice' },
+        { value: 'paypal', label: 'PayPal (via @idevconn/payment)' },
+      ],
+      initialValue: 'none' as PaymentProvider,
+    })) as PaymentProvider);
+  if (p.isCancel(payment)) throw new Error('cancelled');
+
+  const jobs =
+    flags.jobs ??
+    ((await p.select({
+      message: 'Job queue (BullMQ + bull-board)',
+      options: [
+        { value: 'none', label: 'None — skip jobs MS' },
+        { value: 'bullmq', label: 'BullMQ + bull-board admin UI (requires Redis)' },
+      ],
+      initialValue: 'none' as JobsProvider,
+    })) as JobsProvider);
+  if (p.isCancel(jobs)) throw new Error('cancelled');
+
   const ui =
     flags.ui ??
     ((await p.select({
@@ -115,11 +146,11 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'shadcn' as 'shadcn' | 'antd' | 'mui', label: 'shadcn/ui + Tailwind' },
         {
           value: 'antd' as 'shadcn' | 'antd' | 'mui',
-          label: 'Ant Design (coming soon — falls back to shadcn)',
+          label: 'Ant Design 6',
         },
         {
           value: 'mui' as 'shadcn' | 'antd' | 'mui',
-          label: 'MUI (coming soon — falls back to shadcn)',
+          label: 'MUI 6 (Material Design)',
         },
       ],
       initialValue: 'shadcn' as 'shadcn' | 'antd' | 'mui',
@@ -152,7 +183,9 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     authProvider,
     dbProvider,
     upload,
-    ui: ui === 'shadcn' ? 'shadcn' : 'shadcn', // antd/mui fall back to shadcn for v0.1.0
+    payment,
+    jobs,
+    ui,
     transport,
     initGit,
     install,

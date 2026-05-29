@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24-alpine AS builder
+WORKDIR /workspace
+RUN corepack enable
+# Copy everything before install — yarn workspaces need every workspace's
+# package.json to verify the lockfile is immutable.
+COPY . .
+RUN yarn install --immutable
+RUN yarn nx build api
+
+FROM node:24-alpine AS runtime
+WORKDIR /app
+RUN corepack enable
+COPY --from=builder /workspace/dist/apps/api ./dist
+COPY --from=builder /workspace/node_modules ./node_modules
+COPY --from=builder /workspace/package.json ./
+ENV NODE_ENV=production
+ENV API_PORT=3001
+EXPOSE 3001
+CMD ["node", "dist/main.js"]

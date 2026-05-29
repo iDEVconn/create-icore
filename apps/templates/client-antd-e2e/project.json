@@ -1,0 +1,10 @@
+{
+  "name": "client-antd-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/templates/client-antd-e2e/src",
+  "tags": [],
+  "implicitDependencies": ["client-antd"],
+  "// targets": "to see all targets run: nx show project client-antd-e2e --web",
+  "targets": {}
+}

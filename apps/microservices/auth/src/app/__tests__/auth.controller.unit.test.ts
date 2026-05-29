@@ -71,6 +71,54 @@ describe('AuthController', () => {
     expect(await strategy.getRole(session.user.id)).toBe('admin');
   });
 
+  it('sendMagicLink forwards email + callbackUrl to the strategy', async () => {
+    const { strategy, controller } = fixture();
+    await controller.sendMagicLink({ email: 'ml@x.com', callbackUrl: 'http://localhost/cb' });
+    const token = strategy.getLastMagicLinkToken('ml@x.com');
+    expect(token).toBeTruthy();
+  });
+
+  it('verifyMagicLink round-trips a session and assigns initial role', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
+    await controller.sendMagicLink({ email: 'boss@x.com', callbackUrl: 'http://localhost/cb' });
+    const token = strategy.getLastMagicLinkToken('boss@x.com');
+    const session = await controller.verifyMagicLink({ token });
+    expect(session.user.email).toBe('boss@x.com');
+    expect(await strategy.getRole(session.user.id)).toBe('admin');
+  });
+
+  it('verifyMagicLink rejects an unknown token', async () => {
+    const { controller } = fixture();
+    await expect(controller.verifyMagicLink({ token: 'not-a-token' })).rejects.toThrow();
+  });
+
+  it('startOAuth returns a redirectUrl + state from the strategy', async () => {
+    const { controller } = fixture();
+    const result = await controller.startOAuth({
+      provider: 'google',
+      callbackUrl: 'http://localhost/cb',
+    });
+    expect(result.redirectUrl).toBeTruthy();
+    expect(result.state).toBeTruthy();
+  });
+
+  it('completeOAuth round-trips a session + assigns role', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'oauth@x.com' });
+    await controller.startOAuth({ provider: 'google', callbackUrl: 'http://localhost/cb' });
+    const { code, state } = strategy.getLastOAuthChallenge('google', 'oauth@x.com');
+    const session = await controller.completeOAuth({ provider: 'google', code, state });
+    expect(session.user.email).toBe('oauth@x.com');
+    expect(await strategy.getRole(session.user.id)).toBe('admin');
+  });
+
+  it('completeOAuth rejects mismatched state', async () => {
+    const { controller } = fixture();
+    await controller.startOAuth({ provider: 'google', callbackUrl: 'http://localhost/cb' });
+    await expect(
+      controller.completeOAuth({ provider: 'google', code: 'x', state: 'wrong' }),
+    ).rejects.toThrow();
+  });
+
   it('does not overwrite an existing role on re-signup attempts', async () => {
     // The fake throws on duplicate signup, but a manual sequence simulates
     // the idempotency path: set the role first, then call the private hook

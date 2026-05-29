@@ -24,11 +24,11 @@ jobs:
       projects: ${{ steps.affected.outputs.projects }}
       buildable: ${{ steps.affected.outputs.buildable }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
       - name: Compute affected
         id: affected
         run: |
@@ -65,11 +65,11 @@ jobs:
       matrix:
         task: [lint, test, 'format:check']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
       - name: Run ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "format:check" ]; then
@@ -92,16 +92,16 @@ jobs:
       matrix:
         project: ${{ fromJSON(needs.detect-affected.outputs.buildable) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
       - name: Build ${{ matrix.project }}
         run: yarn nx build ${{ matrix.project }}
       - name: Upload dist
         if: github.ref == 'refs/heads/main' && hashFiles(format('apps/{0}/dist/**', matrix.project)) != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: dist-${{ matrix.project }}
           path: |
@@ -110,3 +110,26 @@ jobs:
             tools/**/dist
           if-no-files-found: ignore
           retention-days: 7
+
+  docker-build:
+    name: Docker build (${{ matrix.image }})
+    needs: [check]
+    if: |
+      always() && !cancelled() && needs.check.result != 'failure' &&
+      (github.ref == 'refs/heads/main' || github.base_ref == 'main')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [gateway, ms-auth, ms-upload, ms-jobs]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - name: Build ${{ matrix.image }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.image }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max

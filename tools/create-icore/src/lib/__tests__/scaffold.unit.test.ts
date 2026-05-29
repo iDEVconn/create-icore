@@ -2,7 +2,13 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { mkdtemp, mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { writeAuthEnv, writeGatewayEnv, writeUploadEnv, removeUploadStack } from '../scaffold.js';
+import {
+  writeAuthEnv,
+  writeGatewayEnv,
+  writeUploadEnv,
+  writeRootEnv,
+  removeUploadStack,
+} from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
 
 const baseOpts: CreateIcoreOptions = {
@@ -11,6 +17,8 @@ const baseOpts: CreateIcoreOptions = {
   authProvider: 'supabase',
   dbProvider: 'supabase',
   upload: 'cloudinary',
+  payment: 'none',
+  jobs: 'none',
   ui: 'shadcn',
   transport: 'tcp',
   initGit: false,
@@ -94,6 +102,20 @@ describe('writeGatewayEnv', () => {
     const env = await readFile(join(dir, 'apps/api/.env'), 'utf8');
     expect(env).toContain('AUTH_TRANSPORT=nats');
     expect(env).toContain('UPLOAD_TRANSPORT=nats');
+  });
+});
+
+describe('writeRootEnv', () => {
+  it('writes DB_PROVIDER=<chosen> to .env when dbProvider=firebase', async () => {
+    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'firebase' });
+    const env = await readFile(join(dir, '.env'), 'utf8');
+    expect(env).toContain('DB_PROVIDER=firebase');
+  });
+
+  it('writes DB_PROVIDER=supabase to .env when dbProvider=supabase', async () => {
+    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'supabase' });
+    const env = await readFile(join(dir, '.env'), 'utf8');
+    expect(env).toContain('DB_PROVIDER=supabase');
   });
 });
 

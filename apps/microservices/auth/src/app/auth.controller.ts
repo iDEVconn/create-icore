@@ -1,7 +1,13 @@
 import { Controller, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { AuthSession, AuthStrategy, VerifiedToken } from '@icore/shared';
+import type {
+  AuthSession,
+  AuthStrategy,
+  OAuthProvider,
+  OAuthStartResult,
+  VerifiedToken,
+} from '@icore/shared';
 
 @Controller()
 export class AuthController {
@@ -37,6 +43,38 @@ export class AuthController {
   @MessagePattern('auth.setRole')
   setRole(@Payload() payload: { uid: string; role: string }): Promise<void> {
     return this.strategy.setRole(payload.uid, payload.role);
+  }
+
+  @MessagePattern('auth.magicLink.send')
+  sendMagicLink(@Payload() payload: { email: string; callbackUrl: string }): Promise<void> {
+    return this.strategy.sendMagicLink(payload);
+  }
+
+  @MessagePattern('auth.magicLink.verify')
+  async verifyMagicLink(@Payload() payload: { token: string }): Promise<AuthSession> {
+    const session = await this.strategy.verifyMagicLink(payload.token);
+    await this.assignInitialRole(session.user.id, session.user.email);
+    return session;
+  }
+
+  @MessagePattern('auth.oauth.start')
+  startOAuth(
+    @Payload() payload: { provider: OAuthProvider; callbackUrl: string },
+  ): Promise<OAuthStartResult> {
+    return this.strategy.startOAuth(payload.provider, payload.callbackUrl);
+  }
+
+  @MessagePattern('auth.oauth.complete')
+  async completeOAuth(
+    @Payload() payload: { provider: OAuthProvider; code: string; state: string },
+  ): Promise<AuthSession> {
+    const session = await this.strategy.completeOAuth(
+      payload.provider,
+      payload.code,
+      payload.state,
+    );
+    await this.assignInitialRole(session.user.id, session.user.email);
+    return session;
   }
 
   // Idempotent: skips work when a role already exists. Admin emails come

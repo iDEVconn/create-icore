@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, LayoutDashboard, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutDashboard, StickyNote, User } from 'lucide-react';
 
 export function LayoutSider() {
   const { t } = useTranslation();
@@ -21,6 +21,13 @@ export function LayoutSider() {
         >
           <LayoutDashboard size={16} className="shrink-0" />
           {!collapsed && <span>{t('nav.dashboard')}</span>}
+        </Link>
+        <Link
+          to="/_dashboard/notes"
+          className="flex items-center gap-2 px-2 py-2 rounded hover:bg-muted text-sm text-foreground transition-colors [&.active]:bg-muted [&.active]:font-medium"
+        >
+          <StickyNote size={16} className="shrink-0" />
+          {!collapsed && <span>{t('notes.title')}</span>}
         </Link>
         <Link
           to="/_dashboard/profile"

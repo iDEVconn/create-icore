@@ -15,4 +15,5 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../../coverage/auth-e2e',
+  passWithNoTests: true,
 };

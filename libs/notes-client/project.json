@@ -1,0 +1,19 @@
+{
+  "name": "notes-client",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/notes-client/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/notes-client",
+        "main": "libs/notes-client/src/index.ts",
+        "tsConfig": "libs/notes-client/tsconfig.lib.json",
+        "assets": ["libs/notes-client/*.md"]
+      }
+    }
+  }
+}

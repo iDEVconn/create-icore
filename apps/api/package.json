@@ -6,15 +6,23 @@
     "@types/multer": "*"
   },
   "dependencies": {
+    "@bull-board/api": "^7.1.5",
+    "@bull-board/express": "^7.1.5",
+    "@casl/ability": "^7.0.0",
     "@icore/auth-client": "*",
+    "@icore/jobs-client": "*",
+    "@icore/notes-client": "*",
+    "@icore/payment-client": "*",
     "@icore/shared": "*",
     "@icore/upload-client": "*",
+    "@idevconn/payment": "^1.2.0",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.24",
     "@nestjs/platform-express": "^11.1.24",
     "@nestjs/swagger": "^11.4.4",
     "@nestjs/throttler": "^6.5.0",
+    "cookie-parser": "^1.4.7",
     "express": "^4.22.2"
   }
 }

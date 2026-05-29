@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore, setStoredLocale, type IcoreLocale } from '@icore/template-shared';
 import { Button } from '../ui/button';
+import { ThemeToggle } from '../ThemeToggle';
 
 const LOCALES: { code: IcoreLocale; label: string }[] = [
   { code: 'en', label: 'EN' },
@@ -42,6 +43,8 @@ export function LayoutHeader() {
             </button>
           ))}
         </div>
+
+        <ThemeToggle />
 
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground hidden sm:inline">
