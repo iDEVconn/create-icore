@@ -21,6 +21,11 @@ export interface IdentityToolkitClient {
   signUp(email: string, password: string): Promise<IdentityToolkitSignUpResponse>;
   signIn(email: string, password: string): Promise<IdentityToolkitSignInResponse>;
   refresh(refreshToken: string): Promise<IdentityToolkitRefreshResponse>;
+  sendOobCode(opts: { email: string; continueUrl: string }): Promise<void>;
+  signInWithEmailLink(opts: {
+    email: string;
+    oobCode: string;
+  }): Promise<IdentityToolkitSignInResponse>;
 }
 
 interface IdentityToolkitError {
@@ -41,6 +46,24 @@ export class HttpIdentityToolkitClient implements IdentityToolkitClient {
     return this.post<IdentityToolkitSignInResponse>(
       'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword',
       { email, password, returnSecureToken: true },
+    );
+  }
+
+  async sendOobCode(opts: { email: string; continueUrl: string }): Promise<void> {
+    await this.post<unknown>('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode', {
+      requestType: 'EMAIL_SIGNIN',
+      email: opts.email,
+      continueUrl: opts.continueUrl,
+    });
+  }
+
+  async signInWithEmailLink(opts: {
+    email: string;
+    oobCode: string;
+  }): Promise<IdentityToolkitSignInResponse> {
+    return this.post<IdentityToolkitSignInResponse>(
+      'https://identitytoolkit.googleapis.com/v1/accounts:signInWithEmailLink',
+      { email: opts.email, oobCode: opts.oobCode },
     );
   }
 
