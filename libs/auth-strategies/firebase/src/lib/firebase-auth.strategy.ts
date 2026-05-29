@@ -1,5 +1,28 @@
-import type { AuthSession, AuthStrategy, MagicLinkRequest, VerifiedToken } from '@icore/shared';
-import type { IdentityToolkitClient } from './identity-toolkit.client';
+import { randomUUID } from 'node:crypto';
+import type {
+  AuthSession,
+  AuthStrategy,
+  MagicLinkRequest,
+  OAuthProvider,
+  OAuthStartResult,
+  VerifiedToken,
+} from '@icore/shared';
+import type { IdentityToolkitClient, OAuthTokenClient } from './identity-toolkit.client';
+
+export interface OAuthProviderCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
+export interface FirebaseOAuthConfig {
+  google?: OAuthProviderCredentials;
+  github?: OAuthProviderCredentials;
+}
+
+interface PendingState {
+  provider: OAuthProvider;
+  callbackUrl: string;
+}
 
 export interface FirebaseAdminAuthLike {
   verifyIdToken(idToken: string): Promise<{ uid: string; email?: string; role?: string }>;
@@ -12,15 +35,22 @@ export interface FirebaseAdminAuthLike {
 export interface FirebaseAuthStrategyOptions {
   identityToolkit: IdentityToolkitClient;
   adminAuth: FirebaseAdminAuthLike;
+  oauth?: FirebaseOAuthConfig;
+  oauthTokenClient?: OAuthTokenClient;
 }
 
 export class FirebaseAuthStrategy implements AuthStrategy {
   private readonly identityToolkit: IdentityToolkitClient;
   private readonly adminAuth: FirebaseAdminAuthLike;
+  private readonly oauth: FirebaseOAuthConfig;
+  private readonly oauthTokenClient: OAuthTokenClient | null;
+  private readonly pendingStates = new Map<string, PendingState>();
 
   constructor(opts: FirebaseAuthStrategyOptions) {
     this.identityToolkit = opts.identityToolkit;
     this.adminAuth = opts.adminAuth;
+    this.oauth = opts.oauth ?? {};
+    this.oauthTokenClient = opts.oauthTokenClient ?? null;
   }
 
   async signUp(email: string, password: string): Promise<AuthSession> {
@@ -66,6 +96,54 @@ export class FirebaseAuthStrategy implements AuthStrategy {
 
   async setRole(uid: string, role: string): Promise<void> {
     await this.adminAuth.setCustomUserClaims(uid, { role });
+  }
+
+  async startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult> {
+    const creds = this.oauth[provider];
+    if (!creds) throw new Error(`oauth_provider_not_configured: ${provider}`);
+    const state = randomUUID();
+    this.pendingStates.set(state, { provider, callbackUrl });
+    const base =
+      provider === 'google'
+        ? 'https://accounts.google.com/o/oauth2/v2/auth'
+        : 'https://github.com/login/oauth/authorize';
+    const scopes = provider === 'google' ? 'openid email profile' : 'read:user user:email';
+    const url = new URL(base);
+    url.searchParams.set('client_id', creds.clientId);
+    url.searchParams.set('redirect_uri', callbackUrl);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', scopes);
+    url.searchParams.set('state', state);
+    return { redirectUrl: url.toString(), state };
+  }
+
+  async completeOAuth(provider: OAuthProvider, code: string, state: string): Promise<AuthSession> {
+    const pending = this.pendingStates.get(state);
+    if (!pending || pending.provider !== provider) throw new Error('invalid_oauth_state');
+    this.pendingStates.delete(state);
+    const creds = this.oauth[provider];
+    if (!creds) throw new Error(`oauth_provider_not_configured: ${provider}`);
+    if (!this.oauthTokenClient) throw new Error('oauth_token_client_not_configured');
+    const tokenRes = await this.oauthTokenClient.exchange(provider, {
+      code,
+      clientId: creds.clientId,
+      clientSecret: creds.clientSecret,
+      redirectUri: pending.callbackUrl,
+    });
+    const postBody =
+      provider === 'google'
+        ? `id_token=${tokenRes.idToken}&providerId=google.com`
+        : `access_token=${tokenRes.accessToken}&providerId=github.com`;
+    const res = await this.identityToolkit.signInWithIdp({
+      requestUri: pending.callbackUrl,
+      postBody,
+    });
+    return {
+      accessToken: res.idToken,
+      refreshToken: res.refreshToken,
+      expiresIn: Number(res.expiresIn),
+      user: { id: res.localId, email: res.email || tokenRes.email },
+    };
   }
 
   async sendMagicLink(req: MagicLinkRequest): Promise<void> {

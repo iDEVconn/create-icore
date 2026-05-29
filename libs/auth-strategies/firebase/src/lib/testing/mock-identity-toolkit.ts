@@ -18,6 +18,13 @@ export interface MockHandle {
   tokensToUid: Map<string, string>;
   refreshToUid: Map<string, string>;
   getOobCode(email: string): string;
+  /**
+   * Pre-register an OAuth code → email mapping. Mirrors what the real provider
+   * would do after redirecting back; the strategy's `completeOAuth` then calls
+   * the mock token client (also returned here) which looks the code up.
+   */
+  registerOAuthCode(code: string, email: string): void;
+  tokenClient: import('../identity-toolkit.client').OAuthTokenClient;
 }
 
 export function createMockIdentityToolkit(): MockHandle {
@@ -26,6 +33,8 @@ export function createMockIdentityToolkit(): MockHandle {
   const refreshToUid = new Map<string, string>();
   const oobCodes = new Map<string, string>(); // oobCode → email
   const oobByEmail = new Map<string, string>(); // email → oobCode
+  const oauthCodeToEmail = new Map<string, string>();
+  const idpPostBodyToEmail = new Map<string, string>();
 
   function issue(user: FakeUser) {
     const idToken = `id_${user.localId}_${randomUUID()}`;
@@ -86,6 +95,23 @@ export function createMockIdentityToolkit(): MockHandle {
         ...session,
       } as IdentityToolkitSignInResponse;
     },
+    async signInWithIdp({ postBody }) {
+      const email = idpPostBodyToEmail.get(postBody);
+      if (!email) throw new Error('INVALID_IDP_BODY');
+      idpPostBodyToEmail.delete(postBody);
+      let user = [...users.values()].find((u) => u.email === email);
+      if (!user) {
+        user = { localId: `uid_${users.size + 1}`, email, password: '' };
+        users.set(user.localId, user);
+      }
+      const session = issue(user);
+      return {
+        localId: user.localId,
+        email,
+        registered: true,
+        ...session,
+      } as IdentityToolkitSignInResponse;
+    },
     async refresh(refreshToken) {
       const uid = refreshToUid.get(refreshToken);
       if (!uid) throw new Error('INVALID_REFRESH_TOKEN');
@@ -102,6 +128,21 @@ export function createMockIdentityToolkit(): MockHandle {
     },
   };
 
+  const tokenClient: import('../identity-toolkit.client').OAuthTokenClient = {
+    async exchange(provider, opts) {
+      const email = oauthCodeToEmail.get(opts.code);
+      if (!email) throw new Error('INVALID_OAUTH_CODE');
+      oauthCodeToEmail.delete(opts.code);
+      const fakeIdToken = `id_${provider}_${randomUUID()}`;
+      const fakeAccessToken = `at_${provider}_${randomUUID()}`;
+      // signInWithIdp will receive a postBody containing the token; pre-bind it
+      // to the email so the mock can resolve.
+      idpPostBodyToEmail.set(`id_token=${fakeIdToken}&providerId=google.com`, email);
+      idpPostBodyToEmail.set(`access_token=${fakeAccessToken}&providerId=github.com`, email);
+      return { idToken: fakeIdToken, accessToken: fakeAccessToken, email };
+    },
+  };
+
   return {
     client,
     users,
@@ -112,5 +153,9 @@ export function createMockIdentityToolkit(): MockHandle {
       if (!code) throw new Error(`no oobCode issued for ${email}`);
       return code;
     },
+    registerOAuthCode(code: string, email: string) {
+      oauthCodeToEmail.set(code, email);
+    },
+    tokenClient,
   };
 }
