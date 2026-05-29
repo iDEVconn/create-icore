@@ -14,10 +14,17 @@ interface FakeSession {
   user: { id: string; email: string };
 }
 
-export function createMockSupabaseClient(): SupabaseClient {
+export interface MockSupabaseClient {
+  client: SupabaseClient;
+  getMagicLinkToken(email: string): string;
+}
+
+export function createMockSupabaseClient(): MockSupabaseClient {
   const users = new Map<string, FakeUser>();
   const accessToUid = new Map<string, string>();
   const refreshToUid = new Map<string, string>();
+  const magicTokenToUid = new Map<string, string>();
+  const magicTokenByEmail = new Map<string, string>();
 
   function issueSession(user: FakeUser): FakeSession {
     const access_token = `at_${user.id}_${accessToUid.size}_${Math.random()}`;
@@ -68,6 +75,30 @@ export function createMockSupabaseClient(): SupabaseClient {
       const session = issueSession(user);
       return { data: { user: session.user, session }, error: null };
     },
+    async signInWithOtp({ email }: { email: string; options?: { emailRedirectTo?: string } }) {
+      let user: FakeUser | undefined;
+      for (const u of users.values()) if (u.email === email) user = u;
+      if (!user) {
+        user = { id: `uid_${users.size + 1}`, email, password: '' };
+        users.set(user.id, user);
+      }
+      const tokenHash = `otp_${user.id}_${magicTokenToUid.size}_${Math.random()}`;
+      magicTokenToUid.set(tokenHash, user.id);
+      magicTokenByEmail.set(email, tokenHash);
+      return { data: {}, error: null };
+    },
+    async verifyOtp({ type, token_hash }: { type: 'magiclink'; token_hash: string }) {
+      if (type !== 'magiclink') {
+        return { data: { user: null, session: null }, error: { message: 'unsupported type' } };
+      }
+      const uid = magicTokenToUid.get(token_hash);
+      if (!uid) return { data: { user: null, session: null }, error: { message: 'invalid otp' } };
+      magicTokenToUid.delete(token_hash);
+      const user = findById(uid);
+      if (!user) return { data: { user: null, session: null }, error: { message: 'user missing' } };
+      const session = issueSession(user);
+      return { data: { user: session.user, session }, error: null };
+    },
     async getUser(token?: string) {
       if (!token) return { data: { user: null }, error: { message: 'missing token' } };
       const uid = accessToUid.get(token);
@@ -103,5 +134,13 @@ export function createMockSupabaseClient(): SupabaseClient {
     },
   };
 
-  return { auth } as unknown as SupabaseClient;
+  const client = { auth } as unknown as SupabaseClient;
+  return {
+    client,
+    getMagicLinkToken(email: string): string {
+      const token = magicTokenByEmail.get(email);
+      if (!token) throw new Error(`no magic-link issued for ${email}`);
+      return token;
+    },
+  };
 }

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthSession, AuthStrategy, VerifiedToken } from '@icore/shared';
+import type { AuthSession, AuthStrategy, MagicLinkRequest, VerifiedToken } from '@icore/shared';
 
 export interface SupabaseAuthStrategyOptions {
   client: SupabaseClient;
@@ -54,6 +54,25 @@ export class SupabaseAuthStrategy implements AuthStrategy {
       app_metadata: { role },
     });
     if (error) throw new Error(error.message);
+  }
+
+  async sendMagicLink(req: MagicLinkRequest): Promise<void> {
+    const { error } = await this.client.auth.signInWithOtp({
+      email: req.email,
+      options: { emailRedirectTo: req.callbackUrl },
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async verifyMagicLink(token: string): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.verifyOtp({
+      type: 'magiclink',
+      token_hash: token,
+    });
+    if (error || !data.session) {
+      throw new Error(error?.message ?? 'invalid_magic_link');
+    }
+    return this.toSession(data.session);
   }
 
   async getRole(uid: string): Promise<string | null> {

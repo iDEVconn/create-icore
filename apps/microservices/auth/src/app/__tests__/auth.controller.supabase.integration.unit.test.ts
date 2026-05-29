@@ -9,7 +9,7 @@ function makeConfig(env: Record<string, string | undefined>): ConfigService {
 
 describe('AuthController × SupabaseAuthStrategy × ADMINS_LIST', () => {
   const fixture = (env: Record<string, string | undefined> = {}) => {
-    const strategy = new SupabaseAuthStrategy({ client: createMockSupabaseClient() });
+    const strategy = new SupabaseAuthStrategy({ client: createMockSupabaseClient().client });
     return { strategy, controller: new AuthController(strategy, makeConfig(env)) };
   };
 
