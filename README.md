@@ -6,25 +6,39 @@ iCore is the monorepo that powers [`@idevconn/create-icore`](https://www.npmjs.c
 
 ## Quick start (consumers)
 
-```bash
-# Minimal: shadcn + Supabase everywhere
-npm init @idevconn/icore my-saas -- \
-  --auth=supabase \
-  --db=supabase \
-  --upload=supabase \
-  --ui=shadcn
+Pick whichever package manager you already have. All three resolve to the same `@idevconn/create-icore` binary.
 
+```bash
+# npm
+npm init @idevconn/icore my-saas -- --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+
+# yarn
+yarn create @idevconn/icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+
+# pnpm
+pnpm create @idevconn/icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+
+# bunx (no installer ceremony)
+bunx @idevconn/create-icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
+```
+
+More combos:
+
+```bash
 # Mix-and-match: Firebase auth + Supabase Postgres + Cloudinary uploads
 npm init @idevconn/icore my-saas -- --auth=firebase --db=supabase --upload=cloudinary --ui=shadcn
 
 # Full stack with payments + jobs (BullMQ requires Redis)
-npm init @idevconn/icore my-saas -- \
+yarn create @idevconn/icore my-saas \
   --auth=supabase --db=supabase --upload=supabase \
   --payment=paypal --jobs=bullmq \
   --ui=antd --transport=redis
 
 # Material UI + Firebase, nothing fancy
-npm init @idevconn/icore my-saas -- --auth=firebase --db=firebase --upload=cloudinary --ui=mui
+pnpm create @idevconn/icore my-saas --auth=firebase --db=firebase --upload=cloudinary --ui=mui
+
+# Skip all add-ons, just gateway + auth + shadcn
+npm init @idevconn/icore my-app -- --auth=supabase --db=supabase --upload=none
 ```
 
 The CLI prompts (interactive) or accepts flags (non-interactive) for:
