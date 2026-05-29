@@ -1,4 +1,3 @@
-import { describe, expect, it, beforeEach } from 'vitest';
 import type { DBStrategy } from '../db';
 
 interface User {

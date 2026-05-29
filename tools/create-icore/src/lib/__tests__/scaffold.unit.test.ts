@@ -8,6 +8,7 @@ import {
   writeUploadEnv,
   writeRootEnv,
   removeUploadStack,
+  removeNotesStack,
 } from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
 
@@ -116,6 +117,125 @@ describe('writeRootEnv', () => {
     await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'supabase' });
     const env = await readFile(join(dir, '.env'), 'utf8');
     expect(env).toContain('DB_PROVIDER=supabase');
+  });
+});
+
+describe('removeNotesStack', () => {
+  it('deletes ms, lib, gateway module and strips imports + deps + tsconfig path + nav + i18n', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-notes-'));
+
+    // notes MS stub
+    await mkdir(join(dir, 'apps/microservices/notes/src'), { recursive: true });
+    await writeFile(join(dir, 'apps/microservices/notes/src/main.ts'), 'export {};');
+
+    // notes-client lib stub
+    await mkdir(join(dir, 'libs/notes-client/src'), { recursive: true });
+    await writeFile(join(dir, 'libs/notes-client/src/index.ts'), 'export {};');
+
+    // gateway notes module stub
+    await mkdir(join(dir, 'apps/api/src/app/notes'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/src/app/notes/notes.module.ts'),
+      'export class NotesModule {}',
+    );
+
+    // app.module.ts with NotesModule
+    await mkdir(join(dir, 'apps/api/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/src/app/app.module.ts'),
+      `import { AuthModule } from './auth/auth.module';\nimport { NotesModule } from './notes/notes.module';\n@Module({ imports: [AuthModule, NotesModule] })\nexport class AppModule {}`,
+    );
+
+    // api package.json with notes-client dep
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/package.json'),
+      JSON.stringify(
+        { name: 'api', dependencies: { '@icore/notes-client': '*', '@icore/auth-client': '*' } },
+        null,
+        2,
+      ),
+    );
+
+    // tsconfig.base.json with notes-client path
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      `{\n  "compilerOptions": {\n    "paths": {\n      "@icore/auth-client": ["./libs/auth-client/src/index.ts"],\n      "@icore/notes-client": ["./libs/notes-client/src/index.ts"]\n    }\n  }\n}`,
+    );
+
+    // client route + query stub
+    await mkdir(join(dir, 'apps/client/src/routes/_dashboard'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/client/src/routes/_dashboard/notes.tsx'),
+      'export const Route = {};',
+    );
+    await mkdir(join(dir, 'apps/client/src/queries'), { recursive: true });
+    await writeFile(join(dir, 'apps/client/src/queries/notes.ts'), 'export {};');
+
+    // notes components stub (shadcn only)
+    await mkdir(join(dir, 'apps/client/src/components/notes'), { recursive: true });
+    await writeFile(join(dir, 'apps/client/src/components/notes/NotesTable.tsx'), 'export {};');
+
+    // LayoutSider with shadcn pattern
+    await mkdir(join(dir, 'apps/client/src/components/layout'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/client/src/components/layout/LayoutSider.tsx'),
+      `import { LayoutDashboard, StickyNote, User } from 'lucide-react';\n` +
+        `export function LayoutSider() {\n  return (\n    <nav>\n` +
+        `      <Link to="/_dashboard/notes"><StickyNote size={16} />{t('notes.title')}</Link>\n` +
+        `    </nav>\n  );\n}`,
+    );
+
+    // i18n keys.ts with notes block
+    await mkdir(join(dir, 'libs/template-shared/src/lib/i18n'), { recursive: true });
+    await writeFile(
+      join(dir, 'libs/template-shared/src/lib/i18n/keys.ts'),
+      `export const ICORE_LOCALES = {\n  en: {\n    nav: { dashboard: 'Dashboard' },\n    notes: {\n      title: 'Notes',\n      new: 'New note',\n    },\n    error: { unknown: 'Error' },\n  },\n} as const;`,
+    );
+
+    await removeNotesStack(dir);
+
+    // Backend removed
+    await expect(access(join(dir, 'apps/microservices/notes'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/notes-client'))).rejects.toThrow();
+    await expect(access(join(dir, 'apps/api/src/app/notes'))).rejects.toThrow();
+
+    // Client files removed
+    await expect(
+      access(join(dir, 'apps/client/src/routes/_dashboard/notes.tsx')),
+    ).rejects.toThrow();
+    await expect(access(join(dir, 'apps/client/src/queries/notes.ts'))).rejects.toThrow();
+    await expect(access(join(dir, 'apps/client/src/components/notes'))).rejects.toThrow();
+
+    // app.module.ts stripped
+    const mod = await readFile(join(dir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('NotesModule');
+    expect(mod).toContain('AuthModule');
+
+    // api package.json stripped
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies).not.toHaveProperty('@icore/notes-client');
+    expect(pkg.dependencies).toHaveProperty('@icore/auth-client');
+
+    // tsconfig path stripped
+    const tsconfig = await readFile(join(dir, 'tsconfig.base.json'), 'utf8');
+    expect(tsconfig).not.toContain('@icore/notes-client');
+    expect(tsconfig).toContain('@icore/auth-client');
+
+    // LayoutSider: StickyNote removed
+    const sider = await readFile(
+      join(dir, 'apps/client/src/components/layout/LayoutSider.tsx'),
+      'utf8',
+    );
+    expect(sider).not.toContain('StickyNote');
+    expect(sider).not.toContain('/_dashboard/notes');
+
+    // i18n: notes block removed
+    const keys = await readFile(join(dir, 'libs/template-shared/src/lib/i18n/keys.ts'), 'utf8');
+    expect(keys).not.toContain('notes:');
+    expect(keys).toContain('nav:');
   });
 });
 

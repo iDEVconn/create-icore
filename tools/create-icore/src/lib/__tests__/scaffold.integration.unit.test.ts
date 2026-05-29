@@ -47,15 +47,6 @@ async function makeFakeTemplates(): Promise<string> {
     join(tplDir, 'apps/api/src/app/storage/storage.module.ts'),
     'export class StorageModule {}',
   );
-  await writeFile(
-    join(tplDir, 'apps/api/src/app/app.module.ts'),
-    [
-      "import { StorageModule } from './storage/storage.module';",
-      "import { AuthModule } from './auth/auth.module';",
-      '@Module({ imports: [AuthModule, StorageModule] })',
-      'export class AppModule {}',
-    ].join('\n'),
-  );
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-shadcn/package.json'), '{}');
   // antd template stub — differentiates from shadcn via a marker file
@@ -64,6 +55,43 @@ async function makeFakeTemplates(): Promise<string> {
   // mui template stub — differentiates from shadcn/antd via a marker file
   await mkdir(join(tplDir, 'apps/templates/client-mui/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-mui/marker.txt'), 'mui');
+
+  // notes MS stub
+  await mkdir(join(tplDir, 'apps/microservices/notes/src'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/microservices/notes/src/main.ts'), 'export {};');
+
+  // notes-client lib stub
+  await mkdir(join(tplDir, 'libs/notes-client/src'), { recursive: true });
+  await writeFile(join(tplDir, 'libs/notes-client/src/index.ts'), 'export {};');
+
+  // gateway notes module stub + update app.module.ts to include NotesModule
+  await mkdir(join(tplDir, 'apps/api/src/app/notes'), { recursive: true });
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/notes/notes.module.ts'),
+    'export class NotesModule {}',
+  );
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/app.module.ts'),
+    [
+      "import { NotesModule } from './notes/notes.module';",
+      "import { StorageModule } from './storage/storage.module';",
+      "import { AuthModule } from './auth/auth.module';",
+      '@Module({ imports: [AuthModule, StorageModule, NotesModule] })',
+      'export class AppModule {}',
+    ].join('\n'),
+  );
+
+  // shadcn template: notes route + query stubs
+  await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard'), {
+    recursive: true,
+  });
+  await writeFile(
+    join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard/notes.tsx'),
+    'export const Route = {};',
+  );
+  await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/queries'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/queries/notes.ts'), 'export {};');
+
   return tplDir;
 }
 
@@ -85,6 +113,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'cloudinary',
         payment: 'none',
         jobs: 'none',
+        example: 'notes',
         ui: 'shadcn',
         transport: 'redis',
         initGit: false,
@@ -125,6 +154,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'none',
         payment: 'none',
         jobs: 'none',
+        example: 'notes',
         ui: 'shadcn',
         transport: 'tcp',
         initGit: false,
@@ -164,6 +194,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        example: 'notes',
         ui: 'antd',
         transport: 'tcp',
         initGit: false,
@@ -193,6 +224,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'cloudinary',
         payment: 'none',
         jobs: 'none',
+        example: 'notes',
         ui: 'mui',
         transport: 'tcp',
         initGit: false,
@@ -209,5 +241,45 @@ describe('scaffold (integration, dry-run)', () => {
     // marker.txt proves the mui template was copied (not shadcn or antd)
     const marker = await readFile(join(outputDir, 'apps/client/marker.txt'), 'utf8');
     expect(marker).toBe('mui');
+  });
+
+  it('removes notes stack when example=none', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'no-notes-app');
+    await scaffold(
+      {
+        projectName: 'no-notes-app',
+        targetDir: outputDir,
+        authProvider: 'supabase',
+        dbProvider: 'supabase',
+        upload: 'supabase',
+        payment: 'none',
+        jobs: 'none',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'tcp',
+        initGit: false,
+        install: false,
+      },
+      templatesDir,
+    );
+
+    // notes MS and lib gone
+    await expect(access(join(outputDir, 'apps/microservices/notes'))).rejects.toThrow();
+    await expect(access(join(outputDir, 'libs/notes-client'))).rejects.toThrow();
+
+    // client notes route gone (moved from templates/client-shadcn → client by selectClientTemplate)
+    await expect(
+      access(join(outputDir, 'apps/client/src/routes/_dashboard/notes.tsx')),
+    ).rejects.toThrow();
+
+    // app.module.ts has no NotesModule
+    const mod = await readFile(join(outputDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('NotesModule');
+
+    // rest of scaffold intact
+    const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as {
+      name: string;
+    };
+    expect(pkg.name).toBe('no-notes-app');
   });
 });

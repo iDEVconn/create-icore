@@ -1,4 +1,3 @@
-import { describe, expect, it, beforeEach } from 'vitest';
 import type { FileInput, StorageStrategy } from '../storage';
 
 const fixture = (): FileInput => ({
