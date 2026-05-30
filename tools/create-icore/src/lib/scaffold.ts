@@ -2,6 +2,7 @@ import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pmRun } from './options.js';
 import type { CreateIcoreOptions } from './options.js';
 
 const IGNORE_TOP = new Set([
@@ -687,7 +688,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
 export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   const pm = opts.packageManager;
   const nx = pm === 'npm' ? 'npx nx' : `${pm} nx`;
-  const devCmd = `${pm} dev`;
+  const devCmd = pmRun(pm, 'dev');
 
   const activeMSes = ['auth (port 4001)'];
   if (opts.upload !== 'none') activeMSes.push(`upload (port 4002)`);

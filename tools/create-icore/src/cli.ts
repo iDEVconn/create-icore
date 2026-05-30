@@ -6,6 +6,7 @@ import kleur from 'kleur';
 import * as p from '@clack/prompts';
 import { collectOptions } from './lib/prompts.js';
 import { scaffold } from './lib/scaffold.js';
+import { pmRun } from './lib/options.js';
 
 const [nodeMajor] = process.versions.node.split('.').map(Number);
 if (nodeMajor < 22) {
@@ -41,7 +42,9 @@ async function main() {
   p.log.info(`Next:`);
   p.log.info(`  cd ${opts.projectName}`);
   if (!opts.install) p.log.info(`  ${opts.packageManager} install`);
-  p.log.info(`  ${opts.packageManager} dev      # gateway + auth MS + upload MS + client`);
+  p.log.info(
+    `  ${pmRun(opts.packageManager, 'dev')}      # gateway + auth MS + upload MS + client`,
+  );
   p.log.info(`  open http://localhost:4200`);
   p.log.info(`  edit apps/microservices/auth/.env to plug in real ${opts.authProvider} creds`);
 }
