@@ -47,3 +47,42 @@ export function formatEnvBanner(opts: {
   const body = lines.map((l) => `║ ${l.padEnd(width)} ║`).join('\n');
   return `\n${top}\n${body}\n${bot}`;
 }
+
+/**
+ * Returns a boxed startup info banner listing every MS the gateway will
+ * connect to, reading the current transport env vars.
+ */
+export function formatGatewayBanner(opts: {
+  port: number;
+  origin: string;
+  services: Array<{ name: string; prefix: string }>;
+}): string {
+  const { port, origin, services } = opts;
+  const lines: string[] = [];
+  lines.push(`Gateway listening on  ${origin}:${port}/api`);
+  lines.push(`Swagger UI            ${origin}:${port}/api/docs`);
+  lines.push('');
+  lines.push('Microservice transports:');
+  for (const { name, prefix } of services) {
+    const kind = (process.env[`${prefix}_TRANSPORT`] ?? 'tcp').toLowerCase();
+    let target: string;
+    if (kind === 'tcp') {
+      const host = process.env[`${prefix}_HOST`] ?? '127.0.0.1';
+      const port_ = process.env[`${prefix}_PORT`] ?? '?';
+      target = `tcp  ${host}:${port_}`;
+    } else if (kind === 'redis') {
+      target = `redis  ${process.env[`${prefix}_REDIS_URL`] ?? '(REDIS_URL not set)'}`;
+    } else if (kind === 'nats') {
+      target = `nats  ${process.env[`${prefix}_NATS_URL`] ?? '(NATS_URL not set)'}`;
+    } else {
+      target = kind;
+    }
+    lines.push(`  ${name.padEnd(10)} →  ${target}`);
+  }
+
+  const width = Math.max(...lines.map((l) => l.length), 50);
+  const top = `╔═${'═'.repeat(width)}═╗`;
+  const bot = `╚═${'═'.repeat(width)}═╝`;
+  const body = lines.map((l) => `║ ${l.padEnd(width)} ║`).join('\n');
+  return `\n${top}\n${body}\n${bot}`;
+}
