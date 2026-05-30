@@ -246,11 +246,13 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
 
   if (packageManager === 'yarn') {
     p.note(
-      'yarn 4.x quarantines this package — `yarn create @idevconn/icore` may resolve\n' +
-        'an outdated version. If the version banner above shows < 0.4.1, re-run with:\n' +
-        '  npm init @idevconn/icore@latest <name> -- [flags]\n' +
-        '  pnpm create @idevconn/icore@latest <name> [flags]',
-      '⚠ yarn quarantine warning',
+      'yarn 4.15+ enforces a 24h publish-age gate (npmMinimalAgeGate=1d), so a\n' +
+        '`yarn create @idevconn/icore@latest` run within 24h of a release resolves an\n' +
+        'older version. If the banner above shows an unexpectedly old version, either:\n' +
+        '  • wait — the version auto-unlocks 24h after publish, or\n' +
+        '  • bypass once:  yarn config set npmMinimalAgeGate 0  (then re-run), or\n' +
+        '  • use npm/pnpm: npm init @idevconn/icore@latest <name> -- [flags]',
+      '⚠ yarn 24h age-gate',
     );
   }
 
