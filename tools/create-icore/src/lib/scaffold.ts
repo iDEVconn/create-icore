@@ -132,6 +132,16 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 
+export async function writeClientEnv(targetDir: string): Promise<void> {
+  const envExample = join(targetDir, 'apps/client/.env.example');
+  try {
+    const env = await readFile(envExample, 'utf8');
+    await writeFile(join(targetDir, 'apps/client/.env'), env);
+  } catch {
+    // .env.example may not exist in older snapshots
+  }
+}
+
 export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   if (opts.payment === 'none') return;
   const envExample = join(targetDir, 'apps/microservices/payment/.env.example');
@@ -647,6 +657,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
+  await writeClientEnv(opts.targetDir);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
