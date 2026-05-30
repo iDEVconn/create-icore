@@ -2,6 +2,7 @@ import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
+import { createJobsRedis } from '../redis-connection';
 import type { EmailJob } from '@icore/shared';
 
 @Injectable()
@@ -15,7 +16,7 @@ export class EmailWorker implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     const url = this.cfg.get<string>('JOBS_REDIS_URL') ?? 'redis://localhost:6379';
     const concurrency = Number(this.cfg.get<string>('JOBS_WORKER_CONCURRENCY') ?? '5');
-    this.connection = new IORedis(url, { maxRetriesPerRequest: null });
+    this.connection = createJobsRedis(url, this.logger);
     this.worker = new Worker<EmailJob>(
       'email',
       async (job: Job<EmailJob>) => {
