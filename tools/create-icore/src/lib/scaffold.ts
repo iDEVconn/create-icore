@@ -405,13 +405,16 @@ export async function removeUnusedAuthStrategies(
     await rm(join(targetDir, 'libs/auth-strategies/firebase'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/auth/package.json'), [
       '@icore/auth-firebase',
+      '@icore/firebase-admin',
     ]);
     await stripTsconfigPath(targetDir, '@icore/auth-firebase');
     try {
       const src = await readFile(modulePath, 'utf8');
       const next = src
-        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirebaseAuthStrategy[^}]*\} from '@icore\/auth-firebase';\n/m, '')
+        // drop the firebase entry from the REQUIRED_ENV map
+        .replace(/^ {2}firebase: \[[^\]]*\],\n/m, '')
         .replace(/\nfunction makeFirebaseAuth[\s\S]*?\n}\n/m, '')
         .replace(AUTH_BRANCH, 'return makeSupabaseAuth(cfg);');
       await writeFile(modulePath, next);
@@ -451,6 +454,7 @@ export async function removeUnusedStorageStrategies(
     await rm(join(targetDir, 'libs/storage-strategies/firebase'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/upload/package.json'), [
       '@icore/storage-firebase',
+      '@icore/firebase-admin',
     ]);
     await stripTsconfigPath(targetDir, '@icore/storage-firebase');
   }
@@ -477,11 +481,12 @@ export async function removeUnusedStorageStrategies(
     // Remove the imports + factory functions of the providers NOT chosen.
     if (uploadProvider !== 'firebase') {
       src = src
-        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/m, '')
         .replace(
           /^import \{[^}]*FirebaseStorageStrategy[^}]*\} from '@icore\/storage-firebase';\n/m,
           '',
         )
+        .replace(/^ {2}firebase: \[[^\]]*\],\n/m, '')
         .replace(/\nfunction makeFirebaseStorage[\s\S]*?\n}\n/m, '');
     }
     if (uploadProvider !== 'cloudinary') {
@@ -523,13 +528,17 @@ export async function removeUnusedDbStrategies(
     await rm(join(targetDir, 'libs/db-strategies/firestore'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
       '@icore/db-firestore',
+      '@icore/firebase-admin',
     ]);
     await stripTsconfigPath(targetDir, '@icore/db-firestore');
     try {
       const src = await readFile(modulePath, 'utf8');
       const next = src
-        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirestoreDBStrategy[^}]*\} from '@icore\/db-firestore';\n/m, '')
+        // drop the firestore + firebase entries from the REQUIRED_ENV map
+        .replace(/^ {2}firestore: \[[^\]]*\],\n/m, '')
+        .replace(/^ {2}firebase: \[[^\]]*\],\n/m, '')
         // drop the makeFirestoreDB factory function
         .replace(/\nfunction makeFirestoreDB[\s\S]*?\n}\n/m, '')
         // collapse the provider branch to an unconditional supabase return
@@ -566,6 +575,16 @@ export async function removeUnusedDbStrategies(
       // ignore
     }
   }
+}
+
+/**
+ * Deletes the shared `@icore/firebase-admin` init lib and its tsconfig alias.
+ * Called only when no microservice uses the Firebase provider — the per-MS
+ * strategy pruning already removes the import + dep from each service.
+ */
+export async function removeFirebaseAdminLib(targetDir: string): Promise<void> {
+  await rm(join(targetDir, 'libs/firebase-admin'), { recursive: true, force: true });
+  await stripTsconfigPath(targetDir, '@icore/firebase-admin');
 }
 
 export async function removeUploadStack(targetDir: string): Promise<void> {
@@ -717,6 +736,13 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await removeUnusedAuthStrategies(opts.targetDir, opts.authProvider);
   await removeUnusedStorageStrategies(opts.targetDir, opts.upload);
   await removeUnusedDbStrategies(opts.targetDir, opts.dbProvider);
+  // The shared firebase-admin init lib is only needed when SOME microservice
+  // uses Firebase. If no provider is Firebase, drop the lib + its alias.
+  const firebaseUsed =
+    opts.authProvider === 'firebase' ||
+    opts.dbProvider === 'firebase' ||
+    opts.upload === 'firebase';
+  if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
   // through parent directories and may pick up a stray package.json/yarn.lock
   // (e.g. in the user's $HOME), causing
