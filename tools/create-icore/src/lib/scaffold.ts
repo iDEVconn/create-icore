@@ -704,6 +704,9 @@ async function patchGitignoreForPm(targetDir: string, pm: string): Promise<void>
   try {
     let src = await readFile(giPath, 'utf8');
 
+    // Strip lines that are icore-internal and make no sense in a generated project.
+    src = src.replace(/^# Build artifacts.*\ntools\/create-icore\/templates\/\s*\n/m, '');
+
     if (pm !== 'yarn') {
       // Drop the yarn-specific un-ignore rules — .yarn/ is fully gone for non-yarn.
       src = src
