@@ -593,9 +593,17 @@ function gitInit(cwd: string, projectName: string): void {
 }
 
 function runInstall(cwd: string, pm: string): void {
-  const [cmd, ...args] =
-    pm === 'npm' ? ['npm', 'install'] : pm === 'pnpm' ? ['pnpm', 'install'] : ['yarn', 'install'];
-  spawnSync(cmd, args, { cwd, stdio: 'inherit' });
+  if (pm === 'yarn') {
+    // Run the pinned yarn binary directly via node to avoid corepack PnP
+    // resolution failures when the CLI is invoked from `yarn create` (dlx),
+    // which runs inside a PnP context where corepack cannot resolve itself.
+    const yarnBin = join(cwd, '.yarn', 'releases', 'yarn-4.5.0.cjs');
+    spawnSync('node', [yarnBin, 'install'], { cwd, stdio: 'inherit' });
+  } else if (pm === 'npm') {
+    spawnSync('npm', ['install'], { cwd, stdio: 'inherit' });
+  } else {
+    spawnSync('pnpm', ['install'], { cwd, stdio: 'inherit' });
+  }
 }
 
 export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): Promise<void> {
