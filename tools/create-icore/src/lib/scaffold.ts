@@ -1,4 +1,5 @@
 import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { CreateIcoreOptions } from './options.js';
@@ -592,13 +593,25 @@ function gitInit(cwd: string, projectName: string): void {
   );
 }
 
+function resolveYarnBin(cwd: string): string {
+  // Read yarnPath from .yarnrc.yml so upgrading yarn version only requires
+  // updating the template files — no hardcoded version string here.
+  try {
+    const yarnrc = readFileSync(join(cwd, '.yarnrc.yml'), 'utf8');
+    const match = yarnrc.match(/^yarnPath:\s*(.+)$/m);
+    if (match?.[1]) return join(cwd, match[1].trim());
+  } catch {
+    // ignore — fallback below
+  }
+  return join(cwd, '.yarn', 'releases', 'yarn-4.5.0.cjs');
+}
+
 function runInstall(cwd: string, pm: string): void {
   if (pm === 'yarn') {
     // Run the pinned yarn binary directly via node to avoid corepack PnP
     // resolution failures when the CLI is invoked from `yarn create` (dlx),
     // which runs inside a PnP context where corepack cannot resolve itself.
-    const yarnBin = join(cwd, '.yarn', 'releases', 'yarn-4.5.0.cjs');
-    spawnSync('node', [yarnBin, 'install'], { cwd, stdio: 'inherit' });
+    spawnSync('node', [resolveYarnBin(cwd), 'install'], { cwd, stdio: 'inherit' });
   } else if (pm === 'npm') {
     spawnSync('npm', ['install'], { cwd, stdio: 'inherit' });
   } else {
