@@ -43,6 +43,14 @@ export async function rewriteRootPackageJson(
   pkg['version'] = '0.0.1';
   pkg['private'] = true;
   delete (pkg as { description?: string }).description;
+  // NATS transport needs the `nats` driver — it's an *optional* peer dep of
+  // @nestjs/microservices, so it isn't installed unless we add it. Without it
+  // a nats-transport project crashes on boot with "the nats package is missing".
+  // (ioredis for the redis transport already ships via the jobs/BullMQ stack.)
+  if (opts.transport === 'nats') {
+    const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
+    deps['nats'] = '^2.29.3';
+  }
   // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
