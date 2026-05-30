@@ -676,10 +676,62 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   // generated project tidy.
   if (opts.packageManager === 'yarn') {
     await writeFile(join(opts.targetDir, 'yarn.lock'), '');
+  } else {
+    // npm/pnpm don't need the pinned yarn binary or .yarnrc.yml.
+    // Removing them keeps the generated project tidy and prevents the 2.8 MB
+    // yarn-4.x.cjs binary from being committed to git (the template .gitignore
+    // has !.yarn/releases which un-ignores it for yarn users).
+    await rm(join(opts.targetDir, '.yarn'), { recursive: true, force: true });
+    await rm(join(opts.targetDir, '.yarnrc.yml'), { force: true });
   }
+  await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
   if (opts.install) runInstall(opts.targetDir, opts.packageManager);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
+}
+
+// ── .gitignore patching ─────────────────────────────────────────────────────
+
+/**
+ * Adjusts .gitignore for the chosen package manager:
+ * - npm/pnpm: remove the `!.yarn/releases` un-ignore rule (the yarn binary
+ *   is already deleted, but the pattern would apply to any .yarn dir the user
+ *   might later add). Adds pnpm-specific entries.
+ * - npm: adds npm-debug.log pattern if missing.
+ */
+async function patchGitignoreForPm(targetDir: string, pm: string): Promise<void> {
+  const giPath = join(targetDir, '.gitignore');
+  try {
+    let src = await readFile(giPath, 'utf8');
+
+    if (pm !== 'yarn') {
+      // Drop the yarn-specific un-ignore rules — .yarn/ is fully gone for non-yarn.
+      src = src
+        .replace(/^\.yarn\/\*\s*\n/m, '')
+        .replace(/^!\.yarn\/patches\s*\n/m, '')
+        .replace(/^!\.yarn\/plugins\s*\n/m, '')
+        .replace(/^!\.yarn\/releases\s*\n/m, '')
+        .replace(/^!\.yarn\/sdks\s*\n/m, '')
+        .replace(/^!\.yarn\/versions\s*\n/m, '')
+        .replace(/^\.pnp\.\*\s*\n/m, '');
+    }
+
+    if (pm === 'pnpm') {
+      if (!src.includes('.pnpm-debug.log')) {
+        src += '\n# pnpm\n.pnpm-debug.log*\n';
+      }
+    }
+
+    if (pm === 'npm') {
+      if (!src.includes('npm-debug.log')) {
+        src += '\n# npm\nnpm-debug.log*\n';
+      }
+    }
+
+    await writeFile(giPath, src);
+  } catch {
+    // ignore — .gitignore may not exist in test scaffolds
+  }
 }
 
 // ── AI-ready files ──────────────────────────────────────────────────────────
