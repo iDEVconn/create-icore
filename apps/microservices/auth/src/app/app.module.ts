@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
@@ -7,7 +7,6 @@ import { SupabaseAuthStrategy } from '@icore/auth-supabase';
 import { FirebaseAuthStrategy, HttpIdentityToolkitClient } from '@icore/auth-firebase';
 import { FakeAuthStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { AuthStrategy } from '@icore/shared';
-import { Logger } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 
 const ENV_PATH = 'apps/microservices/auth/.env';
@@ -27,7 +26,16 @@ function requireEnv(cfg: ConfigService, key: string): string {
   return cfg.getOrThrow<string>(key);
 }
 
-function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
+function makeSupabaseAuth(cfg: ConfigService): AuthStrategy {
+  const client = createClient(
+    requireEnv(cfg, 'SUPABASE_URL'),
+    requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  return new SupabaseAuthStrategy({ client });
+}
+
+function makeFirebaseAuth(cfg: ConfigService): AuthStrategy {
   const projectId = requireEnv(cfg, 'FB_ADMIN_PROJECT_ID');
   if (admin.apps.length === 0) {
     admin.initializeApp({
@@ -83,15 +91,8 @@ function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
         if (!keys || missing.length > 0) return fallback();
 
         try {
-          if (provider === 'supabase') {
-            const client = createClient(
-              requireEnv(cfg, 'SUPABASE_URL'),
-              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-              { auth: { autoRefreshToken: false, persistSession: false } },
-            );
-            return new SupabaseAuthStrategy({ client });
-          }
-          return makeFirebaseStrategy(cfg);
+          if (provider === 'supabase') return makeSupabaseAuth(cfg);
+          return makeFirebaseAuth(cfg);
         } catch (err) {
           // Vars present but invalid (e.g. placeholder URL the SDK rejects).
           return fallback(err instanceof Error ? err.message : String(err));

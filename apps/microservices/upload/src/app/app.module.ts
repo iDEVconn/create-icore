@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
@@ -9,7 +9,6 @@ import { FirebaseStorageStrategy } from '@icore/storage-firebase';
 import { CloudinaryStorageStrategy, type CloudinaryApiLike } from '@icore/storage-cloudinary';
 import { FakeStorageStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
-import { Logger } from '@nestjs/common';
 import { StorageController } from './storage.controller';
 
 const ENV_PATH = 'apps/microservices/upload/.env';
@@ -27,6 +26,18 @@ const REQUIRED_ENV: Record<string, string[]> = {
 
 function requireEnv(cfg: ConfigService, key: string): string {
   return cfg.getOrThrow<string>(key);
+}
+
+function makeSupabaseStorage(cfg: ConfigService): StorageStrategy {
+  const client = createClient(
+    requireEnv(cfg, 'SUPABASE_URL'),
+    requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  return new SupabaseStorageStrategy({
+    client,
+    bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
+  });
 }
 
 function makeFirebaseStorage(cfg: ConfigService): StorageStrategy {
@@ -129,17 +140,7 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
         if (!keys || missing.length > 0) return fallback();
 
         try {
-          if (provider === 'supabase') {
-            const client = createClient(
-              requireEnv(cfg, 'SUPABASE_URL'),
-              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-              { auth: { autoRefreshToken: false, persistSession: false } },
-            );
-            return new SupabaseStorageStrategy({
-              client,
-              bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
-            });
-          }
+          if (provider === 'supabase') return makeSupabaseStorage(cfg);
           if (provider === 'firebase') return makeFirebaseStorage(cfg);
           return makeCloudinaryStorage(cfg);
         } catch (err) {
