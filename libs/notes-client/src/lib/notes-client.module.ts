@@ -3,7 +3,7 @@ import { ClientsModule } from '@nestjs/microservices';
 import { buildTransport } from '@icore/shared';
 import { NotesClientService } from './notes-client.service';
 
-export const NOTES_CLIENT = 'NOTES_CLIENT';
+import { NOTES_CLIENT } from './notes-client.tokens';
 
 @Module({})
 export class NotesClientModule {

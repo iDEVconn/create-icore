@@ -46,6 +46,24 @@ export async function rewriteRootPackageJson(
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
   }
+  // pnpm 9+ blocks all build scripts by default — explicitly allow the packages
+  // that require native compilation (nx, swc, parcel-watcher, etc.)
+  if (opts.packageManager === 'pnpm') {
+    pkg['pnpm'] = {
+      onlyBuiltDependencies: [
+        '@firebase/util',
+        '@nestjs/core',
+        '@parcel/watcher',
+        '@scarf/scarf',
+        '@swc/core',
+        'less',
+        'msgpackr-extract',
+        'nx',
+        'protobufjs',
+        'unrs-resolver',
+      ],
+    };
+  }
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
@@ -112,6 +130,16 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
     ``,
   ];
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
+}
+
+export async function writeClientEnv(targetDir: string): Promise<void> {
+  const envExample = join(targetDir, 'apps/client/.env.example');
+  try {
+    const env = await readFile(envExample, 'utf8');
+    await writeFile(join(targetDir, 'apps/client/.env'), env);
+  } catch {
+    // .env.example may not exist in older snapshots
+  }
 }
 
 export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
@@ -629,6 +657,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
+  await writeClientEnv(opts.targetDir);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);

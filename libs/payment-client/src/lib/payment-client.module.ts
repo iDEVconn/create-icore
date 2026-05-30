@@ -3,7 +3,7 @@ import { ClientsModule } from '@nestjs/microservices';
 import { buildTransport } from '@icore/shared';
 import { PaymentClientService } from './payment-client.service';
 
-export const PAYMENT_CLIENT = 'PAYMENT_CLIENT';
+import { PAYMENT_CLIENT } from './payment-client.tokens';
 
 @Module({})
 export class PaymentClientModule {

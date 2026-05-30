@@ -2,7 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JobsClientService } from './jobs-client.service';
 
-export const JOBS_REDIS_URL = 'JOBS_REDIS_URL';
+import { JOBS_REDIS_URL } from './jobs-client.tokens';
 
 @Module({})
 export class JobsClientModule {

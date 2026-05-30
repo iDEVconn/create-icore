@@ -7,15 +7,26 @@ import { v2 as cloudinary } from 'cloudinary';
 import { SupabaseStorageStrategy } from '@icore/storage-supabase';
 import { FirebaseStorageStrategy } from '@icore/storage-firebase';
 import { CloudinaryStorageStrategy, type CloudinaryApiLike } from '@icore/storage-cloudinary';
-import { FakeStorageStrategy } from '@icore/shared';
+import { FakeStorageStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
 import { Logger } from '@nestjs/common';
 import { StorageController } from './storage.controller';
 
+const ENV_PATH = 'apps/microservices/upload/.env';
+
+const REQUIRED_ENV: Record<string, string[]> = {
+  supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_STORAGE_BUCKET'],
+  firebase: [
+    'FIREBASE_STORAGE_BUCKET',
+    'FB_ADMIN_PROJECT_ID',
+    'FB_ADMIN_CLIENT_EMAIL',
+    'FB_ADMIN_PRIVATE_KEY',
+  ],
+  cloudinary: ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'],
+};
+
 function requireEnv(cfg: ConfigService, key: string): string {
-  const val = cfg.getOrThrow<string>(key);
-  if (!val) throw new Error(`${key} is not set — check apps/microservices/upload/.env`);
-  return val;
+  return cfg.getOrThrow<string>(key);
 }
 
 function makeFirebaseStorage(cfg: ConfigService): StorageStrategy {
@@ -97,33 +108,42 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
     {
       provide: 'StorageStrategy',
       useFactory: (cfg: ConfigService): StorageStrategy => {
-        try {
-          const provider = requireEnv(cfg, 'STORAGE_PROVIDER');
-          switch (provider) {
-            case 'supabase': {
-              const client = createClient(
-                requireEnv(cfg, 'SUPABASE_URL'),
-                requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-                { auth: { autoRefreshToken: false, persistSession: false } },
-              );
-              return new SupabaseStorageStrategy({
-                client,
-                bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
-              });
-            }
-            case 'firebase':
-              return makeFirebaseStorage(cfg);
-            case 'cloudinary':
-              return makeCloudinaryStorage(cfg);
-            default:
-              throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}`);
-          }
-        } catch (err) {
-          new Logger('StorageStrategy').warn(
-            `Not configured: ${err instanceof Error ? err.message : String(err)}. ` +
-              `Requests will fail until apps/microservices/upload/.env is set.`,
-          );
+        const logger = new Logger('StorageStrategy');
+        const provider = cfg.get<string>('STORAGE_PROVIDER')?.trim();
+        const keys = provider ? REQUIRED_ENV[provider] : undefined;
+        const missing = keys ? missingEnv((k) => cfg.get<string>(k), keys) : [];
+
+        const fallback = (reason?: string): StorageStrategy => {
+          const banner = formatEnvBanner({
+            service: 'upload MS',
+            provider,
+            missing,
+            envPath: ENV_PATH,
+            reason,
+          });
+          if (process.env.NODE_ENV === 'production') throw new Error(banner);
+          logger.warn(banner);
           return new FakeStorageStrategy();
+        };
+
+        if (!keys || missing.length > 0) return fallback();
+
+        try {
+          if (provider === 'supabase') {
+            const client = createClient(
+              requireEnv(cfg, 'SUPABASE_URL'),
+              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+              { auth: { autoRefreshToken: false, persistSession: false } },
+            );
+            return new SupabaseStorageStrategy({
+              client,
+              bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
+            });
+          }
+          if (provider === 'firebase') return makeFirebaseStorage(cfg);
+          return makeCloudinaryStorage(cfg);
+        } catch (err) {
+          return fallback(err instanceof Error ? err.message : String(err));
         }
       },
       inject: [ConfigService],

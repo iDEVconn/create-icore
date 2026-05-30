@@ -2,7 +2,7 @@ import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Queue, type JobsOptions } from 'bullmq';
 import IORedis from 'ioredis';
 import { ICORE_QUEUES, type JobsMap } from '@icore/shared';
-import { JOBS_REDIS_URL } from './jobs-client.module';
+import { JOBS_REDIS_URL } from './jobs-client.tokens';
 
 @Injectable()
 export class JobsClientService implements OnModuleDestroy {

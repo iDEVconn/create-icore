@@ -3,7 +3,7 @@ import { ClientsModule } from '@nestjs/microservices';
 import { buildTransport } from '@icore/shared';
 import { UploadClientService } from './upload-client.service';
 
-export const UPLOAD_CLIENT = 'UPLOAD_CLIENT';
+import { UPLOAD_CLIENT } from './upload-client.tokens';
 
 @Module({})
 export class UploadClientModule {
