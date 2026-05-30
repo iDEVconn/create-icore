@@ -2,9 +2,9 @@ import { join } from 'node:path';
 import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
-import * as admin from 'firebase-admin';
 import { SupabaseAuthStrategy } from '@icore/auth-supabase';
 import { FirebaseAuthStrategy, HttpIdentityToolkitClient } from '@icore/auth-firebase';
+import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
 import { FakeAuthStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { AuthStrategy } from '@icore/shared';
 import { AuthController } from './auth.controller';
@@ -14,12 +14,7 @@ const ENV_PATH = 'apps/microservices/auth/.env';
 // Env vars each provider needs (besides AUTH_PROVIDER itself).
 const REQUIRED_ENV: Record<string, string[]> = {
   supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
-  firebase: [
-    'FB_ADMIN_PROJECT_ID',
-    'FB_ADMIN_CLIENT_EMAIL',
-    'FB_ADMIN_PRIVATE_KEY',
-    'FIREBASE_WEB_API_KEY',
-  ],
+  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_WEB_API_KEY'],
 };
 
 function requireEnv(cfg: ConfigService, key: string): string {
@@ -36,20 +31,11 @@ function makeSupabaseAuth(cfg: ConfigService): AuthStrategy {
 }
 
 function makeFirebaseAuth(cfg: ConfigService): AuthStrategy {
-  const projectId = requireEnv(cfg, 'FB_ADMIN_PROJECT_ID');
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
-        privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
+  const app = getFirebaseAdmin(cfg);
   const identityToolkit = new HttpIdentityToolkitClient(requireEnv(cfg, 'FIREBASE_WEB_API_KEY'));
   return new FirebaseAuthStrategy({
     identityToolkit,
-    adminAuth: admin.auth(),
+    adminAuth: app.auth(),
   });
 }
 

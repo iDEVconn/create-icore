@@ -2,11 +2,11 @@ import { join } from 'node:path';
 import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
-import * as admin from 'firebase-admin';
 import { v2 as cloudinary } from 'cloudinary';
 import { SupabaseStorageStrategy } from '@icore/storage-supabase';
 import { FirebaseStorageStrategy } from '@icore/storage-firebase';
 import { CloudinaryStorageStrategy, type CloudinaryApiLike } from '@icore/storage-cloudinary';
+import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
 import { FakeStorageStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
 import { StorageController } from './storage.controller';
@@ -15,12 +15,7 @@ const ENV_PATH = 'apps/microservices/upload/.env';
 
 const REQUIRED_ENV: Record<string, string[]> = {
   supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_STORAGE_BUCKET'],
-  firebase: [
-    'FIREBASE_STORAGE_BUCKET',
-    'FB_ADMIN_PROJECT_ID',
-    'FB_ADMIN_CLIENT_EMAIL',
-    'FB_ADMIN_PRIVATE_KEY',
-  ],
+  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_STORAGE_BUCKET'],
   cloudinary: ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'],
 };
 
@@ -42,17 +37,9 @@ function makeSupabaseStorage(cfg: ConfigService): StorageStrategy {
 
 function makeFirebaseStorage(cfg: ConfigService): StorageStrategy {
   const bucketName = requireEnv(cfg, 'FIREBASE_STORAGE_BUCKET');
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
-        clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
-        privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
+  const app = getFirebaseAdmin(cfg);
   return new FirebaseStorageStrategy({
-    bucket: admin
+    bucket: app
       .storage()
       .bucket(bucketName) as unknown as import('@icore/storage-firebase').FirebaseStorageBucketLike,
   });

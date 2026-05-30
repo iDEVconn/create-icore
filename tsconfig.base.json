@@ -29,7 +29,8 @@
       "@icore/payment-client": ["./libs/payment-client/src/index.ts"],
       "@icore/notes-client": ["./libs/notes-client/src/index.ts"],
       "@icore/jobs-client": ["./libs/jobs-client/src/index.ts"],
-      "@icore/vite-plugins": ["./libs/vite-plugins/src/index.d.mts"]
+      "@icore/vite-plugins": ["./libs/vite-plugins/src/index.d.mts"],
+      "@icore/firebase-admin": ["./libs/firebase-admin/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]

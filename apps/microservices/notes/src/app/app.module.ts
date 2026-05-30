@@ -2,9 +2,9 @@ import { join } from 'node:path';
 import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
-import * as admin from 'firebase-admin';
 import { SupabaseDBStrategy } from '@icore/db-supabase';
 import { FirestoreDBStrategy } from '@icore/db-firestore';
+import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
 import { FakeDBStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { DBStrategy } from '@icore/shared';
 import { NotesController } from './notes.controller';
@@ -14,8 +14,8 @@ const ENV_PATH = 'apps/microservices/notes/.env';
 // DB_PROVIDER accepts supabase | firestore | firebase (latter two are Firestore).
 const REQUIRED_ENV: Record<string, string[]> = {
   supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
-  firestore: ['FB_ADMIN_PROJECT_ID', 'FB_ADMIN_CLIENT_EMAIL', 'FB_ADMIN_PRIVATE_KEY'],
-  firebase: ['FB_ADMIN_PROJECT_ID', 'FB_ADMIN_CLIENT_EMAIL', 'FB_ADMIN_PRIVATE_KEY'],
+  firestore: [...FIREBASE_ADMIN_REQUIRED_ENV],
+  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV],
 };
 
 function requireEnv(cfg: ConfigService, key: string): string {
@@ -32,17 +32,9 @@ function makeSupabaseDB(cfg: ConfigService): DBStrategy {
 }
 
 function makeFirestoreDB(cfg: ConfigService): DBStrategy {
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
-        clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
-        privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
+  const app = getFirebaseAdmin(cfg);
   return new FirestoreDBStrategy({
-    db: admin.firestore() as unknown as ConstructorParameters<typeof FirestoreDBStrategy>[0]['db'],
+    db: app.firestore() as unknown as ConstructorParameters<typeof FirestoreDBStrategy>[0]['db'],
   });
 }
 

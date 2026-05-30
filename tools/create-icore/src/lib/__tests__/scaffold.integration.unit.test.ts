@@ -110,6 +110,10 @@ async function makeFakeTemplates(): Promise<string> {
     await writeFile(join(tplDir, `libs/db-strategies/${s}/src/index.ts`), 'export {};');
   }
 
+  // Shared firebase-admin init lib stub
+  await mkdir(join(tplDir, 'libs/firebase-admin/src'), { recursive: true });
+  await writeFile(join(tplDir, 'libs/firebase-admin/src/index.ts'), 'export {};');
+
   // tsconfig.base.json with all strategy paths
   await writeFile(
     join(tplDir, 'tsconfig.base.json'),
@@ -124,6 +128,7 @@ async function makeFakeTemplates(): Promise<string> {
             '@icore/storage-cloudinary': ['./libs/storage-strategies/cloudinary/src/index.ts'],
             '@icore/db-supabase': ['./libs/db-strategies/supabase/src/index.ts'],
             '@icore/db-firestore': ['./libs/db-strategies/firestore/src/index.ts'],
+            '@icore/firebase-admin': ['./libs/firebase-admin/src/index.ts'],
           },
         },
       },
@@ -145,7 +150,7 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'apps/microservices/auth/src/app'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/microservices/auth/src/app/app.module.ts'),
-    `import * as admin from 'firebase-admin';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\n`,
+    `import { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { getFirebaseAdmin } from '@icore/firebase-admin';\n`,
   );
 
   // Upload MS package.json
@@ -168,7 +173,7 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'apps/microservices/upload/src/app'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/microservices/upload/src/app/app.module.ts'),
-    `import * as admin from 'firebase-admin';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nfunction makeFirebaseStorage() {}\nfunction makeCloudinaryStorage() {}\n`,
+    `import { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nimport { getFirebaseAdmin } from '@icore/firebase-admin';\nfunction makeFirebaseStorage() {}\nfunction makeCloudinaryStorage() {}\n`,
   );
 
   // Notes MS package.json
@@ -184,7 +189,7 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'apps/microservices/notes/src/app'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/microservices/notes/src/app/app.module.ts'),
-    `import * as admin from 'firebase-admin';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\n`,
+    `import { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nimport { getFirebaseAdmin } from '@icore/firebase-admin';\n`,
   );
 
   return tplDir;
@@ -409,6 +414,8 @@ describe('scaffold (integration, dry-run)', () => {
     await expect(access(join(outputDir, 'libs/storage-strategies/firebase'))).rejects.toThrow();
     await expect(access(join(outputDir, 'libs/storage-strategies/cloudinary'))).rejects.toThrow();
     await expect(access(join(outputDir, 'libs/db-strategies/firestore'))).rejects.toThrow();
+    // firebase used by no provider → shared firebase-admin lib removed too
+    await expect(access(join(outputDir, 'libs/firebase-admin'))).rejects.toThrow();
 
     // Selected libs kept
     const authLibExists = await access(join(outputDir, 'libs/auth-strategies/supabase'))
@@ -422,12 +429,13 @@ describe('scaffold (integration, dry-run)', () => {
       'utf8',
     );
     expect(authMod).not.toContain('@icore/auth-firebase');
-    expect(authMod).not.toContain('firebase-admin');
+    expect(authMod).not.toContain('@icore/firebase-admin');
 
     // tsconfig has no firebase/cloudinary paths
     const tsconfig = await readFile(join(outputDir, 'tsconfig.base.json'), 'utf8');
     expect(tsconfig).not.toContain('@icore/auth-firebase');
     expect(tsconfig).not.toContain('@icore/storage-firebase');
     expect(tsconfig).not.toContain('@icore/storage-cloudinary');
+    expect(tsconfig).not.toContain('@icore/firebase-admin');
   });
 });

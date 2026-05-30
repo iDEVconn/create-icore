@@ -1,0 +1,12 @@
+{
+  "name": "@icore/firebase-admin",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "firebase-admin": "^13.10.0",
+    "tslib": "^2.3.0"
+  }
+}

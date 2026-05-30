@@ -2907,6 +2907,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/firebase-admin@workspace:libs/firebase-admin":
+  version: 0.0.0-use.local
+  resolution: "@icore/firebase-admin@workspace:libs/firebase-admin"
+  dependencies:
+    firebase-admin: "npm:^13.10.0"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@icore/jobs-client@npm:*, @icore/jobs-client@workspace:libs/jobs-client":
   version: 0.0.0-use.local
   resolution: "@icore/jobs-client@workspace:libs/jobs-client"
