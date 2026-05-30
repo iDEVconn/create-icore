@@ -46,6 +46,24 @@ export async function rewriteRootPackageJson(
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
   }
+  // pnpm 9+ blocks all build scripts by default — explicitly allow the packages
+  // that require native compilation (nx, swc, parcel-watcher, etc.)
+  if (opts.packageManager === 'pnpm') {
+    pkg['pnpm'] = {
+      onlyBuiltDependencies: [
+        '@firebase/util',
+        '@nestjs/core',
+        '@parcel/watcher',
+        '@scarf/scarf',
+        '@swc/core',
+        'less',
+        'msgpackr-extract',
+        'nx',
+        'protobufjs',
+        'unrs-resolver',
+      ],
+    };
+  }
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
