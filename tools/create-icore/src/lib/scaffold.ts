@@ -114,11 +114,15 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   const env = await readFile(envExample, 'utf8');
   let next = env
     .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`)
-    .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
+    .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`)
+    .replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`)
+    .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
   if (opts.transport !== 'tcp') {
     next = next
       .replace(/^# (AUTH_(?:REDIS|NATS)_URL=)/m, '$1')
-      .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
+      .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1')
+      .replace(/^# (NOTES_(?:REDIS|NATS)_URL=)/m, '$1')
+      .replace(/^# (PAYMENT_(?:REDIS|NATS)_URL=)/m, '$1');
   }
   await writeFile(join(targetDir, 'apps/api/.env'), next);
 }
@@ -131,6 +135,30 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
     ``,
   ];
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
+}
+
+/**
+ * Strips a transport prefix (e.g. `NOTES`, `PAYMENT`) and its comment lines
+ * from the gateway .env when the matching microservice is removed, so the
+ * gateway doesn't try to build a transport for a MS that isn't there.
+ */
+async function stripGatewayTransport(targetDir: string, prefix: string): Promise<void> {
+  const gatewayEnv = join(targetDir, 'apps/api/.env');
+  try {
+    const env = await readFile(gatewayEnv, 'utf8');
+    const next = env
+      .split('\n')
+      .filter(
+        (line) =>
+          !line.startsWith(`${prefix}_`) &&
+          !line.startsWith(`# ${prefix}_`) &&
+          !line.includes(`${prefix} MS transport`),
+      )
+      .join('\n');
+    await writeFile(gatewayEnv, next);
+  } catch {
+    // ignore — .env may not exist in test scaffolds
+  }
 }
 
 export async function writeClientEnv(targetDir: string): Promise<void> {
@@ -240,6 +268,7 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
     '@icore/payment-client',
     '@idevconn/payment',
   ]);
+  await stripGatewayTransport(targetDir, 'PAYMENT');
 }
 
 export async function removeNotesStack(targetDir: string): Promise<void> {
@@ -272,6 +301,9 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
 
   // Strip @icore/notes-client dep from api/package.json
   await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/notes-client']);
+
+  // Strip NOTES_* transport block from the gateway .env
+  await stripGatewayTransport(targetDir, 'NOTES');
 
   // Strip @icore/notes-client path alias from tsconfig.base.json
   const tsconfigPath = join(targetDir, 'tsconfig.base.json');
