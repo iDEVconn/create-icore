@@ -5,15 +5,26 @@ import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
 import { SupabaseAuthStrategy } from '@icore/auth-supabase';
 import { FirebaseAuthStrategy, HttpIdentityToolkitClient } from '@icore/auth-firebase';
-import { FakeAuthStrategy } from '@icore/shared';
+import { FakeAuthStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { AuthStrategy } from '@icore/shared';
 import { Logger } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 
+const ENV_PATH = 'apps/microservices/auth/.env';
+
+// Env vars each provider needs (besides AUTH_PROVIDER itself).
+const REQUIRED_ENV: Record<string, string[]> = {
+  supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+  firebase: [
+    'FB_ADMIN_PROJECT_ID',
+    'FB_ADMIN_CLIENT_EMAIL',
+    'FB_ADMIN_PRIVATE_KEY',
+    'FIREBASE_WEB_API_KEY',
+  ],
+};
+
 function requireEnv(cfg: ConfigService, key: string): string {
-  const val = cfg.getOrThrow<string>(key);
-  if (!val) throw new Error(`${key} is not set — check apps/microservices/auth/.env`);
-  return val;
+  return cfg.getOrThrow<string>(key);
 }
 
 function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
@@ -49,29 +60,33 @@ function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
     {
       provide: 'AuthStrategy',
       useFactory: (cfg: ConfigService): AuthStrategy => {
-        try {
-          const provider = requireEnv(cfg, 'AUTH_PROVIDER');
-          switch (provider) {
-            case 'supabase': {
-              const client = createClient(
-                requireEnv(cfg, 'SUPABASE_URL'),
-                requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-                { auth: { autoRefreshToken: false, persistSession: false } },
-              );
-              return new SupabaseAuthStrategy({ client });
-            }
-            case 'firebase':
-              return makeFirebaseStrategy(cfg);
-            default:
-              throw new Error(`Unsupported AUTH_PROVIDER: ${provider}`);
-          }
-        } catch (err) {
-          new Logger('AuthStrategy').warn(
-            `Not configured: ${err instanceof Error ? err.message : String(err)}. ` +
-              `Requests will fail until apps/microservices/auth/.env is set.`,
-          );
+        const logger = new Logger('AuthStrategy');
+        const provider = cfg.get<string>('AUTH_PROVIDER')?.trim();
+        const keys = provider ? REQUIRED_ENV[provider] : undefined;
+        const missing = keys ? missingEnv((k) => cfg.get<string>(k), keys) : [];
+
+        if (!keys || missing.length > 0) {
+          const banner = formatEnvBanner({
+            service: 'auth MS',
+            provider,
+            missing,
+            envPath: ENV_PATH,
+          });
+          // Prod: fail fast — never silently run a fake auth strategy.
+          if (process.env.NODE_ENV === 'production') throw new Error(banner);
+          logger.warn(banner);
           return new FakeAuthStrategy();
         }
+
+        if (provider === 'supabase') {
+          const client = createClient(
+            requireEnv(cfg, 'SUPABASE_URL'),
+            requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+            { auth: { autoRefreshToken: false, persistSession: false } },
+          );
+          return new SupabaseAuthStrategy({ client });
+        }
+        return makeFirebaseStrategy(cfg);
       },
       inject: [ConfigService],
     },
