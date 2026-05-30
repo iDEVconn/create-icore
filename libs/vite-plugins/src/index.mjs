@@ -104,3 +104,53 @@ export function commonTestConfig(name, coverageDir) {
     },
   };
 }
+
+/**
+ * Shared Vite dev-server config: binds the given port and proxies `/api`
+ * to the gateway (:3001) so the client's relative API base works in dev.
+ * @param {number} port
+ * @returns {import('vite').UserConfig['server']}
+ */
+export function commonServer(port) {
+  return {
+    port,
+    host: 'localhost',
+    proxy: { '/api': { target: 'http://localhost:3001', changeOrigin: true } },
+  };
+}
+
+function box(lines) {
+  const width = Math.max(...lines.map((l) => l.length), 48);
+  const top = `╔═${'═'.repeat(width)}═╗`;
+  const bot = `╚═${'═'.repeat(width)}═╝`;
+  const body = lines.map((l) => `║ ${l.padEnd(width)} ║`).join('\n');
+  return `\n${top}\n${body}\n${bot}`;
+}
+
+/**
+ * Prints a terminal banner on dev-server start showing the API base the client
+ * will use and the gateway proxy target, so misconfiguration is obvious.
+ * @param {{ proxyTarget?: string }} [opts]
+ * @returns {import('vite').Plugin}
+ */
+export function apiInfoPlugin(opts = {}) {
+  const target = opts.proxyTarget ?? 'http://localhost:3001';
+  return {
+    name: 'icore-api-info',
+    apply: 'serve',
+    configureServer(server) {
+      server.httpServer?.once('listening', () => {
+        const explicit = process.env.VITE_API_URL;
+        const lines = explicit
+          ? [`API base: VITE_API_URL = ${explicit}`, '', `(gateway dev-proxy is bypassed)`]
+          : [
+              `API base: /api  →  proxied to ${target}`,
+              '',
+              `Gateway must be running on ${target}.`,
+              `Override with VITE_API_URL in the client .env.`,
+            ];
+        server.config.logger.info(box([`ℹ  iCore client API wiring`, '', ...lines]));
+      });
+    },
+  };
+}
