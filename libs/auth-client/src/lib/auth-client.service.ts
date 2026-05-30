@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import type { AuthSession, OAuthProvider, OAuthStartResult, VerifiedToken } from '@icore/shared';
-import { AUTH_CLIENT } from './auth-client.module';
+import { AUTH_CLIENT } from './auth-client.tokens';
 
 @Injectable()
 export class AuthClientService {

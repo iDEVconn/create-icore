@@ -3,7 +3,7 @@ import { ClientsModule } from '@nestjs/microservices';
 import { buildTransport } from '@icore/shared';
 import { AuthClientService } from './auth-client.service';
 
-export const AUTH_CLIENT = 'AUTH_CLIENT';
+import { AUTH_CLIENT } from './auth-client.tokens';
 
 @Module({})
 export class AuthClientModule {
