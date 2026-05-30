@@ -12,6 +12,7 @@ import {
   removeUnusedAuthStrategies,
   removeUnusedStorageStrategies,
   removeUnusedDbStrategies,
+  rewriteRootPackageJson,
 } from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
 
@@ -525,5 +526,28 @@ describe('removeUploadStack', () => {
     expect(gatewayEnv).not.toContain('UPLOAD_TRANSPORT');
     expect(gatewayEnv).not.toContain('UPLOAD_HOST');
     expect(gatewayEnv).not.toContain('MAX_FILE_SIZE_KB');
+  });
+});
+
+describe('rewriteRootPackageJson — nats transport dependency', () => {
+  async function run(transport: CreateIcoreOptions['transport']) {
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'icore', version: '1.0.0', dependencies: { ioredis: '^5.11.0' } }),
+    );
+    await rewriteRootPackageJson(dir, { ...baseOpts, targetDir: dir, transport });
+    return JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+  }
+
+  it('adds the `nats` driver when transport=nats (optional peer dep, else MS crashes on boot)', async () => {
+    const pkg = await run('nats');
+    expect(pkg.dependencies?.['nats']).toBeDefined();
+  });
+
+  it('does not add `nats` for tcp or redis', async () => {
+    expect((await run('tcp')).dependencies?.['nats']).toBeUndefined();
+    expect((await run('redis')).dependencies?.['nats']).toBeUndefined();
   });
 });

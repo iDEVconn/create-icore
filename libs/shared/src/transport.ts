@@ -67,15 +67,37 @@ export function buildTransport(prefix: string): ClientOptions {
       // ioredis accepts a connection URL string; the NestJS RedisOptions type
       // exposes host/port fields but passes options directly to ioredis which
       // also accepts a url field at runtime.
+      //
+      // retryAttempts/retryDelay are mandatory for resilience: NestJS
+      // ServerRedis builds its ioredis retryStrategy from them, and when
+      // retryAttempts is unset it logs "retry attempts not specified", stops
+      // reconnecting, and `app.listen()` REJECTS → the MS process exits. With
+      // an effectively-infinite retry the initial connect stays pending and
+      // keeps reconnecting, so a not-yet-up Redis never crashes the service —
+      // it idles and attaches once Redis is reachable.
       return {
         transport: Transport.REDIS,
-        options: { url: required(`${prefix}_REDIS_URL`) },
+        options: {
+          url: required(`${prefix}_REDIS_URL`),
+          retryAttempts: Number.POSITIVE_INFINITY,
+          retryDelay: 2000,
+        },
       } as unknown as ClientOptions;
     case 'nats':
+      // reconnect/maxReconnectAttempts: -1 retries forever once connected, so a
+      // dropped broker re-attaches instead of giving up. The *initial* connect
+      // is intentionally allowed to reject when NATS is down on boot —
+      // bootstrapMicroservice() catches that, logs a banner, and retries, giving
+      // the same visible behaviour as the Redis transport above.
       return {
         transport: Transport.NATS,
-        options: { servers: required(`${prefix}_NATS_URL`).split(',') },
-      };
+        options: {
+          servers: required(`${prefix}_NATS_URL`).split(','),
+          reconnect: true,
+          maxReconnectAttempts: -1,
+          reconnectTimeWait: 2000,
+        },
+      } as unknown as ClientOptions;
     default:
       throw new Error(`Unknown transport: ${kind}`);
   }
