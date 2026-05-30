@@ -5,15 +5,22 @@ import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
 import { SupabaseDBStrategy } from '@icore/db-supabase';
 import { FirestoreDBStrategy } from '@icore/db-firestore';
-import { FakeDBStrategy } from '@icore/shared';
+import { FakeDBStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { DBStrategy } from '@icore/shared';
 import { Logger } from '@nestjs/common';
 import { NotesController } from './notes.controller';
 
+const ENV_PATH = 'apps/microservices/notes/.env';
+
+// DB_PROVIDER accepts supabase | firestore | firebase (latter two are Firestore).
+const REQUIRED_ENV: Record<string, string[]> = {
+  supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+  firestore: ['FB_ADMIN_PROJECT_ID', 'FB_ADMIN_CLIENT_EMAIL', 'FB_ADMIN_PRIVATE_KEY'],
+  firebase: ['FB_ADMIN_PROJECT_ID', 'FB_ADMIN_CLIENT_EMAIL', 'FB_ADMIN_PRIVATE_KEY'],
+};
+
 function requireEnv(cfg: ConfigService, key: string): string {
-  const val = cfg.getOrThrow<string>(key);
-  if (!val) throw new Error(`${key} is not set — check apps/microservices/notes/.env`);
-  return val;
+  return cfg.getOrThrow<string>(key);
 }
 
 @Module({
@@ -31,8 +38,27 @@ function requireEnv(cfg: ConfigService, key: string): string {
     {
       provide: 'DBStrategy',
       useFactory: (cfg: ConfigService): DBStrategy => {
+        const logger = new Logger('DBStrategy');
+        const provider = cfg.get<string>('DB_PROVIDER')?.trim();
+        const keys = provider ? REQUIRED_ENV[provider] : undefined;
+        const missing = keys ? missingEnv((k) => cfg.get<string>(k), keys) : [];
+
+        const fallback = (reason?: string): DBStrategy => {
+          const banner = formatEnvBanner({
+            service: 'notes MS',
+            provider,
+            missing,
+            envPath: ENV_PATH,
+            reason,
+          });
+          if (process.env.NODE_ENV === 'production') throw new Error(banner);
+          logger.warn(banner);
+          return new FakeDBStrategy();
+        };
+
+        if (!keys || missing.length > 0) return fallback();
+
         try {
-          const provider = requireEnv(cfg, 'DB_PROVIDER');
           if (provider === 'supabase') {
             const client = createClient(
               requireEnv(cfg, 'SUPABASE_URL'),
@@ -41,29 +67,22 @@ function requireEnv(cfg: ConfigService, key: string): string {
             );
             return new SupabaseDBStrategy({ client });
           }
-          if (provider === 'firestore' || provider === 'firebase') {
-            if (admin.apps.length === 0) {
-              admin.initializeApp({
-                credential: admin.credential.cert({
-                  projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
-                  clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
-                  privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
-                }),
-              });
-            }
-            return new FirestoreDBStrategy({
-              db: admin.firestore() as unknown as ConstructorParameters<
-                typeof FirestoreDBStrategy
-              >[0]['db'],
+          if (admin.apps.length === 0) {
+            admin.initializeApp({
+              credential: admin.credential.cert({
+                projectId: requireEnv(cfg, 'FB_ADMIN_PROJECT_ID'),
+                clientEmail: requireEnv(cfg, 'FB_ADMIN_CLIENT_EMAIL'),
+                privateKey: requireEnv(cfg, 'FB_ADMIN_PRIVATE_KEY').replace(/\\n/g, '\n'),
+              }),
             });
           }
-          throw new Error(`Unsupported DB_PROVIDER: ${provider}`);
+          return new FirestoreDBStrategy({
+            db: admin.firestore() as unknown as ConstructorParameters<
+              typeof FirestoreDBStrategy
+            >[0]['db'],
+          });
         } catch (err) {
-          new Logger('DBStrategy').warn(
-            `Not configured: ${err instanceof Error ? err.message : String(err)}. ` +
-              `Requests will fail until apps/microservices/notes/.env is set.`,
-          );
-          return new FakeDBStrategy();
+          return fallback(err instanceof Error ? err.message : String(err));
         }
       },
       inject: [ConfigService],

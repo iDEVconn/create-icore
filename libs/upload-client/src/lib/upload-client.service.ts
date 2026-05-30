@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import type { StorageRef } from '@icore/shared';
-import { UPLOAD_CLIENT } from './upload-client.module';
+import { UPLOAD_CLIENT } from './upload-client.tokens';
 
 @Injectable()
 export class UploadClientService {

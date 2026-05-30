@@ -19,3 +19,9 @@ export declare function commonTestConfig(
   name: string,
   coverageDir: string,
 ): NonNullable<UserConfig['test']>;
+
+export declare function commonServer(
+  port: number,
+): NonNullable<import('vite').UserConfig['server']>;
+
+export declare function apiInfoPlugin(opts?: { proxyTarget?: string }): import('vite').Plugin;

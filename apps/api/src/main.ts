@@ -3,8 +3,16 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { formatGatewayBanner } from '@icore/shared';
 import { AppModule } from './app/app.module';
 import pkg from '@icore/package.json';
+
+const GATEWAY_SERVICES = [
+  { name: 'auth', prefix: 'AUTH' },
+  { name: 'upload', prefix: 'UPLOAD' },
+  { name: 'notes', prefix: 'NOTES' },
+  { name: 'payment', prefix: 'PAYMENT' },
+];
 
 const DEFAULT_PORT = 3001;
 
@@ -28,12 +36,10 @@ async function bootstrap() {
 
 bootstrap()
   .then(() => {
-    const logger = new Logger('API-Bootstrap');
-    logger.log(
-      `API Bootstrap completed successfully: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? DEFAULT_PORT}/api`,
-    );
-    logger.log(
-      `Swagger UI: ${process.env.API_ORIGIN ?? 'http://localhost'}:${process.env.API_PORT ?? DEFAULT_PORT}/api/docs`,
+    const origin = process.env.API_ORIGIN ?? 'http://localhost';
+    const port = Number(process.env.API_PORT ?? DEFAULT_PORT);
+    new Logger('API-Bootstrap').log(
+      formatGatewayBanner({ port, origin, services: GATEWAY_SERVICES }),
     );
   })
   .catch((err) => {

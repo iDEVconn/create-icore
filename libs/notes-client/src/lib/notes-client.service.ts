@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import type { ListNotesOptions, Note } from '@icore/shared';
-import { NOTES_CLIENT } from './notes-client.module';
+import { NOTES_CLIENT } from './notes-client.tokens';
 
 @Injectable()
 export class NotesClientService {

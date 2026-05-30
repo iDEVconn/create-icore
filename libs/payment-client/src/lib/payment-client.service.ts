@@ -7,7 +7,7 @@ import type {
   OrderResult,
   RequestOptions,
 } from '@idevconn/payment';
-import { PAYMENT_CLIENT } from './payment-client.module';
+import { PAYMENT_CLIENT } from './payment-client.tokens';
 
 @Injectable()
 export class PaymentClientService {

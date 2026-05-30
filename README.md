@@ -18,8 +18,6 @@ yarn create @idevconn/icore@latest my-saas --auth=supabase --db=supabase --uploa
 # pnpm
 pnpm create @idevconn/icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
 
-# bunx (no installer ceremony)
-bunx @idevconn/create-icore my-saas --auth=supabase --db=supabase --upload=supabase --ui=shadcn
 ```
 
 More combos:

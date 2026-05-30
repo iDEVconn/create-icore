@@ -6,8 +6,10 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 import {
+  apiInfoPlugin,
   commonDefines,
   commonManualChunks,
+  commonServer,
   commonTestConfig,
   injectAppVersionPlugin,
   noServerModulesPlugin,
@@ -27,10 +29,7 @@ function depVersion(name: string): string {
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../../node_modules/.vite/client-mui',
-  server: {
-    port: 4202,
-    host: 'localhost',
-  },
+  server: commonServer(4202),
   preview: {
     port: 4202,
     host: 'localhost',
@@ -49,6 +48,7 @@ export default defineConfig(() => ({
     nxViteTsPaths(),
     nxCopyAssetsPlugin(['*.md']),
     noServerModulesPlugin(),
+    apiInfoPlugin(),
     injectAppVersionPlugin(rootPackageJson),
   ],
   // Uncomment this if you are using workers.

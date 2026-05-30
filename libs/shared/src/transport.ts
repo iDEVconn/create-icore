@@ -1,4 +1,40 @@
 import { Transport, type ClientOptions, type MicroserviceOptions } from '@nestjs/microservices';
+import { formatEnvBanner } from './env';
+
+// Transport vars each kind needs (besides ${prefix}_TRANSPORT itself).
+function transportKeys(prefix: string, kind: string): string[] {
+  switch (kind) {
+    case 'tcp':
+      return [`${prefix}_HOST`, `${prefix}_PORT`];
+    case 'redis':
+      return [`${prefix}_REDIS_URL`];
+    case 'nats':
+      return [`${prefix}_NATS_URL`];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Throws an eye-catching banner if any transport var for `prefix` is missing.
+ * Used by both the gateway client modules and each MS bootstrap, so transport
+ * misconfiguration surfaces clearly instead of a raw "Missing env var".
+ */
+function assertTransportEnv(prefix: string, kind: string): void {
+  const keys = transportKeys(prefix, kind);
+  const missing = keys.filter((k) => !process.env[k]?.trim());
+  if (missing.length > 0) {
+    throw new Error(
+      formatEnvBanner({
+        service: `${prefix} transport`,
+        provider: kind,
+        missing,
+        envPath: `the service .env (${prefix}_* transport vars)`,
+        headline: `⚠  ${prefix} transport (${kind}) not configured — cannot reach the microservice`,
+      }),
+    );
+  }
+}
 
 function required(name: string): string {
   const value = process.env[name];
@@ -17,6 +53,7 @@ function requiredPort(name: string): number {
 
 export function buildTransport(prefix: string): ClientOptions {
   const kind = (process.env[`${prefix}_TRANSPORT`] ?? 'tcp').toLowerCase();
+  assertTransportEnv(prefix, kind);
   switch (kind) {
     case 'tcp':
       return {
