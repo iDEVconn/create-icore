@@ -65,28 +65,37 @@ function makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {
         const keys = provider ? REQUIRED_ENV[provider] : undefined;
         const missing = keys ? missingEnv((k) => cfg.get<string>(k), keys) : [];
 
-        if (!keys || missing.length > 0) {
+        // Prod: fail fast — never silently run a fake auth strategy.
+        // Dev: warn with a boxed banner + fall back to the in-memory fake.
+        const fallback = (reason?: string): AuthStrategy => {
           const banner = formatEnvBanner({
             service: 'auth MS',
             provider,
             missing,
             envPath: ENV_PATH,
+            reason,
           });
-          // Prod: fail fast — never silently run a fake auth strategy.
           if (process.env.NODE_ENV === 'production') throw new Error(banner);
           logger.warn(banner);
           return new FakeAuthStrategy();
-        }
+        };
 
-        if (provider === 'supabase') {
-          const client = createClient(
-            requireEnv(cfg, 'SUPABASE_URL'),
-            requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-            { auth: { autoRefreshToken: false, persistSession: false } },
-          );
-          return new SupabaseAuthStrategy({ client });
+        if (!keys || missing.length > 0) return fallback();
+
+        try {
+          if (provider === 'supabase') {
+            const client = createClient(
+              requireEnv(cfg, 'SUPABASE_URL'),
+              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+              { auth: { autoRefreshToken: false, persistSession: false } },
+            );
+            return new SupabaseAuthStrategy({ client });
+          }
+          return makeFirebaseStrategy(cfg);
+        } catch (err) {
+          // Vars present but invalid (e.g. placeholder URL the SDK rejects).
+          return fallback(err instanceof Error ? err.message : String(err));
         }
-        return makeFirebaseStrategy(cfg);
       },
       inject: [ConfigService],
     },

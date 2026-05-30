@@ -113,31 +113,38 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
         const keys = provider ? REQUIRED_ENV[provider] : undefined;
         const missing = keys ? missingEnv((k) => cfg.get<string>(k), keys) : [];
 
-        if (!keys || missing.length > 0) {
+        const fallback = (reason?: string): StorageStrategy => {
           const banner = formatEnvBanner({
             service: 'upload MS',
             provider,
             missing,
             envPath: ENV_PATH,
+            reason,
           });
           if (process.env.NODE_ENV === 'production') throw new Error(banner);
           logger.warn(banner);
           return new FakeStorageStrategy();
-        }
+        };
 
-        if (provider === 'supabase') {
-          const client = createClient(
-            requireEnv(cfg, 'SUPABASE_URL'),
-            requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
-            { auth: { autoRefreshToken: false, persistSession: false } },
-          );
-          return new SupabaseStorageStrategy({
-            client,
-            bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
-          });
+        if (!keys || missing.length > 0) return fallback();
+
+        try {
+          if (provider === 'supabase') {
+            const client = createClient(
+              requireEnv(cfg, 'SUPABASE_URL'),
+              requireEnv(cfg, 'SUPABASE_SERVICE_ROLE_KEY'),
+              { auth: { autoRefreshToken: false, persistSession: false } },
+            );
+            return new SupabaseStorageStrategy({
+              client,
+              bucket: requireEnv(cfg, 'SUPABASE_STORAGE_BUCKET'),
+            });
+          }
+          if (provider === 'firebase') return makeFirebaseStorage(cfg);
+          return makeCloudinaryStorage(cfg);
+        } catch (err) {
+          return fallback(err instanceof Error ? err.message : String(err));
         }
-        if (provider === 'firebase') return makeFirebaseStorage(cfg);
-        return makeCloudinaryStorage(cfg);
       },
       inject: [ConfigService],
     },

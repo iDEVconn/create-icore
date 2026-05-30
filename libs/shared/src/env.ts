@@ -20,19 +20,24 @@ export function formatEnvBanner(opts: {
   provider: string | undefined;
   missing: string[];
   envPath: string;
+  reason?: string;
 }): string {
-  const { service, provider, missing, envPath } = opts;
+  const { service, provider, missing, envPath, reason } = opts;
   const lines: string[] = [];
   lines.push(`⚠  ${service} — running with an IN-MEMORY FAKE (requests will fail)`);
   lines.push('');
   if (!provider) {
     lines.push(`Provider env var is not set.`);
-  } else {
+  } else if (missing.length > 0) {
     lines.push(`Provider "${provider}" needs these env vars, currently missing:`);
     for (const k of missing) lines.push(`  • ${k}`);
+  } else if (reason) {
+    // Vars are present but invalid (e.g. placeholder URL the SDK rejected).
+    lines.push(`Provider "${provider}" failed to initialise:`);
+    lines.push(`  ${reason}`);
   }
   lines.push('');
-  lines.push(`Set them in:  ${envPath}`);
+  lines.push(`Set real values in:  ${envPath}`);
 
   const width = Math.max(...lines.map((l) => l.length), 50);
   const top = `╔═${'═'.repeat(width)}═╗`;
