@@ -244,6 +244,16 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
 
   const packageManager = flags.packageManager ?? detectPackageManager();
 
+  if (packageManager === 'yarn') {
+    p.note(
+      'yarn 4.x quarantines this package — `yarn create @idevconn/icore` may resolve\n' +
+        'an outdated version. If the version banner above shows < 0.4.1, re-run with:\n' +
+        '  npm init @idevconn/icore@latest <name> -- [flags]\n' +
+        '  pnpm create @idevconn/icore@latest <name> [flags]',
+      '⚠ yarn quarantine warning',
+    );
+  }
+
   const initGit =
     flags.initGit ??
     !(await p.confirm({ message: 'Initialise git repo?', initialValue: true })) === false;
