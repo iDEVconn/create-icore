@@ -387,6 +387,12 @@ export async function removeUnusedAuthStrategies(
 ): Promise<void> {
   const modulePath = join(targetDir, 'apps/microservices/auth/src/app/app.module.ts');
 
+  // The factory branch is two lines:
+  //   if (provider === 'supabase') return makeSupabaseAuth(cfg);
+  //   return makeFirebaseAuth(cfg);
+  const AUTH_BRANCH =
+    /if \(provider === 'supabase'\) return makeSupabaseAuth\(cfg\);\n\s*return makeFirebaseAuth\(cfg\);/m;
+
   if (authProvider === 'supabase') {
     await rm(join(targetDir, 'libs/auth-strategies/firebase'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/auth/package.json'), [
@@ -398,8 +404,8 @@ export async function removeUnusedAuthStrategies(
       const next = src
         .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirebaseAuthStrategy[^}]*\} from '@icore\/auth-firebase';\n/m, '')
-        .replace(/^function makeFirebaseStrategy\b[\s\S]*?\n^}\n/m, '')
-        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStrategy\(cfg\);\n/, '');
+        .replace(/\nfunction makeFirebaseAuth[\s\S]*?\n}\n/m, '')
+        .replace(AUTH_BRANCH, 'return makeSupabaseAuth(cfg);');
       await writeFile(modulePath, next);
     } catch {
       // ignore
@@ -417,10 +423,8 @@ export async function removeUnusedAuthStrategies(
       const next = src
         .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
         .replace(/^import \{[^}]*SupabaseAuthStrategy[^}]*\} from '@icore\/auth-supabase';\n/m, '')
-        .replace(
-          /\n {10}case 'supabase': \{[\s\S]*?return new SupabaseAuthStrategy\(\{ client \}\);\n {10}\}\n/m,
-          '',
-        );
+        .replace(/\nfunction makeSupabaseAuth[\s\S]*?\n}\n/m, '')
+        .replace(AUTH_BRANCH, 'return makeFirebaseAuth(cfg);');
       await writeFile(modulePath, next);
     } catch {
       // ignore
@@ -462,6 +466,7 @@ export async function removeUnusedStorageStrategies(
 
   try {
     let src = await readFile(modulePath, 'utf8');
+    // Remove the imports + factory functions of the providers NOT chosen.
     if (uploadProvider !== 'firebase') {
       src = src
         .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
@@ -469,8 +474,7 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*FirebaseStorageStrategy[^}]*\} from '@icore\/storage-firebase';\n/m,
           '',
         )
-        .replace(/^function makeFirebaseStorage\b[\s\S]*?\n^}\n/m, '')
-        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStorage\(cfg\);\n/, '');
+        .replace(/\nfunction makeFirebaseStorage[\s\S]*?\n}\n/m, '');
     }
     if (uploadProvider !== 'cloudinary') {
       src = src
@@ -479,8 +483,7 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*CloudinaryStorageStrategy[^}]*\} from '@icore\/storage-cloudinary';\n/m,
           '',
         )
-        .replace(/^function makeCloudinaryStorage\b[\s\S]*?\n^}\n/m, '')
-        .replace(/(?<=\n) *case 'cloudinary':\n *return makeCloudinaryStorage\(cfg\);\n/, '');
+        .replace(/\nfunction makeCloudinaryStorage[\s\S]*?\n}\n/m, '');
     }
     if (uploadProvider !== 'supabase') {
       src = src
@@ -489,11 +492,13 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*SupabaseStorageStrategy[^}]*\} from '@icore\/storage-supabase';\n/m,
           '',
         )
-        .replace(
-          /\n {10}case 'supabase': \{[\s\S]*?bucket: requireEnv\(cfg, 'SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
-          '',
-        );
+        .replace(/\nfunction makeSupabaseStorage[\s\S]*?\n}\n/m, '');
     }
+    // Collapse the 3-line provider branch to a single return for the chosen one.
+    const STORAGE_BRANCH =
+      /if \(provider === 'supabase'\) return makeSupabaseStorage\(cfg\);\n\s*if \(provider === 'firebase'\) return makeFirebaseStorage\(cfg\);\n\s*return makeCloudinaryStorage\(cfg\);/m;
+    const chosenReturn = `return make${uploadProvider.charAt(0).toUpperCase() + uploadProvider.slice(1)}Storage(cfg);`;
+    src = src.replace(STORAGE_BRANCH, chosenReturn);
     await writeFile(modulePath, src);
   } catch {
     // ignore
@@ -517,9 +522,12 @@ export async function removeUnusedDbStrategies(
       const next = src
         .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirestoreDBStrategy[^}]*\} from '@icore\/db-firestore';\n/m, '')
+        // drop the makeFirestoreDB factory function
+        .replace(/\nfunction makeFirestoreDB[\s\S]*?\n}\n/m, '')
+        // collapse the provider branch to an unconditional supabase return
         .replace(
-          /\n {8}if \(provider === 'firestore'[\s\S]*?return new FirestoreDBStrategy\(\{[\s\S]*?\}\);\n {8}\}\n/m,
-          '',
+          /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
+          'return makeSupabaseDB(cfg);',
         );
       await writeFile(modulePath, next);
     } catch {
@@ -538,9 +546,12 @@ export async function removeUnusedDbStrategies(
       const next = src
         .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
         .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/m, '')
+        // drop the makeSupabaseDB factory function
+        .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/m, '')
+        // collapse the provider branch to an unconditional firestore return
         .replace(
-          /\n {8}if \(provider === 'supabase'\) \{[\s\S]*?return new SupabaseDBStrategy\(\{ client \}\);\n {8}\}\n/m,
-          '',
+          /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
+          'return makeFirestoreDB(cfg);',
         );
       await writeFile(modulePath, next);
     } catch {
