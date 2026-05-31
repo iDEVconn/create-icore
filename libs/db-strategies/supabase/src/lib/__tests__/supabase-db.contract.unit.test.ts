@@ -1,6 +1,5 @@
 import { runDBContract } from '@icore/shared/testing';
-import { SupabaseDBStrategy } from '../supabase-db.strategy';
-import { createMockSupabaseDB } from '../testing/mock-supabase-postgres';
+import { SupabaseDBStrategy, createMockSupabaseDB } from '@icore/db-supabase';
 
 runDBContract('SupabaseDBStrategy', () => {
   const client = createMockSupabaseDB();
