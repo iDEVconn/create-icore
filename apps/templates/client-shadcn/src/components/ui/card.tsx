@@ -4,7 +4,7 @@
 // vendored design-system primitives that always travel together are kept
 // in a single file matching the upstream shadcn source structure.
 import * as React from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (

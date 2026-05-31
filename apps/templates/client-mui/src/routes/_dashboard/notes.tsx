@@ -22,14 +22,14 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { PageLayout } from '../../components/PageLayout';
+import { PageLayout } from '@/components/PageLayout';
 import {
   useCreateNote,
   useDeleteNote,
   useNotesList,
   useUpdateNote,
   type Note,
-} from '../../queries/notes';
+} from '@/queries/notes';
 
 const PAGE_SIZE = 20;
 
