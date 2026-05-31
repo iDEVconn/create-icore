@@ -13,11 +13,7 @@ function DashboardHome() {
           subheader="Edit this page in src/routes/_dashboard/dashboard.tsx"
         />
         <CardContent>
-          <Typography
-            component={Link}
-            to="/_dashboard/profile"
-            sx={{ textDecoration: 'underline' }}
-          >
+          <Typography component={Link} to="/profile" sx={{ textDecoration: 'underline' }}>
             Go to profile →
           </Typography>
         </CardContent>

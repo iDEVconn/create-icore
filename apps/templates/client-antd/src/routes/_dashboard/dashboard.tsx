@@ -11,7 +11,7 @@ function DashboardHome() {
         title="Hello, world"
         style={{ maxWidth: 600 }}
         extra={
-          <Link to="/_dashboard/profile">
+          <Link to="/profile">
             <Button type="link">Go to profile →</Button>
           </Link>
         }

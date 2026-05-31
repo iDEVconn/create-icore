@@ -91,7 +91,7 @@ export function LayoutHeader() {
                 {user?.email ?? ''}
               </Typography>
             </MenuItem>
-            <MenuItem component={Link} to="/_dashboard/profile" onClick={handleMenuClose}>
+            <MenuItem component={Link} to="/profile" onClick={handleMenuClose}>
               {t('nav.profile')}
             </MenuItem>
             <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>

@@ -15,7 +15,7 @@ export function LayoutSider() {
     >
       <nav className="flex flex-col gap-1 p-2 flex-1">
         <Link
-          to="/_dashboard/dashboard"
+          to="/dashboard"
           activeOptions={{ exact: true }}
           className="flex items-center gap-2 px-2 py-2 rounded hover:bg-muted text-sm text-foreground transition-colors [&.active]:bg-muted [&.active]:font-medium"
         >
@@ -23,14 +23,14 @@ export function LayoutSider() {
           {!collapsed && <span>{t('nav.dashboard')}</span>}
         </Link>
         <Link
-          to="/_dashboard/notes"
+          to="/notes"
           className="flex items-center gap-2 px-2 py-2 rounded hover:bg-muted text-sm text-foreground transition-colors [&.active]:bg-muted [&.active]:font-medium"
         >
           <StickyNote size={16} className="shrink-0" />
           {!collapsed && <span>{t('notes.title')}</span>}
         </Link>
         <Link
-          to="/_dashboard/profile"
+          to="/profile"
           className="flex items-center gap-2 px-2 py-2 rounded hover:bg-muted text-sm text-foreground transition-colors [&.active]:bg-muted [&.active]:font-medium"
         >
           <User size={16} className="shrink-0" />

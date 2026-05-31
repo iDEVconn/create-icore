@@ -19,7 +19,7 @@ function DashboardHome() {
           <CardDescription>Edit this page in src/routes/_dashboard/dashboard.tsx</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link to="/_dashboard/profile" className="underline">
+          <Link to="/profile" className="underline">
             Go to profile →
           </Link>
         </CardContent>

@@ -47,7 +47,7 @@ function LoginPage() {
       });
       setAuth(session);
       notify.success(t('auth.login'));
-      await navigate({ to: '/_dashboard/dashboard' });
+      await navigate({ to: '/dashboard' });
     } catch (err) {
       notify.error(err instanceof Error ? err.message : t('error.unknown'));
     } finally {
