@@ -1,19 +1,12 @@
-import { SyntheticEvent, createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { SyntheticEvent, useState } from 'react';
-import { SyntheticEvent, useTranslation } from 'react-i18next';
-import { SyntheticEvent, useAuthStore, useNotify } from '@icore/template-shared';
-import { SyntheticEvent, api } from '../main';
-import { SyntheticEvent, Button } from '../components/ui/button';
-import { SyntheticEvent, Input } from '../components/ui/input';
-import { SyntheticEvent, Label } from '../components/ui/label';
-import {
-  SyntheticEvent,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card';
+import { useTranslation } from 'react-i18next';
+import { useAuthStore, useNotify } from '@icore/template-shared';
+import { api } from '../main';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 type Mode = 'password' | 'magicLinkRequest' | 'magicLinkSent';
 
