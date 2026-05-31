@@ -2,6 +2,7 @@ import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pmRun } from './options.js';
 import type { CreateIcoreOptions } from './options.js';
 
 const IGNORE_TOP = new Set([
@@ -42,6 +43,14 @@ export async function rewriteRootPackageJson(
   pkg['version'] = '0.0.1';
   pkg['private'] = true;
   delete (pkg as { description?: string }).description;
+  // NATS transport needs the `nats` driver — it's an *optional* peer dep of
+  // @nestjs/microservices, so it isn't installed unless we add it. Without it
+  // a nats-transport project crashes on boot with "the nats package is missing".
+  // (ioredis for the redis transport already ships via the jobs/BullMQ stack.)
+  if (opts.transport === 'nats') {
+    const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
+    deps['nats'] = '^2.29.3';
+  }
   // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
@@ -113,11 +122,15 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   const env = await readFile(envExample, 'utf8');
   let next = env
     .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`)
-    .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
+    .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`)
+    .replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`)
+    .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
   if (opts.transport !== 'tcp') {
     next = next
       .replace(/^# (AUTH_(?:REDIS|NATS)_URL=)/m, '$1')
-      .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
+      .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1')
+      .replace(/^# (NOTES_(?:REDIS|NATS)_URL=)/m, '$1')
+      .replace(/^# (PAYMENT_(?:REDIS|NATS)_URL=)/m, '$1');
   }
   await writeFile(join(targetDir, 'apps/api/.env'), next);
 }
@@ -130,6 +143,30 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
     ``,
   ];
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
+}
+
+/**
+ * Strips a transport prefix (e.g. `NOTES`, `PAYMENT`) and its comment lines
+ * from the gateway .env when the matching microservice is removed, so the
+ * gateway doesn't try to build a transport for a MS that isn't there.
+ */
+async function stripGatewayTransport(targetDir: string, prefix: string): Promise<void> {
+  const gatewayEnv = join(targetDir, 'apps/api/.env');
+  try {
+    const env = await readFile(gatewayEnv, 'utf8');
+    const next = env
+      .split('\n')
+      .filter(
+        (line) =>
+          !line.startsWith(`${prefix}_`) &&
+          !line.startsWith(`# ${prefix}_`) &&
+          !line.includes(`${prefix} MS transport`),
+      )
+      .join('\n');
+    await writeFile(gatewayEnv, next);
+  } catch {
+    // ignore — .env may not exist in test scaffolds
+  }
 }
 
 export async function writeClientEnv(targetDir: string): Promise<void> {
@@ -239,6 +276,7 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
     '@icore/payment-client',
     '@idevconn/payment',
   ]);
+  await stripGatewayTransport(targetDir, 'PAYMENT');
 }
 
 export async function removeNotesStack(targetDir: string): Promise<void> {
@@ -271,6 +309,9 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
 
   // Strip @icore/notes-client dep from api/package.json
   await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/notes-client']);
+
+  // Strip NOTES_* transport block from the gateway .env
+  await stripGatewayTransport(targetDir, 'NOTES');
 
   // Strip @icore/notes-client path alias from tsconfig.base.json
   const tsconfigPath = join(targetDir, 'tsconfig.base.json');
@@ -354,19 +395,28 @@ export async function removeUnusedAuthStrategies(
 ): Promise<void> {
   const modulePath = join(targetDir, 'apps/microservices/auth/src/app/app.module.ts');
 
+  // The factory branch is two lines:
+  //   if (provider === 'supabase') return makeSupabaseAuth(cfg);
+  //   return makeFirebaseAuth(cfg);
+  const AUTH_BRANCH =
+    /if \(provider === 'supabase'\) return makeSupabaseAuth\(cfg\);\n\s*return makeFirebaseAuth\(cfg\);/m;
+
   if (authProvider === 'supabase') {
     await rm(join(targetDir, 'libs/auth-strategies/firebase'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/auth/package.json'), [
       '@icore/auth-firebase',
+      '@icore/firebase-admin',
     ]);
     await stripTsconfigPath(targetDir, '@icore/auth-firebase');
     try {
       const src = await readFile(modulePath, 'utf8');
       const next = src
-        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirebaseAuthStrategy[^}]*\} from '@icore\/auth-firebase';\n/m, '')
-        .replace(/^function makeFirebaseStrategy\b[\s\S]*?\n^}\n/m, '')
-        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStrategy\(cfg\);\n/, '');
+        // drop the firebase entry from the REQUIRED_ENV map
+        .replace(/^ {2}firebase: \[[^\]]*\],\n/m, '')
+        .replace(/\nfunction makeFirebaseAuth[\s\S]*?\n}\n/m, '')
+        .replace(AUTH_BRANCH, 'return makeSupabaseAuth(cfg);');
       await writeFile(modulePath, next);
     } catch {
       // ignore
@@ -384,10 +434,8 @@ export async function removeUnusedAuthStrategies(
       const next = src
         .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
         .replace(/^import \{[^}]*SupabaseAuthStrategy[^}]*\} from '@icore\/auth-supabase';\n/m, '')
-        .replace(
-          /\n {10}case 'supabase': \{[\s\S]*?return new SupabaseAuthStrategy\(\{ client \}\);\n {10}\}\n/m,
-          '',
-        );
+        .replace(/\nfunction makeSupabaseAuth[\s\S]*?\n}\n/m, '')
+        .replace(AUTH_BRANCH, 'return makeFirebaseAuth(cfg);');
       await writeFile(modulePath, next);
     } catch {
       // ignore
@@ -406,6 +454,7 @@ export async function removeUnusedStorageStrategies(
     await rm(join(targetDir, 'libs/storage-strategies/firebase'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/upload/package.json'), [
       '@icore/storage-firebase',
+      '@icore/firebase-admin',
     ]);
     await stripTsconfigPath(targetDir, '@icore/storage-firebase');
   }
@@ -429,15 +478,16 @@ export async function removeUnusedStorageStrategies(
 
   try {
     let src = await readFile(modulePath, 'utf8');
+    // Remove the imports + factory functions of the providers NOT chosen.
     if (uploadProvider !== 'firebase') {
       src = src
-        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/m, '')
         .replace(
           /^import \{[^}]*FirebaseStorageStrategy[^}]*\} from '@icore\/storage-firebase';\n/m,
           '',
         )
-        .replace(/^function makeFirebaseStorage\b[\s\S]*?\n^}\n/m, '')
-        .replace(/(?<=\n) *case 'firebase':\n *return makeFirebaseStorage\(cfg\);\n/, '');
+        .replace(/^ {2}firebase: \[[^\]]*\],\n/m, '')
+        .replace(/\nfunction makeFirebaseStorage[\s\S]*?\n}\n/m, '');
     }
     if (uploadProvider !== 'cloudinary') {
       src = src
@@ -446,8 +496,7 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*CloudinaryStorageStrategy[^}]*\} from '@icore\/storage-cloudinary';\n/m,
           '',
         )
-        .replace(/^function makeCloudinaryStorage\b[\s\S]*?\n^}\n/m, '')
-        .replace(/(?<=\n) *case 'cloudinary':\n *return makeCloudinaryStorage\(cfg\);\n/, '');
+        .replace(/\nfunction makeCloudinaryStorage[\s\S]*?\n}\n/m, '');
     }
     if (uploadProvider !== 'supabase') {
       src = src
@@ -456,11 +505,13 @@ export async function removeUnusedStorageStrategies(
           /^import \{[^}]*SupabaseStorageStrategy[^}]*\} from '@icore\/storage-supabase';\n/m,
           '',
         )
-        .replace(
-          /\n {10}case 'supabase': \{[\s\S]*?bucket: requireEnv\(cfg, 'SUPABASE_STORAGE_BUCKET'\),\n {12}\}\);\n {10}\}\n/m,
-          '',
-        );
+        .replace(/\nfunction makeSupabaseStorage[\s\S]*?\n}\n/m, '');
     }
+    // Collapse the 3-line provider branch to a single return for the chosen one.
+    const STORAGE_BRANCH =
+      /if \(provider === 'supabase'\) return makeSupabaseStorage\(cfg\);\n\s*if \(provider === 'firebase'\) return makeFirebaseStorage\(cfg\);\n\s*return makeCloudinaryStorage\(cfg\);/m;
+    const chosenReturn = `return make${uploadProvider.charAt(0).toUpperCase() + uploadProvider.slice(1)}Storage(cfg);`;
+    src = src.replace(STORAGE_BRANCH, chosenReturn);
     await writeFile(modulePath, src);
   } catch {
     // ignore
@@ -477,16 +528,23 @@ export async function removeUnusedDbStrategies(
     await rm(join(targetDir, 'libs/db-strategies/firestore'), { recursive: true, force: true });
     await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
       '@icore/db-firestore',
+      '@icore/firebase-admin',
     ]);
     await stripTsconfigPath(targetDir, '@icore/db-firestore');
     try {
       const src = await readFile(modulePath, 'utf8');
       const next = src
-        .replace(/^import \* as admin from 'firebase-admin';\n/m, '')
+        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/m, '')
         .replace(/^import \{[^}]*FirestoreDBStrategy[^}]*\} from '@icore\/db-firestore';\n/m, '')
+        // drop the firestore + firebase entries from the REQUIRED_ENV map
+        .replace(/^ {2}firestore: \[[^\]]*\],\n/m, '')
+        .replace(/^ {2}firebase: \[[^\]]*\],\n/m, '')
+        // drop the makeFirestoreDB factory function
+        .replace(/\nfunction makeFirestoreDB[\s\S]*?\n}\n/m, '')
+        // collapse the provider branch to an unconditional supabase return
         .replace(
-          /\n {8}if \(provider === 'firestore'[\s\S]*?return new FirestoreDBStrategy\(\{[\s\S]*?\}\);\n {8}\}\n/m,
-          '',
+          /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
+          'return makeSupabaseDB(cfg);',
         );
       await writeFile(modulePath, next);
     } catch {
@@ -505,15 +563,28 @@ export async function removeUnusedDbStrategies(
       const next = src
         .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/m, '')
         .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/m, '')
+        // drop the makeSupabaseDB factory function
+        .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/m, '')
+        // collapse the provider branch to an unconditional firestore return
         .replace(
-          /\n {8}if \(provider === 'supabase'\) \{[\s\S]*?return new SupabaseDBStrategy\(\{ client \}\);\n {8}\}\n/m,
-          '',
+          /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
+          'return makeFirestoreDB(cfg);',
         );
       await writeFile(modulePath, next);
     } catch {
       // ignore
     }
   }
+}
+
+/**
+ * Deletes the shared `@icore/firebase-admin` init lib and its tsconfig alias.
+ * Called only when no microservice uses the Firebase provider — the per-MS
+ * strategy pruning already removes the import + dep from each service.
+ */
+export async function removeFirebaseAdminLib(targetDir: string): Promise<void> {
+  await rm(join(targetDir, 'libs/firebase-admin'), { recursive: true, force: true });
+  await stripTsconfigPath(targetDir, '@icore/firebase-admin');
 }
 
 export async function removeUploadStack(targetDir: string): Promise<void> {
@@ -665,6 +736,13 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await removeUnusedAuthStrategies(opts.targetDir, opts.authProvider);
   await removeUnusedStorageStrategies(opts.targetDir, opts.upload);
   await removeUnusedDbStrategies(opts.targetDir, opts.dbProvider);
+  // The shared firebase-admin init lib is only needed when SOME microservice
+  // uses Firebase. If no provider is Firebase, drop the lib + its alias.
+  const firebaseUsed =
+    opts.authProvider === 'firebase' ||
+    opts.dbProvider === 'firebase' ||
+    opts.upload === 'firebase';
+  if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
   // through parent directories and may pick up a stray package.json/yarn.lock
   // (e.g. in the user's $HOME), causing
@@ -675,10 +753,65 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   // generated project tidy.
   if (opts.packageManager === 'yarn') {
     await writeFile(join(opts.targetDir, 'yarn.lock'), '');
+  } else {
+    // npm/pnpm don't need the pinned yarn binary or .yarnrc.yml.
+    // Removing them keeps the generated project tidy and prevents the 2.8 MB
+    // yarn-4.x.cjs binary from being committed to git (the template .gitignore
+    // has !.yarn/releases which un-ignores it for yarn users).
+    await rm(join(opts.targetDir, '.yarn'), { recursive: true, force: true });
+    await rm(join(opts.targetDir, '.yarnrc.yml'), { force: true });
   }
+  await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
   if (opts.install) runInstall(opts.targetDir, opts.packageManager);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
+}
+
+// ── .gitignore patching ─────────────────────────────────────────────────────
+
+/**
+ * Adjusts .gitignore for the chosen package manager:
+ * - npm/pnpm: remove the `!.yarn/releases` un-ignore rule (the yarn binary
+ *   is already deleted, but the pattern would apply to any .yarn dir the user
+ *   might later add). Adds pnpm-specific entries.
+ * - npm: adds npm-debug.log pattern if missing.
+ */
+async function patchGitignoreForPm(targetDir: string, pm: string): Promise<void> {
+  const giPath = join(targetDir, '.gitignore');
+  try {
+    let src = await readFile(giPath, 'utf8');
+
+    // Strip lines that are icore-internal and make no sense in a generated project.
+    src = src.replace(/^# Build artifacts.*\ntools\/create-icore\/templates\/\s*\n/m, '');
+
+    if (pm !== 'yarn') {
+      // Drop the yarn-specific un-ignore rules — .yarn/ is fully gone for non-yarn.
+      src = src
+        .replace(/^\.yarn\/\*\s*\n/m, '')
+        .replace(/^!\.yarn\/patches\s*\n/m, '')
+        .replace(/^!\.yarn\/plugins\s*\n/m, '')
+        .replace(/^!\.yarn\/releases\s*\n/m, '')
+        .replace(/^!\.yarn\/sdks\s*\n/m, '')
+        .replace(/^!\.yarn\/versions\s*\n/m, '')
+        .replace(/^\.pnp\.\*\s*\n/m, '');
+    }
+
+    if (pm === 'pnpm') {
+      if (!src.includes('.pnpm-debug.log')) {
+        src += '\n# pnpm\n.pnpm-debug.log*\n';
+      }
+    }
+
+    if (pm === 'npm') {
+      if (!src.includes('npm-debug.log')) {
+        src += '\n# npm\nnpm-debug.log*\n';
+      }
+    }
+
+    await writeFile(giPath, src);
+  } catch {
+    // ignore — .gitignore may not exist in test scaffolds
+  }
 }
 
 // ── AI-ready files ──────────────────────────────────────────────────────────
@@ -687,7 +820,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
 export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   const pm = opts.packageManager;
   const nx = pm === 'npm' ? 'npx nx' : `${pm} nx`;
-  const devCmd = `${pm} dev`;
+  const devCmd = pmRun(pm, 'dev');
 
   const activeMSes = ['auth (port 4001)'];
   if (opts.upload !== 'none') activeMSes.push(`upload (port 4002)`);

@@ -8,6 +8,15 @@ export type UiLibrary = 'shadcn' | 'antd' | 'mui';
 export type MsTransport = 'tcp' | 'redis' | 'nats';
 export type PackageManager = 'yarn' | 'npm' | 'pnpm';
 
+/**
+ * Returns the correct invocation for a package.json script.
+ * yarn/pnpm: `yarn <script>` / `pnpm <script>`
+ * npm:       `npm run <script>` (npm requires the `run` keyword for custom scripts)
+ */
+export function pmRun(pm: PackageManager, script: string): string {
+  return pm === 'npm' ? `npm run ${script}` : `${pm} ${script}`;
+}
+
 export interface CreateIcoreOptions {
   projectName: string;
   targetDir: string;

@@ -2907,6 +2907,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/firebase-admin@workspace:libs/firebase-admin":
+  version: 0.0.0-use.local
+  resolution: "@icore/firebase-admin@workspace:libs/firebase-admin"
+  dependencies:
+    firebase-admin: "npm:^13.10.0"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@icore/jobs-client@npm:*, @icore/jobs-client@workspace:libs/jobs-client":
   version: 0.0.0-use.local
   resolution: "@icore/jobs-client@workspace:libs/jobs-client"
@@ -15437,6 +15446,7 @@ __metadata:
     less: "npm:3.12.2"
     lint-staged: "npm:^17.0.5"
     lucide-react: "npm:^1.17.0"
+    nats: "npm:^2.29.3"
     nx: "npm:22.7.5"
     prettier: "npm:~3.6.2"
     react: "npm:^19.2.6"
@@ -18574,6 +18584,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"nats@npm:^2.29.3":
+  version: 2.29.3
+  resolution: "nats@npm:2.29.3"
+  dependencies:
+    nkeys.js: "npm:1.1.0"
+  checksum: 10c0/9a4c09c4b562e415f28926cc7d3b609ee4a727570c398e90d5d71f1a4c08f84ebf8c6d881eb1d202d39fa071c4779bcd8764b982767135b09826f28386cc55fb
+  languageName: node
+  linkType: hard
+
 "natural-compare@npm:^1.4.0":
   version: 1.4.0
   resolution: "natural-compare@npm:1.4.0"
@@ -18618,6 +18637,15 @@ __metadata:
   version: 2.6.2
   resolution: "neo-async@npm:2.6.2"
   checksum: 10c0/c2f5a604a54a8ec5438a342e1f356dff4bc33ccccdb6dc668d94fe8e5eccfc9d2c2eea6064b0967a767ba63b33763f51ccf2cd2441b461a7322656c1f06b3f5d
+  languageName: node
+  linkType: hard
+
+"nkeys.js@npm:1.1.0":
+  version: 1.1.0
+  resolution: "nkeys.js@npm:1.1.0"
+  dependencies:
+    tweetnacl: "npm:1.0.3"
+  checksum: 10c0/44ff8d61e46d2b345351ed7844d66036a815aeca23927def6ca258e27a18a1678fe5ab161c5cf0b6e3a3993a945d422b71036986d09669b214540c8491478bef
   languageName: node
   linkType: hard
 
@@ -23336,6 +23364,13 @@ __metadata:
   dependencies:
     tslib: "npm:^1.9.3"
   checksum: 10c0/918594b4dfac97beb8be2c041c6ec45f078ef3768ed4edfe35ae2c709ab503e2e6b454b2b37e692c658572d1972a428fbfdbc0a2b42fee727a83c1c685fbe5e1
+  languageName: node
+  linkType: hard
+
+"tweetnacl@npm:1.0.3":
+  version: 1.0.3
+  resolution: "tweetnacl@npm:1.0.3"
+  checksum: 10c0/069d9df51e8ad4a89fbe6f9806c68e06c65be3c7d42f0701cc43dba5f0d6064686b238bbff206c5addef8854e3ce00c643bff59432ea2f2c639feab0ee1a93f9
   languageName: node
   linkType: hard
 

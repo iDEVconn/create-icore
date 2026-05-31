@@ -40,17 +40,19 @@ const REQUIRED_ENV: Record<string, string[]> = {
             envPath: ENV_PATH,
             headline: `⚠  payment MS — ${provider} credentials missing (payments will fail)`,
           });
-          // Prod: fail fast. Dev: warn — PayPal is lazy, so the MS still boots
-          // and only payment calls fail until creds are set.
+          // Prod: fail fast. Dev: warn + register an EMPTY strategy map so the
+          // MS boots (PaypalStrategy's constructor throws on blank creds, so we
+          // must not instantiate it) — payment endpoints fail until creds are set.
           if (process.env.NODE_ENV === 'production') throw new Error(banner);
           logger.warn(banner);
+          return createPayment({ strategies: {} });
         }
 
         return createPayment({
           strategies: {
             paypal: new PaypalStrategy({
-              clientId: cfg.get<string>('PAYPAL_CLIENT_ID') ?? '',
-              secret: cfg.get<string>('PAYPAL_CLIENT_SECRET') ?? '',
+              clientId: cfg.getOrThrow<string>('PAYPAL_CLIENT_ID'),
+              secret: cfg.getOrThrow<string>('PAYPAL_CLIENT_SECRET'),
               environment: cfg.get<'sandbox' | 'live'>('PAYPAL_ENVIRONMENT') ?? 'sandbox',
             }),
           },
