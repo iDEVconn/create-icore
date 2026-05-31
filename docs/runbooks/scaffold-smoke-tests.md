@@ -27,6 +27,15 @@ regenerates the template snapshot from the **current** source, scaffolds into a
 temp dir, symlinks this repo's `node_modules` (no install, no network) and runs
 `tsc --noEmit` over the generated tsconfigs.
 
+The four combos are a **covering set**: every value of every server-affecting
+option appears at least once — `auth` {supabase, firebase}, `db`
+{supabase, firebase}, `upload` {supabase, firebase, cloudinary, none},
+`payment` {paypal, none}, `jobs` {bullmq, none}, `example` {notes, none},
+`transport` {tcp, redis, nats}. Cheap enough (~seconds each, no install) to run
+all four on every PR. The `client`/`ui` variants (shadcn/antd/mui) need a real
+Vite build — `tsc` alone can't type the client (DOM lib + TanStack Router
+codegen) — so they're covered in Layer B, not here.
+
 - Catches the compile class (TS2304, dangling refs, bad pruning).
 - Does **not** use `nx build`/`serve` — those executors validate
   `externalDependencies` against the workspace package graph, which a
@@ -45,9 +54,12 @@ node tools/create-icore/scripts/smoke-scaffold.mjs \
 ### Layer B — install + build + boot (full fidelity, nightly / on-demand)
 
 `scaffold-smoke-matrix.yml` → `workflow_dispatch` + nightly. Matrix over
-package-manager (`npm`/`pnpm`/`yarn`) × provider combo. Real install, real
+package-manager (`npm`/`pnpm`/`yarn`) × the same 4-combo covering set, but here
+each combo also carries a `ui` (shadcn/antd/mui — covered across the four) and
+builds `client`, so the real **Vite** build runs. Real install, real
 `nx build`, then boots the services (`nx run-many -t serve`) for ~25s and
-asserts each stays up without exiting or printing a crash marker.
+asserts each stays up without exiting or printing a crash marker. Services that
+a combo doesn't generate are trimmed automatically.
 
 - Catches lockfile / dependency-pruning / package-manager-runner breakage and
   **runtime** crashes.
