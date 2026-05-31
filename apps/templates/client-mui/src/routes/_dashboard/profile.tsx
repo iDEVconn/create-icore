@@ -45,7 +45,7 @@ function ProfilePage() {
     onError: (err) => notify.error(err instanceof Error ? err.message : 'save_failed'),
   });
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     save.mutate(name);
   }
