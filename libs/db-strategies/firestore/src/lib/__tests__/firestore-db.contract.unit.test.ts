@@ -1,6 +1,5 @@
 import { runDBContract } from '@icore/shared/testing';
-import { FirestoreDBStrategy } from '../firestore-db.strategy';
-import { createMockFirestore } from '../testing/mock-firestore';
+import { FirestoreDBStrategy, createMockFirestore } from '@icore/db-firestore';
 
 runDBContract('FirestoreDBStrategy', () => {
   const db = createMockFirestore();
