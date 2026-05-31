@@ -1,4 +1,4 @@
-import { runAuthContract } from '@icore/shared';
+import { runAuthContract } from '@icore/shared/testing';
 import { SupabaseAuthStrategy } from '../supabase-auth.strategy';
 import { createMockSupabaseClient, type MockSupabaseClient } from '../testing/mock-supabase';
 

@@ -1,4 +1,4 @@
-import { runStorageContract } from '@icore/shared';
+import { runStorageContract } from '@icore/shared/testing';
 import { FirebaseStorageStrategy } from '../firebase-storage.strategy.js';
 import { createMockFirebaseBucket } from '../testing/mock-firebase-storage.js';
 

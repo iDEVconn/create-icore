@@ -1,0 +1,56 @@
+name: Scaffold Smoke Matrix
+
+# Layer B — full-fidelity scaffold smoke: real package-manager install, real
+# nx build, and a real BOOT of the services. Catches what Layer A (typecheck in
+# pipeline.yml) can't: lockfile / dependency-pruning / package-manager-runner
+# breakage, and RUNTIME crashes (a service that exits on missing .env / a down
+# broker instead of degrading to a banner + fake).
+#
+# Non-blocking by design: runs nightly and on demand, not on every PR. Trigger
+# manually from the Actions tab before promoting dev → main.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # nightly 03:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: ${{ matrix.pm }} · ${{ matrix.combo.name }}
+    runs-on: ubuntu-latest
+    # pm × the same 4-combo covering set used by Layer A, but here each combo
+    # also carries a `ui` so shadcn / antd / mui all get a real Vite build, and
+    # the services are actually booted. Services absent in a combo are trimmed
+    # by the script.
+    strategy:
+      fail-fast: false
+      matrix:
+        pm: [npm, pnpm, yarn]
+        combo:
+          - name: supabase-full-shadcn
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
+          - name: firebase-minimal-antd
+            flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis --ui=antd
+          - name: cloudinary-nats-mui
+            flags: --auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats --ui=mui
+          - name: no-upload-shadcn
+            flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Build CLI + snapshot templates
+        run: |
+          yarn nx build create-icore
+          node tools/create-icore/scripts/snapshot-templates.mjs
+      - name: Scaffold + install + build + boot
+        run: |
+          node tools/create-icore/scripts/smoke-scaffold.mjs \
+            ${{ matrix.combo.flags }} \
+            --pm=${{ matrix.pm }} --mode=install --run --run-seconds=25 \
+            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,api,client \
+            --services=api,auth,upload,notes,jobs,payment

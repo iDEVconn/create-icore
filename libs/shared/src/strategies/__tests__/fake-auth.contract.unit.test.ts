@@ -1,5 +1,5 @@
 import { FakeAuthStrategy } from '../fakes/fake-auth';
-import { runAuthContract } from '../contract/auth-contract';
+import { runAuthContract } from './auth.contract.unit.test';
 
 runAuthContract('FakeAuthStrategy', () => new FakeAuthStrategy(), {
   getMagicLinkToken: (strategy, email) =>
