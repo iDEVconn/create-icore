@@ -11,6 +11,7 @@ import type {
   JobsProvider,
   ExampleMode,
   PackageManager,
+  MsTransport,
   CreateIcoreOptions,
 } from './options.js';
 
@@ -96,7 +97,7 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
         out.ui = v as 'shadcn' | 'antd' | 'mui';
         break;
       case 'transport':
-        out.transport = v as 'tcp' | 'redis' | 'nats';
+        out.transport = v as MsTransport;
         break;
       case 'package-manager':
         out.packageManager = v as PackageManager;
@@ -234,12 +235,15 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     ((await p.select({
       message: 'Microservice transport',
       options: [
-        { value: 'tcp' as 'tcp' | 'redis' | 'nats', label: 'TCP (default, no broker required)' },
-        { value: 'redis' as 'tcp' | 'redis' | 'nats', label: 'Redis' },
-        { value: 'nats' as 'tcp' | 'redis' | 'nats', label: 'NATS' },
+        { value: 'tcp' as MsTransport, label: 'TCP (default, no broker required)' },
+        { value: 'redis' as MsTransport, label: 'Redis' },
+        { value: 'nats' as MsTransport, label: 'NATS' },
+        { value: 'mqtt' as MsTransport, label: 'MQTT' },
+        { value: 'rmq' as MsTransport, label: 'RabbitMQ' },
+        { value: 'kafka' as MsTransport, label: 'Kafka' },
       ],
-      initialValue: 'tcp' as 'tcp' | 'redis' | 'nats',
-    })) as 'tcp' | 'redis' | 'nats');
+      initialValue: 'tcp' as MsTransport,
+    })) as MsTransport);
   if (p.isCancel(transport)) throw new Error('cancelled');
 
   const packageManager = flags.packageManager ?? detectPackageManager();

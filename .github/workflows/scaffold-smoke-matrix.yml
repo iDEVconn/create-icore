@@ -29,15 +29,18 @@ jobs:
       fail-fast: false
       matrix:
         pm: [npm, pnpm, yarn]
+        # transport varies across combos so every broker's boot path (down-broker
+        # → banner + retry, never exit) is exercised: mqtt, rmq, nats, kafka.
+        # tcp (no broker) + redis are lower-risk and covered by Layer A / history.
         combo:
-          - name: supabase-full-shadcn
-            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
-          - name: firebase-minimal-antd
-            flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis --ui=antd
+          - name: supabase-full-mqtt-shadcn
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --example=notes --transport=mqtt --ui=shadcn
+          - name: firebase-minimal-rmq-antd
+            flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=rmq --ui=antd
           - name: cloudinary-nats-mui
             flags: --auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats --ui=mui
-          - name: no-upload-shadcn
-            flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
+          - name: no-upload-kafka-shadcn
+            flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=kafka --ui=shadcn
     steps:
       - uses: actions/checkout@v5
         with:
