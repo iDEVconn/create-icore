@@ -23,8 +23,8 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@icore/vite-plugins": "workspace:*",
     "@eslint/js": "^9.18.0",
+    "@icore/vite-plugins": "workspace:*",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@nx/devkit": "22.7.5",
@@ -79,6 +79,7 @@
     "react-dom": "^19.2.6",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
+    "tsconfig-paths-webpack-plugin": "^4.2.0",
     "tslib": "^2.3.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.60.0",

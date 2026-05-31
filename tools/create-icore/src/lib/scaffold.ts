@@ -79,28 +79,26 @@ export async function rewriteRootPackageJson(
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, transportDeps);
   }
-  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
+  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them.
+  // For yarn, update it to the current version (corepack uses this to download the runtime).
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
+  } else {
+    // Read the pinned yarn version from .yarnrc.yml so it stays in sync automatically.
+    try {
+      const yarnrc = await readFile(join(targetDir, '.yarnrc.yml'), 'utf8');
+      const match = yarnrc.match(/^yarnPath:\s*.+yarn-(\d+\.\d+\.\d+)\.cjs/m);
+      if (match?.[1]) {
+        pkg['packageManager'] = `yarn@${match[1]}`;
+      }
+    } catch {
+      // ignore — keep whatever the template had
+    }
   }
-  // pnpm 9+ blocks all build scripts by default — explicitly allow the packages
-  // that require native compilation (nx, swc, parcel-watcher, etc.)
-  if (opts.packageManager === 'pnpm') {
-    pkg['pnpm'] = {
-      onlyBuiltDependencies: [
-        '@firebase/util',
-        '@nestjs/core',
-        '@parcel/watcher',
-        '@scarf/scarf',
-        '@swc/core',
-        'less',
-        'msgpackr-extract',
-        'nx',
-        'protobufjs',
-        'unrs-resolver',
-      ],
-    };
-  }
+  // pnpm 9+ no longer reads the "pnpm" key from package.json — settings now
+  // live in pnpm-workspace.yaml. The pnpm-workspace.yaml is written by
+  // writePnpmWorkspace(); nothing goes into package.json for pnpm.
+  delete (pkg as { pnpm?: unknown }).pnpm;
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
@@ -322,8 +320,14 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
     // ignore — app.module.ts may not exist in test scaffolds
   }
 
-  // Strip @icore/notes-client dep from api/package.json
-  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/notes-client']);
+  // Strip @icore/notes-client dep from api/package.json. Also drop
+  // @casl/ability: the gateway's only direct import of it lived in the notes
+  // controller (`subject(...)`); the abilities infra itself consumes CASL via
+  // @icore/shared, so once notes is gone the raw dep is unused (@nx/dependency-checks).
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/notes-client',
+    '@casl/ability',
+  ]);
 
   // Strip NOTES_* transport block from the gateway .env
   await stripGatewayTransport(targetDir, 'NOTES');
@@ -584,6 +588,9 @@ export async function removeUnusedDbStrategies(
         .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/m, '')
         // drop the makeSupabaseDB factory function
         .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/m, '')
+        // requireEnv was only consumed by makeSupabaseDB; with that gone it would
+        // be an unused helper (no-unused-vars), so drop it too.
+        .replace(/\nfunction requireEnv[\s\S]*?\n}\n/m, '')
         // collapse the provider branch to an unconditional firestore return
         .replace(
           /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
@@ -774,16 +781,99 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
     await writeFile(join(opts.targetDir, 'yarn.lock'), '');
   } else {
     // npm/pnpm don't need the pinned yarn binary or .yarnrc.yml.
-    // Removing them keeps the generated project tidy and prevents the 2.8 MB
-    // yarn-4.x.cjs binary from being committed to git (the template .gitignore
-    // has !.yarn/releases which un-ignores it for yarn users).
     await rm(join(opts.targetDir, '.yarn'), { recursive: true, force: true });
     await rm(join(opts.targetDir, '.yarnrc.yml'), { force: true });
+  }
+  if (opts.packageManager === 'pnpm') {
+    await writePnpmWorkspace(opts.targetDir);
+    await rewritePnpmWorkspaceDeps(opts.targetDir);
   }
   await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
   if (opts.install) runInstall(opts.targetDir, opts.packageManager);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
+}
+
+// ── pnpm workspace file ─────────────────────────────────────────────────────
+
+/**
+ * Creates pnpm-workspace.yaml for pnpm projects.
+ *
+ * pnpm 9+ ignores the "workspaces" field in package.json and requires this
+ * file to declare workspace packages. It also no longer reads the "pnpm" key
+ * from package.json — onlyBuiltDependencies now lives here instead.
+ */
+async function writePnpmWorkspace(targetDir: string): Promise<void> {
+  const pkgPath = join(targetDir, 'package.json');
+  const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as {
+    workspaces?: string[];
+  };
+  const workspaces = pkg.workspaces ?? [];
+
+  const packagesBlock = workspaces.map((p) => `  - '${p}'`).join('\n');
+  // Pre-approve build scripts for the toolchain's native/postinstall packages.
+  // pnpm 10+ blocks lifecycle scripts by default and fails install in CI
+  // (ERR_PNPM_IGNORED_BUILDS). pnpm 11 deprecated the old `onlyBuiltDependencies`
+  // allowlist in favour of an `allowBuilds` map (pkg → true|false) — writing it
+  // here is the declarative equivalent of running `pnpm approve-builds`, so a
+  // fresh `pnpm install` is clean and non-interactive.
+  const allowBuilds = [
+    '@firebase/util',
+    '@nestjs/core',
+    '@parcel/watcher',
+    '@scarf/scarf',
+    '@swc/core',
+    'less',
+    'msgpackr-extract',
+    'nx',
+    'protobufjs',
+    'unrs-resolver',
+  ]
+    .map((p) => `  '${p}': true`)
+    .join('\n');
+  const content = `packages:\n${packagesBlock}\n\nallowBuilds:\n${allowBuilds}\n`;
+  await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
+}
+
+/**
+ * Rewrites all `"@icore/*": "*"` dependency entries to `"@icore/*": "workspace:*"`
+ * in every package.json found under the target directory.
+ *
+ * yarn resolves workspace packages before hitting the registry so bare `"*"`
+ * works, but pnpm requires the explicit `workspace:` prefix or it will try to
+ * fetch the package from the npm registry and fail with 404.
+ */
+async function rewritePnpmWorkspaceDeps(targetDir: string): Promise<void> {
+  const { readdir: rd } = await import('node:fs/promises');
+
+  async function walk(dir: string): Promise<string[]> {
+    const found: string[] = [];
+    let entries;
+    try {
+      entries = await rd(dir, { withFileTypes: true });
+    } catch {
+      return found;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && e.name !== 'node_modules') {
+        found.push(...(await walk(join(dir, e.name))));
+      } else if (e.isFile() && e.name === 'package.json') {
+        found.push(join(dir, e.name));
+      }
+    }
+    return found;
+  }
+
+  const pkgFiles = await walk(targetDir);
+  for (const f of pkgFiles) {
+    try {
+      const raw = await readFile(f, 'utf8');
+      const next = raw.replace(/"(@icore\/[^"]+)":\s*"\*"/g, '"$1": "workspace:*"');
+      if (next !== raw) await writeFile(f, next);
+    } catch {
+      // ignore unreadable files
+    }
+  }
 }
 
 // ── .gitignore patching ─────────────────────────────────────────────────────
