@@ -320,8 +320,14 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
     // ignore — app.module.ts may not exist in test scaffolds
   }
 
-  // Strip @icore/notes-client dep from api/package.json
-  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/notes-client']);
+  // Strip @icore/notes-client dep from api/package.json. Also drop
+  // @casl/ability: the gateway's only direct import of it lived in the notes
+  // controller (`subject(...)`); the abilities infra itself consumes CASL via
+  // @icore/shared, so once notes is gone the raw dep is unused (@nx/dependency-checks).
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/notes-client',
+    '@casl/ability',
+  ]);
 
   // Strip NOTES_* transport block from the gateway .env
   await stripGatewayTransport(targetDir, 'NOTES');
@@ -582,6 +588,9 @@ export async function removeUnusedDbStrategies(
         .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/m, '')
         // drop the makeSupabaseDB factory function
         .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/m, '')
+        // requireEnv was only consumed by makeSupabaseDB; with that gone it would
+        // be an unused helper (no-unused-vars), so drop it too.
+        .replace(/\nfunction requireEnv[\s\S]*?\n}\n/m, '')
         // collapse the provider branch to an unconditional firestore return
         .replace(
           /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
