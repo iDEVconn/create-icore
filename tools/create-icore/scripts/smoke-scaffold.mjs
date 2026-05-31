@@ -208,8 +208,20 @@ async function main() {
         console.log(`  (skip ${proj}: ${rel} not in this combo)`);
         continue;
       }
-      const code = run('node', [tsc, '--noEmit', '-p', tsconfigPath], opts.targetDir);
-      if (code !== 0) failed = true;
+      // Typecheck the build config, plus the app's test (spec) config when
+      // present: app spec configs carry their own moduleResolution/types for
+      // vitest and broke independently (TS2792 "cannot find vitest"), so they
+      // need their own gate. Lib spec configs are skipped — they're jest-based
+      // or carry test-code strictness nits that vitest itself tolerates.
+      const configs = [tsconfigPath];
+      if (rel.startsWith('apps/')) {
+        const specPath = tsconfigPath.replace(/\.app\.json$/, '.spec.json');
+        if (existsSync(specPath)) configs.push(specPath);
+      }
+      for (const cfg of configs) {
+        const code = run('node', [tsc, '--noEmit', '-p', cfg], opts.targetDir);
+        if (code !== 0) failed = true;
+      }
     }
     if (failed) {
       console.error(`\n✗ smoke FAILED (${combo}) — typecheck red. inspect: ${opts.targetDir}`);
