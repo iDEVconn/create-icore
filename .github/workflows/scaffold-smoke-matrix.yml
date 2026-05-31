@@ -21,15 +21,23 @@ jobs:
   smoke:
     name: ${{ matrix.pm }} · ${{ matrix.combo.name }}
     runs-on: ubuntu-latest
+    # pm × the same 4-combo covering set used by Layer A, but here each combo
+    # also carries a `ui` so shadcn / antd / mui all get a real Vite build, and
+    # the services are actually booted. Services absent in a combo are trimmed
+    # by the script.
     strategy:
       fail-fast: false
       matrix:
         pm: [npm, pnpm, yarn]
         combo:
-          - name: supabase
-            flags: --auth=supabase --db=supabase --upload=cloudinary --transport=tcp
-          - name: firebase
-            flags: --auth=firebase --db=firebase --upload=firebase --transport=tcp
+          - name: supabase-full-shadcn
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
+          - name: firebase-minimal-antd
+            flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis --ui=antd
+          - name: cloudinary-nats-mui
+            flags: --auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats --ui=mui
+          - name: no-upload-shadcn
+            flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
     steps:
       - uses: actions/checkout@v5
         with:
@@ -44,5 +52,5 @@ jobs:
           node tools/create-icore/scripts/smoke-scaffold.mjs \
             ${{ matrix.combo.flags }} \
             --pm=${{ matrix.pm }} --mode=install --run --run-seconds=25 \
-            --projects=shared,firebase-admin,auth,upload,notes,api \
-            --services=api,auth,upload,notes
+            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,api,client \
+            --services=api,auth,upload,notes,jobs,payment

@@ -124,12 +124,12 @@ const TSCONFIG = {
  * must survive missing .env / down brokers (banner + fake + retry), so a clean
  * exit or a crash marker is a failure.
  */
-async function bootCheck(nxBin, cwd, logPath) {
+async function bootCheck(nxBin, svcList, cwd, logPath) {
   const { createWriteStream } = await import('node:fs');
   const out = createWriteStream(logPath);
   const child = spawn(
     'node',
-    [nxBin, 'run-many', '-t', 'serve', '--projects=' + services.join(','), '--skip-nx-cache'],
+    [nxBin, 'run-many', '-t', 'serve', '--projects=' + svcList.join(','), '--skip-nx-cache'],
     { cwd, env: { ...process.env, NODE_ENV: 'development' }, detached: true },
   );
   child.stdout.pipe(out);
@@ -238,15 +238,25 @@ async function main() {
   }
 
   if (doRun) {
-    console.log(`\n--- booting services (${services.join(', ')}) for ${runSeconds}s ---`);
-    const res = await bootCheck(nxBin, opts.targetDir, join(dir, 'serve.log'));
-    if (!res.ok) {
-      console.error(`\n✗ smoke FAILED (${combo}) — ${res.reason}`);
-      console.error(`--- serve log tail ---\n${res.log.split('\n').slice(-40).join('\n')}`);
-      console.error(`inspect: ${opts.targetDir}`);
-      process.exit(1);
+    // Trim to services that this combo actually generated (e.g. upload=none /
+    // example=none / payment=none drop their microservice).
+    const present = services.filter((s) => {
+      const appDir = s === 'api' ? 'apps/api' : `apps/microservices/${s}`;
+      return existsSync(join(opts.targetDir, appDir));
+    });
+    if (present.length === 0) {
+      console.log('\n--- no services in this combo to boot, skipping run phase ---');
+    } else {
+      console.log(`\n--- booting services (${present.join(', ')}) for ${runSeconds}s ---`);
+      const res = await bootCheck(nxBin, present, opts.targetDir, join(dir, 'serve.log'));
+      if (!res.ok) {
+        console.error(`\n✗ smoke FAILED (${combo}) — ${res.reason}`);
+        console.error(`--- serve log tail ---\n${res.log.split('\n').slice(-40).join('\n')}`);
+        console.error(`inspect: ${opts.targetDir}`);
+        process.exit(1);
+      }
+      console.log(`✓ services stayed up ${runSeconds}s, no crash`);
     }
-    console.log(`✓ services stayed up ${runSeconds}s, no crash`);
   }
 
   console.log(`\n✓ smoke OK (${combo})`);
