@@ -1,12 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, useEffect, useState } from 'react';
-import { useDraft, useNotify, useAuthStore } from '@icore/template-shared';
-import { PageLayout } from '../../components/PageLayout';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { api } from '../../main';
+import { SyntheticEvent, createFileRoute } from '@tanstack/react-router';
+import { SyntheticEvent, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { SyntheticEvent, useEffect, useState } from 'react';
+import { SyntheticEvent, useDraft, useNotify, useAuthStore } from '@icore/template-shared';
+import { SyntheticEvent, PageLayout } from '../../components/PageLayout';
+import { SyntheticEvent, Button } from '../../components/ui/button';
+import { SyntheticEvent, Input } from '../../components/ui/input';
+import { SyntheticEvent, Label } from '../../components/ui/label';
+import { SyntheticEvent, api } from '../../main';
 
 interface ProfilePayload {
   uid: string;
@@ -47,7 +47,7 @@ function ProfilePage() {
     onError: (err) => notify.error(err instanceof Error ? err.message : 'save_failed'),
   });
 
-  function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     save.mutate(name);
   }

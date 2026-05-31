@@ -1,12 +1,19 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FormEvent, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useAuthStore, useNotify } from '@icore/template-shared';
-import { api } from '../main';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { SyntheticEvent, createFileRoute, useNavigate } from '@tanstack/react-router';
+import { SyntheticEvent, useState } from 'react';
+import { SyntheticEvent, useTranslation } from 'react-i18next';
+import { SyntheticEvent, useAuthStore, useNotify } from '@icore/template-shared';
+import { SyntheticEvent, api } from '../main';
+import { SyntheticEvent, Button } from '../components/ui/button';
+import { SyntheticEvent, Input } from '../components/ui/input';
+import { SyntheticEvent, Label } from '../components/ui/label';
+import {
+  SyntheticEvent,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 
 type Mode = 'password' | 'magicLinkRequest' | 'magicLinkSent';
 
@@ -21,7 +28,7 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  async function handlePasswordSubmit(e: FormEvent) {
+  async function handlePasswordSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -44,7 +51,7 @@ function LoginPage() {
     }
   }
 
-  async function handleMagicLinkSubmit(e: FormEvent) {
+  async function handleMagicLinkSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     try {

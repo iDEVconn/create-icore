@@ -32,7 +32,7 @@ function LoginPage() {
   const [sentEmail, setSentEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handlePasswordSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -55,7 +55,7 @@ function LoginPage() {
     }
   }
 
-  async function handleMagicLinkSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleMagicLinkSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     try {
