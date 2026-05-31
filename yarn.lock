@@ -15559,6 +15559,7 @@ __metadata:
     tailwindcss: "npm:^4"
     ts-jest: "npm:^29.4.0"
     ts-node: "npm:10.9.1"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.3.0"
     tsup: "npm:^8.5.1"
     tsx: "npm:^4.22.3"
@@ -23472,7 +23473,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tsconfig-paths-webpack-plugin@npm:4.2.0":
+"tsconfig-paths-webpack-plugin@npm:4.2.0, tsconfig-paths-webpack-plugin@npm:^4.2.0":
   version: 4.2.0
   resolution: "tsconfig-paths-webpack-plugin@npm:4.2.0"
   dependencies:
