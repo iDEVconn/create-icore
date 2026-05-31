@@ -10378,6 +10378,7 @@ __metadata:
     "@nestjs/platform-express": "npm:^11.1.24"
     "@nestjs/swagger": "npm:^11.4.4"
     "@nestjs/throttler": "npm:^6.5.0"
+    "@types/express": "npm:^4.17.25"
     "@types/multer": "npm:*"
     cookie-parser: "npm:^1.4.7"
     express: "npm:^4.22.2"
