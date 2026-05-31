@@ -59,6 +59,9 @@ const args = parseArgs(process.argv.slice(2));
 const mode = args.mode ?? 'link';
 const pm = args.pm ?? 'yarn';
 const doRun = args.run === 'true' || args.run === '';
+// Lint defaults ON in install mode (real node_modules → eslint resolves); pass
+// --lint=false to skip. Ignored in link mode (nx lint needs a real install).
+const doLint = mode === 'install' && args.lint !== 'false';
 const runSeconds = Number(args['run-seconds'] ?? 20);
 const projects = (args.projects ?? 'shared,auth,upload,notes,api')
   .split(',')
@@ -129,7 +132,12 @@ async function bootCheck(nxBin, svcList, cwd, logPath) {
   const out = createWriteStream(logPath);
   const child = spawn(
     'node',
-    [nxBin, 'run-many', '-t', 'serve', '--projects=' + svcList.join(','), '--skip-nx-cache'],
+    // No --skip-nx-cache here: the build phase already ran fresh builds and nx
+    // cached those outputs. Re-using the cache for serve's build dependencies
+    // avoids a race condition where nx runs shared:build + db-supabase:build in
+    // parallel chains (both triggered by --skip-nx-cache), which fails under pnpm
+    // strict isolation (no hoisted root node_modules/@icore/* as fallback).
+    [nxBin, 'run-many', '-t', 'serve', '--projects=' + svcList.join(',')],
     { cwd, env: { ...process.env, NODE_ENV: 'development' }, detached: true },
   );
   child.stdout.pipe(out);
@@ -250,6 +258,21 @@ async function main() {
   if (buildCode !== 0) {
     console.error(`\n✗ smoke FAILED (${combo}) — build red. inspect: ${opts.targetDir}`);
     process.exit(buildCode);
+  }
+
+  // Lint the generated projects (real install → eslint + plugins resolve).
+  // Catches lint regressions (unused vars, deprecated APIs, style) that the
+  // typecheck-only Layer A can't see.
+  if (doLint) {
+    const lintCode = run(
+      'node',
+      [nxBin, 'run-many', '-t', 'lint', '--projects=' + projects.join(','), '--skip-nx-cache'],
+      opts.targetDir,
+    );
+    if (lintCode !== 0) {
+      console.error(`\n✗ smoke FAILED (${combo}) — lint red. inspect: ${opts.targetDir}`);
+      process.exit(lintCode);
+    }
   }
 
   if (doRun) {

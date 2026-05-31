@@ -10378,6 +10378,7 @@ __metadata:
     "@nestjs/platform-express": "npm:^11.1.24"
     "@nestjs/swagger": "npm:^11.4.4"
     "@nestjs/throttler": "npm:^6.5.0"
+    "@types/express": "npm:^4.17.25"
     "@types/multer": "npm:*"
     cookie-parser: "npm:^1.4.7"
     express: "npm:^4.22.2"
@@ -15559,6 +15560,7 @@ __metadata:
     tailwindcss: "npm:^4"
     ts-jest: "npm:^29.4.0"
     ts-node: "npm:10.9.1"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.3.0"
     tsup: "npm:^8.5.1"
     tsx: "npm:^4.22.3"
@@ -23472,7 +23474,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tsconfig-paths-webpack-plugin@npm:4.2.0":
+"tsconfig-paths-webpack-plugin@npm:4.2.0, tsconfig-paths-webpack-plugin@npm:^4.2.0":
   version: 4.2.0
   resolution: "tsconfig-paths-webpack-plugin@npm:4.2.0"
   dependencies:

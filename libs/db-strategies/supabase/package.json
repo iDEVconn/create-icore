@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "main": "./src/index.js",
-  "types": "./src/index.d.ts",
+  "types": "./src/index.ts",
   "dependencies": {
     "@icore/shared": "*",
     "@supabase/supabase-js": "^2.0.0",

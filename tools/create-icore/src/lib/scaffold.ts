@@ -320,8 +320,14 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
     // ignore — app.module.ts may not exist in test scaffolds
   }
 
-  // Strip @icore/notes-client dep from api/package.json
-  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/notes-client']);
+  // Strip @icore/notes-client dep from api/package.json. Also drop
+  // @casl/ability: the gateway's only direct import of it lived in the notes
+  // controller (`subject(...)`); the abilities infra itself consumes CASL via
+  // @icore/shared, so once notes is gone the raw dep is unused (@nx/dependency-checks).
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/notes-client',
+    '@casl/ability',
+  ]);
 
   // Strip NOTES_* transport block from the gateway .env
   await stripGatewayTransport(targetDir, 'NOTES');
@@ -582,6 +588,9 @@ export async function removeUnusedDbStrategies(
         .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/m, '')
         // drop the makeSupabaseDB factory function
         .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/m, '')
+        // requireEnv was only consumed by makeSupabaseDB; with that gone it would
+        // be an unused helper (no-unused-vars), so drop it too.
+        .replace(/\nfunction requireEnv[\s\S]*?\n}\n/m, '')
         // collapse the provider branch to an unconditional firestore return
         .replace(
           /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*return makeFirestoreDB\(cfg\);/m,
@@ -777,6 +786,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   }
   if (opts.packageManager === 'pnpm') {
     await writePnpmWorkspace(opts.targetDir);
+    await rewritePnpmWorkspaceDeps(opts.targetDir);
   }
   await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
@@ -801,8 +811,69 @@ async function writePnpmWorkspace(targetDir: string): Promise<void> {
   const workspaces = pkg.workspaces ?? [];
 
   const packagesBlock = workspaces.map((p) => `  - '${p}'`).join('\n');
-  const content = `packages:\n${packagesBlock}\n\nonlyBuiltDependencies:\n  - '@firebase/util'\n  - '@nestjs/core'\n  - '@parcel/watcher'\n  - '@scarf/scarf'\n  - '@swc/core'\n  - less\n  - msgpackr-extract\n  - nx\n  - protobufjs\n  - unrs-resolver\n`;
+  // Pre-approve build scripts for the toolchain's native/postinstall packages.
+  // pnpm 10+ blocks lifecycle scripts by default and fails install in CI
+  // (ERR_PNPM_IGNORED_BUILDS). pnpm 11 deprecated the old `onlyBuiltDependencies`
+  // allowlist in favour of an `allowBuilds` map (pkg → true|false) — writing it
+  // here is the declarative equivalent of running `pnpm approve-builds`, so a
+  // fresh `pnpm install` is clean and non-interactive.
+  const allowBuilds = [
+    '@firebase/util',
+    '@nestjs/core',
+    '@parcel/watcher',
+    '@scarf/scarf',
+    '@swc/core',
+    'less',
+    'msgpackr-extract',
+    'nx',
+    'protobufjs',
+    'unrs-resolver',
+  ]
+    .map((p) => `  '${p}': true`)
+    .join('\n');
+  const content = `packages:\n${packagesBlock}\n\nallowBuilds:\n${allowBuilds}\n`;
   await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
+}
+
+/**
+ * Rewrites all `"@icore/*": "*"` dependency entries to `"@icore/*": "workspace:*"`
+ * in every package.json found under the target directory.
+ *
+ * yarn resolves workspace packages before hitting the registry so bare `"*"`
+ * works, but pnpm requires the explicit `workspace:` prefix or it will try to
+ * fetch the package from the npm registry and fail with 404.
+ */
+async function rewritePnpmWorkspaceDeps(targetDir: string): Promise<void> {
+  const { readdir: rd } = await import('node:fs/promises');
+
+  async function walk(dir: string): Promise<string[]> {
+    const found: string[] = [];
+    let entries;
+    try {
+      entries = await rd(dir, { withFileTypes: true });
+    } catch {
+      return found;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && e.name !== 'node_modules') {
+        found.push(...(await walk(join(dir, e.name))));
+      } else if (e.isFile() && e.name === 'package.json') {
+        found.push(join(dir, e.name));
+      }
+    }
+    return found;
+  }
+
+  const pkgFiles = await walk(targetDir);
+  for (const f of pkgFiles) {
+    try {
+      const raw = await readFile(f, 'utf8');
+      const next = raw.replace(/"(@icore\/[^"]+)":\s*"\*"/g, '"$1": "workspace:*"');
+      if (next !== raw) await writeFile(f, next);
+    } catch {
+      // ignore unreadable files
+    }
+  }
 }
 
 // ── .gitignore patching ─────────────────────────────────────────────────────
