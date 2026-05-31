@@ -777,6 +777,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   }
   if (opts.packageManager === 'pnpm') {
     await writePnpmWorkspace(opts.targetDir);
+    await rewritePnpmWorkspaceDeps(opts.targetDir);
   }
   await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
@@ -803,6 +804,47 @@ async function writePnpmWorkspace(targetDir: string): Promise<void> {
   const packagesBlock = workspaces.map((p) => `  - '${p}'`).join('\n');
   const content = `packages:\n${packagesBlock}\n\nonlyBuiltDependencies:\n  - '@firebase/util'\n  - '@nestjs/core'\n  - '@parcel/watcher'\n  - '@scarf/scarf'\n  - '@swc/core'\n  - less\n  - msgpackr-extract\n  - nx\n  - protobufjs\n  - unrs-resolver\n`;
   await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
+}
+
+/**
+ * Rewrites all `"@icore/*": "*"` dependency entries to `"@icore/*": "workspace:*"`
+ * in every package.json found under the target directory.
+ *
+ * yarn resolves workspace packages before hitting the registry so bare `"*"`
+ * works, but pnpm requires the explicit `workspace:` prefix or it will try to
+ * fetch the package from the npm registry and fail with 404.
+ */
+async function rewritePnpmWorkspaceDeps(targetDir: string): Promise<void> {
+  const { readdir: rd } = await import('node:fs/promises');
+
+  async function walk(dir: string): Promise<string[]> {
+    const found: string[] = [];
+    let entries;
+    try {
+      entries = await rd(dir, { withFileTypes: true });
+    } catch {
+      return found;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && e.name !== 'node_modules') {
+        found.push(...(await walk(join(dir, e.name))));
+      } else if (e.isFile() && e.name === 'package.json') {
+        found.push(join(dir, e.name));
+      }
+    }
+    return found;
+  }
+
+  const pkgFiles = await walk(targetDir);
+  for (const f of pkgFiles) {
+    try {
+      const raw = await readFile(f, 'utf8');
+      const next = raw.replace(/"(@icore\/[^"]+)":\s*"\*"/g, '"$1": "workspace:*"');
+      if (next !== raw) await writeFile(f, next);
+    } catch {
+      // ignore unreadable files
+    }
+  }
 }
 
 // ── .gitignore patching ─────────────────────────────────────────────────────
