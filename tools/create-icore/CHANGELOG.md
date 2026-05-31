@@ -1,5 +1,37 @@
 # @idevconn/create-icore
 
+## 0.6.0
+
+### Minor Changes
+
+- 6aecc38: Add MQTT, RabbitMQ (rmq) and Kafka as microservice transport options, alongside the existing tcp / redis / nats.
+  - `--transport=mqtt|rmq|kafka` (and the interactive picker) now scaffold the matching `*_TRANSPORT` value, uncomment the right broker vars in every `.env` (`*_MQTT_URL`; `*_RMQ_URL` + `*_RMQ_QUEUE`; `*_KAFKA_BROKERS` + `*_KAFKA_CLIENT_ID`), and add the driver dep (`mqtt`; `amqplib` + `amqp-connection-manager`; `kafkajs`) to the generated `package.json`.
+  - `buildTransport()` gained the three cases with the same crash-resilience contract as redis/nats: the broker driver reconnects in the background and a broker that's down on boot is caught by `bootstrapMicroservice()` (banner + retry in dev, fail-fast in prod) instead of exiting.
+  - All six are message-pattern transports, so `@MessagePattern` controllers and `ClientProxy.send/emit` work unchanged. **gRPC is intentionally not offered** — it requires `.proto` contracts + `@GrpcMethod` + `ClientGrpc`, which is incompatible with the message-based gateway↔MS layer (tracked as a separate epic).
+
+### Patch Changes
+
+- b5ced31: Fix the generated client failing to typecheck: `TS2304: Cannot find name 'window'`/`'document'` and wrong route link targets.
+  - **DOM lib:** the client `tsconfig.json` (all three UI variants) set no `lib`, so it inherited the base `["ES2022"]` — no DOM. `window`/`document`/DOM types were undefined under `tsc`/IDE (Vite's build masked it). Added `lib: ["ES2022", "DOM", "DOM.Iterable"]`.
+  - **Route paths:** links and `navigate({ to })` used `/_dashboard/<x>`, but `_dashboard` is a pathless layout — the real URL (and the generated route union) is `/<x>`. Fixed every `to="/_dashboard/…"`, `navigate({ to: '/_dashboard/dashboard' })`, and the e2e `page.goto('/_dashboard/…')` to the correct `/dashboard` · `/notes` · `/profile`, across shadcn/antd/mui. This was both a type error and broken navigation.
+
+  All three client templates now `tsc --noEmit` clean.
+
+- 3929a72: Fix dangling client-nav icon after `--example=none`. `removeNotesStack` stripped the notes nav from `LayoutSider` using hardcoded `to="/_dashboard/notes"` matches, so once the link targets moved to the pathless `/notes` the prune missed the nav block while still removing the icon import — leaving a dangling `FileTextOutlined` (antd), `StickyNote` (shadcn) or `NoteOutlinedIcon` (mui). The matches are now path-agnostic (`/_dashboard/notes` or `/notes`) and the antd entry is matched by a regex rather than a brittle exact string, so the icon import and the nav block are removed together across all three UI variants.
+- 8873fd0: Replace deprecated `FormEvent` with `SyntheticEvent<HTMLFormElement>` in all generated client templates.
+
+  `React.FormEvent` (and its parameterized form `React.FormEvent<HTMLFormElement>`) are deprecated in React 19 — "FormEvent doesn't actually exist" per the React type declarations. The generated client had four occurrences across shadcn (bare `FormEvent` imported from react) and mui (`React.FormEvent<HTMLFormElement>`) in form submit handlers.
+
+  Replaced with `SyntheticEvent<HTMLFormElement>` (named import from react), which is not deprecated, carries `preventDefault()`, and types the form element correctly.
+
+- dedb01e: Fix `TS2792: Cannot find module 'vitest'` (and `TS5070`) when typechecking the generated gateway/microservice **test** configs.
+
+  The app `tsconfig.json` (the base that `tsconfig.spec.json` extends) set no `module`/`moduleResolution`, so the spec config fell back to classic resolution — which can't read vitest's `exports`-only type declarations, and is missing `experimentalDecorators` for the NestJS source the specs pull in. `tsc -p tsconfig.spec.json` (and the IDE) failed across `apps/api`, `apps/microservices/auth`, `apps/microservices/upload`; `nx test` masked it because vitest runs via esbuild, not `tsc`.
+
+  Each app `tsconfig.json` now carries the same NestJS compiler options as its build config (`module`/`moduleResolution: node16`, `experimentalDecorators`, `emitDecoratorMetadata`, `target: es2021`), so the spec config inherits a working setup and resolves vitest.
+
+  The scaffold smoke (Layer A) now also typechecks each app's `tsconfig.spec.json`, so this class of regression is caught before publish.
+
 ## 0.5.2
 
 ### Patch Changes
