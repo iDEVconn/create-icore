@@ -811,7 +811,27 @@ async function writePnpmWorkspace(targetDir: string): Promise<void> {
   const workspaces = pkg.workspaces ?? [];
 
   const packagesBlock = workspaces.map((p) => `  - '${p}'`).join('\n');
-  const content = `packages:\n${packagesBlock}\n\nonlyBuiltDependencies:\n  - '@firebase/util'\n  - '@nestjs/core'\n  - '@parcel/watcher'\n  - '@scarf/scarf'\n  - '@swc/core'\n  - less\n  - msgpackr-extract\n  - nx\n  - protobufjs\n  - unrs-resolver\n`;
+  // Pre-approve build scripts for the toolchain's native/postinstall packages.
+  // pnpm 10+ blocks lifecycle scripts by default and fails install in CI
+  // (ERR_PNPM_IGNORED_BUILDS). pnpm 11 deprecated the old `onlyBuiltDependencies`
+  // allowlist in favour of an `allowBuilds` map (pkg → true|false) — writing it
+  // here is the declarative equivalent of running `pnpm approve-builds`, so a
+  // fresh `pnpm install` is clean and non-interactive.
+  const allowBuilds = [
+    '@firebase/util',
+    '@nestjs/core',
+    '@parcel/watcher',
+    '@scarf/scarf',
+    '@swc/core',
+    'less',
+    'msgpackr-extract',
+    'nx',
+    'protobufjs',
+    'unrs-resolver',
+  ]
+    .map((p) => `  '${p}': true`)
+    .join('\n');
+  const content = `packages:\n${packagesBlock}\n\nallowBuilds:\n${allowBuilds}\n`;
   await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
 }
 
