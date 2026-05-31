@@ -1,5 +1,26 @@
 # @idevconn/create-icore
 
+## 0.5.1
+
+### Patch Changes
+
+- 064a89a: Unify Firebase Admin initialization and consume the full service-account env contract.
+  - New `@icore/firebase-admin` lib exports a single `getFirebaseAdmin(cfg)` that initialises the default Admin app exactly once (guarded on `admin.apps`) and feeds the **complete** `FB_ADMIN_*` service-account JSON to `cert()` — the full set Firebase emits in its console config, not just project_id/client_email/private_key.
+  - The auth, upload (Firebase storage) and notes (Firestore) microservices now call `getFirebaseAdmin(cfg)` instead of each duplicating an `initializeApp({ credential: cert(...) })` block — one init, no drift.
+  - `REQUIRED_ENV` for every Firebase consumer now lists all 11 `FB_ADMIN_*` keys (shared `FIREBASE_ADMIN_REQUIRED_ENV`), so a missing field surfaces the boxed banner instead of a partial credential.
+  - Scaffold prunes `libs/firebase-admin` (and its alias/deps) when no provider uses Firebase, and strips the `@icore/firebase-admin` import + `firebase`/`firestore` REQUIRED_ENV entries from each microservice that doesn't.
+
+- 53a210a: Generated projects now build and run out of the box:
+  - `pmRun()` — npm needs the `run` prefix for custom scripts (`npm run dev`, not `npm dev`); yarn/pnpm don't. Fixes wrong run hints across all package-manager paths.
+  - Strategy pruning rewritten: auth/upload/notes modules use a uniform function-pair shape (`makeSupabaseAuth`/`makeFirebaseAuth`, `makeSupabase/Firebase/CloudinaryStorage`, `makeSupabaseDB`/`makeFirestoreDB`) and the pruner drops the unchosen factory functions + collapses the provider branch to a single `return make<Chosen>(cfg);`. Eliminates `TS2304: Cannot find name 'makeFirebaseStrategy' / admin / FirestoreDBStrategy` dangling references in scaffolded microservices.
+  - `.gitignore` shipped so git no longer stages `node_modules` / the vendored yarn binary for npm/pnpm projects.
+  - Microservices no longer crash on missing `.env` / infra: payment shows a boxed banner instead of throwing on absent PayPal creds, jobs survives a down Redis (ioredis `error` handler + retry), and the gateway no longer crashes on missing PAYMENT/NOTES transport env.
+
+- fe17469: Generated projects survive a redis/nats microservice transport whose broker isn't up — only `tcp` was self-contained before.
+  - **NATS dependency:** scaffold now adds the `nats` driver to the root `package.json` when the NATS transport is chosen. It's an optional peer dep of `@nestjs/microservices`, so without it a nats-transport project crashed on boot with "the nats package is missing".
+  - **No crash on a down broker:** microservice bootstraps now go through a shared `bootstrapMicroservice()` helper. NestJS rejects `app.listen()` on the _initial_ broker connect failure (the ioredis/nats retry only covers reconnect-after-connect), which previously `process.exit(1)`'d the service. The helper instead logs a boxed banner and retries `listen()` until the broker appears (dev), while keeping fail-fast `exit(1)` for `tcp` and `NODE_ENV=production`.
+  - **Reconnect after drop:** the redis transport now sets `retryAttempts`/`retryDelay` and nats sets `reconnect`/`maxReconnectAttempts: -1`, so a broker that drops mid-run is re-attached instead of giving up.
+
 ## 0.5.0
 
 ### Minor Changes
