@@ -33,8 +33,12 @@ describe('buildTransport', () => {
     process.env.AUTH_REDIS_URL = 'redis://localhost:6379';
     const opts = buildTransport('AUTH');
     expect(opts.transport).toBe(Transport.REDIS);
-    const redis = opts.options as { url: string };
+    const redis = opts.options as { url: string; retryAttempts: number; retryDelay: number };
     expect(redis.url).toBe('redis://localhost:6379');
+    // Resilience: NestJS gives up (and app.listen() rejects) when retryAttempts
+    // is unset — an effectively-infinite retry keeps reconnecting instead.
+    expect(redis.retryAttempts).toBe(Number.POSITIVE_INFINITY);
+    expect(redis.retryDelay).toBeGreaterThan(0);
   });
 
   it('selects NATS when ${PREFIX}_TRANSPORT=nats', () => {
@@ -42,8 +46,16 @@ describe('buildTransport', () => {
     process.env.AUTH_NATS_URL = 'nats://localhost:4222,nats://localhost:4223';
     const opts = buildTransport('AUTH');
     expect(opts.transport).toBe(Transport.NATS);
-    const nats = opts.options as { servers: string[] };
+    const nats = opts.options as {
+      servers: string[];
+      reconnect: boolean;
+      maxReconnectAttempts: number;
+    };
     expect(nats.servers).toEqual(['nats://localhost:4222', 'nats://localhost:4223']);
+    // Resilience: reconnect forever once connected (the initial connect is left
+    // to reject so bootstrapMicroservice() can banner + retry).
+    expect(nats.reconnect).toBe(true);
+    expect(nats.maxReconnectAttempts).toBe(-1);
   });
 
   it('throws on unknown transport', () => {

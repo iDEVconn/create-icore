@@ -1,0 +1,19 @@
+{
+  "name": "firebase-admin",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/firebase-admin/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/firebase-admin",
+        "main": "libs/firebase-admin/src/index.ts",
+        "tsConfig": "libs/firebase-admin/tsconfig.lib.json",
+        "assets": ["libs/firebase-admin/*.md"]
+      }
+    }
+  }
+}

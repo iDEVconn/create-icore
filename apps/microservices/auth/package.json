@@ -5,8 +5,8 @@
   "dependencies": {
     "@icore/auth-firebase": "*",
     "@icore/auth-supabase": "*",
+    "@icore/firebase-admin": "*",
     "@icore/shared": "*",
-    "firebase-admin": "^13.0.0",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.24",

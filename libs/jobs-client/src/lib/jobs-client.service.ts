@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Queue, type JobsOptions } from 'bullmq';
 import IORedis from 'ioredis';
 import { ICORE_QUEUES, type JobsMap } from '@icore/shared';
@@ -6,11 +6,23 @@ import { JOBS_REDIS_URL } from './jobs-client.tokens';
 
 @Injectable()
 export class JobsClientService implements OnModuleDestroy {
+  private readonly logger = new Logger(JobsClientService.name);
   private readonly connection: IORedis;
   private readonly queues = new Map<string, Queue>();
 
   constructor(@Inject(JOBS_REDIS_URL) redisUrl: string) {
-    this.connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
+    this.connection = new IORedis(redisUrl, {
+      maxRetriesPerRequest: null,
+      retryStrategy: (times) => Math.min(times * 200, 5000),
+    });
+    // Without an 'error' handler ioredis throws an unhandled 'error' event and
+    // crashes the host process when Redis is down. Log once, keep retrying.
+    let warned = false;
+    this.connection.on('error', (err: Error) => {
+      if (warned) return;
+      warned = true;
+      this.logger.warn(`Redis unreachable at ${redisUrl}: ${err.message}. enqueue() will retry.`);
+    });
   }
 
   async enqueue<K extends keyof JobsMap>(

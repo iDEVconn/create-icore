@@ -12,6 +12,7 @@ import {
   removeUnusedAuthStrategies,
   removeUnusedStorageStrategies,
   removeUnusedDbStrategies,
+  rewriteRootPackageJson,
 } from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
 
@@ -255,7 +256,7 @@ describe('removeUnusedAuthStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/auth/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/auth/src/app/app.module.ts'),
-      `import * as admin from 'firebase-admin';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nfunction makeFirebaseStrategy(cfg: ConfigService): AuthStrategy {\n  return admin.app() as unknown as AuthStrategy;\n}\n          case 'firebase':\n            return makeFirebaseStrategy(cfg);\n          case 'supabase': return new SupabaseAuthStrategy();`,
+      `import { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';\nconst REQUIRED_ENV = {\n  supabase: ['SUPABASE_URL'],\n  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_WEB_API_KEY'],\n};\nfunction makeSupabaseAuth(cfg: ConfigService): AuthStrategy {\n  return new SupabaseAuthStrategy();\n}\nfunction makeFirebaseAuth(cfg: ConfigService): AuthStrategy {\n  return getFirebaseAdmin(cfg).auth() as unknown as AuthStrategy;\n}\n        if (provider === 'supabase') return makeSupabaseAuth(cfg);\n        return makeFirebaseAuth(cfg);`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
@@ -279,8 +280,11 @@ describe('removeUnusedAuthStrategies', () => {
     await expect(access(join(dir, 'libs/auth-strategies/firebase'))).rejects.toThrow();
     const mod = await readFile(join(dir, 'apps/microservices/auth/src/app/app.module.ts'), 'utf8');
     expect(mod).not.toContain('@icore/auth-firebase');
-    expect(mod).not.toContain('firebase-admin');
-    expect(mod).not.toContain('makeFirebaseStrategy');
+    expect(mod).not.toContain('@icore/firebase-admin');
+    expect(mod).not.toContain('getFirebaseAdmin');
+    expect(mod).not.toContain('FIREBASE_ADMIN_REQUIRED_ENV');
+    expect(mod).not.toContain('makeFirebaseAuth');
+    expect(mod).toContain('makeSupabaseAuth');
     expect(mod).toContain('SupabaseAuthStrategy');
     const tsconfig = await readFile(join(dir, 'tsconfig.base.json'), 'utf8');
     expect(tsconfig).not.toContain('@icore/auth-firebase');
@@ -300,7 +304,7 @@ describe('removeUnusedAuthStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/auth/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/auth/src/app/app.module.ts'),
-      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\ncase 'supabase': return new SupabaseAuthStrategy(createClient('', ''));\ncase 'firebase': return new FirebaseAuthStrategy();`,
+      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';\nconst REQUIRED_ENV = {\n  supabase: ['SUPABASE_URL'],\n  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_WEB_API_KEY'],\n};\nfunction makeSupabaseAuth(cfg: ConfigService): AuthStrategy {\n  return new SupabaseAuthStrategy(createClient('', ''));\n}\nfunction makeFirebaseAuth(cfg: ConfigService): AuthStrategy {\n  void FirebaseAuthStrategy;\n  return getFirebaseAdmin(cfg).auth() as unknown as AuthStrategy;\n}\n        if (provider === 'supabase') return makeSupabaseAuth(cfg);\n        return makeFirebaseAuth(cfg);`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
@@ -325,7 +329,11 @@ describe('removeUnusedAuthStrategies', () => {
     const mod = await readFile(join(dir, 'apps/microservices/auth/src/app/app.module.ts'), 'utf8');
     expect(mod).not.toContain('@icore/auth-supabase');
     expect(mod).not.toContain('@supabase/supabase-js');
-    expect(mod).toContain('FirebaseAuthStrategy');
+    expect(mod).not.toContain('makeSupabaseAuth');
+    expect(mod).toContain('makeFirebaseAuth');
+    // firebase-admin init is retained for the chosen firebase provider
+    expect(mod).toContain('@icore/firebase-admin');
+    expect(mod).toContain('getFirebaseAdmin');
   });
 });
 
@@ -340,7 +348,7 @@ describe('removeUnusedStorageStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/upload/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/upload/src/app/app.module.ts'),
-      `import * as admin from 'firebase-admin';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nfunction makeFirebaseStorage(cfg: ConfigService): StorageStrategy {\n  return new FirebaseStorageStrategy({ bucket: admin.storage().bucket() as never });\n}\nfunction makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {\n  return new CloudinaryStorageStrategy({ api: {} as never, bucket: 'cloudinary' });\n}\n          case 'firebase':\n            return makeFirebaseStorage(cfg);\n          case 'cloudinary':\n            return makeCloudinaryStorage(cfg);\n          case 'supabase': return new SupabaseStorageStrategy();`,
+      `import { createClient } from '@supabase/supabase-js';\nimport { v2 as cloudinary } from 'cloudinary';\nimport { SupabaseStorageStrategy } from '@icore/storage-supabase';\nimport { FirebaseStorageStrategy } from '@icore/storage-firebase';\nimport { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';\nimport { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';\nconst REQUIRED_ENV = {\n  supabase: ['SUPABASE_URL'],\n  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_STORAGE_BUCKET'],\n  cloudinary: ['CLOUDINARY_CLOUD_NAME'],\n};\n\nfunction makeSupabaseStorage(cfg: ConfigService): StorageStrategy {\n  return new SupabaseStorageStrategy({ client: createClient('', '') as never, bucket: 'b' });\n}\n\nfunction makeFirebaseStorage(cfg: ConfigService): StorageStrategy {\n  void FirebaseStorageStrategy;\n  return getFirebaseAdmin(cfg).storage().bucket() as never;\n}\n\nfunction makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {\n  void cloudinary;\n  return new CloudinaryStorageStrategy({ api: {} as never, bucket: 'cloudinary' });\n}\n\n        if (provider === 'supabase') return makeSupabaseStorage(cfg);\n        if (provider === 'firebase') return makeFirebaseStorage(cfg);\n        return makeCloudinaryStorage(cfg);`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
@@ -373,7 +381,8 @@ describe('removeUnusedStorageStrategies', () => {
     );
     expect(mod).not.toContain('@icore/storage-firebase');
     expect(mod).not.toContain('@icore/storage-cloudinary');
-    expect(mod).not.toContain('firebase-admin');
+    expect(mod).not.toContain('@icore/firebase-admin');
+    expect(mod).not.toContain('getFirebaseAdmin');
     expect(mod).not.toContain("from 'cloudinary'");
     expect(mod).not.toContain('makeFirebaseStorage');
     expect(mod).not.toContain('makeCloudinaryStorage');
@@ -398,7 +407,7 @@ describe('removeUnusedDbStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/notes/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/notes/src/app/app.module.ts'),
-      `import * as admin from 'firebase-admin';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nif (provider === 'firestore') { return new FirestoreDBStrategy(admin.firestore()); }\nif (provider === 'supabase') { return new SupabaseDBStrategy(); }`,
+      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';\nconst REQUIRED_ENV = {\n  supabase: ['SUPABASE_URL'],\n  firestore: [...FIREBASE_ADMIN_REQUIRED_ENV],\n  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV],\n};\nfunction makeSupabaseDB(cfg: ConfigService): DBStrategy {\n  return new SupabaseDBStrategy({ client: createClient('', '') as never });\n}\nfunction makeFirestoreDB(cfg: ConfigService): DBStrategy {\n  void FirestoreDBStrategy;\n  return getFirebaseAdmin(cfg).firestore() as never;\n}\n        if (provider === 'supabase') return makeSupabaseDB(cfg);\n        return makeFirestoreDB(cfg);`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
@@ -419,7 +428,11 @@ describe('removeUnusedDbStrategies', () => {
     await expect(access(join(dir, 'libs/db-strategies/firestore'))).rejects.toThrow();
     const mod = await readFile(join(dir, 'apps/microservices/notes/src/app/app.module.ts'), 'utf8');
     expect(mod).not.toContain('@icore/db-firestore');
-    expect(mod).not.toContain('firebase-admin');
+    expect(mod).not.toContain('@icore/firebase-admin');
+    expect(mod).not.toContain('getFirebaseAdmin');
+    expect(mod).not.toContain('FIREBASE_ADMIN_REQUIRED_ENV');
+    expect(mod).not.toContain('makeFirestoreDB');
+    expect(mod).toContain('makeSupabaseDB');
     expect(mod).toContain('SupabaseDBStrategy');
   });
 
@@ -433,7 +446,7 @@ describe('removeUnusedDbStrategies', () => {
     await mkdir(join(dir, 'apps/microservices/notes/src/app'), { recursive: true });
     await writeFile(
       join(dir, 'apps/microservices/notes/src/app/app.module.ts'),
-      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nif (provider === 'supabase') { const c = createClient('', ''); return new SupabaseDBStrategy({ client: c }); }\nif (provider === 'firestore') { return new FirestoreDBStrategy(); }`,
+      `import { createClient } from '@supabase/supabase-js';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nimport { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';\nconst REQUIRED_ENV = {\n  supabase: ['SUPABASE_URL'],\n  firestore: [...FIREBASE_ADMIN_REQUIRED_ENV],\n  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV],\n};\nfunction makeSupabaseDB(cfg: ConfigService): DBStrategy {\n  return new SupabaseDBStrategy({ client: createClient('', '') as never });\n}\nfunction makeFirestoreDB(cfg: ConfigService): DBStrategy {\n  void FirestoreDBStrategy;\n  return getFirebaseAdmin(cfg).firestore() as never;\n}\n        if (provider === 'supabase') return makeSupabaseDB(cfg);\n        return makeFirestoreDB(cfg);`,
     );
     await writeFile(
       join(dir, 'tsconfig.base.json'),
@@ -455,6 +468,11 @@ describe('removeUnusedDbStrategies', () => {
     const mod = await readFile(join(dir, 'apps/microservices/notes/src/app/app.module.ts'), 'utf8');
     expect(mod).not.toContain('@icore/db-supabase');
     expect(mod).not.toContain('@supabase/supabase-js');
+    expect(mod).not.toContain('makeSupabaseDB');
+    expect(mod).toContain('makeFirestoreDB');
+    // firebase-admin init retained for the chosen firestore provider
+    expect(mod).toContain('@icore/firebase-admin');
+    expect(mod).toContain('getFirebaseAdmin');
     expect(mod).toContain('FirestoreDBStrategy');
   });
 });
@@ -518,5 +536,28 @@ describe('removeUploadStack', () => {
     expect(gatewayEnv).not.toContain('UPLOAD_TRANSPORT');
     expect(gatewayEnv).not.toContain('UPLOAD_HOST');
     expect(gatewayEnv).not.toContain('MAX_FILE_SIZE_KB');
+  });
+});
+
+describe('rewriteRootPackageJson — nats transport dependency', () => {
+  async function run(transport: CreateIcoreOptions['transport']) {
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'icore', version: '1.0.0', dependencies: { ioredis: '^5.11.0' } }),
+    );
+    await rewriteRootPackageJson(dir, { ...baseOpts, targetDir: dir, transport });
+    return JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+  }
+
+  it('adds the `nats` driver when transport=nats (optional peer dep, else MS crashes on boot)', async () => {
+    const pkg = await run('nats');
+    expect(pkg.dependencies?.['nats']).toBeDefined();
+  });
+
+  it('does not add `nats` for tcp or redis', async () => {
+    expect((await run('tcp')).dependencies?.['nats']).toBeUndefined();
+    expect((await run('redis')).dependencies?.['nats']).toBeUndefined();
   });
 });
