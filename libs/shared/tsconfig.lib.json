@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "declaration": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": [
@@ -11,6 +11,8 @@
     "vite.config.mts",
     "vitest.config.ts",
     "vitest.config.mts",
+    "src/testing.ts",
+    "src/**/__tests__/**",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
     "src/**/*.test.tsx",

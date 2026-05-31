@@ -1,4 +1,4 @@
-import { runDBContract } from '@icore/shared';
+import { runDBContract } from '@icore/shared/testing';
 import { SupabaseDBStrategy } from '../supabase-db.strategy';
 import { createMockSupabaseDB } from '../testing/mock-supabase-postgres';
 
