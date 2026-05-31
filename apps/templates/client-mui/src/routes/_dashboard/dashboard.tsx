@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, Typography } from '@mui/material';
 import { useAuthStore } from '@icore/template-shared';
-import { PageLayout } from '../../components/PageLayout';
+import { PageLayout } from '@/components/PageLayout';
 
 function DashboardHome() {
   const user = useAuthStore((s) => s.user);

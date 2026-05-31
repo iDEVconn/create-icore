@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/button';
-import type { Note } from '../../queries/notes';
+import type { Note } from '@/queries/notes';
 
 interface Props {
   note: Note | null;

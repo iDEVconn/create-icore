@@ -1,9 +1,9 @@
 import { SyntheticEvent, useEffect, useState } from 'react';
-import { SyntheticEvent, useTranslation } from 'react-i18next';
-import { SyntheticEvent, Button } from '../ui/button';
-import { SyntheticEvent, Input } from '../ui/input';
-import { SyntheticEvent, Label } from '../ui/label';
-import type { Note } from '../../queries/notes';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import type { Note } from '@/queries/notes';
 
 interface Props {
   open: boolean;
