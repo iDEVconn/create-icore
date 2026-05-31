@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { runAuthContract } from '@icore/shared';
+import { runAuthContract } from '@icore/shared/testing';
 import { FirebaseAuthStrategy } from '../firebase-auth.strategy';
 import { createMockIdentityToolkit, type MockHandle } from '../testing/mock-identity-toolkit';
 import { createMockAdminAuth } from '../testing/mock-admin-auth';

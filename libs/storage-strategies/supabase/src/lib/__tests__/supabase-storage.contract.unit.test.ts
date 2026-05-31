@@ -1,4 +1,4 @@
-import { runStorageContract } from '@icore/shared';
+import { runStorageContract } from '@icore/shared/testing';
 import { SupabaseStorageStrategy } from '../supabase-storage.strategy';
 import { createMockSupabaseStorageClient } from '../testing/mock-supabase-storage';
 

@@ -1,4 +1,4 @@
 import { FakeDBStrategy } from '../fakes/fake-db';
-import { runDBContract } from '../contract/db-contract';
+import { runDBContract } from './db.contract.unit.test';
 
 runDBContract('FakeDBStrategy', () => new FakeDBStrategy());
