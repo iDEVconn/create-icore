@@ -5,7 +5,7 @@ export type PaymentProvider = 'paypal' | 'none';
 export type JobsProvider = 'bullmq' | 'none';
 export type ExampleMode = 'notes' | 'none';
 export type UiLibrary = 'shadcn' | 'antd' | 'mui';
-export type MsTransport = 'tcp' | 'redis' | 'nats';
+export type MsTransport = 'tcp' | 'redis' | 'nats' | 'mqtt' | 'rmq' | 'kafka';
 export type PackageManager = 'yarn' | 'npm' | 'pnpm';
 
 /**

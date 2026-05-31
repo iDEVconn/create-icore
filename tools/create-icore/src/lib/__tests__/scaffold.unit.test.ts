@@ -539,7 +539,7 @@ describe('removeUploadStack', () => {
   });
 });
 
-describe('rewriteRootPackageJson — nats transport dependency', () => {
+describe('rewriteRootPackageJson — broker transport driver deps', () => {
   async function run(transport: CreateIcoreOptions['transport']) {
     await writeFile(
       join(dir, 'package.json'),
@@ -551,13 +551,50 @@ describe('rewriteRootPackageJson — nats transport dependency', () => {
     };
   }
 
-  it('adds the `nats` driver when transport=nats (optional peer dep, else MS crashes on boot)', async () => {
-    const pkg = await run('nats');
-    expect(pkg.dependencies?.['nats']).toBeDefined();
+  it('adds the matching driver dep per broker transport (optional peer deps)', async () => {
+    expect((await run('nats')).dependencies?.['nats']).toBeDefined();
+    expect((await run('mqtt')).dependencies?.['mqtt']).toBeDefined();
+    const rmq = (await run('rmq')).dependencies ?? {};
+    expect(rmq['amqplib']).toBeDefined();
+    expect(rmq['amqp-connection-manager']).toBeDefined();
+    expect((await run('kafka')).dependencies?.['kafkajs']).toBeDefined();
   });
 
-  it('does not add `nats` for tcp or redis', async () => {
-    expect((await run('tcp')).dependencies?.['nats']).toBeUndefined();
-    expect((await run('redis')).dependencies?.['nats']).toBeUndefined();
+  it('adds no broker driver for tcp or redis (redis ships via the jobs stack)', async () => {
+    for (const t of ['tcp', 'redis'] as const) {
+      const deps = (await run(t)).dependencies ?? {};
+      expect(deps['nats']).toBeUndefined();
+      expect(deps['mqtt']).toBeUndefined();
+      expect(deps['amqplib']).toBeUndefined();
+      expect(deps['kafkajs']).toBeUndefined();
+    }
+  });
+});
+
+describe('writeAuthEnv — broker transport env', () => {
+  it('uncomments the matching broker vars for mqtt/rmq/kafka', async () => {
+    for (const [transport, expected] of [
+      ['mqtt', 'AUTH_MQTT_URL=mqtt://localhost:1883'],
+      ['rmq', 'AUTH_RMQ_QUEUE=auth_queue'],
+      ['kafka', 'AUTH_KAFKA_BROKERS=localhost:9092'],
+    ] as const) {
+      await writeFile(
+        join(dir, 'apps/microservices/auth/.env.example'),
+        [
+          'AUTH_TRANSPORT=tcp',
+          'AUTH_PROVIDER=supabase',
+          '# AUTH_MQTT_URL=mqtt://localhost:1883',
+          '# AUTH_RMQ_URL=amqp://localhost:5672',
+          '# AUTH_RMQ_QUEUE=auth_queue',
+          '# AUTH_KAFKA_BROKERS=localhost:9092',
+          '# AUTH_KAFKA_CLIENT_ID=auth',
+        ].join('\n'),
+      );
+      await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, transport });
+      const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+      expect(env).toContain(`AUTH_TRANSPORT=${transport}`);
+      expect(env).toContain(expected);
+      expect(env).not.toContain(`# ${expected}`);
+    }
   });
 });

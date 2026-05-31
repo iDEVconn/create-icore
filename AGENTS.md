@@ -53,7 +53,7 @@ Frontend never imports a provider SDK directly. All auth + storage traffic goes 
 
 - **Strategy-pattern auth + storage:** `libs/shared/src/strategies/{auth,storage}.ts` defines the `AuthStrategy` and `StorageStrategy` interfaces. Each MS module wires a factory provider that reads `AUTH_PROVIDER` / `STORAGE_PROVIDER` env and returns the concrete implementation. The contract test suite `runAuthContract(name, factory)` / `runStorageContract(name, factory)` runs against every concrete strategy and the in-memory `FakeAuthStrategy` / `FakeStorageStrategy`.
 - **Env layering (3 layers):**
-  - **Transport wiring** (gateway ↔ MS): `${PREFIX}_TRANSPORT` (`tcp` default | `redis` | `nats`) + the matching host/port/url vars; read by `buildTransport(prefix)` in `libs/shared/src/transport.ts`.
+  - **Transport wiring** (gateway ↔ MS): `${PREFIX}_TRANSPORT` (`tcp` default | `redis` | `nats` | `mqtt` | `rmq` | `kafka`) + the matching host/port/url vars; read by `buildTransport(prefix)` in `libs/shared/src/transport.ts`. All six are message-pattern transports (work with `@MessagePattern` + `ClientProxy.send/emit`). gRPC is intentionally NOT offered — it needs `.proto` contracts + `@GrpcMethod` controllers + `ClientGrpc`, incompatible with the message-based gateway↔MS layer. Each broker transport's driver (`nats`, `mqtt`, `amqplib`+`amqp-connection-manager`, `kafkajs`) is an optional peer dep of `@nestjs/microservices`; `rewriteRootPackageJson` adds it to the generated `package.json` for the chosen transport.
   - **Provider selection** (per MS): `AUTH_PROVIDER`, `STORAGE_PROVIDER`; read by the MS `useFactory`.
   - **Provider credentials** (per concrete strategy): `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`; injected via `ConfigService`.
 

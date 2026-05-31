@@ -32,6 +32,36 @@ export async function copyTree(src: string, dest: string): Promise<void> {
   }
 }
 
+// Broker transport → the FOO_<TOKEN>_* env prefix used in the .env files.
+const TRANSPORT_ENV_TOKEN: Record<string, string> = {
+  redis: 'REDIS',
+  nats: 'NATS',
+  mqtt: 'MQTT',
+  rmq: 'RMQ',
+  kafka: 'KAFKA',
+};
+
+// Broker transport → its NestJS driver dep(s). These are optional peer deps of
+// @nestjs/microservices, so a project crashes on boot without them. (ioredis
+// for redis already ships via the jobs/BullMQ stack.)
+const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
+  nats: { nats: '^2.29.3' },
+  mqtt: { mqtt: '^5.15.1' },
+  rmq: { amqplib: '^2.0.1', 'amqp-connection-manager': '^5.0.0' },
+  kafka: { kafkajs: '^2.2.4' },
+};
+
+/**
+ * Uncomments the `# ${PREFIX}_${TOKEN}_*=` lines in a .env for the chosen broker
+ * transport (e.g. transport=rmq → uncomment AUTH_RMQ_URL + AUTH_RMQ_QUEUE).
+ * tcp has no broker vars, so it's a no-op.
+ */
+function uncommentTransportEnv(text: string, prefix: string, transport: string): string {
+  const token = TRANSPORT_ENV_TOKEN[transport];
+  if (!token) return text;
+  return text.replace(new RegExp(`^# (${prefix}_${token}_[A-Z0-9_]*=)`, 'gm'), '$1');
+}
+
 export async function rewriteRootPackageJson(
   targetDir: string,
   opts: CreateIcoreOptions,
@@ -43,13 +73,11 @@ export async function rewriteRootPackageJson(
   pkg['version'] = '0.0.1';
   pkg['private'] = true;
   delete (pkg as { description?: string }).description;
-  // NATS transport needs the `nats` driver — it's an *optional* peer dep of
-  // @nestjs/microservices, so it isn't installed unless we add it. Without it
-  // a nats-transport project crashes on boot with "the nats package is missing".
-  // (ioredis for the redis transport already ships via the jobs/BullMQ stack.)
-  if (opts.transport === 'nats') {
+  // Add the chosen broker transport's driver dep(s) (see TRANSPORT_DEPS).
+  const transportDeps = TRANSPORT_DEPS[opts.transport];
+  if (transportDeps) {
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
-    deps['nats'] = '^2.29.3';
+    Object.assign(deps, transportDeps);
   }
   // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
   if (opts.packageManager !== 'yarn') {
@@ -82,10 +110,7 @@ export async function writeAuthEnv(targetDir: string, opts: CreateIcoreOptions):
   let next = env
     .replace(/^AUTH_PROVIDER=.*$/m, `AUTH_PROVIDER=${opts.authProvider}`)
     .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`);
-  if (opts.transport !== 'tcp') {
-    // Uncomment the matching transport URL line
-    next = next.replace(/^# (AUTH_(?:REDIS|NATS)_URL=)/m, '$1');
-  }
+  next = uncommentTransportEnv(next, 'AUTH', opts.transport);
   await writeFile(join(targetDir, 'apps/microservices/auth/.env'), next);
 }
 
@@ -96,9 +121,7 @@ export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions
   let next = env
     .replace(/^STORAGE_PROVIDER=.*$/m, `STORAGE_PROVIDER=${opts.upload}`)
     .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
-  if (opts.transport !== 'tcp') {
-    next = next.replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1');
-  }
+  next = uncommentTransportEnv(next, 'UPLOAD', opts.transport);
   await writeFile(join(targetDir, 'apps/microservices/upload/.env'), next);
 }
 
@@ -108,9 +131,7 @@ export async function writeNotesEnv(targetDir: string, opts: CreateIcoreOptions)
   try {
     const env = await readFile(envExample, 'utf8');
     let next = env.replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`);
-    if (opts.transport !== 'tcp') {
-      next = next.replace(/^# (NOTES_(?:REDIS|NATS)_URL=)/m, '$1');
-    }
+    next = uncommentTransportEnv(next, 'NOTES', opts.transport);
     await writeFile(join(targetDir, 'apps/microservices/notes/.env'), next);
   } catch {
     // notes .env.example may not exist in older snapshots
@@ -125,12 +146,8 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
     .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`)
     .replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`)
     .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
-  if (opts.transport !== 'tcp') {
-    next = next
-      .replace(/^# (AUTH_(?:REDIS|NATS)_URL=)/m, '$1')
-      .replace(/^# (UPLOAD_(?:REDIS|NATS)_URL=)/m, '$1')
-      .replace(/^# (NOTES_(?:REDIS|NATS)_URL=)/m, '$1')
-      .replace(/^# (PAYMENT_(?:REDIS|NATS)_URL=)/m, '$1');
+  for (const prefix of ['AUTH', 'UPLOAD', 'NOTES', 'PAYMENT']) {
+    next = uncommentTransportEnv(next, prefix, opts.transport);
   }
   await writeFile(join(targetDir, 'apps/api/.env'), next);
 }
@@ -187,9 +204,7 @@ export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOption
     let next = env
       .replace(/^PAYMENT_PROVIDER=.*$/m, `PAYMENT_PROVIDER=${opts.payment}`)
       .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
-    if (opts.transport !== 'tcp') {
-      next = next.replace(/^# (PAYMENT_(?:REDIS|NATS)_URL=)/m, '$1');
-    }
+    next = uncommentTransportEnv(next, 'PAYMENT', opts.transport);
     await writeFile(join(targetDir, 'apps/microservices/payment/.env'), next);
   } catch {
     // payment MS not present in template — older snapshots predate Plan 9
@@ -912,7 +927,7 @@ Apache-2.0
 
 - **Branch strategy**: \`dev\` is default. Cut \`feature/<name>\` or \`bug/<name>\` from dev. PRs only target dev. Never push directly to main.
 - **No code without approval**: Propose changes first, wait for go-ahead.
-- **ЗАКОН — no crash on missing .env**: MS factories must catch config errors, print a boxed banner with ALL missing vars, and return a Fake strategy in dev. In prod (\`NODE_ENV=production\`) throw the same banner. The \`formatEnvBanner\` + \`missingEnv\` helpers from \`@icore/shared\` handle this.
+- **RULE — no crash on missing .env**: MS factories must catch config errors, print a boxed banner with ALL missing vars, and return a Fake strategy in dev. In prod (\`NODE_ENV=production\`) throw the same banner. The \`formatEnvBanner\` + \`missingEnv\` helpers from \`@icore/shared\` handle this.
 - **Post-coding routine**: \`npx prettier --write <files>\` → \`${nx} lint <project>\` → \`${nx} build <project>\` — all green before committing.
 - **Nx generators only**: never hand-write \`project.json\` / tsconfig stacks. Use \`${nx} g @nx/<plugin>:<schematic>\`.
 

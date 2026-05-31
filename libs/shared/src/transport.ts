@@ -10,6 +10,12 @@ function transportKeys(prefix: string, kind: string): string[] {
       return [`${prefix}_REDIS_URL`];
     case 'nats':
       return [`${prefix}_NATS_URL`];
+    case 'mqtt':
+      return [`${prefix}_MQTT_URL`];
+    case 'rmq':
+      return [`${prefix}_RMQ_URL`, `${prefix}_RMQ_QUEUE`];
+    case 'kafka':
+      return [`${prefix}_KAFKA_BROKERS`];
     default:
       return [];
   }
@@ -96,6 +102,41 @@ export function buildTransport(prefix: string): ClientOptions {
           reconnect: true,
           maxReconnectAttempts: -1,
           reconnectTimeWait: 2000,
+        },
+      } as unknown as ClientOptions;
+    case 'mqtt':
+      // mqtt.js auto-reconnects (reconnectPeriod default) so a dropped broker
+      // re-attaches; a broker that's down on boot is handled by the
+      // bootstrapMicroservice() retry, same as nats.
+      return {
+        transport: Transport.MQTT,
+        options: {
+          url: required(`${prefix}_MQTT_URL`),
+        },
+      } as unknown as ClientOptions;
+    case 'rmq':
+      // amqp-connection-manager reconnects in the background; the initial
+      // connect failure is caught by bootstrapMicroservice() and retried.
+      return {
+        transport: Transport.RMQ,
+        options: {
+          urls: required(`${prefix}_RMQ_URL`).split(','),
+          queue: required(`${prefix}_RMQ_QUEUE`),
+          queueOptions: { durable: false },
+        },
+      } as unknown as ClientOptions;
+    case 'kafka':
+      // kafkajs retries broker connections internally; clientId defaults from
+      // the prefix, and the consumer needs a groupId.
+      return {
+        transport: Transport.KAFKA,
+        options: {
+          client: {
+            clientId:
+              process.env[`${prefix}_KAFKA_CLIENT_ID`]?.trim() || `${prefix.toLowerCase()}-client`,
+            brokers: required(`${prefix}_KAFKA_BROKERS`).split(','),
+          },
+          consumer: { groupId: `${prefix.toLowerCase()}-consumer` },
         },
       } as unknown as ClientOptions;
     default:
