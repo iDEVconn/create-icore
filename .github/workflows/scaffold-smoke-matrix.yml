@@ -1,0 +1,48 @@
+name: Scaffold Smoke Matrix
+
+# Layer B — full-fidelity scaffold smoke: real package-manager install, real
+# nx build, and a real BOOT of the services. Catches what Layer A (typecheck in
+# pipeline.yml) can't: lockfile / dependency-pruning / package-manager-runner
+# breakage, and RUNTIME crashes (a service that exits on missing .env / a down
+# broker instead of degrading to a banner + fake).
+#
+# Non-blocking by design: runs nightly and on demand, not on every PR. Trigger
+# manually from the Actions tab before promoting dev → main.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # nightly 03:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: ${{ matrix.pm }} · ${{ matrix.combo.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pm: [npm, pnpm, yarn]
+        combo:
+          - name: supabase
+            flags: --auth=supabase --db=supabase --upload=cloudinary --transport=tcp
+          - name: firebase
+            flags: --auth=firebase --db=firebase --upload=firebase --transport=tcp
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Build CLI + snapshot templates
+        run: |
+          yarn nx build create-icore
+          node tools/create-icore/scripts/snapshot-templates.mjs
+      - name: Scaffold + install + build + boot
+        run: |
+          node tools/create-icore/scripts/smoke-scaffold.mjs \
+            ${{ matrix.combo.flags }} \
+            --pm=${{ matrix.pm }} --mode=install --run --run-seconds=25 \
+            --projects=shared,firebase-admin,auth,upload,notes,api \
+            --services=api,auth,upload,notes

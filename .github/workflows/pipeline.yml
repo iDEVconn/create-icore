@@ -111,6 +111,41 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Layer A scaffold smoke — generate a real project from the templates snapshot
+  # and TYPECHECK it (tsc --noEmit). Catches the "strip produced text that does
+  # not compile" class (TS2304, dangling refs, bad pruning) that the unit tests
+  # on the strip regexes can't see. Cheap: no install, reuses node_modules.
+  # Heavier install+build+RUN fidelity lives in scaffold-smoke-matrix.yml.
+  scaffold-smoke:
+    name: Scaffold smoke (${{ matrix.combo.name }})
+    needs: [detect-affected]
+    if: needs.detect-affected.outputs.has-affected == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        combo:
+          - name: supabase
+            flags: --auth=supabase --db=supabase --upload=cloudinary --transport=tcp
+          - name: firebase
+            flags: --auth=firebase --db=firebase --upload=firebase --transport=tcp
+          - name: nats
+            flags: --auth=supabase --db=supabase --upload=supabase --transport=nats
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Build CLI + snapshot templates
+        run: |
+          yarn nx build create-icore
+          node tools/create-icore/scripts/snapshot-templates.mjs
+      - name: Scaffold + typecheck
+        run: |
+          node tools/create-icore/scripts/smoke-scaffold.mjs \
+            ${{ matrix.combo.flags }} --mode=link \
+            --projects=shared,firebase-admin,auth,upload,notes,api
+
   docker-build:
     name: Docker build (${{ matrix.image }})
     needs: [check]
