@@ -233,7 +233,10 @@ async function main() {
   }
 
   // Layer B — real install, real build, real boot.
-  if (run(pm, ['install'], opts.targetDir) !== 0) {
+  // yarn 4 auto-enables --immutable when CI=true, but a fresh generated project
+  // has an empty yarn.lock (populated on first install) → YN0028 without the flag.
+  const installArgs = pm === 'yarn' ? ['install', '--no-immutable'] : ['install'];
+  if (run(pm, installArgs, opts.targetDir) !== 0) {
     console.error(`\n✗ ${pm} install failed (${combo})`);
     process.exit(1);
   }

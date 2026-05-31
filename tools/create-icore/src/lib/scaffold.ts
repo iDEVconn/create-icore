@@ -79,28 +79,26 @@ export async function rewriteRootPackageJson(
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, transportDeps);
   }
-  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them
+  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them.
+  // For yarn, update it to the current version (corepack uses this to download the runtime).
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
+  } else {
+    // Read the pinned yarn version from .yarnrc.yml so it stays in sync automatically.
+    try {
+      const yarnrc = await readFile(join(targetDir, '.yarnrc.yml'), 'utf8');
+      const match = yarnrc.match(/^yarnPath:\s*.+yarn-(\d+\.\d+\.\d+)\.cjs/m);
+      if (match?.[1]) {
+        pkg['packageManager'] = `yarn@${match[1]}`;
+      }
+    } catch {
+      // ignore — keep whatever the template had
+    }
   }
-  // pnpm 9+ blocks all build scripts by default — explicitly allow the packages
-  // that require native compilation (nx, swc, parcel-watcher, etc.)
-  if (opts.packageManager === 'pnpm') {
-    pkg['pnpm'] = {
-      onlyBuiltDependencies: [
-        '@firebase/util',
-        '@nestjs/core',
-        '@parcel/watcher',
-        '@scarf/scarf',
-        '@swc/core',
-        'less',
-        'msgpackr-extract',
-        'nx',
-        'protobufjs',
-        'unrs-resolver',
-      ],
-    };
-  }
+  // pnpm 9+ no longer reads the "pnpm" key from package.json — settings now
+  // live in pnpm-workspace.yaml. The pnpm-workspace.yaml is written by
+  // writePnpmWorkspace(); nothing goes into package.json for pnpm.
+  delete (pkg as { pnpm?: unknown }).pnpm;
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
@@ -774,16 +772,37 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
     await writeFile(join(opts.targetDir, 'yarn.lock'), '');
   } else {
     // npm/pnpm don't need the pinned yarn binary or .yarnrc.yml.
-    // Removing them keeps the generated project tidy and prevents the 2.8 MB
-    // yarn-4.x.cjs binary from being committed to git (the template .gitignore
-    // has !.yarn/releases which un-ignores it for yarn users).
     await rm(join(opts.targetDir, '.yarn'), { recursive: true, force: true });
     await rm(join(opts.targetDir, '.yarnrc.yml'), { force: true });
+  }
+  if (opts.packageManager === 'pnpm') {
+    await writePnpmWorkspace(opts.targetDir);
   }
   await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
   if (opts.install) runInstall(opts.targetDir, opts.packageManager);
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
+}
+
+// ── pnpm workspace file ─────────────────────────────────────────────────────
+
+/**
+ * Creates pnpm-workspace.yaml for pnpm projects.
+ *
+ * pnpm 9+ ignores the "workspaces" field in package.json and requires this
+ * file to declare workspace packages. It also no longer reads the "pnpm" key
+ * from package.json — onlyBuiltDependencies now lives here instead.
+ */
+async function writePnpmWorkspace(targetDir: string): Promise<void> {
+  const pkgPath = join(targetDir, 'package.json');
+  const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as {
+    workspaces?: string[];
+  };
+  const workspaces = pkg.workspaces ?? [];
+
+  const packagesBlock = workspaces.map((p) => `  - '${p}'`).join('\n');
+  const content = `packages:\n${packagesBlock}\n\nonlyBuiltDependencies:\n  - '@firebase/util'\n  - '@nestjs/core'\n  - '@parcel/watcher'\n  - '@scarf/scarf'\n  - '@swc/core'\n  - less\n  - msgpackr-extract\n  - nx\n  - protobufjs\n  - unrs-resolver\n`;
+  await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
 }
 
 // ── .gitignore patching ─────────────────────────────────────────────────────
