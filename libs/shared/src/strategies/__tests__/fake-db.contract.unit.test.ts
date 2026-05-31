@@ -1,4 +1,4 @@
-import { FakeDBStrategy } from '../fakes/fake-db';
-import { runDBContract } from './db.contract.unit.test';
+import { FakeDBStrategy } from '@icore/shared';
+import { runDBContract } from '@icore/shared/testing';
 
 runDBContract('FakeDBStrategy', () => new FakeDBStrategy());
