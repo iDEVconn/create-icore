@@ -1,5 +1,26 @@
 # @idevconn/create-icore
 
+## 0.5.2
+
+### Patch Changes
+
+- 225c840: Fix `notes-client` / `jobs-client` / `payment-client` / `firebase-admin` failing to build in a generated project under npm/pnpm.
+
+  These libs were generated with `module: commonjs` and no explicit `moduleResolution`, so TypeScript defaulted to classic `node10`, which cannot read a package's `exports` map. `@casl/ability@7` (and other modern packages) expose their type declarations only via `exports`, so compiling `@icore/shared`'s `ability.ts` through one of these libs failed with `TS7016: Could not find a declaration file for module '@casl/ability'`.
+
+  iCore's own `nx build` masked it (nx resolves `@icore/shared` to its built `.d.ts`), but a freshly scaffolded project — and a raw `tsc` — compiles the source and broke.
+
+  Aligned the four libs to `module: node16` + `moduleResolution: node16`, matching `shared` and the other client/strategy libs that were already correct. No runtime change; emit stays CommonJS.
+
+- 6880ff7: Move the strategy contract-test harness out of the production `@icore/shared` surface so generated projects build under any tsconfig.
+
+  The `runAuthContract` / `runStorageContract` / `runDBContract` harness used Vitest globals (`describe`/`it`/`expect`) but lived in `strategies/contract/*.ts` as ordinary source, re-exported from the prod `index.ts`. Any build or typecheck without `vitest/globals` in `types` failed with `TS2304: Cannot find name 'expect'/'it'` — `nx build shared` only passed because its `tsconfig.lib.json` injected `vitest/globals`, a fragile hack.
+  - Harness moved to `strategies/__tests__/*.contract.unit.test.ts` (project test-naming convention) → excluded from the library build like any test file; the `vitest/globals` hack is removed from `tsconfig.lib.json`.
+  - It is no longer exported from the prod `index.ts`; tests import it from a new `@icore/shared/testing` subpath (mirrors `@icore/shared/client`).
+  - Vitest is configured not to run the pure-harness files (they only export suites, no top-level tests); the concrete `fake-*` and per-provider contract tests invoke them.
+
+  Result: the shipped `@icore/shared` carries zero test DSL, and the generated workspace compiles regardless of which tsconfig builds it.
+
 ## 0.5.1
 
 ### Patch Changes
