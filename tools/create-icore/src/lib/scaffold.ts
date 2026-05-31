@@ -342,10 +342,14 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
   const siderPath = join(targetDir, 'apps/client/src/components/layout/LayoutSider.tsx');
   try {
     const src = await readFile(siderPath, 'utf8');
+    // The `to` paths may be either "/_dashboard/notes" (older templates) or
+    // "/notes" (TanStack pathless-layout fix), so every match is path-agnostic
+    // via the `\/(?:_dashboard\/)?notes` alternation — keeps pruning working
+    // regardless of which route style the template ships.
     const next = src
       // shadcn: remove StickyNote from lucide import + notes Link block
       .replace(', StickyNote', '')
-      .replace(/\n {8}<Link\n {10}to="\/_dashboard\/notes"[\s\S]*?<\/Link>/, '')
+      .replace(/\n {8}<Link\n {10}to="\/(?:_dashboard\/)?notes"[\s\S]*?<\/Link>/, '')
       // antd: remove FileTextOutlined + selectedKey notes branch + notes items entry
       .replace(', FileTextOutlined', '')
       .replace(
@@ -353,17 +357,17 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
         "const selectedKey = pathname.includes('/profile')",
       )
       .replace(
-        "\n    {\n      key: 'notes',\n      icon: <FileTextOutlined />,\n      label: <Link to=\"/_dashboard/notes\">{t('notes.title')}</Link>,\n    },",
+        /\n {4}\{\n {6}key: 'notes',\n {6}icon: <FileTextOutlined \/>,\n {6}label: <Link to="\/(?:_dashboard\/)?notes">\{t\('notes\.title'\)\}<\/Link>,\n {4}\},/,
         '',
       )
       // mui: remove NoteOutlinedIcon import + notes ListItemButton
       .replace("import NoteOutlinedIcon from '@mui/icons-material/NoteOutlined';\n", '')
       .replace(
-        /\n {8}<ListItemButton\n {10}component=\{Link\}\n {10}to="\/_dashboard\/notes"[\s\S]*?<\/ListItemButton>/,
+        /\n {8}<ListItemButton\n {10}component=\{Link\}\n {10}to="\/(?:_dashboard\/)?notes"[\s\S]*?<\/ListItemButton>/,
         '',
       )
       // test stub: remove simple notes link
-      .replace(/\n\s*<Link to="\/_dashboard\/notes">[\s\S]*?<\/Link>/m, '');
+      .replace(/\n\s*<Link to="\/(?:_dashboard\/)?notes">[\s\S]*?<\/Link>/m, '');
     await writeFile(siderPath, next);
   } catch {
     // ignore
