@@ -19,17 +19,17 @@ export function LayoutSider() {
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: <Link to="/_dashboard/dashboard">{t('nav.dashboard')}</Link>,
+      label: <Link to="/dashboard">{t('nav.dashboard')}</Link>,
     },
     {
       key: 'notes',
       icon: <FileTextOutlined />,
-      label: <Link to="/_dashboard/notes">{t('notes.title')}</Link>,
+      label: <Link to="/notes">{t('notes.title')}</Link>,
     },
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: <Link to="/_dashboard/profile">{t('nav.profile')}</Link>,
+      label: <Link to="/profile">{t('nav.profile')}</Link>,
     },
   ];
 

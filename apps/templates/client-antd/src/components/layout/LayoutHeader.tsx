@@ -36,7 +36,7 @@ export function LayoutHeader() {
     { type: 'divider' },
     {
       key: 'profile',
-      label: <Link to="/_dashboard/profile">{t('nav.profile')}</Link>,
+      label: <Link to="/profile">{t('nav.profile')}</Link>,
     },
     {
       key: 'logout',

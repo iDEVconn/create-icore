@@ -32,7 +32,7 @@ function OAuthCallbackPage() {
       user: { id: userId, email },
     });
     setStatus('done');
-    void navigate({ to: '/_dashboard/dashboard' });
+    void navigate({ to: '/dashboard' });
   }, []);
 
   return (

@@ -10,7 +10,7 @@ export function AccessDeniedPage() {
       title={t('error.accessDenied')}
       subTitle={t('error.unknown')}
       extra={
-        <Link to="/_dashboard/dashboard">
+        <Link to="/dashboard">
           <Button type="primary">Dashboard</Button>
         </Link>
       }
