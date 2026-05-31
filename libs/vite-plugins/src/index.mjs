@@ -88,7 +88,7 @@ export function commonManualChunks(uiChunkFn) {
  *
  * @param {string} name  - project name (e.g. 'client-shadcn')
  * @param {string} coverageDir - relative path to coverage output dir
- * @returns {import('vitest/config').UserConfig['test']}
+ * @returns {import('vitest/config').TestUserConfig['test']}
  */
 export function commonTestConfig(name, coverageDir) {
   return {
