@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button, Card } from 'antd';
 import { useAuthStore } from '@icore/template-shared';
-import { PageLayout } from '../../components/PageLayout';
+import { PageLayout } from '@/components/PageLayout';
 
 function DashboardHome() {
   const user = useAuthStore((s) => s.user);
@@ -11,7 +11,7 @@ function DashboardHome() {
         title="Hello, world"
         style={{ maxWidth: 600 }}
         extra={
-          <Link to="/_dashboard/profile">
+          <Link to="/profile">
             <Button type="link">Go to profile →</Button>
           </Link>
         }

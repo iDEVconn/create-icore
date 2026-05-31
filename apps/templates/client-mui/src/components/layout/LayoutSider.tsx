@@ -25,33 +25,21 @@ export function LayoutSider() {
       }}
     >
       <List>
-        <ListItemButton
-          component={Link}
-          to="/_dashboard/dashboard"
-          selected={pathname === '/dashboard'}
-        >
+        <ListItemButton component={Link} to="/dashboard" selected={pathname === '/dashboard'}>
           <ListItemIcon>
             <DashboardOutlinedIcon />
           </ListItemIcon>
           <ListItemText primary={t('nav.dashboard')} />
         </ListItemButton>
 
-        <ListItemButton
-          component={Link}
-          to="/_dashboard/notes"
-          selected={pathname.includes('/notes')}
-        >
+        <ListItemButton component={Link} to="/notes" selected={pathname.includes('/notes')}>
           <ListItemIcon>
             <NoteOutlinedIcon />
           </ListItemIcon>
           <ListItemText primary={t('notes.title')} />
         </ListItemButton>
 
-        <ListItemButton
-          component={Link}
-          to="/_dashboard/profile"
-          selected={pathname === '/profile'}
-        >
+        <ListItemButton component={Link} to="/profile" selected={pathname === '/profile'}>
           <ListItemIcon>
             <PersonOutlineIcon />
           </ListItemIcon>

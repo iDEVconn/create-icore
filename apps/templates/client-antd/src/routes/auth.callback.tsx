@@ -49,7 +49,7 @@ function CallbackPage() {
       .then((session) => {
         setAuth(session);
         setStatus('done');
-        void navigate({ to: '/_dashboard/dashboard' });
+        void navigate({ to: '/dashboard' });
       })
       .catch((err) => {
         setStatus('error');

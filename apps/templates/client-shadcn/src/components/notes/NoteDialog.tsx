@@ -1,9 +1,9 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { SyntheticEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import type { Note } from '../../queries/notes';
+import type { Note } from '@/queries/notes';
 
 interface Props {
   open: boolean;
@@ -27,7 +27,7 @@ export function NoteDialog({ open, initial, saving, onClose, onSubmit }: Props) 
 
   if (!open) return null;
 
-  function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     onSubmit({ title, body });
   }

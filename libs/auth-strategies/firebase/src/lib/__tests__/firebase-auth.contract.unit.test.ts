@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { runAuthContract } from '@icore/shared/testing';
-import { FirebaseAuthStrategy } from '../firebase-auth.strategy';
-import { createMockIdentityToolkit, type MockHandle } from '../testing/mock-identity-toolkit';
-import { createMockAdminAuth } from '../testing/mock-admin-auth';
+import {
+  FirebaseAuthStrategy,
+  createMockIdentityToolkit,
+  type MockHandle,
+  createMockAdminAuth,
+} from '@icore/auth-firebase';
 
 const toolkits = new WeakMap<FirebaseAuthStrategy, MockHandle>();
 

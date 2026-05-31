@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Box, Button, TextField } from '@mui/material';
 import { useDraft, useNotify, useAuthStore } from '@icore/template-shared';
-import { PageLayout } from '../../components/PageLayout';
-import { api } from '../../main';
+import { PageLayout } from '@/components/PageLayout';
+import { api } from '@/main';
 
 interface ProfilePayload {
   uid: string;
@@ -45,7 +45,7 @@ function ProfilePage() {
     onError: (err) => notify.error(err instanceof Error ? err.message : 'save_failed'),
   });
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     save.mutate(name);
   }

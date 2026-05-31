@@ -1,5 +1,5 @@
-import type { Plugin } from 'vite';
-import type { UserConfig } from 'vitest/config';
+import type { Plugin, UserConfig } from 'vite';
+import type { TestUserConfig } from 'vitest/config';
 
 export declare function noServerModulesPlugin(): Plugin;
 
@@ -18,10 +18,8 @@ export declare function commonManualChunks(
 export declare function commonTestConfig(
   name: string,
   coverageDir: string,
-): NonNullable<UserConfig['test']>;
+): NonNullable<TestUserConfig['test']>;
 
-export declare function commonServer(
-  port: number,
-): NonNullable<import('vite').UserConfig['server']>;
+export declare function commonServer(port: number): NonNullable<UserConfig['server']>;
 
-export declare function apiInfoPlugin(opts?: { proxyTarget?: string }): import('vite').Plugin;
+export declare function apiInfoPlugin(opts?: { proxyTarget?: string }): Plugin;

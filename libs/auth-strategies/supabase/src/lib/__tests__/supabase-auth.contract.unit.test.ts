@@ -1,6 +1,9 @@
 import { runAuthContract } from '@icore/shared/testing';
-import { SupabaseAuthStrategy } from '../supabase-auth.strategy';
-import { createMockSupabaseClient, type MockSupabaseClient } from '../testing/mock-supabase';
+import {
+  SupabaseAuthStrategy,
+  createMockSupabaseClient,
+  type MockSupabaseClient,
+} from '@icore/auth-supabase';
 
 const mocks = new WeakMap<SupabaseAuthStrategy, MockSupabaseClient>();
 

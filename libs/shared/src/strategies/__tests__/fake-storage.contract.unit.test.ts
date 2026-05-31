@@ -1,4 +1,4 @@
-import { FakeStorageStrategy } from '../fakes/fake-storage';
-import { runStorageContract } from './storage.contract.unit.test';
+import { FakeStorageStrategy } from '@icore/shared';
+import { runStorageContract } from '@icore/shared/testing';
 
 runStorageContract('FakeStorageStrategy', () => new FakeStorageStrategy());

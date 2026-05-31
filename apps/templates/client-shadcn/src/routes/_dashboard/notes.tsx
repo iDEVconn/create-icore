@@ -1,18 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PageLayout } from '../../components/PageLayout';
-import { Button } from '../../components/ui/button';
-import { NotesTable } from '../../components/notes/NotesTable';
-import { NoteDialog } from '../../components/notes/NoteDialog';
-import { DeleteNoteConfirm } from '../../components/notes/DeleteNoteConfirm';
+import { PageLayout } from '@/components/PageLayout';
+import { Button } from '@/components/ui/button';
+import { NotesTable } from '@/components/notes/NotesTable';
+import { NoteDialog } from '@/components/notes/NoteDialog';
+import { DeleteNoteConfirm } from '@/components/notes/DeleteNoteConfirm';
 import {
   useCreateNote,
   useDeleteNote,
   useNotesList,
   useUpdateNote,
   type Note,
-} from '../../queries/notes';
+} from '@/queries/notes';
 
 const PAGE_SIZE = 20;
 

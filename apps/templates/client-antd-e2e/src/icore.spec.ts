@@ -14,12 +14,12 @@ test.describe('icore client-antd smoke', () => {
   });
 
   test('protected route redirects to login when unauthenticated', async ({ page }) => {
-    await page.goto('/_dashboard/dashboard');
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login$/);
   });
 
   test('profile route redirects to login when unauthenticated', async ({ page }) => {
-    await page.goto('/_dashboard/profile');
+    await page.goto('/profile');
     await expect(page).toHaveURL(/\/login$/);
   });
 });

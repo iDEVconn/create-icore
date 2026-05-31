@@ -1,6 +1,5 @@
 import { runStorageContract } from '@icore/shared/testing';
-import { CloudinaryStorageStrategy } from '../cloudinary-storage.strategy.js';
-import { createMockCloudinary } from '../testing/mock-cloudinary.js';
+import { CloudinaryStorageStrategy, createMockCloudinary } from '@icore/storage-cloudinary';
 
 runStorageContract('CloudinaryStorageStrategy', () => {
   const api = createMockCloudinary();

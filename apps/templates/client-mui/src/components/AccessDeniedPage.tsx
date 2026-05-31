@@ -16,7 +16,7 @@ export function AccessDeniedPage() {
         {t('error.unknown')}
       </Typography>
       <Box>
-        <Button component={Link} to="/_dashboard/dashboard" variant="contained">
+        <Button component={Link} to="/dashboard" variant="contained">
           Dashboard
         </Button>
       </Box>

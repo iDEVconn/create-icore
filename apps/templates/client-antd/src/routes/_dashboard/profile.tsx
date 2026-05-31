@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Button, Form, Input } from 'antd';
 import { useDraft, useNotify, useAuthStore } from '@icore/template-shared';
-import { PageLayout } from '../../components/PageLayout';
-import { api } from '../../main';
+import { PageLayout } from '@/components/PageLayout';
+import { api } from '@/main';
 
 interface ProfilePayload {
   uid: string;

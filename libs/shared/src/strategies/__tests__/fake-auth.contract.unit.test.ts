@@ -1,5 +1,5 @@
-import { FakeAuthStrategy } from '../fakes/fake-auth';
-import { runAuthContract } from './auth.contract.unit.test';
+import { FakeAuthStrategy } from '@icore/shared';
+import { runAuthContract } from '@icore/shared/testing';
 
 runAuthContract('FakeAuthStrategy', () => new FakeAuthStrategy(), {
   getMagicLinkToken: (strategy, email) =>

@@ -12,6 +12,7 @@
  * needing a full build.
  */
 import { readdir, readFile, stat } from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -21,7 +22,7 @@ const ROOT = resolve(__dirname, '../../../../..');
 
 async function walkTs(dir: string): Promise<string[]> {
   const files: string[] = [];
-  let entries: Awaited<ReturnType<typeof readdir>>;
+  let entries: Dirent<string>[];
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch {

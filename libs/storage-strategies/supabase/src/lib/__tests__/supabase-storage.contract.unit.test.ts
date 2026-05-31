@@ -1,6 +1,5 @@
 import { runStorageContract } from '@icore/shared/testing';
-import { SupabaseStorageStrategy } from '../supabase-storage.strategy';
-import { createMockSupabaseStorageClient } from '../testing/mock-supabase-storage';
+import { SupabaseStorageStrategy, createMockSupabaseStorageClient } from '@icore/storage-supabase';
 
 runStorageContract('SupabaseStorageStrategy', () => {
   const client = createMockSupabaseStorageClient('icore-uploads');

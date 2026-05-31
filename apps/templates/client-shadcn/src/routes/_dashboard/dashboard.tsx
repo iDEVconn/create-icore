@@ -1,13 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useAuthStore } from '@icore/template-shared';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card';
-import { PageLayout } from '../../components/PageLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageLayout } from '@/components/PageLayout';
 
 function DashboardHome() {
   const user = useAuthStore((s) => s.user);
@@ -19,7 +13,7 @@ function DashboardHome() {
           <CardDescription>Edit this page in src/routes/_dashboard/dashboard.tsx</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link to="/_dashboard/profile" className="underline">
+          <Link to="/profile" className="underline">
             Go to profile →
           </Link>
         </CardContent>

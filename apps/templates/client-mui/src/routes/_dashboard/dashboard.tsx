@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, Typography } from '@mui/material';
 import { useAuthStore } from '@icore/template-shared';
-import { PageLayout } from '../../components/PageLayout';
+import { PageLayout } from '@/components/PageLayout';
 
 function DashboardHome() {
   const user = useAuthStore((s) => s.user);
@@ -13,11 +13,7 @@ function DashboardHome() {
           subheader="Edit this page in src/routes/_dashboard/dashboard.tsx"
         />
         <CardContent>
-          <Typography
-            component={Link}
-            to="/_dashboard/profile"
-            sx={{ textDecoration: 'underline' }}
-          >
+          <Typography component={Link} to="/profile" sx={{ textDecoration: 'underline' }}>
             Go to profile →
           </Typography>
         </CardContent>

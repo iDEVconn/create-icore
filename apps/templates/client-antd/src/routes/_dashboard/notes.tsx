@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Form, Input, Modal, Popconfirm, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PageLayout } from '../../components/PageLayout';
+import { PageLayout } from '@/components/PageLayout';
 import {
   useCreateNote,
   useDeleteNote,
   useNotesList,
   useUpdateNote,
   type Note,
-} from '../../queries/notes';
+} from '@/queries/notes';
 
 const PAGE_SIZE = 20;
 
