@@ -290,6 +290,18 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
     '@idevconn/payment',
   ]);
   await stripGatewayTransport(targetDir, 'PAYMENT');
+  // Strip payment entry from GATEWAY_SERVICES in main.ts
+  const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
+  try {
+    const src = await readFile(mainTsPath, 'utf8');
+    const next = src.replace(
+      /\n\s*\{ name: 'payment', prefix: 'PAYMENT' \},/,
+      '',
+    );
+    await writeFile(mainTsPath, next);
+  } catch {
+    // ignore — main.ts may not exist in test scaffolds
+  }
 }
 
 export async function removeNotesStack(targetDir: string): Promise<void> {
@@ -331,6 +343,19 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
 
   // Strip NOTES_* transport block from the gateway .env
   await stripGatewayTransport(targetDir, 'NOTES');
+
+  // Strip notes entry from GATEWAY_SERVICES in main.ts
+  const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
+  try {
+    const src = await readFile(mainTsPath, 'utf8');
+    const next = src.replace(
+      /\n\s*\{ name: 'notes', prefix: 'NOTES' \},/,
+      '',
+    );
+    await writeFile(mainTsPath, next);
+  } catch {
+    // ignore — main.ts may not exist in test scaffolds
+  }
 
   // Strip @icore/notes-client path alias from tsconfig.base.json
   const tsconfigPath = join(targetDir, 'tsconfig.base.json');
