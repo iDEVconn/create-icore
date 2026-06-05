@@ -5,6 +5,8 @@
   "packageManager": "yarn@4.15.0",
   "workspaces": [
     "apps/*",
+    "apps/microservices/*",
+    "apps/templates/*",
     "libs/*",
     "libs/auth-strategies/*",
     "libs/storage-strategies/*",
