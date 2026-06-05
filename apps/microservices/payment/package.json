@@ -1,0 +1,16 @@
+{
+  "name": "payment",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@idevconn/payment": "^1.2.0",
+    "@icore/shared": "*",
+    "@nestjs/common": "^11.1.24",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.24",
+    "@nestjs/microservices": "^11.1.24",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.3.0"
+  }
+}
