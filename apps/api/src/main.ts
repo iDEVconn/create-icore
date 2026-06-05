@@ -10,8 +10,6 @@ import pkg from '@icore/package.json';
 const GATEWAY_SERVICES = [
   { name: 'auth', prefix: 'AUTH' },
   { name: 'upload', prefix: 'UPLOAD' },
-  { name: 'notes', prefix: 'NOTES' },
-  { name: 'payment', prefix: 'PAYMENT' },
 ];
 
 const DEFAULT_PORT = 3001;
