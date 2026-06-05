@@ -65,14 +65,44 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/templates/client-shadcn/package.json'),
-    JSON.stringify({ name: 'client-shadcn', version: '0.0.1', private: true }, null, 2),
+    JSON.stringify(
+      {
+        name: 'client-shadcn',
+        version: '0.0.1',
+        private: true,
+        dependencies: { tailwindcss: '^4', 'lucide-react': '^1' },
+      },
+      null,
+      2,
+    ),
   );
-  // antd template stub — differentiates from shadcn via a marker file
+  // antd template stub
   await mkdir(join(tplDir, 'apps/templates/client-antd/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-antd/marker.txt'), 'antd');
-  // mui template stub — differentiates from shadcn/antd via a marker file
+  await writeFile(
+    join(tplDir, 'apps/templates/client-antd/package.json'),
+    JSON.stringify(
+      { name: 'client-antd', version: '0.0.1', private: true, dependencies: { antd: '^6' } },
+      null,
+      2,
+    ),
+  );
+  // mui template stub
   await mkdir(join(tplDir, 'apps/templates/client-mui/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-mui/marker.txt'), 'mui');
+  await writeFile(
+    join(tplDir, 'apps/templates/client-mui/package.json'),
+    JSON.stringify(
+      {
+        name: 'client-mui',
+        version: '0.0.1',
+        private: true,
+        dependencies: { '@mui/material': '^6', '@emotion/react': '^11' },
+      },
+      null,
+      2,
+    ),
+  );
 
   // notes MS stub
   await mkdir(join(tplDir, 'apps/microservices/notes/src'), { recursive: true });
@@ -624,6 +654,11 @@ describe('scaffold (integration, dry-run)', () => {
       await readFile(join(outputDir, 'apps/client/package.json'), 'utf8'),
     ) as { name: string; dependencies?: Record<string, string> };
     expect(clientPkg.name).toBe('client-shadcn');
+    // shadcn deps must be present in the workspace package.json
+    expect(clientPkg.dependencies).toMatchObject({
+      tailwindcss: expect.any(String),
+      'lucide-react': expect.any(String),
+    });
 
     // jobs MS removed — bullmq/ioredis no longer owned by any workspace package.json
     await expect(access(join(outputDir, 'apps/microservices/jobs/package.json'))).rejects.toThrow();
