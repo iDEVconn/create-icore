@@ -10,6 +10,7 @@
     "libs/*",
     "libs/auth-strategies/*",
     "libs/storage-strategies/*",
+    "libs/db-strategies/*",
     "tools/*"
   ],
   "scripts": {
