@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.6.3
+
+### Patch Changes
+
+- 5c0a90f: test: scaffold stubs with real UI deps; assert selected UI deps present in output; add mandatory prettier rule to AGENTS.md
+
 ## 0.6.2
 
 ### Patch Changes
