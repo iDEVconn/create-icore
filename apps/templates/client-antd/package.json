@@ -1,0 +1,9 @@
+{
+  "name": "client-antd",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@ant-design/icons": "^6",
+    "antd": "^6"
+  }
+}
