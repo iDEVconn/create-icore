@@ -12,23 +12,24 @@
 
 ## File Map
 
-| Action | File | Purpose |
-|--------|------|---------|
-| Create | `apps/microservices/jobs/package.json` | declare bullmq + ioredis ownership |
-| Create | `apps/microservices/notes/package.json` | declare notes MS deps (scaffold already references this) |
-| Create | `apps/microservices/payment/package.json` | declare @idevconn/payment ownership |
-| Create | `apps/templates/client-antd/package.json` | declare antd + @ant-design/icons |
-| Create | `apps/templates/client-mui/package.json` | declare @mui/* + @emotion/* |
-| Create | `apps/templates/client-shadcn/package.json` | declare radix-ui, lucide, tailwind, sonner, CVA, clsx, tailwind-merge |
-| Modify | `package.json` (root) | remove deps now owned by workspaces above + remove unused (react-router-dom, less, ioredis-mock) |
-| Modify | `tools/create-icore/_template-shell/package.json` | same cleanup as root (this becomes consumer's root) |
-| Modify | `apps/api/src/main.ts` | GATEWAY_SERVICES baseline = auth + upload only (notes/payment are optional) |
+| Action | File                                              | Purpose                                                                                          |
+| ------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Create | `apps/microservices/jobs/package.json`            | declare bullmq + ioredis ownership                                                               |
+| Create | `apps/microservices/notes/package.json`           | declare notes MS deps (scaffold already references this)                                         |
+| Create | `apps/microservices/payment/package.json`         | declare @idevconn/payment ownership                                                              |
+| Create | `apps/templates/client-antd/package.json`         | declare antd + @ant-design/icons                                                                 |
+| Create | `apps/templates/client-mui/package.json`          | declare @mui/_ + @emotion/_                                                                      |
+| Create | `apps/templates/client-shadcn/package.json`       | declare radix-ui, lucide, tailwind, sonner, CVA, clsx, tailwind-merge                            |
+| Modify | `package.json` (root)                             | remove deps now owned by workspaces above + remove unused (react-router-dom, less, ioredis-mock) |
+| Modify | `tools/create-icore/_template-shell/package.json` | same cleanup as root (this becomes consumer's root)                                              |
+| Modify | `apps/api/src/main.ts`                            | GATEWAY_SERVICES baseline = auth + upload only (notes/payment are optional)                      |
 
 ---
 
 ## Task 1: Add jobs MS package.json
 
 **Files:**
+
 - Create: `apps/microservices/jobs/package.json`
 
 jobs MS imports `bullmq` and `ioredis` directly (see `redis-connection.ts` and workers). These are currently in root. After this task, removing the jobs workspace dir removes these deps.
@@ -71,6 +72,7 @@ git commit -m "chore(deps): add package.json to jobs MS"
 ## Task 2: Add notes MS package.json
 
 **Files:**
+
 - Create: `apps/microservices/notes/package.json`
 
 `scaffold.ts` lines 552–555 already call `stripDeps(targetDir, 'apps/microservices/notes/package.json', ['@icore/db-firestore', '@icore/firebase-admin'])` — silent no-op because file doesn't exist. This task fixes that.
@@ -116,6 +118,7 @@ git commit -m "chore(deps): add package.json to notes MS (fixes scaffold stripDe
 ## Task 3: Add payment MS package.json
 
 **Files:**
+
 - Create: `apps/microservices/payment/package.json`
 
 `@idevconn/payment` lives in root but is only used by payment MS (and api/package.json for gateway). After this, scaffold's `removePaymentStack()` deletes the dir → yarn drops `@idevconn/payment` from this workspace.
@@ -158,6 +161,7 @@ git commit -m "chore(deps): add package.json to payment MS"
 ## Task 4: Add client-antd package.json
 
 **Files:**
+
 - Create: `apps/templates/client-antd/package.json`
 
 `antd` and `@ant-design/icons` are antd-template-only. When CLI picks shadcn or mui, `apps/templates/client-antd` is removed → these packages disappear. `dayjs` stays in root (also used by shadcn template's date pickers).
@@ -193,6 +197,7 @@ git commit -m "chore(deps): add package.json to client-antd template"
 ## Task 5: Add client-mui package.json
 
 **Files:**
+
 - Create: `apps/templates/client-mui/package.json`
 
 MUI + Emotion are mui-only. ~4 MB of deps that no shadcn/antd user should install.
@@ -230,6 +235,7 @@ git commit -m "chore(deps): add package.json to client-mui template"
 ## Task 6: Add client-shadcn package.json
 
 **Files:**
+
 - Create: `apps/templates/client-shadcn/package.json`
 
 Tailwind + Radix UI + shadcn utilities are shadcn-only. When CLI picks antd/mui, this template dir is removed.
@@ -274,11 +280,13 @@ git commit -m "chore(deps): add package.json to client-shadcn template"
 ## Task 7: Clean root package.json
 
 **Files:**
+
 - Modify: `package.json`
 
 Remove deps now owned by workspaces (Tasks 1–6) and unused deps. Exact list:
 
 **Remove from `dependencies`:**
+
 - `@ant-design/icons` → client-antd
 - `@emotion/react` → client-mui
 - `@emotion/styled` → client-mui
@@ -303,12 +311,13 @@ Remove deps now owned by workspaces (Tasks 1–6) and unused deps. Exact list:
 - `tailwindcss` → client-shadcn
 
 **Remove from `devDependencies`:**
+
 - `ioredis-mock` → zero imports in codebase, unused
 - `less` → zero imports in codebase, unused
 
 - [ ] **Step 1: Remove from dependencies**
 
-Edit `package.json` — delete the listed keys from the `"dependencies"` block. Keep everything else (react, @nestjs/*, @tanstack/*, i18next, zustand, @casl/*, @idevconn/api-client, @idevconn/use-draft, axios, cloudinary, @supabase/supabase-js, dayjs, amqplib, amqp-connection-manager, nats, kafkajs, mqtt, cookie-parser, reflect-metadata, rxjs, kleur, @clack/prompts, classnames).
+Edit `package.json` — delete the listed keys from the `"dependencies"` block. Keep everything else (react, @nestjs/_, @tanstack/_, i18next, zustand, @casl/\*, @idevconn/api-client, @idevconn/use-draft, axios, cloudinary, @supabase/supabase-js, dayjs, amqplib, amqp-connection-manager, nats, kafkajs, mqtt, cookie-parser, reflect-metadata, rxjs, kleur, @clack/prompts, classnames).
 
 - [ ] **Step 2: Remove from devDependencies**
 
@@ -331,6 +340,7 @@ git commit -m "chore(deps): remove orphan app deps from root package.json"
 ## Task 8: Clean template-shell package.json
 
 **Files:**
+
 - Modify: `tools/create-icore/_template-shell/package.json`
 
 This is the package.json that `create-icore` CLI copies to consumer projects. It has the same dep bloat as root. Apply the same removals as Task 7.
@@ -366,6 +376,7 @@ git commit -m "chore(deps): remove orphan app deps from template-shell package.j
 ## Task 9: Fix GATEWAY_SERVICES in main.ts
 
 **Files:**
+
 - Modify: `apps/api/src/main.ts`
 
 Current `GATEWAY_SERVICES` hardcodes notes and payment, but those MSes are optional and get removed by scaffold when `example=none` / `payment=none`. The banner then lists services that don't exist. Baseline = auth + upload only. Scaffold's `removeNotesStack` / `removePaymentStack` must also strip their entries from this array.
@@ -397,18 +408,15 @@ const GATEWAY_SERVICES = [
 In `tools/create-icore/src/lib/scaffold.ts`, inside `removeNotesStack()`, add after the `stripGatewayTransport(targetDir, 'NOTES')` call:
 
 ```ts
-  // Strip notes entry from GATEWAY_SERVICES in main.ts
-  const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
-  try {
-    const src = await readFile(mainTsPath, 'utf8');
-    const next = src.replace(
-      /\n\s*\{ name: 'notes', prefix: 'NOTES' \},/,
-      '',
-    );
-    await writeFile(mainTsPath, next);
-  } catch {
-    // ignore — main.ts may not exist in test scaffolds
-  }
+// Strip notes entry from GATEWAY_SERVICES in main.ts
+const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
+try {
+  const src = await readFile(mainTsPath, 'utf8');
+  const next = src.replace(/\n\s*\{ name: 'notes', prefix: 'NOTES' \},/, '');
+  await writeFile(mainTsPath, next);
+} catch {
+  // ignore — main.ts may not exist in test scaffolds
+}
 ```
 
 - [ ] **Step 3: Fix removePaymentStack in scaffold.ts**
@@ -416,18 +424,15 @@ In `tools/create-icore/src/lib/scaffold.ts`, inside `removeNotesStack()`, add af
 In `tools/create-icore/src/lib/scaffold.ts`, inside `removePaymentStack()`, add after the `stripGatewayTransport(targetDir, 'PAYMENT')` call:
 
 ```ts
-  // Strip payment entry from GATEWAY_SERVICES in main.ts
-  const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
-  try {
-    const src = await readFile(mainTsPath, 'utf8');
-    const next = src.replace(
-      /\n\s*\{ name: 'payment', prefix: 'PAYMENT' \},/,
-      '',
-    );
-    await writeFile(mainTsPath, next);
-  } catch {
-    // ignore — main.ts may not exist in test scaffolds
-  }
+// Strip payment entry from GATEWAY_SERVICES in main.ts
+const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
+try {
+  const src = await readFile(mainTsPath, 'utf8');
+  const next = src.replace(/\n\s*\{ name: 'payment', prefix: 'PAYMENT' \},/, '');
+  await writeFile(mainTsPath, next);
+} catch {
+  // ignore — main.ts may not exist in test scaffolds
+}
 ```
 
 - [ ] **Step 4: Commit**
@@ -476,6 +481,7 @@ Expected: all pass. The scaffold tests that call `stripDeps` on `apps/microservi
 - [ ] **Step 7: Commit if any prettier/lint auto-fixes needed**
 
 If linter auto-fixed anything:
+
 ```bash
 git add -p
 git commit -m "chore: post-verify lint fixes"
@@ -486,12 +492,13 @@ git commit -m "chore: post-verify lint fixes"
 ## Self-Review
 
 **Spec coverage:**
+
 - ✅ bullmq/ioredis → jobs MS package.json (Task 1)
 - ✅ firebase-admin duplicate removed from root (Task 7)
 - ✅ bullmq/@bull-board root → @bull-board stays in api/package.json (already there), bullmq → jobs (Task 1+7)
 - ✅ @idevconn/payment → payment MS package.json (Task 3) + root removal (Task 7)
 - ✅ antd+@ant-design/icons → client-antd package.json (Task 4+7)
-- ✅ @mui/*+@emotion/* → client-mui package.json (Task 5+7)
+- ✅ @mui/_+@emotion/_ → client-mui package.json (Task 5+7)
 - ✅ react-router-dom → deleted (Task 7) — zero imports confirmed
 - ✅ less → deleted (Task 7) — zero imports confirmed
 - ✅ ioredis-mock → deleted (Task 7) — zero imports confirmed

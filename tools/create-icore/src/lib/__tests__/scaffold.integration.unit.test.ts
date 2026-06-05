@@ -103,29 +103,51 @@ async function makeFakeTemplates(): Promise<string> {
 
   await writeFile(
     join(tplDir, 'apps/api/package.json'),
-    JSON.stringify({
-      name: 'api',
-      dependencies: {
-        '@icore/jobs-client': '*',
-        '@bull-board/api': '^7',
-        '@bull-board/express': '^7',
-        '@icore/payment-client': '*',
-        '@idevconn/payment': '^1.2.0',
+    JSON.stringify(
+      {
+        name: 'api',
+        dependencies: {
+          '@icore/jobs-client': '*',
+          '@bull-board/api': '^7',
+          '@bull-board/express': '^7',
+          '@icore/payment-client': '*',
+          '@idevconn/payment': '^1.2.0',
+        },
       },
-    }, null, 2),
+      null,
+      2,
+    ),
   );
 
   // client-antd package.json — antd-specific deps
   await writeFile(
     join(tplDir, 'apps/templates/client-antd/package.json'),
-    JSON.stringify({ name: 'client-antd', version: '0.0.1', private: true, dependencies: { antd: '^6', '@ant-design/icons': '^6' } }, null, 2),
+    JSON.stringify(
+      {
+        name: 'client-antd',
+        version: '0.0.1',
+        private: true,
+        dependencies: { antd: '^6', '@ant-design/icons': '^6' },
+      },
+      null,
+      2,
+    ),
   );
 
   // client-mui package.json — mui-specific deps
   await mkdir(join(tplDir, 'apps/templates/client-mui'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/templates/client-mui/package.json'),
-    JSON.stringify({ name: 'client-mui', version: '0.0.1', private: true, dependencies: { '@mui/material': '^6', '@emotion/react': '^11' } }, null, 2),
+    JSON.stringify(
+      {
+        name: 'client-mui',
+        version: '0.0.1',
+        private: true,
+        dependencies: { '@mui/material': '^6', '@emotion/react': '^11' },
+      },
+      null,
+      2,
+    ),
   );
 
   // jobs MS stub + package.json
@@ -133,7 +155,16 @@ async function makeFakeTemplates(): Promise<string> {
   await writeFile(join(tplDir, 'apps/microservices/jobs/src/main.ts'), 'export {};');
   await writeFile(
     join(tplDir, 'apps/microservices/jobs/package.json'),
-    JSON.stringify({ name: 'jobs', version: '0.0.1', private: true, dependencies: { bullmq: '^5', ioredis: '^5' } }, null, 2),
+    JSON.stringify(
+      {
+        name: 'jobs',
+        version: '0.0.1',
+        private: true,
+        dependencies: { bullmq: '^5', ioredis: '^5' },
+      },
+      null,
+      2,
+    ),
   );
 
   // jobs-client lib stub + package.json (removeJobsStack deletes this dir)
@@ -141,19 +172,40 @@ async function makeFakeTemplates(): Promise<string> {
   await writeFile(join(tplDir, 'libs/jobs-client/src/index.ts'), 'export {};');
   await writeFile(
     join(tplDir, 'libs/jobs-client/package.json'),
-    JSON.stringify({ name: '@icore/jobs-client', version: '0.0.1', private: true, dependencies: { bullmq: '^5', ioredis: '^5' } }, null, 2),
+    JSON.stringify(
+      {
+        name: '@icore/jobs-client',
+        version: '0.0.1',
+        private: true,
+        dependencies: { bullmq: '^5', ioredis: '^5' },
+      },
+      null,
+      2,
+    ),
   );
 
   // admin dir stub (removeJobsStack deletes apps/api/src/app/admin)
   await mkdir(join(tplDir, 'apps/api/src/app/admin'), { recursive: true });
-  await writeFile(join(tplDir, 'apps/api/src/app/admin/admin.module.ts'), "import { AdminModule } from './admin.module';\nexport class AdminModule {}");
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/admin/admin.module.ts'),
+    "import { AdminModule } from './admin.module';\nexport class AdminModule {}",
+  );
 
   // payment MS stub + package.json
   await mkdir(join(tplDir, 'apps/microservices/payment/src'), { recursive: true });
   await writeFile(join(tplDir, 'apps/microservices/payment/src/main.ts'), 'export {};');
   await writeFile(
     join(tplDir, 'apps/microservices/payment/package.json'),
-    JSON.stringify({ name: 'payment', version: '0.0.1', private: true, dependencies: { '@idevconn/payment': '^1.2.0' } }, null, 2),
+    JSON.stringify(
+      {
+        name: 'payment',
+        version: '0.0.1',
+        private: true,
+        dependencies: { '@idevconn/payment': '^1.2.0' },
+      },
+      null,
+      2,
+    ),
   );
 
   // payment-client lib stub + package.json (removePaymentStack deletes this)
@@ -161,13 +213,28 @@ async function makeFakeTemplates(): Promise<string> {
   await writeFile(join(tplDir, 'libs/payment-client/src/index.ts'), 'export {};');
   await writeFile(
     join(tplDir, 'libs/payment-client/package.json'),
-    JSON.stringify({ name: '@icore/payment-client', version: '0.0.1', private: true, dependencies: { '@idevconn/payment': '^1.2.0' } }, null, 2),
+    JSON.stringify(
+      {
+        name: '@icore/payment-client',
+        version: '0.0.1',
+        private: true,
+        dependencies: { '@idevconn/payment': '^1.2.0' },
+      },
+      null,
+      2,
+    ),
   );
 
   // payment gateway module stub (removePaymentStack deletes apps/api/src/app/payment)
   await mkdir(join(tplDir, 'apps/api/src/app/payment'), { recursive: true });
-  await writeFile(join(tplDir, 'apps/api/src/app/payment/payment.module.ts'), 'export class PaymentModule {}');
-  await writeFile(join(tplDir, 'apps/api/src/app/payment/payment.controller.ts'), "import type { PaymentClientService } from '@icore/payment-client';");
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/payment/payment.module.ts'),
+    'export class PaymentModule {}',
+  );
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/payment/payment.controller.ts'),
+    "import type { PaymentClientService } from '@icore/payment-client';",
+  );
 
   // shadcn template: notes route + query stubs
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard'), {
@@ -563,11 +630,21 @@ describe('scaffold (integration, dry-run)', () => {
     await expect(access(join(outputDir, 'libs/jobs-client/package.json'))).rejects.toThrow();
 
     // payment MS removed — @idevconn/payment no longer owned by any workspace package.json
-    await expect(access(join(outputDir, 'apps/microservices/payment/package.json'))).rejects.toThrow();
+    await expect(
+      access(join(outputDir, 'apps/microservices/payment/package.json')),
+    ).rejects.toThrow();
     await expect(access(join(outputDir, 'libs/payment-client/package.json'))).rejects.toThrow();
 
     // Scan all remaining package.json files to confirm no orphaned deps leak through
-    const forbidden = ['antd', '@ant-design/icons', '@mui/material', '@emotion/react', 'bullmq', 'ioredis', '@idevconn/payment'];
+    const forbidden = [
+      'antd',
+      '@ant-design/icons',
+      '@mui/material',
+      '@emotion/react',
+      'bullmq',
+      'ioredis',
+      '@idevconn/payment',
+    ];
     const pkgFiles = await findPackageJsonFiles(outputDir);
     for (const pkgFile of pkgFiles) {
       const raw = JSON.parse(await readFile(pkgFile, 'utf8')) as {

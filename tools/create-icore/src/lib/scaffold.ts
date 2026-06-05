@@ -294,10 +294,7 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
   const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
   try {
     const src = await readFile(mainTsPath, 'utf8');
-    const next = src.replace(
-      /\n\s*\{ name: 'payment', prefix: 'PAYMENT' \},/,
-      '',
-    );
+    const next = src.replace(/\n\s*\{ name: 'payment', prefix: 'PAYMENT' \},/, '');
     await writeFile(mainTsPath, next);
   } catch {
     // ignore — main.ts may not exist in test scaffolds
@@ -348,10 +345,7 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
   const mainTsPath = join(targetDir, 'apps/api/src/main.ts');
   try {
     const src = await readFile(mainTsPath, 'utf8');
-    const next = src.replace(
-      /\n\s*\{ name: 'notes', prefix: 'NOTES' \},/,
-      '',
-    );
+    const next = src.replace(/\n\s*\{ name: 'notes', prefix: 'NOTES' \},/, '');
     await writeFile(mainTsPath, next);
   } catch {
     // ignore — main.ts may not exist in test scaffolds
