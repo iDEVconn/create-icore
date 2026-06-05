@@ -1,19 +1,14 @@
 {
-  "name": "upload",
+  "name": "payment",
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@icore/firebase-admin": "*",
     "@icore/shared": "*",
-    "@icore/storage-cloudinary": "*",
-    "@icore/storage-firebase": "*",
-    "@icore/storage-supabase": "*",
+    "@idevconn/payment": "^1.2.0",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.24",
     "@nestjs/microservices": "^11.1.24",
-    "@supabase/supabase-js": "^2.106.2",
-    "cloudinary": "^2.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "tslib": "^2.3.0"

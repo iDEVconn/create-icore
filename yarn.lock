@@ -2886,7 +2886,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/auth-firebase@workspace:libs/auth-strategies/firebase":
+"@icore/auth-firebase@npm:*, @icore/auth-firebase@workspace:libs/auth-strategies/firebase":
   version: 0.0.0-use.local
   resolution: "@icore/auth-firebase@workspace:libs/auth-strategies/firebase"
   dependencies:
@@ -2896,7 +2896,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/auth-supabase@workspace:libs/auth-strategies/supabase":
+"@icore/auth-supabase@npm:*, @icore/auth-supabase@workspace:libs/auth-strategies/supabase":
   version: 0.0.0-use.local
   resolution: "@icore/auth-supabase@workspace:libs/auth-strategies/supabase"
   dependencies:
@@ -2907,7 +2907,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/firebase-admin@workspace:libs/firebase-admin":
+"@icore/db-firestore@npm:*, @icore/db-firestore@workspace:libs/db-strategies/firestore":
+  version: 0.0.0-use.local
+  resolution: "@icore/db-firestore@workspace:libs/db-strategies/firestore"
+  dependencies:
+    "@icore/shared": "npm:*"
+    tslib: "npm:^2.3.0"
+    vitest: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@icore/db-supabase@npm:*, @icore/db-supabase@workspace:libs/db-strategies/supabase":
+  version: 0.0.0-use.local
+  resolution: "@icore/db-supabase@workspace:libs/db-strategies/supabase"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@supabase/supabase-js": "npm:^2.0.0"
+    tslib: "npm:^2.3.0"
+    vitest: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@icore/firebase-admin@npm:*, @icore/firebase-admin@workspace:libs/firebase-admin":
   version: 0.0.0-use.local
   resolution: "@icore/firebase-admin@workspace:libs/firebase-admin"
   dependencies:
@@ -2964,7 +2985,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/storage-cloudinary@workspace:libs/storage-strategies/cloudinary":
+"@icore/storage-cloudinary@npm:*, @icore/storage-cloudinary@workspace:libs/storage-strategies/cloudinary":
   version: 0.0.0-use.local
   resolution: "@icore/storage-cloudinary@workspace:libs/storage-strategies/cloudinary"
   dependencies:
@@ -2974,7 +2995,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/storage-firebase@workspace:libs/storage-strategies/firebase":
+"@icore/storage-firebase@npm:*, @icore/storage-firebase@workspace:libs/storage-strategies/firebase":
   version: 0.0.0-use.local
   resolution: "@icore/storage-firebase@workspace:libs/storage-strategies/firebase"
   dependencies:
@@ -2984,7 +3005,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/storage-supabase@workspace:libs/storage-strategies/supabase":
+"@icore/storage-supabase@npm:*, @icore/storage-supabase@workspace:libs/storage-strategies/supabase":
   version: 0.0.0-use.local
   resolution: "@icore/storage-supabase@workspace:libs/storage-strategies/supabase"
   dependencies:
@@ -3096,14 +3117,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ioredis/as-callback@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@ioredis/as-callback@npm:3.0.0"
-  checksum: 10c0/cbeae0c4a8f8f8ea1987d105056fd595a5a1a781a73dfa3a13ac13027fd1de099af6f3590bd315fd20284efd8597430a7ba3b912570804d158dabbdb2071523b
-  languageName: node
-  linkType: hard
-
-"@ioredis/commands@npm:1.10.0, @ioredis/commands@npm:^1.4.0":
+"@ioredis/commands@npm:1.10.0":
   version: 1.10.0
   resolution: "@ioredis/commands@npm:1.10.0"
   checksum: 10c0/baf91e62d0e64ef2b5f7ca4413dc2456fe250e87483beac4a1c8ef1fe5ad0d2fcdeb9b89d4556d8ef6c7455c64a964359d729601fdb06b2f4c76c35dd59afa99
@@ -7149,13 +7163,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@remix-run/router@npm:1.23.2":
-  version: 1.23.2
-  resolution: "@remix-run/router@npm:1.23.2"
-  checksum: 10c0/7096b7f2086b2cd80c9e06873b71a8317e04858c01edc06a6fed187b660408a90f47c8e120e8af4c369cf1fa6b6a316a66b0917f42b6eb8a566e98b277c50449
-  languageName: node
-  linkType: hard
-
 "@rolldown/binding-android-arm64@npm:1.0.2":
   version: 1.0.2
   resolution: "@rolldown/binding-android-arm64@npm:1.0.2"
@@ -10637,6 +10644,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"auth@workspace:apps/microservices/auth":
+  version: 0.0.0-use.local
+  resolution: "auth@workspace:apps/microservices/auth"
+  dependencies:
+    "@icore/auth-firebase": "npm:*"
+    "@icore/auth-supabase": "npm:*"
+    "@icore/firebase-admin": "npm:*"
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/core": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    "@supabase/supabase-js": "npm:^2.106.2"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.8.1"
+  languageName: unknown
+  linkType: soft
+
 "autoprefixer@npm:^10.4.9":
   version: 10.5.0
   resolution: "autoprefixer@npm:10.5.0"
@@ -11572,6 +11598,44 @@ __metadata:
   languageName: node
   linkType: hard
 
+"client-antd@workspace:apps/templates/client-antd":
+  version: 0.0.0-use.local
+  resolution: "client-antd@workspace:apps/templates/client-antd"
+  dependencies:
+    "@ant-design/icons": "npm:^6"
+    antd: "npm:^6"
+  languageName: unknown
+  linkType: soft
+
+"client-mui@workspace:apps/templates/client-mui":
+  version: 0.0.0-use.local
+  resolution: "client-mui@workspace:apps/templates/client-mui"
+  dependencies:
+    "@emotion/react": "npm:^11"
+    "@emotion/styled": "npm:^11"
+    "@mui/icons-material": "npm:^6"
+    "@mui/material": "npm:^6"
+  languageName: unknown
+  linkType: soft
+
+"client-shadcn@workspace:apps/templates/client-shadcn":
+  version: 0.0.0-use.local
+  resolution: "client-shadcn@workspace:apps/templates/client-shadcn"
+  dependencies:
+    "@radix-ui/react-dialog": "npm:^1.1.15"
+    "@radix-ui/react-dropdown-menu": "npm:^2.1.16"
+    "@radix-ui/react-label": "npm:^2.1.8"
+    "@radix-ui/react-slot": "npm:^1.2.4"
+    "@tailwindcss/vite": "npm:^4.3.0"
+    class-variance-authority: "npm:^0.7.1"
+    clsx: "npm:^2.1.1"
+    lucide-react: "npm:^1.17.0"
+    sonner: "npm:^2.0.7"
+    tailwind-merge: "npm:^3.6.0"
+    tailwindcss: "npm:^4"
+  languageName: unknown
+  linkType: soft
+
 "cliui@npm:8.0.1, cliui@npm:^8.0.1":
   version: 8.0.1
   resolution: "cliui@npm:8.0.1"
@@ -11601,7 +11665,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cloudinary@npm:^2.10.0":
+"cloudinary@npm:^2.0.0, cloudinary@npm:^2.10.0":
   version: 2.10.0
   resolution: "cloudinary@npm:2.10.0"
   dependencies:
@@ -14057,26 +14121,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fengari-interop@npm:^0.1.3":
-  version: 0.1.4
-  resolution: "fengari-interop@npm:0.1.4"
-  peerDependencies:
-    fengari: ^0.1.0
-  checksum: 10c0/ba8aca9b741b603a7740343b3f99dbd60c4536aab115a8e02caa33030e16e0dd13a0d03f0c31050f7fa1ead7945358040cead48531df41c3b3147e61b50f383c
-  languageName: node
-  linkType: hard
-
-"fengari@npm:^0.1.4":
-  version: 0.1.5
-  resolution: "fengari@npm:0.1.5"
-  dependencies:
-    readline-sync: "npm:^1.4.10"
-    sprintf-js: "npm:^1.1.3"
-    tmp: "npm:^0.2.5"
-  checksum: 10c0/8688c3483e00028b0b09928f71452bb2c8b4db5f7380e0e8dd65619bb4ccb38438557ebdfd977c55a6d3fb5e7601cbac26c62873317320ffd20b59936f464244
-  languageName: node
-  linkType: hard
-
 "fetch-blob@npm:^3.1.2, fetch-blob@npm:^3.1.4":
   version: 3.2.0
   resolution: "fetch-blob@npm:3.2.0"
@@ -15451,19 +15495,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "icore@workspace:."
   dependencies:
-    "@ant-design/icons": "npm:^6"
     "@casl/ability": "npm:^7"
     "@casl/react": "npm:^7.0.0"
     "@changesets/cli": "npm:^2.31.0"
     "@clack/prompts": "npm:^1.4.0"
-    "@emotion/react": "npm:^11"
-    "@emotion/styled": "npm:^11"
     "@eslint/js": "npm:^10.0.1"
     "@idevconn/api-client": "npm:^0.3.0"
-    "@idevconn/payment": "npm:^1.2.0"
     "@idevconn/use-draft": "npm:^0.2.0"
-    "@mui/icons-material": "npm:^6"
-    "@mui/material": "npm:^6"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.1.24"
@@ -15487,16 +15525,11 @@ __metadata:
     "@nx/web": "npm:22.7.5"
     "@nx/webpack": "npm:^22.7.5"
     "@playwright/test": "npm:^1.36.0"
-    "@radix-ui/react-dialog": "npm:^1.1.15"
-    "@radix-ui/react-dropdown-menu": "npm:^2.1.16"
-    "@radix-ui/react-label": "npm:^2.1.8"
-    "@radix-ui/react-slot": "npm:^1.2.4"
     "@supabase/supabase-js": "npm:^2.106.2"
     "@swc-node/register": "npm:~1.11.1"
     "@swc/cli": "npm:~0.8.0"
     "@swc/core": "npm:~1.15.5"
     "@swc/helpers": "npm:~0.5.18"
-    "@tailwindcss/vite": "npm:^4.3.0"
     "@tanstack/react-query": "npm:^5.100.14"
     "@tanstack/react-router": "npm:^1.170.8"
     "@tanstack/router-plugin": "npm:^1.168.11"
@@ -15514,13 +15547,9 @@ __metadata:
     "@vitest/ui": "npm:~4.1.0"
     amqp-connection-manager: "npm:^5.0.0"
     amqplib: "npm:^2.0.1"
-    antd: "npm:^6"
     axios: "npm:^1.6.0"
-    bullmq: "npm:^5.77.6"
-    class-variance-authority: "npm:^0.7.1"
     classnames: "npm:^2.5.1"
     cloudinary: "npm:^2.10.0"
-    clsx: "npm:^2.1.1"
     cookie-parser: "npm:^1.4.7"
     dayjs: "npm:^1.11.21"
     eslint: "npm:^10.0.0"
@@ -15529,11 +15558,8 @@ __metadata:
     eslint-plugin-playwright: "npm:^1.6.2"
     eslint-plugin-react: "npm:7.35.0"
     eslint-plugin-react-hooks: "npm:5.0.0"
-    firebase-admin: "npm:^13.10.0"
     husky: "npm:^9.1.7"
     i18next: "npm:^26.3.0"
-    ioredis: "npm:^5.11.0"
-    ioredis-mock: "npm:^8.13.1"
     jest: "npm:~30.3.0"
     jest-environment-node: "npm:~30.3.0"
     jest-util: "npm:~30.3.0"
@@ -15542,9 +15568,7 @@ __metadata:
     jsonc-eslint-parser: "npm:^2.1.0"
     kafkajs: "npm:^2.2.4"
     kleur: "npm:^4.1.5"
-    less: "npm:3.12.2"
     lint-staged: "npm:^17.0.5"
-    lucide-react: "npm:^1.17.0"
     mqtt: "npm:^5.15.1"
     nats: "npm:^2.29.3"
     nx: "npm:22.7.5"
@@ -15552,12 +15576,8 @@ __metadata:
     react: "npm:^19.2.6"
     react-dom: "npm:^19.2.6"
     react-i18next: "npm:^17.0.8"
-    react-router-dom: "npm:6.30.3"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
-    sonner: "npm:^2.0.7"
-    tailwind-merge: "npm:^3.6.0"
-    tailwindcss: "npm:^4"
     ts-jest: "npm:^29.4.0"
     ts-node: "npm:10.9.1"
     tsconfig-paths-webpack-plugin: "npm:^4.2.0"
@@ -15705,22 +15725,6 @@ __metadata:
   version: 3.1.1
   resolution: "interpret@npm:3.1.1"
   checksum: 10c0/6f3c4d0aa6ec1b43a8862375588a249e3c917739895cbe67fe12f0a76260ea632af51e8e2431b50fbcd0145356dc28ca147be08dbe6a523739fd55c0f91dc2a5
-  languageName: node
-  linkType: hard
-
-"ioredis-mock@npm:^8.13.1":
-  version: 8.13.1
-  resolution: "ioredis-mock@npm:8.13.1"
-  dependencies:
-    "@ioredis/as-callback": "npm:^3.0.0"
-    "@ioredis/commands": "npm:^1.4.0"
-    fengari: "npm:^0.1.4"
-    fengari-interop: "npm:^0.1.3"
-    semver: "npm:^7.7.2"
-  peerDependencies:
-    "@types/ioredis-mock": ^8
-    ioredis: ^5
-  checksum: 10c0/47e17a307301da01a89d041a6d6101828baefd3a1c216a09fe8ff9e1bd7d7239de93544365280f6cda4ad98af1f302e7497f9563f36cb24b528d9c7b3164301f
   languageName: node
   linkType: hard
 
@@ -17231,6 +17235,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jobs@workspace:apps/microservices/jobs":
+  version: 0.0.0-use.local
+  resolution: "jobs@workspace:apps/microservices/jobs"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/core": "npm:^11.1.24"
+    bullmq: "npm:^5.77.6"
+    ioredis: "npm:^5.11.0"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
+
 "jose@npm:^4.15.4":
   version: 4.15.9
   resolution: "jose@npm:4.15.9"
@@ -17605,39 +17625,6 @@ __metadata:
     webpack:
       optional: true
   checksum: 10c0/51808495837b20576296e67043f5c347e30fd9c370adb6542774020751ac1260f3825cab0fcaa24be64600e86e5ee1b5821bf1c77a87e8f4e832c1d2a177016f
-  languageName: node
-  linkType: hard
-
-"less@npm:3.12.2":
-  version: 3.12.2
-  resolution: "less@npm:3.12.2"
-  dependencies:
-    errno: "npm:^0.1.1"
-    graceful-fs: "npm:^4.1.2"
-    image-size: "npm:~0.5.0"
-    make-dir: "npm:^2.1.0"
-    mime: "npm:^1.4.1"
-    native-request: "npm:^1.0.5"
-    source-map: "npm:~0.6.0"
-    tslib: "npm:^1.10.0"
-  dependenciesMeta:
-    errno:
-      optional: true
-    graceful-fs:
-      optional: true
-    image-size:
-      optional: true
-    make-dir:
-      optional: true
-    mime:
-      optional: true
-    native-request:
-      optional: true
-    source-map:
-      optional: true
-  bin:
-    lessc: bin/lessc
-  checksum: 10c0/933b57a8a99c707fa1becb25ebc77ad8c09bd87fd5cbb1e92ee6cfa45eb944e2c688eb83766e5904c77ec670818d05c813ae3f70d6198b4ca1286dac491553e8
   languageName: node
   linkType: hard
 
@@ -18738,13 +18725,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"native-request@npm:^1.0.5":
-  version: 1.1.2
-  resolution: "native-request@npm:1.1.2"
-  checksum: 10c0/6126aef460472217e8fdc317e0461505500ca4812bb8c20a2a1ad3bfb6cd16e49a7a3b89f272701f0cb756e045deb428985051069c43140b9355f351c8cba344
-  languageName: node
-  linkType: hard
-
 "nats@npm:^2.29.3":
   version: 2.29.3
   resolution: "nats@npm:2.29.3"
@@ -18962,6 +18942,25 @@ __metadata:
   checksum: 10c0/1beb700ce42acb2288f39453cdf8001eead55bbf046d407936a40404af420b8c1c6be97a869884ae9e659d7b1c744e40e905c875ac9290644eec2e3e6fb0b370
   languageName: node
   linkType: hard
+
+"notes@workspace:apps/microservices/notes":
+  version: 0.0.0-use.local
+  resolution: "notes@workspace:apps/microservices/notes"
+  dependencies:
+    "@icore/db-firestore": "npm:*"
+    "@icore/db-supabase": "npm:*"
+    "@icore/firebase-admin": "npm:*"
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/core": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    "@supabase/supabase-js": "npm:^2.106.2"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
 
 "npm-run-path@npm:4.0.1, npm-run-path@npm:^4.0.1":
   version: 4.0.1
@@ -19773,6 +19772,22 @@ __metadata:
   checksum: 10c0/c118dc5a8b5c4166011b2b70608762e260085180bb9e33e80a50dcdb1e78c010b1624f4280c492c92b05fc276715a4c357d1f9edc570f8f1b3d90b6839ebaca1
   languageName: node
   linkType: hard
+
+"payment@workspace:apps/microservices/payment":
+  version: 0.0.0-use.local
+  resolution: "payment@workspace:apps/microservices/payment"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@idevconn/payment": "npm:^1.2.0"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/core": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
 
 "pend@npm:~1.2.0":
   version: 1.2.0
@@ -20753,30 +20768,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-router-dom@npm:6.30.3":
-  version: 6.30.3
-  resolution: "react-router-dom@npm:6.30.3"
-  dependencies:
-    "@remix-run/router": "npm:1.23.2"
-    react-router: "npm:6.30.3"
-  peerDependencies:
-    react: ">=16.8"
-    react-dom: ">=16.8"
-  checksum: 10c0/e8a1e13c662ed6ee71a785bd3418ba04b700bcd8aff6ea7b32524371e8abb1c85568cd4fe9b9e9d555b8101fd415f6f1796531f593da60be179ce75b37038657
-  languageName: node
-  linkType: hard
-
-"react-router@npm:6.30.3":
-  version: 6.30.3
-  resolution: "react-router@npm:6.30.3"
-  dependencies:
-    "@remix-run/router": "npm:1.23.2"
-  peerDependencies:
-    react: ">=16.8"
-  checksum: 10c0/a0a74bf5a933cf0abd47e0eac1d3a505cd66b866e3ee8f20d8016885d3b4361ba3ba72dee026248c6125e631b191ba6ad109184c892281cea6cb747c71bf5940
-  languageName: node
-  linkType: hard
-
 "react-style-singleton@npm:^2.2.2, react-style-singleton@npm:^2.2.3":
   version: 2.2.3
   resolution: "react-style-singleton@npm:2.2.3"
@@ -20895,13 +20886,6 @@ __metadata:
   dependencies:
     picomatch: "npm:^2.2.1"
   checksum: 10c0/6fa848cf63d1b82ab4e985f4cf72bd55b7dcfd8e0a376905804e48c3634b7e749170940ba77b32804d5fe93b3cc521aa95a8d7e7d725f830da6d93f3669ce66b
-  languageName: node
-  linkType: hard
-
-"readline-sync@npm:^1.4.10":
-  version: 1.4.10
-  resolution: "readline-sync@npm:1.4.10"
-  checksum: 10c0/0a4d0fe4ad501f8f005a3c9cbf3cc0ae6ca2ced93e9a1c7c46f226bdfcb6ef5d3f437ae7e9d2e1098ee13524a3739c830e4c8dbc7f543a693eecd293e41093a3
   languageName: node
   linkType: hard
 
@@ -22430,13 +22414,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sprintf-js@npm:^1.1.3":
-  version: 1.1.3
-  resolution: "sprintf-js@npm:1.1.3"
-  checksum: 10c0/09270dc4f30d479e666aee820eacd9e464215cdff53848b443964202bf4051490538e5dd1b42e1a65cf7296916ca17640aebf63dae9812749c7542ee5f288dec
-  languageName: node
-  linkType: hard
-
 "sprintf-js@npm:~1.0.2":
   version: 1.0.3
   resolution: "sprintf-js@npm:1.0.3"
@@ -23270,13 +23247,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tmp@npm:^0.2.5":
-  version: 0.2.7
-  resolution: "tmp@npm:0.2.7"
-  checksum: 10c0/59eb55584f2f07210d3231b6a1f6b5c2b9794d8a7b509c8ee867ed2acad6d2245ee2448b7937b676ffbff3155a70077edde8a69f9d7cf0f90c86a62e8910c357
-  languageName: node
-  linkType: hard
-
 "tmpl@npm:1.0.5":
   version: 1.0.5
   resolution: "tmpl@npm:1.0.5"
@@ -23516,7 +23486,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^1.10.0, tslib@npm:^1.9.3":
+"tslib@npm:^1.9.3":
   version: 1.14.1
   resolution: "tslib@npm:1.14.1"
   checksum: 10c0/69ae09c49eea644bc5ebe1bca4fa4cc2c82b7b3e02f43b84bd891504edf66dbc6b2ec0eef31a957042de2269139e4acff911e6d186a258fb14069cd7f6febce2
@@ -24020,6 +23990,27 @@ __metadata:
   checksum: 10c0/13a00355ea822388f68af57410ce3255941d5fb9b7c49342c4709a07c9f230bbef7f7499ae0ca7e0de532e79a82cc0c4edbd125f1a323a1845bf914efddf8bec
   languageName: node
   linkType: hard
+
+"upload@workspace:apps/microservices/upload":
+  version: 0.0.0-use.local
+  resolution: "upload@workspace:apps/microservices/upload"
+  dependencies:
+    "@icore/firebase-admin": "npm:*"
+    "@icore/shared": "npm:*"
+    "@icore/storage-cloudinary": "npm:*"
+    "@icore/storage-firebase": "npm:*"
+    "@icore/storage-supabase": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/core": "npm:^11.1.24"
+    "@nestjs/microservices": "npm:^11.1.24"
+    "@supabase/supabase-js": "npm:^2.106.2"
+    cloudinary: "npm:^2.0.0"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.3.0"
+  languageName: unknown
+  linkType: soft
 
 "uri-js@npm:^4.2.2":
   version: 4.4.1
