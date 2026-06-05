@@ -655,7 +655,10 @@ describe('scaffold (integration, dry-run)', () => {
     ) as { name: string; dependencies?: Record<string, string> };
     expect(clientPkg.name).toBe('client-shadcn');
     // shadcn deps must be present in the workspace package.json
-    expect(clientPkg.dependencies).toMatchObject({ tailwindcss: expect.any(String), 'lucide-react': expect.any(String) });
+    expect(clientPkg.dependencies).toMatchObject({
+      tailwindcss: expect.any(String),
+      'lucide-react': expect.any(String),
+    });
 
     // jobs MS removed — bullmq/ioredis no longer owned by any workspace package.json
     await expect(access(join(outputDir, 'apps/microservices/jobs/package.json'))).rejects.toThrow();
