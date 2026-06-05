@@ -1,5 +1,17 @@
 # @idevconn/create-icore
 
+## 0.6.2
+
+### Patch Changes
+
+- 07b7c53: fix(deps): isolate optional app deps into workspace package.json files
+
+  Each optional app (jobs, notes, payment MSes; antd/mui/shadcn client templates) now
+  declares only its own runtime deps in a dedicated package.json. Removed 24 orphaned deps
+  from the root package.json that were always installed regardless of user choices.
+  Also adds missing workspace globs for apps/microservices/_, apps/templates/_,
+  libs/db-strategies/\* and fixes GATEWAY_SERVICES baseline.
+
 ## 0.6.1
 
 ### Patch Changes
