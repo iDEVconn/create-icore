@@ -1,0 +1,16 @@
+{
+  "name": "jobs",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@icore/shared": "*",
+    "@nestjs/common": "^11.1.24",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.24",
+    "bullmq": "^5.77.6",
+    "ioredis": "^5.11.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.3.0"
+  }
+}
