@@ -50,11 +50,11 @@ const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
   rmq: { amqplib: '^2.0.1', 'amqp-connection-manager': '^5.0.0' },
   kafka: { kafkajs: '^2.2.4' },
   mongodb: {
-    mongoose: '^8.4.0',
-    '@nestjs/mongoose': '^10.0.6',
-    bcrypt: '^5.1.1',
-    jsonwebtoken: '^9.0.2',
-    uuid: '^9.0.1',
+    mongoose: '^9.6.3',
+    '@nestjs/mongoose': '^11.0.4',
+    bcrypt: '^6.0.0',
+    jsonwebtoken: '^9.0.3',
+    uuid: '^14.0.0',
   },
 };
 
@@ -86,7 +86,7 @@ export async function rewriteRootPackageJson(
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, transportDeps);
   }
-  // Remove yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them.
+  // Remove the yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them.
   // For yarn, update it to the current version (corepack uses this to download the runtime).
   if (opts.packageManager !== 'yarn') {
     delete (pkg as { packageManager?: string }).packageManager;
@@ -350,7 +350,7 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
   // Strip @icore/notes-client dep from api/package.json. Also drop
   // @casl/ability: the gateway's only direct import of it lived in the notes
   // controller (`subject(...)`); the abilities infra itself consumes CASL via
-  // @icore/shared, so once notes is gone the raw dep is unused (@nx/dependency-checks).
+  // @icore/shared, so once notes are gone the raw dep is unused (@nx/dependency-checks).
   await stripDeps(join(targetDir, 'apps/api/package.json'), [
     '@icore/notes-client',
     '@casl/ability',
