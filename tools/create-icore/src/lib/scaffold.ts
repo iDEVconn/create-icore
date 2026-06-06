@@ -495,7 +495,7 @@ export async function removeUnusedAuthStrategies(
         .replace(/\nfunction makeFirebaseAuth[\s\S]*?\n}\n/gm, '')
         .replace(/\nfunction makeMongoDbAuth[\s\S]*?\n}\n/gm, '')
         // remove MongooseModule from imports
-        .replace(/\n {4}MongooseModule\.forRootAsync[\s\S]*?\}\),\n/gm, '')
+        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '')
         .replace(AUTH_BRANCH, 'return makeSupabaseAuth(cfg);')
         .replace(/, connection: Connection/, '')
         .replace(/, getConnectionToken\(\)/, '');
@@ -529,7 +529,7 @@ export async function removeUnusedAuthStrategies(
         .replace(/^ {2}mongodb: \[[^\]]*\],\n/gm, '')
         .replace(/\nfunction makeSupabaseAuth[\s\S]*?\n}\n/gm, '')
         .replace(/\nfunction makeMongoDbAuth[\s\S]*?\n}\n/gm, '')
-        .replace(/\n {4}MongooseModule\.forRootAsync[\s\S]*?\}\),\n/gm, '')
+        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '')
         .replace(AUTH_BRANCH, 'return makeFirebaseAuth(cfg);')
         .replace(/, connection: Connection/, '')
         .replace(/, getConnectionToken\(\)/, '');
@@ -656,7 +656,7 @@ export async function removeUnusedStorageStrategies(
         .replace(/^import \{ Connection \} from 'mongoose';\n/gm, '')
         .replace(/^ {2}mongodb: \[[^\]]*\],\n/gm, '')
         .replace(/\nfunction makeMongoDbStorage[\s\S]*?\n}\n/gm, '')
-        .replace(/\n {4}MongooseModule\.forRootAsync[\s\S]*?\}\),\n/gm, '');
+        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '');
     }
 
     // Collapse the 4-line provider branch to a single return for the chosen one.
@@ -711,7 +711,7 @@ export async function removeUnusedDbStrategies(
         // drop factory functions
         .replace(/\nfunction makeFirestoreDB[\s\S]*?\n}\n/gm, '')
         .replace(/\nfunction makeMongoDb[\s\S]*?\n}\n/gm, '')
-        .replace(/\n {4}MongooseModule\.forRootAsync[\s\S]*?\}\),\n/gm, '')
+        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '')
         // collapse the provider branch to an unconditional supabase return
         .replace(DB_BRANCH, 'return makeSupabaseDB(cfg);')
         .replace(/, connection: Connection/, '')
@@ -746,7 +746,7 @@ export async function removeUnusedDbStrategies(
         .replace(/^ {2}mongodb: \[[^\]]*\],\n/gm, '')
         .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/gm, '')
         .replace(/\nfunction makeMongoDb[\s\S]*?\n}\n/gm, '')
-        .replace(/\n {4}MongooseModule\.forRootAsync[\s\S]*?\}\),\n/gm, '')
+        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '')
         .replace(/\nfunction requireEnv[\s\S]*?\n}\n/gm, '')
         // collapse the provider branch to an unconditional firestore return
         .replace(DB_BRANCH, 'return makeFirestoreDB(cfg);')

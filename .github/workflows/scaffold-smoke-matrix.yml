@@ -41,6 +41,8 @@ jobs:
             flags: --auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats --ui=mui
           - name: no-upload-kafka-shadcn
             flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=kafka --ui=shadcn
+          - name: mongodb-full-tcp-shadcn
+            flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
     steps:
       - uses: actions/checkout@v5
         with:

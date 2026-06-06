@@ -45,3 +45,16 @@ Implement the Strategy pattern for MongoDB across three domains:
 - [x] Build all libraries: `nx build db-mongodb`, `nx build storage-mongodb`, `nx build auth-mongodb`.
 - [x] Contract tests: All tests passed for DB, Storage, and Auth strategies.
 - [x] Linting and formatting.
+
+### 5. Scaffold Smoke Coverage
+
+- [x] Add MongoDB combos to the Layer A typecheck matrix (`.github/workflows/pipeline.yml`):
+      `mongodb-full` (auth+db+upload=mongodb) and `mongodb-mixed` (auth=mongodb, db=firebase, upload=cloudinary).
+- [x] Add `mongodb-full-tcp-shadcn` to the Layer B install+boot matrix (`.github/workflows/scaffold-smoke-matrix.yml`).
+- [x] Fix the `MongooseModule.forRootAsync` strip regex in `scaffold.ts`: the non-greedy
+      `[\s\S]*?}),` stopped at the inner `useFactory` return, leaving a dangling
+      `inject: [ConfigService], }),` and breaking every non-MongoDB combo's generated
+      `app.module.ts`. Anchored the block start at line-start (`^ {4}MongooseModule`) and the
+      end at the 4-space outer close (`\n {4}}),\n`).
+- [x] Verified locally via `smoke-scaffold.mjs --mode=link` across 6 combos (all four existing
+      covering combos + 2 MongoDB combos) — all typecheck clean.

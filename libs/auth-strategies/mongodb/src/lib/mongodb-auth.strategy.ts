@@ -18,37 +18,36 @@ export interface MongoDbAuthStrategyOptions {
   refreshExpiresIn?: string;
 }
 
+interface UserDoc {
+  id: string;
+  email: string;
+  passwordHash?: string;
+  role?: string;
+}
+
+interface SessionDoc {
+  id: string;
+  userId: string;
+  refreshToken: string;
+  expiresAt: Date;
+}
+
 export class MongoDbAuthStrategy implements AuthStrategy {
-  private userModel: Model<{
-    id: string;
-    email: string;
-    passwordHash?: string;
-    role?: string;
-  }>;
-  private sessionModel: Model<{
-    id: string;
-    userId: string;
-    refreshToken: string;
-    expiresAt: Date;
-  }>;
+  private userModel: Model<UserDoc>;
+  private sessionModel: Model<SessionDoc>;
 
   constructor(private readonly opts: MongoDbAuthStrategyOptions) {
-    const userSchema = new Schema<{
-      id: string;
-      email: string;
-      passwordHash?: string;
-      role?: string;
-    }>(
+    const userSchema = new Schema<UserDoc>(
       {
         id: { type: String, required: true, unique: true },
         email: { type: String, required: true, unique: true },
-        passwordHash: { type: String },
-        role: { type: String },
+        passwordHash: { type: String, required: false },
+        role: { type: String, required: false },
       },
       { timestamps: true },
     );
 
-    const sessionSchema = new Schema(
+    const sessionSchema = new Schema<SessionDoc>(
       {
         id: { type: String, required: true, unique: true },
         userId: { type: String, required: true },
@@ -58,8 +57,8 @@ export class MongoDbAuthStrategy implements AuthStrategy {
       { timestamps: true },
     );
 
-    this.userModel = this.opts.connection.model('User', userSchema);
-    this.sessionModel = this.opts.connection.model('Session', sessionSchema);
+    this.userModel = this.opts.connection.model<UserDoc>('User', userSchema);
+    this.sessionModel = this.opts.connection.model<SessionDoc>('Session', sessionSchema);
   }
 
   async verifyToken(token: string): Promise<VerifiedToken> {
@@ -145,7 +144,7 @@ export class MongoDbAuthStrategy implements AuthStrategy {
   private async createSession(user: {
     id: string;
     email: string;
-    role?: string | null;
+    role?: string;
   }): Promise<AuthSession> {
     const accessToken = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
