@@ -22,8 +22,8 @@ export class MongoDbAuthStrategy implements AuthStrategy {
   private userModel: Model<{
     id: string;
     email: string;
-    passwordHash?: string | null;
-    role?: string | null;
+    passwordHash?: string;
+    role?: string;
   }>;
   private sessionModel: Model<{
     id: string;
@@ -33,7 +33,12 @@ export class MongoDbAuthStrategy implements AuthStrategy {
   }>;
 
   constructor(private readonly opts: MongoDbAuthStrategyOptions) {
-    const userSchema = new Schema(
+    const userSchema = new Schema<{
+      id: string;
+      email: string;
+      passwordHash?: string;
+      role?: string;
+    }>(
       {
         id: { type: String, required: true, unique: true },
         email: { type: String, required: true, unique: true },
