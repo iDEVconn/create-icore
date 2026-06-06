@@ -88,7 +88,11 @@ export async function rewriteRootPackageJson(
     Object.assign(deps, transportDeps);
   }
   // Add MongoDB dependencies if MongoDB is used as a provider for Auth, DB, or Storage.
-  if (opts.authProvider === 'mongodb' || opts.dbProvider === 'mongodb' || opts.upload === 'mongodb') {
+  if (
+    opts.authProvider === 'mongodb' ||
+    opts.dbProvider === 'mongodb' ||
+    opts.upload === 'mongodb'
+  ) {
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, MONGODB_DEPS);
   }

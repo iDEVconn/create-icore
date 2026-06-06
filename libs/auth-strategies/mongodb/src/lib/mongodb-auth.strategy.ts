@@ -20,7 +20,12 @@ export interface MongoDbAuthStrategyOptions {
 
 export class MongoDbAuthStrategy implements AuthStrategy {
   private userModel: Model<{ id: string; email: string; passwordHash?: string; role?: string }>;
-  private sessionModel: Model<{ id: string; userId: string; refreshToken: string; expiresAt: Date }>;
+  private sessionModel: Model<{
+    id: string;
+    userId: string;
+    refreshToken: string;
+    expiresAt: Date;
+  }>;
 
   constructor(private readonly opts: MongoDbAuthStrategyOptions) {
     const userSchema = new Schema(

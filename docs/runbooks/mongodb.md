@@ -21,6 +21,7 @@ docker run -d --name icore-mongo -p 27017:27017 mongo:latest
 Update your `.env` files in the microservices or root directory:
 
 ### Auth Microservice (`apps/microservices/auth/.env`)
+
 ```env
 AUTH_PROVIDER=mongodb
 MONGODB_URI=mongodb://localhost:27017/icore-auth
@@ -28,12 +29,14 @@ JWT_SECRET=your-secure-secret
 ```
 
 ### Storage Microservice (`apps/microservices/upload/.env`)
+
 ```env
 STORAGE_PROVIDER=mongodb
 MONGODB_URI=mongodb://localhost:27017/icore-upload
 ```
 
 ### Notes Microservice (Example) (`apps/microservices/notes/.env`)
+
 ```env
 DB_PROVIDER=mongodb
 MONGODB_URI=mongodb://localhost:27017/icore-data
@@ -42,13 +45,17 @@ MONGODB_URI=mongodb://localhost:27017/icore-data
 ## Implementation Details
 
 ### DB Strategy
+
 The `MongoDbDBStrategy` uses `@nestjs/mongoose` and `mongoose`. It creates dynamic models for collections. Each document is stored with an `id` field and a `data` field (Mixed type).
 
 ### Storage Strategy (GridFS)
+
 The `MongoDbStorageStrategy` uses GridFS to store files. It creates signed URLs by returning a temporary link that points to the gateway, which then streams the file from MongoDB.
 
 ### Auth Strategy
+
 The `MongoDbAuthStrategy` handles:
+
 - User registration and login (bcrypt for password hashing)
 - JWT token issuance and verification
 - Session management (refresh tokens stored in MongoDB)
