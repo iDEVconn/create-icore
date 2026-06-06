@@ -49,6 +49,13 @@ const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
   mqtt: { mqtt: '^5.15.1' },
   rmq: { amqplib: '^2.0.1', 'amqp-connection-manager': '^5.0.0' },
   kafka: { kafkajs: '^2.2.4' },
+  mongodb: {
+    mongoose: '^8.4.0',
+    '@nestjs/mongoose': '^10.0.6',
+    bcrypt: '^5.1.1',
+    jsonwebtoken: '^9.0.2',
+    uuid: '^9.0.1',
+  },
 };
 
 /**
@@ -109,6 +116,10 @@ export async function writeAuthEnv(targetDir: string, opts: CreateIcoreOptions):
     .replace(/^AUTH_PROVIDER=.*$/m, `AUTH_PROVIDER=${opts.authProvider}`)
     .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`);
   next = uncommentTransportEnv(next, 'AUTH', opts.transport);
+  if (opts.authProvider === 'mongodb') {
+    next +=
+      '\nMONGODB_URI=mongodb://localhost:27017/icore-auth\nJWT_SECRET=change-me-in-production\n';
+  }
   await writeFile(join(targetDir, 'apps/microservices/auth/.env'), next);
 }
 
@@ -120,6 +131,9 @@ export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions
     .replace(/^STORAGE_PROVIDER=.*$/m, `STORAGE_PROVIDER=${opts.upload}`)
     .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
   next = uncommentTransportEnv(next, 'UPLOAD', opts.transport);
+  if (opts.upload === 'mongodb') {
+    next += '\nMONGODB_URI=mongodb://localhost:27017/icore-upload\n';
+  }
   await writeFile(join(targetDir, 'apps/microservices/upload/.env'), next);
 }
 
@@ -157,6 +171,10 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
     `DB_PROVIDER=${opts.dbProvider}`,
     ``,
   ];
+  if (opts.dbProvider === 'mongodb') {
+    lines.push(`MONGODB_URI=mongodb://localhost:27017/icore-data`);
+    lines.push(``);
+  }
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 

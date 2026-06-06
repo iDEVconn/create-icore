@@ -146,6 +146,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
       options: [
         { value: 'supabase', label: 'Supabase' },
         { value: 'firebase', label: 'Firebase' },
+        { value: 'mongodb', label: 'MongoDB (Custom Auth)' },
       ],
     })) as AuthProvider);
   if (p.isCancel(authProvider)) throw new Error('cancelled');
@@ -157,6 +158,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
       options: [
         { value: 'supabase', label: 'Supabase Postgres' },
         { value: 'firebase', label: 'Firestore' },
+        { value: 'mongodb', label: 'MongoDB' },
       ],
       initialValue: authProvider as DbProvider,
     })) as DbProvider);
@@ -170,6 +172,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'supabase', label: 'Supabase Storage' },
         { value: 'firebase', label: 'Firebase Cloud Storage' },
         { value: 'cloudinary', label: 'Cloudinary' },
+        { value: 'mongodb', label: 'MongoDB GridFS' },
         { value: 'none', label: 'None — skip the upload microservice' },
       ],
     })) as UploadProvider);

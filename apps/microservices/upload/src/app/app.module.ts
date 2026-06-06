@@ -4,9 +4,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import { SupabaseStorageStrategy } from '@icore/storage-supabase';
+import { MongoDbStorageStrategy } from '@icore/storage-mongodb';
 import { FirebaseStorageStrategy } from '@icore/storage-firebase';
 import { CloudinaryStorageStrategy, type CloudinaryApiLike } from '@icore/storage-cloudinary';
 import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
+import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 import { FakeStorageStrategy, missingEnv, formatEnvBanner } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
 import { StorageController } from './storage.controller';
@@ -17,6 +20,7 @@ const REQUIRED_ENV: Record<string, string[]> = {
   supabase: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_STORAGE_BUCKET'],
   firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_STORAGE_BUCKET'],
   cloudinary: ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'],
+  mongodb: ['MONGODB_URI'],
 };
 
 function requireEnv(cfg: ConfigService, key: string): string {
@@ -91,6 +95,10 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
   });
 }
 
+function makeMongoDbStorage(connection: Connection): StorageStrategy {
+  return new MongoDbStorageStrategy({ connection });
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -100,12 +108,18 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
         join(process.cwd(), '.env'),
       ],
     }),
+    MongooseModule.forRootAsync({
+      useFactory: (cfg: ConfigService) => ({
+        uri: cfg.get<string>('MONGODB_URI'),
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [StorageController],
   providers: [
     {
       provide: 'StorageStrategy',
-      useFactory: (cfg: ConfigService): StorageStrategy => {
+      useFactory: (cfg: ConfigService, connection: Connection): StorageStrategy => {
         const logger = new Logger('StorageStrategy');
         const provider = cfg.get<string>('STORAGE_PROVIDER')?.trim();
         const keys = provider ? REQUIRED_ENV[provider] : undefined;
@@ -129,12 +143,13 @@ function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {
         try {
           if (provider === 'supabase') return makeSupabaseStorage(cfg);
           if (provider === 'firebase') return makeFirebaseStorage(cfg);
+          if (provider === 'mongodb') return makeMongoDbStorage(connection);
           return makeCloudinaryStorage(cfg);
         } catch (err) {
           return fallback(err instanceof Error ? err.message : String(err));
         }
       },
-      inject: [ConfigService],
+      inject: [ConfigService, getConnectionToken()],
     },
   ],
 })

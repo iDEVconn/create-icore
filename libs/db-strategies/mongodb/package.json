@@ -1,0 +1,14 @@
+{
+  "name": "@icore/db-mongodb",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "mongoose": "^9.6.3",
+    "@icore/shared": "workspace:*",
+    "mongodb-memory-server": "^11.2.0"
+  }
+}

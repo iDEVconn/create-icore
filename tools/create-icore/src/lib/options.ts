@@ -1,6 +1,6 @@
-export type AuthProvider = 'supabase' | 'firebase';
-export type DbProvider = 'supabase' | 'firebase';
-export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'none';
+export type AuthProvider = 'supabase' | 'firebase' | 'mongodb';
+export type DbProvider = 'supabase' | 'firebase' | 'mongodb';
+export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'mongodb' | 'none';
 export type PaymentProvider = 'paypal' | 'none';
 export type JobsProvider = 'bullmq' | 'none';
 export type ExampleMode = 'notes' | 'none';

@@ -1,0 +1,19 @@
+{
+  "name": "storage-mongodb",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/storage-strategies/mongodb/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/storage-strategies/mongodb",
+        "main": "libs/storage-strategies/mongodb/src/index.ts",
+        "tsConfig": "libs/storage-strategies/mongodb/tsconfig.lib.json",
+        "assets": ["libs/storage-strategies/mongodb/*.md"]
+      }
+    }
+  }
+}
