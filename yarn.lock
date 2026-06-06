@@ -2900,6 +2900,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/auth-mongodb@workspace:libs/auth-strategies/mongodb"
   dependencies:
+    "@icore/shared": "workspace:*"
+    bcrypt: "npm:^6.0.0"
+    jsonwebtoken: "npm:^9.0.2"
+    mongodb-memory-server: "npm:^11.2.0"
+    mongoose: "npm:^9.6.3"
     tslib: "npm:^2.3.0"
   languageName: unknown
   linkType: soft
@@ -2929,6 +2934,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/db-mongodb@workspace:libs/db-strategies/mongodb"
   dependencies:
+    "@icore/shared": "workspace:*"
+    mongodb-memory-server: "npm:^11.2.0"
+    mongoose: "npm:^9.6.3"
     tslib: "npm:^2.3.0"
   languageName: unknown
   linkType: soft
@@ -2991,7 +2999,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/shared@npm:*, @icore/shared@workspace:libs/shared":
+"@icore/shared@npm:*, @icore/shared@workspace:*, @icore/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@icore/shared@workspace:libs/shared"
   dependencies:
@@ -3025,6 +3033,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/storage-mongodb@workspace:libs/storage-strategies/mongodb"
   dependencies:
+    "@icore/shared": "workspace:*"
+    mongodb-memory-server: "npm:^11.2.0"
+    mongoose: "npm:^9.6.3"
     tslib: "npm:^2.3.0"
   languageName: unknown
   linkType: soft
@@ -17662,7 +17673,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonwebtoken@npm:^9.0.0, jsonwebtoken@npm:^9.0.3":
+"jsonwebtoken@npm:^9.0.0, jsonwebtoken@npm:^9.0.2, jsonwebtoken@npm:^9.0.3":
   version: 9.0.3
   resolution: "jsonwebtoken@npm:9.0.3"
   dependencies:

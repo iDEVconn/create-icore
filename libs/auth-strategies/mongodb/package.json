@@ -6,11 +6,11 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "dependencies": {
-    "tslib": "^2.3.0",
-    "mongoose": "^9.6.3",
     "@icore/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mongodb-memory-server": "^11.2.0"
+    "mongodb-memory-server": "^11.2.0",
+    "mongoose": "^9.6.3",
+    "tslib": "^2.3.0"
   }
 }
