@@ -19,7 +19,12 @@ export interface MongoDbAuthStrategyOptions {
 }
 
 export class MongoDbAuthStrategy implements AuthStrategy {
-  private userModel: Model<{ id: string; email: string; passwordHash?: string; role?: string }>;
+  private userModel: Model<{
+    id: string;
+    email: string;
+    passwordHash?: string | null;
+    role?: string | null;
+  }>;
   private sessionModel: Model<{
     id: string;
     userId: string;
@@ -57,8 +62,8 @@ export class MongoDbAuthStrategy implements AuthStrategy {
       const decoded = jwt.verify(token, this.opts.jwtSecret) as jwt.JwtPayload;
       return {
         uid: decoded.sub as string,
-        email: decoded.email as string,
-        role: decoded.role as string,
+        email: decoded['email'] as string,
+        role: decoded['role'] as string,
       };
     } catch (err) {
       throw new Error('invalid_token', { cause: err });
@@ -135,7 +140,7 @@ export class MongoDbAuthStrategy implements AuthStrategy {
   private async createSession(user: {
     id: string;
     email: string;
-    role?: string;
+    role?: string | null;
   }): Promise<AuthSession> {
     const accessToken = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
