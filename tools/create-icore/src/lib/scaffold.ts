@@ -49,13 +49,14 @@ const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
   mqtt: { mqtt: '^5.15.1' },
   rmq: { amqplib: '^2.0.1', 'amqp-connection-manager': '^5.0.0' },
   kafka: { kafkajs: '^2.2.4' },
-  mongodb: {
-    mongoose: '^9.6.3',
-    '@nestjs/mongoose': '^11.0.4',
-    bcrypt: '^6.0.0',
-    jsonwebtoken: '^9.0.3',
-    uuid: '^14.0.0',
-  },
+};
+
+const MONGODB_DEPS: Record<string, string> = {
+  mongoose: '^9.6.3',
+  '@nestjs/mongoose': '^11.0.4',
+  bcrypt: '^6.0.0',
+  jsonwebtoken: '^9.0.3',
+  uuid: '^14.0.0',
 };
 
 /**
@@ -85,6 +86,11 @@ export async function rewriteRootPackageJson(
   if (transportDeps) {
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, transportDeps);
+  }
+  // Add MongoDB dependencies if MongoDB is used as a provider for Auth, DB, or Storage.
+  if (opts.authProvider === 'mongodb' || opts.dbProvider === 'mongodb' || opts.upload === 'mongodb') {
+    const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
+    Object.assign(deps, MONGODB_DEPS);
   }
   // Remove the yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them.
   // For yarn, update it to the current version (corepack uses this to download the runtime).
