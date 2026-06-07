@@ -56,7 +56,6 @@ const MONGODB_DEPS: Record<string, string> = {
   '@nestjs/mongoose': '^11.0.4',
   bcrypt: '^6.0.0',
   jsonwebtoken: '^9.0.3',
-  uuid: '^14.0.0',
 };
 
 /**

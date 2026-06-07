@@ -11,7 +11,7 @@ export class MongoDbStorageStrategy implements StorageStrategy {
   private bucket: mongo.GridFSBucket;
 
   constructor(private readonly opts: MongoDbStorageStrategyOptions) {
-    this.bucket = new mongo.GridFSBucket(this.opts.connection.db as never, {
+    this.bucket = new mongo.GridFSBucket(this.opts.connection.db as unknown as mongo.Db, {
       bucketName: this.opts.bucketName || 'uploads',
     });
   }
@@ -61,7 +61,7 @@ export class MongoDbStorageStrategy implements StorageStrategy {
     const userPrefix = prefix ? `${userId}/${prefix}` : `${userId}/`;
     const query: Record<string, unknown> = {
       'metadata.userId': userId,
-      'metadata.path': new RegExp(`^${userPrefix}`),
+      'metadata.path': new RegExp('^' + userPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
     };
 
     const files = await this.bucket.find(query).toArray();

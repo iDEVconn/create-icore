@@ -32,6 +32,17 @@ interface SessionDoc {
   expiresAt: Date;
 }
 
+function parseDurationSeconds(s: string): number {
+  const m = /^(\d+)(s|m|h|d)$/.exec(s);
+  if (!m) return 900;
+  const n = parseInt(m[1]!, 10);
+  const unit = m[2]!;
+  if (unit === 's') return n;
+  if (unit === 'm') return n * 60;
+  if (unit === 'h') return n * 3600;
+  return n * 86400;
+}
+
 export class MongoDbAuthStrategy implements AuthStrategy {
   private userModel: Model<UserDoc>;
   private sessionModel: Model<SessionDoc>;
@@ -57,8 +68,12 @@ export class MongoDbAuthStrategy implements AuthStrategy {
       { timestamps: true },
     );
 
-    this.userModel = this.opts.connection.model<UserDoc>('User', userSchema);
-    this.sessionModel = this.opts.connection.model<SessionDoc>('Session', sessionSchema);
+    this.userModel =
+      (this.opts.connection.models['User'] as Model<UserDoc> | undefined) ??
+      this.opts.connection.model<UserDoc>('User', userSchema);
+    this.sessionModel =
+      (this.opts.connection.models['Session'] as Model<SessionDoc> | undefined) ??
+      this.opts.connection.model<SessionDoc>('Session', sessionSchema);
   }
 
   async verifyToken(token: string): Promise<VerifiedToken> {
@@ -118,7 +133,7 @@ export class MongoDbAuthStrategy implements AuthStrategy {
 
   async getRole(uid: string): Promise<string | null> {
     const user = await this.userModel.findOne({ id: uid }).exec();
-    return user?.role || null;
+    return user?.role ?? null;
   }
 
   async sendMagicLink(_req: MagicLinkRequest): Promise<void> {
@@ -166,7 +181,7 @@ export class MongoDbAuthStrategy implements AuthStrategy {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 min
+      expiresIn: parseDurationSeconds(this.opts.jwtExpiresIn ?? '15m'),
       user: { id: user.id, email: user.email },
     };
   }
