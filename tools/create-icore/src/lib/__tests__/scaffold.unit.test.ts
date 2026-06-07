@@ -294,6 +294,111 @@ describe('removeUnusedAuthStrategies', () => {
     expect(pkg.dependencies).not.toHaveProperty('@icore/auth-firebase');
   });
 
+  it('auth=mongodb removes supabase+firebase libs, keeps mongodb imports + MongooseModule', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-auth-'));
+
+    for (const s of ['supabase', 'firebase', 'mongodb']) {
+      await mkdir(join(dir, `libs/auth-strategies/${s}/src`), { recursive: true });
+      await writeFile(join(dir, `libs/auth-strategies/${s}/src/index.ts`), 'export {};');
+    }
+    await mkdir(join(dir, 'apps/microservices/auth/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/auth/src/app/app.module.ts'),
+      [
+        `import { createClient } from '@supabase/supabase-js';`,
+        `import { SupabaseAuthStrategy } from '@icore/auth-supabase';`,
+        `import { MongoDbAuthStrategy } from '@icore/auth-mongodb';`,
+        `import { FirebaseAuthStrategy, HttpIdentityToolkitClient } from '@icore/auth-firebase';`,
+        `import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';`,
+        `import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';`,
+        `import { Connection } from 'mongoose';`,
+        `const REQUIRED_ENV = {`,
+        `  supabase: ['SUPABASE_URL'],`,
+        `  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_WEB_API_KEY'],`,
+        `  mongodb: ['MONGODB_URI', 'JWT_SECRET'],`,
+        `};`,
+        ``,
+        `function makeSupabaseAuth(cfg: ConfigService): AuthStrategy {`,
+        `  return new SupabaseAuthStrategy({ client: createClient('', '') as never });`,
+        `}`,
+        ``,
+        `function makeFirebaseAuth(cfg: ConfigService): AuthStrategy {`,
+        `  void FirebaseAuthStrategy; void HttpIdentityToolkitClient;`,
+        `  return getFirebaseAdmin(cfg).auth() as unknown as AuthStrategy;`,
+        `}`,
+        ``,
+        `function makeMongoDbAuth(connection: Connection, cfg: ConfigService): AuthStrategy {`,
+        `  return new MongoDbAuthStrategy({ connection, jwtSecret: cfg.get('JWT_SECRET')! });`,
+        `}`,
+        ``,
+        `  MongooseModule.forRootAsync({`,
+        `    useFactory: (cfg: ConfigService) => ({ uri: cfg.get('MONGODB_URI') }),`,
+        `    inject: [ConfigService],`,
+        `  }),`,
+        `        if (provider === 'supabase') return makeSupabaseAuth(cfg);`,
+        `        if (provider === 'mongodb') return makeMongoDbAuth(connection, cfg);`,
+        `        return makeFirebaseAuth(cfg);`,
+        `      inject: [ConfigService, getConnectionToken()],`,
+      ].join('\n'),
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@icore/auth-supabase': ['./libs/auth-strategies/supabase/src/index.ts'],
+            '@icore/auth-firebase': ['./libs/auth-strategies/firebase/src/index.ts'],
+            '@icore/auth-mongodb': ['./libs/auth-strategies/mongodb/src/index.ts'],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      join(dir, 'apps/microservices/auth/package.json'),
+      JSON.stringify({
+        name: 'auth',
+        dependencies: {
+          '@icore/auth-supabase': '*',
+          '@icore/auth-firebase': '*',
+          '@icore/auth-mongodb': '*',
+        },
+      }),
+    );
+
+    await removeUnusedAuthStrategies(dir, 'mongodb');
+
+    await expect(access(join(dir, 'libs/auth-strategies/supabase'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/auth-strategies/firebase'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/auth-strategies/mongodb'))).resolves.toBeUndefined();
+
+    const mod = await readFile(join(dir, 'apps/microservices/auth/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('@icore/auth-supabase');
+    expect(mod).not.toContain('@supabase/supabase-js');
+    expect(mod).not.toContain('makeSupabaseAuth');
+    expect(mod).not.toContain('@icore/auth-firebase');
+    expect(mod).not.toContain('makeFirebaseAuth');
+    expect(mod).not.toContain('@icore/firebase-admin');
+    expect(mod).toContain('@icore/auth-mongodb');
+    expect(mod).toContain('MongooseModule');
+    expect(mod).toContain('makeMongoDbAuth');
+    expect(mod).toContain('return makeMongoDbAuth(connection, cfg);');
+
+    const tsconfig = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/auth-supabase');
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/auth-firebase');
+    expect(tsconfig.compilerOptions.paths).toHaveProperty('@icore/auth-mongodb');
+
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/auth/package.json'), 'utf8'),
+    ) as { dependencies: Record<string, string> };
+    expect(pkg.dependencies).not.toHaveProperty('@icore/auth-supabase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/auth-firebase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/firebase-admin');
+    expect(pkg.dependencies).toHaveProperty('@icore/auth-mongodb');
+  });
+
   it('auth=firebase removes supabase lib and strips its import/case from auth module', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'icore-auth-'));
 
@@ -389,6 +494,125 @@ describe('removeUnusedStorageStrategies', () => {
     expect(mod).toContain('SupabaseStorageStrategy');
   });
 
+  it('upload=mongodb removes supabase+firebase+cloudinary, keeps mongodb + MongooseModule', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-storage-'));
+
+    for (const s of ['supabase', 'firebase', 'cloudinary', 'mongodb']) {
+      await mkdir(join(dir, `libs/storage-strategies/${s}/src`), { recursive: true });
+      await writeFile(join(dir, `libs/storage-strategies/${s}/src/index.ts`), 'export {};');
+    }
+    await mkdir(join(dir, 'apps/microservices/upload/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/upload/src/app/app.module.ts'),
+      [
+        `import { createClient } from '@supabase/supabase-js';`,
+        `import { v2 as cloudinary } from 'cloudinary';`,
+        `import { SupabaseStorageStrategy } from '@icore/storage-supabase';`,
+        `import { MongoDbStorageStrategy } from '@icore/storage-mongodb';`,
+        `import { FirebaseStorageStrategy } from '@icore/storage-firebase';`,
+        `import { CloudinaryStorageStrategy } from '@icore/storage-cloudinary';`,
+        `import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';`,
+        `import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';`,
+        `import { Connection } from 'mongoose';`,
+        `const REQUIRED_ENV = {`,
+        `  supabase: ['SUPABASE_URL'],`,
+        `  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV, 'FIREBASE_STORAGE_BUCKET'],`,
+        `  cloudinary: ['CLOUDINARY_CLOUD_NAME'],`,
+        `  mongodb: ['MONGODB_URI'],`,
+        `};`,
+        `function makeSupabaseStorage(cfg: ConfigService): StorageStrategy {`,
+        `  return new SupabaseStorageStrategy({ client: createClient('', '') as never, bucket: 'b' });`,
+        `}`,
+        `function makeFirebaseStorage(cfg: ConfigService): StorageStrategy {`,
+        `  void FirebaseStorageStrategy;`,
+        `  return getFirebaseAdmin(cfg).storage().bucket() as never;`,
+        `}`,
+        `function makeCloudinaryStorage(cfg: ConfigService): StorageStrategy {`,
+        `  void cloudinary; void CloudinaryStorageStrategy;`,
+        `  return {} as never;`,
+        `}`,
+        `function makeMongoDbStorage(connection: Connection): StorageStrategy {`,
+        `  return new MongoDbStorageStrategy({ connection });`,
+        `}`,
+        `  MongooseModule.forRootAsync({`,
+        `    useFactory: (cfg: ConfigService) => ({ uri: cfg.get('MONGODB_URI') }),`,
+        `    inject: [ConfigService],`,
+        `  }),`,
+        `        if (provider === 'supabase') return makeSupabaseStorage(cfg);`,
+        `        if (provider === 'firebase') return makeFirebaseStorage(cfg);`,
+        `        if (provider === 'mongodb') return makeMongoDbStorage(connection);`,
+        `        return makeCloudinaryStorage(cfg);`,
+        `      inject: [ConfigService, getConnectionToken()],`,
+      ].join('\n'),
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@icore/storage-supabase': [''],
+            '@icore/storage-firebase': [''],
+            '@icore/storage-cloudinary': [''],
+            '@icore/storage-mongodb': [''],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      join(dir, 'apps/microservices/upload/package.json'),
+      JSON.stringify({
+        name: 'upload',
+        dependencies: {
+          '@icore/storage-supabase': '*',
+          '@icore/storage-firebase': '*',
+          '@icore/storage-cloudinary': '*',
+          '@icore/storage-mongodb': '*',
+        },
+      }),
+    );
+
+    await removeUnusedStorageStrategies(dir, 'mongodb');
+
+    await expect(access(join(dir, 'libs/storage-strategies/supabase'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/storage-strategies/firebase'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/storage-strategies/cloudinary'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/storage-strategies/mongodb'))).resolves.toBeUndefined();
+
+    const mod = await readFile(
+      join(dir, 'apps/microservices/upload/src/app/app.module.ts'),
+      'utf8',
+    );
+    expect(mod).not.toContain('@icore/storage-supabase');
+    expect(mod).not.toContain('@supabase/supabase-js');
+    expect(mod).not.toContain('@icore/storage-firebase');
+    expect(mod).not.toContain('@icore/firebase-admin');
+    expect(mod).not.toContain("from 'cloudinary'");
+    expect(mod).not.toContain('@icore/storage-cloudinary');
+    expect(mod).not.toContain('makeSupabaseStorage');
+    expect(mod).not.toContain('makeFirebaseStorage');
+    expect(mod).not.toContain('makeCloudinaryStorage');
+    expect(mod).toContain('@icore/storage-mongodb');
+    expect(mod).toContain('MongooseModule');
+    expect(mod).toContain('makeMongoDbStorage');
+    expect(mod).toContain('return makeMongoDbStorage(connection);');
+
+    const tsconfig = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/storage-supabase');
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/storage-firebase');
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/storage-cloudinary');
+    expect(tsconfig.compilerOptions.paths).toHaveProperty('@icore/storage-mongodb');
+
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/upload/package.json'), 'utf8'),
+    ) as { dependencies: Record<string, string> };
+    expect(pkg.dependencies).not.toHaveProperty('@icore/storage-supabase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/storage-firebase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/storage-cloudinary');
+    expect(pkg.dependencies).toHaveProperty('@icore/storage-mongodb');
+  });
+
   it('upload=none is a no-op (upload stack already removed)', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'icore-storage-none-'));
     await removeUnusedStorageStrategies(dir, 'none');
@@ -474,6 +698,110 @@ describe('removeUnusedDbStrategies', () => {
     expect(mod).toContain('@icore/firebase-admin');
     expect(mod).toContain('getFirebaseAdmin');
     expect(mod).toContain('FirestoreDBStrategy');
+  });
+
+  it('db=mongodb removes supabase+firestore libs, keeps mongodb + MongooseModule', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-db-'));
+
+    for (const s of ['supabase', 'firestore', 'mongodb']) {
+      await mkdir(join(dir, `libs/db-strategies/${s}/src`), { recursive: true });
+      await writeFile(join(dir, `libs/db-strategies/${s}/src/index.ts`), 'export {};');
+    }
+    await mkdir(join(dir, 'apps/microservices/notes/src/app'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/notes/src/app/app.module.ts'),
+      [
+        `import { createClient } from '@supabase/supabase-js';`,
+        `import { SupabaseDBStrategy } from '@icore/db-supabase';`,
+        `import { MongoDbDBStrategy } from '@icore/db-mongodb';`,
+        `import { FirestoreDBStrategy } from '@icore/db-firestore';`,
+        `import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';`,
+        `import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';`,
+        `import { Connection } from 'mongoose';`,
+        `const REQUIRED_ENV = {`,
+        `  supabase: ['SUPABASE_URL'],`,
+        `  firestore: [...FIREBASE_ADMIN_REQUIRED_ENV],`,
+        `  firebase: [...FIREBASE_ADMIN_REQUIRED_ENV],`,
+        `  mongodb: ['MONGODB_URI'],`,
+        `};`,
+        `function requireEnv(cfg: ConfigService, key: string): string {`,
+        `  return cfg.getOrThrow<string>(key);`,
+        `}`,
+        `function makeSupabaseDB(cfg: ConfigService): DBStrategy {`,
+        `  return new SupabaseDBStrategy({ client: createClient('', '') as never });`,
+        `}`,
+        `function makeFirestoreDB(cfg: ConfigService): DBStrategy {`,
+        `  void FirestoreDBStrategy;`,
+        `  return getFirebaseAdmin(cfg).firestore() as never;`,
+        `}`,
+        `function makeMongoDb(connection: Connection): DBStrategy {`,
+        `  return new MongoDbDBStrategy({ connection });`,
+        `}`,
+        `  MongooseModule.forRootAsync({`,
+        `    useFactory: (cfg: ConfigService) => ({ uri: cfg.get('MONGODB_URI') }),`,
+        `    inject: [ConfigService],`,
+        `  }),`,
+        `        if (provider === 'supabase') return makeSupabaseDB(cfg);`,
+        `        if (provider === 'mongodb') return makeMongoDb(connection);`,
+        `        return makeFirestoreDB(cfg);`,
+        `      inject: [ConfigService, getConnectionToken()],`,
+      ].join('\n'),
+    );
+    await writeFile(
+      join(dir, 'tsconfig.base.json'),
+      JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@icore/db-supabase': [''],
+            '@icore/db-firestore': [''],
+            '@icore/db-mongodb': [''],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      join(dir, 'apps/microservices/notes/package.json'),
+      JSON.stringify({
+        name: 'notes',
+        dependencies: {
+          '@icore/db-supabase': '*',
+          '@icore/db-firestore': '*',
+          '@icore/db-mongodb': '*',
+        },
+      }),
+    );
+
+    await removeUnusedDbStrategies(dir, 'mongodb');
+
+    await expect(access(join(dir, 'libs/db-strategies/supabase'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/db-strategies/firestore'))).rejects.toThrow();
+    await expect(access(join(dir, 'libs/db-strategies/mongodb'))).resolves.toBeUndefined();
+
+    const mod = await readFile(join(dir, 'apps/microservices/notes/src/app/app.module.ts'), 'utf8');
+    expect(mod).not.toContain('@icore/db-supabase');
+    expect(mod).not.toContain('@supabase/supabase-js');
+    expect(mod).not.toContain('@icore/db-firestore');
+    expect(mod).not.toContain('@icore/firebase-admin');
+    expect(mod).not.toContain('makeSupabaseDB');
+    expect(mod).not.toContain('makeFirestoreDB');
+    expect(mod).toContain('@icore/db-mongodb');
+    expect(mod).toContain('MongooseModule');
+    expect(mod).toContain('makeMongoDb');
+    expect(mod).toContain('return makeMongoDb(connection);');
+
+    const tsconfig = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/db-supabase');
+    expect(tsconfig.compilerOptions.paths).not.toHaveProperty('@icore/db-firestore');
+    expect(tsconfig.compilerOptions.paths).toHaveProperty('@icore/db-mongodb');
+
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/notes/package.json'), 'utf8'),
+    ) as { dependencies: Record<string, string> };
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-firestore');
+    expect(pkg.dependencies).toHaveProperty('@icore/db-mongodb');
   });
 });
 
