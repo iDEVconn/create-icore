@@ -7,7 +7,7 @@ import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
 import { MagicLinkForm } from '../components/auth/MagicLinkForm';
 import { CheckEmailScreen } from '../components/auth/CheckEmailScreen';
-import { api } from '../main';
+import { api } from '@/main';
 
 type Mode = 'login' | 'register' | 'magicLink' | 'checkEmail';
 
