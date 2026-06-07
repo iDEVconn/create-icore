@@ -35,4 +35,11 @@ export class UploadClientService {
   list(userId: string, prefix?: string): Promise<StorageRef[]> {
     return firstValueFrom(this.client.send<StorageRef[]>('storage.list', { userId, prefix }));
   }
+
+  async downloadBuffer(userId: string, ref: StorageRef): Promise<Buffer | null> {
+    const b64 = await firstValueFrom(
+      this.client.send<string | null>('storage.downloadBuffer', { userId, ref }),
+    );
+    return b64 ? Buffer.from(b64, 'base64') : null;
+  }
 }

@@ -137,6 +137,10 @@ jobs:
             flags: --auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats
           - name: no-upload
             flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp
+          - name: mongodb-full
+            flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp
+          - name: mongodb-mixed
+            flags: --auth=mongodb --db=firebase --upload=cloudinary --payment=none --jobs=none --example=notes --transport=redis
     steps:
       - uses: actions/checkout@v5
         with:

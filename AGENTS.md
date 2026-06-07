@@ -40,11 +40,17 @@ libs/
 ├── shared/               # types, CASL defineAbilitiesFor, strategy contracts, transport helper
 ├── auth-strategies/
 │   ├── supabase/
-│   └── firebase/
+│   ├── firebase/
+│   └── mongodb/
 ├── storage-strategies/
 │   ├── supabase/
 │   ├── firebase/
-│   └── cloudinary/
+│   ├── cloudinary/
+│   └── mongodb/
+├── db-strategies/
+│   ├── supabase/
+│   ├── firebase/
+│   └── mongodb/
 ├── auth-client/          # gateway → auth MS client (NestJS module)
 └── upload-client/        # gateway → upload MS client (NestJS module)
 tools/
@@ -55,7 +61,7 @@ Frontend never imports a provider SDK directly. All auth + storage traffic goes 
 
 ## Key Patterns
 
-- **Strategy-pattern auth + storage:** `libs/shared/src/strategies/{auth,storage}.ts` defines the `AuthStrategy` and `StorageStrategy` interfaces. Each MS module wires a factory provider that reads `AUTH_PROVIDER` / `STORAGE_PROVIDER` env and returns the concrete implementation. The contract test suite `runAuthContract(name, factory)` / `runStorageContract(name, factory)` runs against every concrete strategy and the in-memory `FakeAuthStrategy` / `FakeStorageStrategy`.
+- **Strategy-pattern auth + storage:** `libs/shared/src/strategies/{auth,storage,db}.ts` defines the `AuthStrategy`, `StorageStrategy`, and `DBStrategy` interfaces. Each MS module wires a factory provider that reads `AUTH_PROVIDER` / `STORAGE_PROVIDER` / `DB_PROVIDER` env and returns the concrete implementation. The contract test suite `runAuthContract(name, factory)` / `runStorageContract(name, factory)` runs against every concrete strategy and the in-memory `FakeAuthStrategy` / `FakeStorageStrategy`.
 - **Env layering (3 layers):**
   - **Transport wiring** (gateway ↔ MS): `${PREFIX}_TRANSPORT` (`tcp` default | `redis` | `nats` | `mqtt` | `rmq` | `kafka`) + the matching host/port/url vars; read by `buildTransport(prefix)` in `libs/shared/src/transport.ts`. All six are message-pattern transports (work with `@MessagePattern` + `ClientProxy.send/emit`). gRPC is intentionally NOT offered — it needs `.proto` contracts + `@GrpcMethod` controllers + `ClientGrpc`, incompatible with the message-based gateway↔MS layer. Each broker transport's driver (`nats`, `mqtt`, `amqplib`+`amqp-connection-manager`, `kafkajs`) is an optional peer dep of `@nestjs/microservices`; `rewriteRootPackageJson` adds it to the generated `package.json` for the chosen transport.
   - **Provider selection** (per MS): `AUTH_PROVIDER`, `STORAGE_PROVIDER`; read by the MS `useFactory`.
@@ -146,6 +152,25 @@ FIREBASE_STORAGE_BUCKET=<project-id>.appspot.com  # storage MS only
 **Firestore rules / Storage rules deploy:** If the project uses Firestore for any data, the rules live in `firestore.rules` / `storage.rules` at the repo root. Deploy via `firebase deploy --only firestore:rules,storage:rules`. The Firebase CLI must be authenticated with an account that has Editor role on the project. CI deploys rules via the same command using a service-account token stored as `FIREBASE_TOKEN` secret.
 
 **Firestore MCP equivalent of the Supabase migration gotcha:** Firestore is schemaless, so there are no migration files. Schema changes are application code. The closest parallel is rules drift — if you edit rules in the console without committing the file change, the next `firebase deploy --only firestore:rules` will silently overwrite the console-edited rules. Always edit rules in `firestore.rules` and deploy via CLI, never directly in the console.
+
+### MongoDB (auth + storage + db)
+
+**Env vars:**
+
+```
+AUTH_PROVIDER=mongodb
+STORAGE_PROVIDER=mongodb
+DB_PROVIDER=mongodb
+MONGODB_URI=mongodb://localhost:27017/icore
+JWT_SECRET=your-secret
+```
+
+**Setup:**
+
+1. Install MongoDB or use a managed service (e.g., MongoDB Atlas).
+2. Set `MONGODB_URI` in your `.env`.
+3. Storage uses GridFS. No additional setup required beyond the connection string.
+4. Auth is a custom implementation storing users and sessions in MongoDB collections.
 
 ### Cloudinary (storage only)
 

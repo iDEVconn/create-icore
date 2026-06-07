@@ -31,7 +31,10 @@
       "@icore/notes-client": ["./libs/notes-client/src/index.ts"],
       "@icore/jobs-client": ["./libs/jobs-client/src/index.ts"],
       "@icore/vite-plugins": ["./libs/vite-plugins/src/index.d.mts"],
-      "@icore/firebase-admin": ["./libs/firebase-admin/src/index.ts"]
+      "@icore/firebase-admin": ["./libs/firebase-admin/src/index.ts"],
+      "@icore/db-mongodb": ["./libs/db-strategies/mongodb/src/index.ts"],
+      "@icore/storage-mongodb": ["./libs/storage-strategies/mongodb/src/index.ts"],
+      "@icore/auth-mongodb": ["./libs/auth-strategies/mongodb/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx"]
