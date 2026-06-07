@@ -39,7 +39,7 @@ wireMuiNotifier();
 function Root() {
   const mode = useThemeStore((s) => s.mode);
   const theme = useMemo(
-    () => createTheme({ palette: { mode, primary: { main: '#5e60ce' } } }),
+    () => createTheme({ palette: { mode, primary: { main: '#22c55e' } } }),
     [mode],
   );
   return (

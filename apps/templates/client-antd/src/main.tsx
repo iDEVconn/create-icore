@@ -38,7 +38,7 @@ function Root() {
   const mode = useThemeStore((s) => s.mode);
   const algorithm = mode === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm;
   return (
-    <ConfigProvider theme={{ algorithm }}>
+    <ConfigProvider theme={{ algorithm, token: { colorPrimary: '#22c55e', colorLink: '#22c55e' } }}>
       <AntApp>
         <QueryClientProvider client={queryClient}>
           <AbilityProvider>
