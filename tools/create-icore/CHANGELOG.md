@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.7.1
+
+### Patch Changes
+
+- 3918b5d: Fix client-shadcn build: move Google Fonts @import before @import 'tailwindcss' to satisfy PostCSS @import ordering rule.
+
 ## 0.7.0
 
 ### Minor Changes
