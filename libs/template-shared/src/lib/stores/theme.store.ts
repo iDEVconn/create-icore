@@ -9,15 +9,10 @@ interface ThemeState {
   toggle: () => void;
 }
 
-function detectInitial(): ThemeMode {
-  if (typeof window === 'undefined') return 'light';
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      mode: detectInitial(),
+      mode: 'dark' as ThemeMode,
       setMode: (mode) => set({ mode }),
       toggle: () => set({ mode: get().mode === 'dark' ? 'light' : 'dark' }),
     }),
