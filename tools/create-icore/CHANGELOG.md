@@ -1,5 +1,18 @@
 # @idevconn/create-icore
 
+## 0.7.0
+
+### Minor Changes
+
+- 7fc97d7: Enterprise antd + MUI templates: add signup + confirm-email flow, enterprise green theme, split-panel login layout, @/main alias standardization across all templates.
+- 33e9cdb: Enterprise shadcn UI template: fix i18n namespace wrapping, add ru/he translations, add signup + confirm-email flow, OLED dark theme (Plus Jakarta Sans, green accent), enterprise split-panel login, collapsed sidebar with active highlights.
+
+### Patch Changes
+
+- 2c29eac: Fix ESLint issues, update dependencies, and add MongoDB configuration examples to .env templates.
+- af27cae: Fix MongoDB review bugs and wire GridFS download: guard model re-registration, fix expiresIn calculation, escape regex in list(), replace `as never` cast, drop non-existent uuid v14 dep. Add downloadBuffer to StorageStrategy interface + MongoDbStorageStrategy impl + upload MS handler + UploadClientService method + GET /api/storage/file gateway endpoint so MongoDB storage downloads actually work.
+- 5ad7911: Add MongoDB scaffold smoke combos (Layer A typecheck in `pipeline.yml` and Layer B install+boot in `scaffold-smoke-matrix.yml`) and fix the `MongooseModule.forRootAsync` strip regex so non-MongoDB combos no longer emit broken `app.module.ts` (the non-greedy `}),` match stopped at the inner `useFactory` return).
+
 ## 0.6.3
 
 ### Patch Changes
