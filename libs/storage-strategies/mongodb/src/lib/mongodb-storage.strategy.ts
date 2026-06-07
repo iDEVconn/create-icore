@@ -71,8 +71,7 @@ export class MongoDbStorageStrategy implements StorageStrategy {
     }));
   }
 
-  // Helper method for the gateway to stream the file
-  async downloadStream(userId: string, ref: StorageRef): Promise<Readable> {
+  async downloadBuffer(userId: string, ref: StorageRef): Promise<Buffer> {
     if (!ref.path.startsWith(`${userId}/`)) {
       throw new Error('forbidden: ownership_mismatch');
     }
@@ -83,6 +82,12 @@ export class MongoDbStorageStrategy implements StorageStrategy {
     const fileId = files[0]?._id;
     if (!fileId) throw new Error('not_found');
 
-    return this.bucket.openDownloadStream(fileId);
+    const stream = this.bucket.openDownloadStream(fileId as never);
+    return new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      stream.on('data', (c: Buffer) => chunks.push(c));
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('error', reject);
+    });
   }
 }

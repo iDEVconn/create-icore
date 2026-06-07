@@ -48,4 +48,11 @@ export class StorageController {
   list(@Payload() payload: ListPayload): Promise<StorageRef[]> {
     return this.strategy.list(payload.userId, payload.prefix);
   }
+
+  @MessagePattern('storage.downloadBuffer')
+  async downloadBuffer(@Payload() payload: RefPayload): Promise<string | null> {
+    if (!this.strategy.downloadBuffer) return null;
+    const buf = await this.strategy.downloadBuffer(payload.userId, payload.ref);
+    return buf.toString('base64');
+  }
 }
