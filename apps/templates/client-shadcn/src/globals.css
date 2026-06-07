@@ -1,27 +1,53 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 @theme {
-  --color-background: oklch(0.99 0 0);
-  --color-foreground: oklch(0.15 0 0);
-  --color-primary: oklch(0.45 0.18 250);
-  --color-primary-foreground: oklch(0.98 0 0);
-  --color-muted: oklch(0.96 0 0);
-  --color-muted-foreground: oklch(0.45 0 0);
-  --color-border: oklch(0.92 0 0);
-  --color-destructive: oklch(0.55 0.25 25);
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* Light mode defaults */
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-card: #f8fafc;
+  --color-card-foreground: #0f172a;
+  --color-primary: #16a34a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #475569;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #16a34a;
+  --color-destructive: #ef4444;
   --radius-default: 0.5rem;
 }
 
 @layer base {
+  * {
+    font-family: var(--font-sans);
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
   }
+
+  /* OLED Dark mode */
   html.dark {
-    --color-background: oklch(0.15 0 0);
-    --color-foreground: oklch(0.98 0 0);
-    --color-muted: oklch(0.25 0 0);
-    --color-muted-foreground: oklch(0.7 0 0);
-    --color-border: oklch(0.3 0 0);
+    --color-background: #020617;
+    --color-foreground: #f8fafc;
+    --color-card: #0f172a;
+    --color-card-foreground: #f8fafc;
+    --color-primary: #22c55e;
+    --color-primary-foreground: #020617;
+    --color-secondary: #1e293b;
+    --color-secondary-foreground: #f8fafc;
+    --color-muted: #1e293b;
+    --color-muted-foreground: #94a3b8;
+    --color-border: #1e293b;
+    --color-input: #1e293b;
+    --color-ring: #22c55e;
+    --color-destructive: #ef4444;
   }
 }

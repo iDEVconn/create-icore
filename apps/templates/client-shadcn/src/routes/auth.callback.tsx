@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, useNotify } from '@icore/template-shared';
 import { Loader2 } from 'lucide-react';
-import { api } from '../main';
+import { api } from '@/main';
 
 type Status = 'verifying' | 'done' | 'error';
 
