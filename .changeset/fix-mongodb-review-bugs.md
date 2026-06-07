@@ -1,8 +1,6 @@
 ---
 '@icore/auth-mongodb': patch
 '@icore/storage-mongodb': patch
-'@icore/shared': patch
-'@icore/upload-client': patch
 '@idevconn/create-icore': patch
 ---
 
