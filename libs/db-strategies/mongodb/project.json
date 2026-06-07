@@ -1,0 +1,19 @@
+{
+  "name": "db-mongodb",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/db-strategies/mongodb/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/db-strategies/mongodb",
+        "main": "libs/db-strategies/mongodb/src/index.ts",
+        "tsConfig": "libs/db-strategies/mongodb/tsconfig.lib.json",
+        "assets": ["libs/db-strategies/mongodb/*.md"]
+      }
+    }
+  }
+}

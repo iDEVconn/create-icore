@@ -4,10 +4,12 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   PayloadTooLargeException,
   Post,
   Query,
   Req,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -19,6 +21,7 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiQuery,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { UploadClientService } from '@icore/upload-client';
@@ -104,5 +107,30 @@ export class StorageController {
   @ApiQuery({ name: 'prefix', type: String, required: false })
   list(@Query('prefix') prefix: string | undefined, @Req() req: AuthedReq): Promise<StorageRef[]> {
     return this.uploadClient.list(req.user!.uid, prefix);
+  }
+
+  @Get('file')
+  @ApiOperation({ summary: 'Download a file proxied through the gateway (GridFS providers)' })
+  @ApiQuery({ name: 'bucket', type: String })
+  @ApiQuery({ name: 'path', type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Raw file bytes',
+    content: { 'application/octet-stream': {} },
+  })
+  async downloadFile(
+    @Query('bucket') bucket: string,
+    @Query('path') path: string,
+    @Req() req: AuthedReq,
+  ): Promise<StreamableFile> {
+    const ref: StorageRef = { bucket, path };
+    assertOwnership(ref, req.user!.uid);
+    const buffer = await this.uploadClient.downloadBuffer(req.user!.uid, ref);
+    if (!buffer) throw new NotFoundException('storage_provider_does_not_support_direct_download');
+    const filename = path.split('/').pop() ?? 'file';
+    return new StreamableFile(buffer, {
+      type: 'application/octet-stream',
+      disposition: `inline; filename="${filename}"`,
+    });
   }
 }
