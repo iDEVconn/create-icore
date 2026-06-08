@@ -76,6 +76,15 @@ node scripts/smoke-scaffold.mjs --auth=firebase --db=firebase --upload=firebase 
 
 ## Known findings
 
+- **`npm ERESOLVE` for PayPal/payment + API Express** — If Layer B fails during
+  `npm install` with `@idevconn/payment` requesting `express@^5.0.0`, check
+  `apps/api/package.json` first. The generated API workspace must stay on
+  Express 5 (`express@^5.2.1` and `@types/express@^5`) because
+  `@idevconn/payment@1.2.x`, `@bull-board/express@7.x`, and Nest 11's
+  `@nestjs/platform-express` stack are all Express-5-compatible. After changing
+  the source package, run `yarn nx build create-icore` so the ignored template
+  snapshot used by the smoke script is regenerated before reproducing the
+  nightly job.
 - **`@casl/ability` TS7016 under npm/pnpm** — Layer B surfaced that a
   generated project installed with `npm` fails `notes-client:build`:
   `Could not find a declaration file for module '@casl/ability'`. iCore itself
