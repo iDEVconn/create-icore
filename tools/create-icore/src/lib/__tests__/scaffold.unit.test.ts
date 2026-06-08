@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { mkdtemp, mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   writeAuthEnv,
   writeGatewayEnv,
@@ -33,6 +34,7 @@ const baseOpts: CreateIcoreOptions = {
 };
 
 let dir: string;
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'icore-test-'));
@@ -896,6 +898,19 @@ describe('rewriteRootPackageJson — broker transport driver deps', () => {
       expect(deps['amqplib']).toBeUndefined();
       expect(deps['kafkajs']).toBeUndefined();
     }
+  });
+});
+
+describe('api package dependencies', () => {
+  it('keeps Express compatible with the payment peer dependency', async () => {
+    const apiPkg = JSON.parse(await readFile(join(repoRoot, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+
+    expect(apiPkg.dependencies?.['@idevconn/payment']).toBe('^1.2.0');
+    expect(apiPkg.dependencies?.['express']).toMatch(/^\^5\./);
+    expect(apiPkg.devDependencies?.['@types/express']).toMatch(/^\^5\./);
   });
 });
 
