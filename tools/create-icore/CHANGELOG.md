@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.7.2
+
+### Patch Changes
+
+- 2ec8463: Fix npm scaffold installs for PayPal/payment projects by keeping the generated API on Express 5.
+
 ## 0.7.1
 
 ### Patch Changes
