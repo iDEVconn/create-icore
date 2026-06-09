@@ -99,7 +99,52 @@ export const MANIFEST = {
       nestModule: { importFrom: '@icore/db-mongodb', symbol: 'MongoDbDbModule', into: 'notes' },
     },
   },
-  feature: { notes: EMPTY, payment: EMPTY, jobs: EMPTY },
+  feature: {
+    notes: {
+      libDirs: [
+        'apps/microservices/notes',
+        'apps/microservices/notes-e2e',
+        'libs/notes-client',
+        'libs/db-strategies',
+        'apps/api/src/app/notes',
+        'apps/client/src/components/notes',
+        'apps/client/src/routes/_dashboard/notes.tsx',
+        'apps/client/src/queries/notes.ts',
+      ],
+      deps: { '@icore/notes-client': '*', '@casl/ability': '^7.0.0' },
+      tsPaths: { '@icore/notes-client': ['libs/notes-client/src/index.ts'] },
+      gatewayModule: { importFrom: './notes/notes.module', symbol: 'NotesModule' },
+      gatewayService: { name: 'notes', prefix: 'NOTES' },
+    },
+    payment: {
+      libDirs: [
+        'apps/microservices/payment',
+        'apps/microservices/payment-e2e',
+        'libs/payment-client',
+        'apps/api/src/app/payment',
+      ],
+      deps: { '@icore/payment-client': '*', '@idevconn/payment': '^1.2.0' },
+      tsPaths: { '@icore/payment-client': ['libs/payment-client/src/index.ts'] },
+      gatewayModule: { importFrom: './payment/payment.module', symbol: 'PaymentModule' },
+      gatewayService: { name: 'payment', prefix: 'PAYMENT' },
+    },
+    jobs: {
+      libDirs: [
+        'apps/microservices/jobs',
+        'libs/jobs-client',
+        'apps/api/src/app/admin',
+        'Dockerfile.ms-jobs',
+      ],
+      deps: {
+        '@icore/jobs-client': '*',
+        '@bull-board/api': '^7.1.5',
+        '@bull-board/express': '^7.1.5',
+      },
+      tsPaths: { '@icore/jobs-client': ['libs/jobs-client/src/index.ts'] },
+      gatewayModule: { importFrom: './admin/admin.module', symbol: 'AdminModule' },
+      dockerService: 'jobs',
+    },
+  },
   ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY },
   transport: { tcp: EMPTY, redis: EMPTY, nats: EMPTY, mqtt: EMPTY, rmq: EMPTY, kafka: EMPTY },
   shared: {
