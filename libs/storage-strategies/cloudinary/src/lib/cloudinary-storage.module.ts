@@ -3,10 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
 import { buildStrategyWithFallback, FakeStorageStrategy } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
-import {
-  CloudinaryStorageStrategy,
-  type CloudinaryApiLike,
-} from './cloudinary-storage.strategy';
+import { CloudinaryStorageStrategy, type CloudinaryApiLike } from './cloudinary-storage.strategy';
 
 export const CLOUDINARY_STORAGE_REQUIRED_ENV = [
   'CLOUDINARY_CLOUD_NAME',

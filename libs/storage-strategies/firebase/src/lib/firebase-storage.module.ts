@@ -32,9 +32,7 @@ export class FirebaseStorageModule {
                 const bucketName = cfg.getOrThrow<string>('FIREBASE_STORAGE_BUCKET');
                 const app = getFirebaseAdmin(cfg);
                 return new FirebaseStorageStrategy({
-                  bucket: app
-                    .storage()
-                    .bucket(bucketName) as unknown as FirebaseStorageBucketLike,
+                  bucket: app.storage().bucket(bucketName) as unknown as FirebaseStorageBucketLike,
                 });
               },
               fake: () => new FakeStorageStrategy(),
