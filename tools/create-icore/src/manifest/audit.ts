@@ -26,7 +26,9 @@ async function tsconfigAliases(dir: string): Promise<Set<string>> {
     const aliases = new Set<string>();
     // `/`-subpath aliases (e.g. @icore/shared/testing) are intentionally excluded here, symmetric with ICORE_IMPORT.
     // The char class allows `.` so alias keys like `@icore/package.json` are captured whole (kept symmetric with the import side).
-    for (const m of raw.matchAll(/"(@icore\/[a-z0-9.-]+)"\s*:/g)) aliases.add(m[1]);
+    for (const m of raw.matchAll(/"(@icore\/[a-z0-9.-]+)"\s*:/g)) {
+      if (m[1]) aliases.add(m[1]);
+    }
     return aliases;
   } catch {
     return new Set();
@@ -58,7 +60,9 @@ async function readBlueprint(dir: string): Promise<Blueprint | null> {
 /** Forbidden raw SDKs derived from the blueprint: a provider's SDK is forbidden
  *  iff that provider appears in none of auth/db/upload. */
 function forbiddenFromBlueprint(bp: Blueprint): string[] {
-  const chosen = new Set([bp.authProvider, bp.dbProvider, bp.upload].filter(Boolean));
+  const chosen = new Set(
+    [bp.authProvider, bp.dbProvider, bp.upload].filter((p): p is string => Boolean(p)),
+  );
   const forbidden: string[] = [];
   for (const [provider, sdks] of Object.entries(PROVIDER_SDKS)) {
     if (!chosen.has(provider)) forbidden.push(...sdks);
@@ -122,7 +126,7 @@ export async function auditProject(
     const src = await readFile(file, 'utf8');
     for (const m of src.matchAll(ICORE_IMPORT)) {
       const alias = m[1];
-      if (!aliases.has(alias)) {
+      if (alias && !aliases.has(alias)) {
         violations.push({
           kind: 'import-of-absent-lib',
           detail: `${file} imports ${alias} (no tsconfig path → lib absent)`,

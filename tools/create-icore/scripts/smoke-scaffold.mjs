@@ -196,6 +196,19 @@ async function main() {
   await scaffold(opts, templatesDir);
   console.log(`scaffolded → ${opts.targetDir}`);
 
+  // Orphan-regression gate (design §7): no import of an absent @icore lib, no
+  // forbidden raw SDK dep for an unchosen provider (derived from blueprint.json).
+  const { auditProject } = require(distEntry);
+  const auditViolations = await auditProject(opts.targetDir);
+  if (auditViolations.length > 0) {
+    for (const v of auditViolations) console.error(`AUDIT ${v.kind}: ${v.detail}`);
+    console.error(
+      `\n✗ smoke FAILED (${combo}) — audit found ${auditViolations.length} orphan(s). inspect: ${opts.targetDir}`,
+    );
+    process.exit(1);
+  }
+  console.log(`✓ audit clean (${combo})`);
+
   if (mode === 'link') {
     // Layer A — typecheck only. nx build/serve executors validate
     // externalDependencies against the workspace package graph (which a
