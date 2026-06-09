@@ -9,7 +9,6 @@ import {
   writeUploadEnv,
   writeRootEnv,
   removeUploadStack,
-  removeNotesClientTail,
   rewriteRootPackageJson,
 } from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
@@ -122,45 +121,6 @@ describe('writeRootEnv', () => {
     await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'supabase' });
     const env = await readFile(join(dir, '.env'), 'utf8');
     expect(env).toContain('DB_PROVIDER=supabase');
-  });
-});
-
-describe('removeNotesClientTail', () => {
-  it('strips StickyNote + notes nav Link from shadcn LayoutSider and notes i18n block', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'icore-notes-tail-'));
-
-    // LayoutSider with shadcn pattern
-    await mkdir(join(dir, 'apps/client/src/components/layout'), { recursive: true });
-    await writeFile(
-      join(dir, 'apps/client/src/components/layout/LayoutSider.tsx'),
-      `import { LayoutDashboard, StickyNote, User } from 'lucide-react';\n` +
-        `export function LayoutSider() {\n  return (\n    <nav>\n` +
-        `      <Link to="/_dashboard/notes"><StickyNote size={16} />{t('notes.title')}</Link>\n` +
-        `    </nav>\n  );\n}`,
-    );
-
-    // i18n keys.ts with notes block
-    await mkdir(join(dir, 'libs/template-shared/src/lib/i18n'), { recursive: true });
-    await writeFile(
-      join(dir, 'libs/template-shared/src/lib/i18n/keys.ts'),
-      `export const ICORE_LOCALES = {\n  en: {\n    nav: { dashboard: 'Dashboard' },\n    notes: {\n      title: 'Notes',\n      new: 'New note',\n    },\n    error: { unknown: 'Error' },\n  },\n} as const;`,
-    );
-
-    await removeNotesClientTail(dir);
-
-    // LayoutSider: StickyNote + notes link removed, rest untouched
-    const sider = await readFile(
-      join(dir, 'apps/client/src/components/layout/LayoutSider.tsx'),
-      'utf8',
-    );
-    expect(sider).not.toContain('StickyNote');
-    expect(sider).not.toContain('/_dashboard/notes');
-    expect(sider).toContain('LayoutDashboard');
-
-    // i18n: notes block removed, rest untouched
-    const keys = await readFile(join(dir, 'libs/template-shared/src/lib/i18n/keys.ts'), 'utf8');
-    expect(keys).not.toContain('notes:');
-    expect(keys).toContain('nav:');
   });
 });
 

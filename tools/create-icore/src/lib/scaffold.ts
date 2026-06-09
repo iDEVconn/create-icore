@@ -13,12 +13,9 @@ import {
   writeClientEnv,
   writePaymentEnv,
 } from './scaffold-env.js';
-import {
-  removeNotesClientTail,
-  removeFirebaseAdminLib,
-  removeUploadStack,
-} from './scaffold-strip.js';
+import { removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
+import { writeNavConfig } from '../manifest/wire-client.js';
 import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
 import { cleanupUnusedDb, writeDbProvider } from '../manifest/wire-db.js';
@@ -39,7 +36,6 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
-  removeNotesClientTail,
   removeFirebaseAdminLib,
   removeUploadStack,
   writePnpmWorkspace,
@@ -175,9 +171,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
-  // Notes client tail (LayoutSider nav + i18n keys — edits to surviving files)
-  // still stripped here until the client phase replaces it with nav.config.
-  if (opts.example === 'none') await removeNotesClientTail(opts.targetDir);
+  await writeNavConfig(opts.targetDir, opts);
   await cleanupUnusedAuth(opts.targetDir, opts.authProvider);
   await writeAuthProvider(opts.targetDir, opts.authProvider);
   if (opts.upload !== 'none') {
