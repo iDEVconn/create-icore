@@ -8,7 +8,9 @@ const ENV_PATH = 'apps/microservices/auth/.env';
 
 /** Write apps/microservices/auth/src/app/auth.provider.ts wiring the chosen module. */
 export async function writeAuthProvider(targetDir: string, provider: AuthProvider): Promise<void> {
-  const { importFrom, symbol } = MANIFEST.auth[provider].nestModule!;
+  const nestModule = MANIFEST.auth[provider].nestModule;
+  if (!nestModule) throw new Error(`auth provider "${provider}" has no nestModule in the manifest`);
+  const { importFrom, symbol } = nestModule;
   const content =
     `import { ${symbol} } from '${importFrom}';\n\n` +
     `const ENV_PATH = '${ENV_PATH}';\n\n` +

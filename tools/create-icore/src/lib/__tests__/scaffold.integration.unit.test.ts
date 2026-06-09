@@ -333,9 +333,16 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
   await mkdir(join(tplDir, 'apps/microservices/auth/src/app'), { recursive: true });
+  // Static app.module (never touched by the generator) + committed auth.provider
+  // default (supabase). The generator overwrites auth.provider.ts per chosen
+  // provider via writeAuthProvider — app.module.ts stays static.
   await writeFile(
     join(tplDir, 'apps/microservices/auth/src/app/app.module.ts'),
-    `import { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { getFirebaseAdmin } from '@icore/firebase-admin';\n`,
+    `import { AuthProviderModule } from './auth.provider';\nexport class AppModule {}\n`,
+  );
+  await writeFile(
+    join(tplDir, 'apps/microservices/auth/src/app/auth.provider.ts'),
+    `import { SupabaseAuthModule } from '@icore/auth-supabase';\nexport const AuthProviderModule = SupabaseAuthModule.forRoot('apps/microservices/auth/.env');\n`,
   );
 
   // Upload MS package.json
@@ -608,7 +615,15 @@ describe('scaffold (integration, dry-run)', () => {
       .catch(() => false);
     expect(authLibExists).toBe(true);
 
-    // Auth module no longer imports firebase
+    // auth.provider wires the chosen provider only — never firebase
+    const authProvider = await readFile(
+      join(outputDir, 'apps/microservices/auth/src/app/auth.provider.ts'),
+      'utf8',
+    );
+    expect(authProvider).toContain('@icore/auth-supabase');
+    expect(authProvider).not.toContain('@icore/auth-firebase');
+    expect(authProvider).not.toContain('@icore/firebase-admin');
+    // Static app.module never gets provider source surgery
     const authMod = await readFile(
       join(outputDir, 'apps/microservices/auth/src/app/app.module.ts'),
       'utf8',
