@@ -255,6 +255,28 @@ Each phase is self-contained, revertable, and does not break the others.
 - **Contract:** update `runAuthContract` / `runStorageContract` for the new
   DynamicModule provider API.
 
+## §10 Generated `blueprint.json` (planned)
+
+Generation writes a `blueprint.json` at the generated project's root recording
+exactly what went in: the chosen unit per axis (auth/db/upload/ui/transport),
+the enabled features (notes/payment/jobs), the resolved shared units
+(firebase-admin), and the generator version. Produced by `assemble` from the same
+`resolveUnits(opts)` result — single source of truth.
+
+Why it earns its place:
+
+- **Audit input:** `auditProject` reads `blueprint.json` to know the chosen set, so
+  the forbidden-provider/forbidden-dep checks need no re-derivation or hardcoded
+  per-combo lists in CI.
+- **Idempotent re-generation / upgrades:** a future `icore add <provider>` or
+  re-scaffold can read the prior selection instead of re-prompting.
+- **Provenance/debugging:** "what was this project generated with?" is answerable
+  from one file.
+
+Lands alongside the `assemble` file-writing step (the phase that introduces
+generated wiring files — §8 phase 3+). Schema mirrors `CreateIcoreOptions` minus
+transient fields (`targetDir`, `install`, `initGit`).
+
 ## Out of scope
 
 - Runtime multi-provider switching (one provider per generation — matches current

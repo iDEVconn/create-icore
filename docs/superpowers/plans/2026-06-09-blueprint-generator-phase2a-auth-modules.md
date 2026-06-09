@@ -6,7 +6,14 @@
 
 **Architecture:** A shared `buildStrategyWithFallback` helper centralises the existing dev-fake/prod-fail logic. Each provider lib exports `XAuthModule.forRoot(envPath)` whose `'AuthStrategy'` provider calls that helper with its own `build()` and `REQUIRED_ENV`. MongoDB's module additionally imports `MongooseModule.forRootAsync` and injects the connection — its module-level infra lives in the package, not the app.
 
-**Tech Stack:** NestJS DynamicModule + `@nestjs/testing`, Vitest. These are TEMPLATE sources under `tools/create-icore/templates/`. They are not part of the `create-icore` Nx project's own build/test — they are copied into generated projects. **Verify them by typechecking with `tsc` against the template tsconfig and by unit-testing the extracted logic; do NOT expect `yarn nx test create-icore` to run template tests.** (See Task 0.)
+**Tech Stack:** NestJS DynamicModule + `@nestjs/testing`, Vitest/Jest.
+
+> **⚠ PATH CORRECTION (read first).** `tools/create-icore/templates/` is a **gitignored build artifact** regenerated from the root workspace by `nx build create-icore` (via `scripts/snapshot-templates.mjs`, which copies root `libs/`+`apps/` → `templates/`). Editing there is uncommittable and gets wiped. **The real, tracked source is the root workspace.** Therefore everywhere this plan says `tools/create-icore/templates/libs/...`, edit **`libs/...`** instead (drop the prefix). These are real root Nx projects:
+>
+> - test with **`yarn nx test auth-supabase` / `auth-firebase` / `auth-mongodb` / `shared`** (NOT a templates-dir vitest invocation). **Task 0 is obsolete — skip it.** `auth-mongodb` uses Jest, the others Vitest; `nx test <proj>` handles both.
+> - `templates/` regenerates automatically on the next `nx build create-icore`; do not touch it.
+> - **Deps (verified):** add `@nestjs/mongoose@^11.0.4` to `libs/auth-strategies/mongodb/package.json`. The new module files use NestJS decorators/`ConfigService`, but the auth libs don't declare `@nestjs/common`/`@nestjs/config` — add `@nestjs/common@^11.1.24` + `@nestjs/config@^4.0.4` to whichever of the three auth libs gain a module file that imports them (all three). Match versions already present in the root `package.json`/sibling libs (e.g. `@icore/auth-client`).
+> - All grounding claims in the code blocks below were verified correct against the root source (`missingEnv`/`formatEnvBanner` in `libs/shared/src/env.ts`; `FakeAuthStrategy` from `@icore/shared`; constructor shapes; `getFirebaseAdmin`/`FIREBASE_ADMIN_REQUIRED_ENV`; `HttpIdentityToolkitClient`). Index files use extension-less `export *`; test files need `.js` on relative imports (NodeNext).
 
 ---
 
