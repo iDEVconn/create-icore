@@ -453,6 +453,17 @@ export async function removeUnusedDbStrategies(
 export async function removeFirebaseAdminLib(targetDir: string): Promise<void> {
   await rm(join(targetDir, 'libs/firebase-admin'), { recursive: true, force: true });
   await stripTsconfigPath(targetDir, '@icore/firebase-admin');
+  // The lib is gone — strip the now-orphaned workspace dep from every MS
+  // package.json that declares it, or the generated `yarn install` breaks.
+  await stripDeps(join(targetDir, 'apps/microservices/auth/package.json'), [
+    '@icore/firebase-admin',
+  ]);
+  await stripDeps(join(targetDir, 'apps/microservices/upload/package.json'), [
+    '@icore/firebase-admin',
+  ]);
+  await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
+    '@icore/firebase-admin',
+  ]);
 }
 
 export async function removeUploadStack(targetDir: string): Promise<void> {
