@@ -22,10 +22,14 @@ export interface Unit {
     symbol: string;
     into: 'auth' | 'upload' | 'notes' | 'gateway';
   };
-  /** Entry added to GATEWAY_SERVICES in apps/api/src/main.ts. */
+  /** Entry added to GATEWAY_SERVICES in apps/api/src/app/gateway-services.ts. */
   gatewayService?: { name: string; prefix: string };
   /** Contribution to the client sidebar/routes. */
   clientNav?: { route: string; navEntry: string };
+  /** A plain NestJS module the gateway app.module imports (no forRoot). */
+  gatewayModule?: { importFrom: string; symbol: string };
+  /** Name of a docker-compose service block this feature owns. */
+  dockerService?: 'jobs';
   /** App-level (not lib) test files that belong to this unit and must be removed
    *  when the unit is NOT selected (they import the unit's now-absent lib). */
   appTests?: string[];

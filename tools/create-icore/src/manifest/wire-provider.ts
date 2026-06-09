@@ -32,7 +32,7 @@ export async function writeProvider(
   await writeFile(join(targetDir, axis.providerFile), content);
 }
 
-async function stripJsonKeys(path: string, drop: (k: string) => boolean): Promise<void> {
+export async function stripJsonKeys(path: string, drop: (k: string) => boolean): Promise<void> {
   try {
     const pkg = JSON.parse(await readFile(path, 'utf8')) as {
       dependencies?: Record<string, string>;
@@ -49,7 +49,7 @@ async function stripJsonKeys(path: string, drop: (k: string) => boolean): Promis
   }
 }
 
-async function stripTsconfigKeys(targetDir: string, aliases: string[]): Promise<void> {
+export async function stripTsconfigKeys(targetDir: string, aliases: string[]): Promise<void> {
   const path = join(targetDir, 'tsconfig.base.json');
   try {
     const parsed = JSON.parse(await readFile(path, 'utf8')) as {
