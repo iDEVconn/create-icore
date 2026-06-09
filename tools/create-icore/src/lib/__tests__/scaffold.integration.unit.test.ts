@@ -118,16 +118,28 @@ async function makeFakeTemplates(): Promise<string> {
     join(tplDir, 'apps/api/src/app/notes/notes.module.ts'),
     'export class NotesModule {}',
   );
+  // Static app.module — never touched by the generator. Feature wiring lives in
+  // the generated features.module.ts (written by writeFeaturesWiring).
   await writeFile(
     join(tplDir, 'apps/api/src/app/app.module.ts'),
     [
+      "import { StorageModule } from './storage/storage.module';",
+      "import { AuthModule } from './auth/auth.module';",
+      "import { FeaturesModule } from './features.module';",
+      '@Module({ imports: [AuthModule, StorageModule, FeaturesModule] })',
+      'export class AppModule {}',
+    ].join('\n'),
+  );
+  // Template ships a features.module.ts with all 3 (generator overwrites it).
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/features.module.ts'),
+    [
+      "import { Module } from '@nestjs/common';",
       "import { NotesModule } from './notes/notes.module';",
       "import { PaymentModule } from './payment/payment.module';",
       "import { AdminModule } from './admin/admin.module';",
-      "import { StorageModule } from './storage/storage.module';",
-      "import { AuthModule } from './auth/auth.module';",
-      '@Module({ imports: [AuthModule, StorageModule, NotesModule, PaymentModule, AdminModule] })',
-      'export class AppModule {}',
+      '@Module({ imports: [NotesModule, PaymentModule, AdminModule] })',
+      'export class FeaturesModule {}',
     ].join('\n'),
   );
 
@@ -577,9 +589,17 @@ describe('scaffold (integration, dry-run)', () => {
       access(join(outputDir, 'apps/client/src/routes/_dashboard/notes.tsx')),
     ).rejects.toThrow();
 
-    // app.module.ts has no NotesModule
+    // app.module.ts is static — it imports FeaturesModule, never a feature module directly
     const mod = await readFile(join(outputDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(mod).toContain('FeaturesModule');
     expect(mod).not.toContain('NotesModule');
+    expect(mod).not.toContain('PaymentModule');
+    expect(mod).not.toContain('AdminModule');
+
+    // generated features.module.ts has no feature imports (all features off)
+    const features = await readFile(join(outputDir, 'apps/api/src/app/features.module.ts'), 'utf8');
+    expect(features).not.toContain('NotesModule');
+    expect(features).toMatch(/imports:\s*\[\]/);
 
     // rest of scaffold intact
     const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as {
