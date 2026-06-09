@@ -16,7 +16,7 @@ import {
 import { removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
-import { writeBlueprintJson } from '../manifest/blueprint.js';
+import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
 import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
 import { cleanupUnusedDb, writeDbProvider } from '../manifest/wire-db.js';
@@ -191,6 +191,7 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
     opts.upload === 'firebase';
   if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
   await writeBlueprintJson(opts.targetDir, opts);
+  await writeServiceBlueprints(opts.targetDir, opts);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
   // through parent directories and may pick up a stray package.json/yarn.lock
   // (e.g. in the user's $HOME), causing
