@@ -12,7 +12,12 @@ export default [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
           ],
-          ignoredDependencies: ['@icore/shared', '@supabase/supabase-js'],
+          ignoredDependencies: [
+            '@icore/shared',
+            '@supabase/supabase-js',
+            '@nestjs/testing',
+            'vitest',
+          ],
         },
       ],
     },
