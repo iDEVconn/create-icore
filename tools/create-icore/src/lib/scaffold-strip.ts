@@ -119,11 +119,14 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
 }
 
 export async function removeNotesStack(targetDir: string): Promise<void> {
-  // Delete MS, lib, gateway module, and shadcn-only notes components dir
+  // Delete MS, lib, gateway module, and shadcn-only notes components dir.
+  // The db-strategies libs are consumed only by the notes MS (via db.provider.ts),
+  // so they go with it — mirrors removeUploadStack dropping libs/storage-strategies.
   for (const p of [
     'apps/microservices/notes',
     'apps/microservices/notes-e2e',
     'libs/notes-client',
+    'libs/db-strategies',
     'apps/api/src/app/notes',
     'apps/client/src/components/notes',
   ]) {
@@ -221,121 +224,6 @@ export async function removeNotesStack(targetDir: string): Promise<void> {
     await writeFile(keysPath, next);
   } catch {
     // ignore
-  }
-}
-
-export async function removeUnusedDbStrategies(
-  targetDir: string,
-  dbProvider: string,
-): Promise<void> {
-  const modulePath = join(targetDir, 'apps/microservices/notes/src/app/app.module.ts');
-
-  const DB_BRANCH =
-    /if \(provider === 'supabase'\) return makeSupabaseDB\(cfg\);\n\s*if \(provider === 'mongodb'\) return makeMongoDb\(connection\);\n\s*return makeFirestoreDB\(cfg\);/m;
-
-  if (dbProvider === 'supabase') {
-    await rm(join(targetDir, 'libs/db-strategies/firestore'), { recursive: true, force: true });
-    await rm(join(targetDir, 'libs/db-strategies/mongodb'), { recursive: true, force: true });
-    await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
-      '@icore/db-firestore',
-      '@icore/firebase-admin',
-      '@icore/db-mongodb',
-    ]);
-    await stripTsconfigPath(targetDir, '@icore/db-firestore');
-    await stripTsconfigPath(targetDir, '@icore/db-mongodb');
-    try {
-      const src = await readFile(modulePath, 'utf8');
-      const next = src
-        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/gm, '')
-        .replace(/^import \{[^}]*FirestoreDBStrategy[^}]*\} from '@icore\/db-firestore';\n/gm, '')
-        .replace(/^import \{[^}]*MongoDbDBStrategy[^}]*\} from '@icore\/db-mongodb';\n/gm, '')
-        .replace(
-          /^import \{ MongooseModule, getConnectionToken \} from '@nestjs\/mongoose';\n/gm,
-          '',
-        )
-        .replace(/^import \{ Connection \} from 'mongoose';\n/gm, '')
-        // drop the firestore + firebase + mongodb entries from the REQUIRED_ENV map
-        .replace(/^ {2}firestore: \[[^\]]*\],\n/gm, '')
-        .replace(/^ {2}firebase: \[[^\]]*\],\n/gm, '')
-        .replace(/^ {2}mongodb: \[[^\]]*\],\n/gm, '')
-        // drop factory functions
-        .replace(/\nfunction makeFirestoreDB[\s\S]*?\n}\n/gm, '')
-        .replace(/\nfunction makeMongoDb[\s\S]*?\n}\n/gm, '')
-        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '')
-        // collapse the provider branch to an unconditional supabase return
-        .replace(DB_BRANCH, 'return makeSupabaseDB(cfg);')
-        .replace(/, connection: Connection/, '')
-        .replace(/, getConnectionToken\(\)/, '');
-      await writeFile(modulePath, next);
-    } catch {
-      // ignore
-    }
-  }
-
-  if (dbProvider === 'firebase') {
-    await rm(join(targetDir, 'libs/db-strategies/supabase'), { recursive: true, force: true });
-    await rm(join(targetDir, 'libs/db-strategies/mongodb'), { recursive: true, force: true });
-    await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
-      '@icore/db-supabase',
-      '@icore/db-mongodb',
-    ]);
-    await stripTsconfigPath(targetDir, '@icore/db-supabase');
-    await stripTsconfigPath(targetDir, '@icore/db-mongodb');
-    try {
-      const src = await readFile(modulePath, 'utf8');
-      const next = src
-        .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/gm, '')
-        .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/gm, '')
-        .replace(/^import \{[^}]*MongoDbDBStrategy[^}]*\} from '@icore\/db-mongodb';\n/gm, '')
-        .replace(
-          /^import \{ MongooseModule, getConnectionToken \} from '@nestjs\/mongoose';\n/gm,
-          '',
-        )
-        .replace(/^import \{ Connection \} from 'mongoose';\n/gm, '')
-        .replace(/^ {2}supabase: \[[^\]]*\],\n/gm, '')
-        .replace(/^ {2}mongodb: \[[^\]]*\],\n/gm, '')
-        .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/gm, '')
-        .replace(/\nfunction makeMongoDb[\s\S]*?\n}\n/gm, '')
-        .replace(/^ {4}MongooseModule\.forRootAsync[\s\S]*?\n {4}\}\),\n/gm, '')
-        .replace(/\nfunction requireEnv[\s\S]*?\n}\n/gm, '')
-        // collapse the provider branch to an unconditional firestore return
-        .replace(DB_BRANCH, 'return makeFirestoreDB(cfg);')
-        .replace(/, connection: Connection/, '')
-        .replace(/, getConnectionToken\(\)/, '');
-      await writeFile(modulePath, next);
-    } catch {
-      // ignore
-    }
-  }
-
-  if (dbProvider === 'mongodb') {
-    await rm(join(targetDir, 'libs/db-strategies/supabase'), { recursive: true, force: true });
-    await rm(join(targetDir, 'libs/db-strategies/firestore'), { recursive: true, force: true });
-    await stripDeps(join(targetDir, 'apps/microservices/notes/package.json'), [
-      '@icore/db-supabase',
-      '@icore/db-firestore',
-      '@icore/firebase-admin',
-    ]);
-    await stripTsconfigPath(targetDir, '@icore/db-supabase');
-    await stripTsconfigPath(targetDir, '@icore/db-firestore');
-    try {
-      const src = await readFile(modulePath, 'utf8');
-      const next = src
-        .replace(/^import \{ createClient \} from '@supabase\/supabase-js';\n/gm, '')
-        .replace(/^import \{[^}]*SupabaseDBStrategy[^}]*\} from '@icore\/db-supabase';\n/gm, '')
-        .replace(/^import \{[^}]*\} from '@icore\/firebase-admin';\n/gm, '')
-        .replace(/^import \{[^}]*FirestoreDBStrategy[^}]*\} from '@icore\/db-firestore';\n/gm, '')
-        .replace(/^ {2}supabase: \[[^\]]*\],\n/gm, '')
-        .replace(/^ {2}firestore: \[[^\]]*\],\n/gm, '')
-        .replace(/^ {2}firebase: \[[^\]]*\],\n/gm, '')
-        .replace(/\nfunction makeSupabaseDB[\s\S]*?\n}\n/gm, '')
-        .replace(/\nfunction makeFirestoreDB[\s\S]*?\n}\n/gm, '')
-        .replace(/\nfunction requireEnv[\s\S]*?\n}\n/gm, '')
-        .replace(DB_BRANCH, 'return makeMongoDb(connection);');
-      await writeFile(modulePath, next);
-    } catch {
-      // ignore
-    }
   }
 }
 
