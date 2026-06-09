@@ -26,6 +26,9 @@ export interface Unit {
   gatewayService?: { name: string; prefix: string };
   /** Contribution to the client sidebar/routes. */
   clientNav?: { route: string; navEntry: string };
+  /** App-level (not lib) test files that belong to this unit and must be removed
+   *  when the unit is NOT selected (they import the unit's now-absent lib). */
+  appTests?: string[];
 }
 
 export type StorageProvider = Exclude<UploadProvider, 'none'>;

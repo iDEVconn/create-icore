@@ -13,6 +13,9 @@ export const MANIFEST = {
         symbol: 'SupabaseAuthModule',
         into: 'auth',
       },
+      appTests: [
+        'apps/microservices/auth/src/app/__tests__/auth.controller.supabase.integration.unit.test.ts',
+      ],
     },
     firebase: {
       libDirs: ['libs/auth-strategies/firebase'],
@@ -23,6 +26,9 @@ export const MANIFEST = {
         symbol: 'FirebaseAuthModule',
         into: 'auth',
       },
+      appTests: [
+        'apps/microservices/auth/src/app/__tests__/auth.controller.firebase.integration.unit.test.ts',
+      ],
     },
     mongodb: {
       libDirs: ['libs/auth-strategies/mongodb'],

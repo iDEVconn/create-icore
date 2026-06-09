@@ -17,12 +17,12 @@ import {
   removeJobsStack,
   removePaymentStack,
   removeNotesStack,
-  removeUnusedAuthStrategies,
   removeUnusedStorageStrategies,
   removeUnusedDbStrategies,
   removeFirebaseAdminLib,
   removeUploadStack,
 } from './scaffold-strip.js';
+import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import {
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
@@ -43,7 +43,6 @@ export {
   removeJobsStack,
   removePaymentStack,
   removeNotesStack,
-  removeUnusedAuthStrategies,
   removeUnusedStorageStrategies,
   removeUnusedDbStrategies,
   removeFirebaseAdminLib,
@@ -182,7 +181,8 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
   if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
   if (opts.example === 'none') await removeNotesStack(opts.targetDir);
-  await removeUnusedAuthStrategies(opts.targetDir, opts.authProvider);
+  await cleanupUnusedAuth(opts.targetDir, opts.authProvider);
+  await writeAuthProvider(opts.targetDir, opts.authProvider);
   await removeUnusedStorageStrategies(opts.targetDir, opts.upload);
   await removeUnusedDbStrategies(opts.targetDir, opts.dbProvider);
   // The shared firebase-admin init lib is only needed when SOME microservice
