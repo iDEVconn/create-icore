@@ -119,11 +119,14 @@ export async function removePaymentStack(targetDir: string): Promise<void> {
 }
 
 export async function removeNotesStack(targetDir: string): Promise<void> {
-  // Delete MS, lib, gateway module, and shadcn-only notes components dir
+  // Delete MS, lib, gateway module, and shadcn-only notes components dir.
+  // The db-strategies libs are consumed only by the notes MS (via db.provider.ts),
+  // so they go with it — mirrors removeUploadStack dropping libs/storage-strategies.
   for (const p of [
     'apps/microservices/notes',
     'apps/microservices/notes-e2e',
     'libs/notes-client',
+    'libs/db-strategies',
     'apps/api/src/app/notes',
     'apps/client/src/components/notes',
   ]) {
