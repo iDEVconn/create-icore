@@ -4,8 +4,16 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import NoteOutlinedIcon from '@mui/icons-material/NoteOutlined';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import type { ReactNode } from 'react';
+import { NAV_CONFIG, type NavItem } from '@/nav.config';
 
 const DRAWER_WIDTH = 220;
+
+const ICONS: Record<NavItem['iconName'], ReactNode> = {
+  dashboard: <DashboardOutlinedIcon />,
+  notes: <NoteOutlinedIcon />,
+  profile: <PersonOutlineIcon />,
+};
 
 export function LayoutSider() {
   const { t } = useTranslation();
@@ -25,26 +33,17 @@ export function LayoutSider() {
       }}
     >
       <List>
-        <ListItemButton component={Link} to="/dashboard" selected={pathname === '/dashboard'}>
-          <ListItemIcon>
-            <DashboardOutlinedIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('nav.dashboard')} />
-        </ListItemButton>
-
-        <ListItemButton component={Link} to="/notes" selected={pathname.includes('/notes')}>
-          <ListItemIcon>
-            <NoteOutlinedIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('notes.title')} />
-        </ListItemButton>
-
-        <ListItemButton component={Link} to="/profile" selected={pathname === '/profile'}>
-          <ListItemIcon>
-            <PersonOutlineIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('nav.profile')} />
-        </ListItemButton>
+        {NAV_CONFIG.map(({ to, iconName, labelKey, exact }) => (
+          <ListItemButton
+            key={to}
+            component={Link}
+            to={to}
+            selected={exact ? pathname === to : pathname.includes(to)}
+          >
+            <ListItemIcon>{ICONS[iconName]}</ListItemIcon>
+            <ListItemText primary={t(labelKey)} />
+          </ListItemButton>
+        ))}
       </List>
     </Drawer>
   );
