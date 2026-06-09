@@ -26,6 +26,10 @@ export interface Unit {
   gatewayService?: { name: string; prefix: string };
   /** Contribution to the client sidebar/routes. */
   clientNav?: { route: string; navEntry: string };
+  /** A plain NestJS module the gateway app.module imports (no forRoot). */
+  gatewayModule?: { importFrom: string; symbol: string };
+  /** Name of a docker-compose service block this feature owns. */
+  dockerService?: string;
   /** App-level (not lib) test files that belong to this unit and must be removed
    *  when the unit is NOT selected (they import the unit's now-absent lib). */
   appTests?: string[];
