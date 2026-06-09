@@ -23,8 +23,9 @@ async function walk(dir: string, out: string[] = []): Promise<string[]> {
 async function tsconfigAliases(dir: string): Promise<Set<string>> {
   try {
     const raw = await readFile(join(dir, 'tsconfig.base.json'), 'utf8');
-    const parsed = JSON.parse(raw) as { compilerOptions?: { paths?: Record<string, unknown> } };
-    return new Set(Object.keys(parsed.compilerOptions?.paths ?? {}));
+    const aliases = new Set<string>();
+    for (const m of raw.matchAll(/"(@icore\/[a-z0-9-]+)"\s*:/g)) aliases.add(m[1]);
+    return aliases;
   } catch {
     return new Set();
   }

@@ -40,6 +40,21 @@ describe('auditProject', () => {
     expect(await auditProject(dir)).toEqual([]);
   });
 
+  it('tolerates a trailing comma in tsconfig paths (no false-positive orphan)', async () => {
+    const dir = await scaffold({
+      'tsconfig.base.json': `{
+  "compilerOptions": {
+    "paths": {
+      "@icore/auth-supabase": ["libs/a/src/index.ts"],
+    }
+  }
+}`,
+      'package.json': JSON.stringify({ dependencies: {} }),
+      'apps/x/src/a.ts': `import { X } from '@icore/auth-supabase';`,
+    });
+    expect(await auditProject(dir)).toEqual([]);
+  });
+
   it('flags a forbidden raw SDK dep listed in FORBIDDEN', async () => {
     const dir = await scaffold({
       'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
