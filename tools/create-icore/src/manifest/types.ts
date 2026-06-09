@@ -24,8 +24,8 @@ export interface Unit {
   };
   /** Entry added to GATEWAY_SERVICES in apps/api/src/app/gateway-services.ts. */
   gatewayService?: { name: string; prefix: string };
-  /** Contribution to the client sidebar/routes. */
-  clientNav?: { route: string; navEntry: string };
+  /** Contribution to the generated client nav.config.ts (one entry). */
+  clientNav?: { route: string; labelKey: string; iconName: string; exact?: boolean };
   /** A plain NestJS module the gateway app.module imports (no forRoot). */
   gatewayModule?: { importFrom: string; symbol: string };
   /** Name of a docker-compose service block this feature owns. */

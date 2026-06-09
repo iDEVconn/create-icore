@@ -42,45 +42,6 @@ async function stripTsconfigPath(targetDir: string, alias: string): Promise<void
   }
 }
 
-/** Notes' CLIENT-side source edits to files that survive (LayoutSider nav + i18n
- *  keys). Temporary until the client phase replaces it with a generated nav.config.
- *  Dir removals + gateway/transport cleanup live in cleanupUnusedFeatures. */
-export async function removeNotesClientTail(targetDir: string): Promise<void> {
-  const siderPath = join(targetDir, 'apps/client/src/components/layout/LayoutSider.tsx');
-  try {
-    const src = await readFile(siderPath, 'utf8');
-    const next = src
-      .replace(', StickyNote', '')
-      .replace(/\n {8}<Link\n {10}to="\/(?:_dashboard\/)?notes"[\s\S]*?<\/Link>/, '')
-      .replace(', FileTextOutlined', '')
-      .replace(
-        "const selectedKey = pathname.includes('/notes')\n    ? 'notes'\n    : pathname.includes('/profile')",
-        "const selectedKey = pathname.includes('/profile')",
-      )
-      .replace(
-        /\n {4}\{\n {6}key: 'notes',\n {6}icon: <FileTextOutlined \/>,\n {6}label: <Link to="\/(?:_dashboard\/)?notes">\{t\('notes\.title'\)\}<\/Link>,\n {4}\},/,
-        '',
-      )
-      .replace("import NoteOutlinedIcon from '@mui/icons-material/NoteOutlined';\n", '')
-      .replace(
-        /\n {8}<ListItemButton\n {10}component=\{Link\}\n {10}to="\/(?:_dashboard\/)?notes"[\s\S]*?<\/ListItemButton>/,
-        '',
-      )
-      .replace(/\n\s*<Link to="\/(?:_dashboard\/)?notes">[\s\S]*?<\/Link>/m, '');
-    await writeFile(siderPath, next);
-  } catch {
-    // ignore
-  }
-  const keysPath = join(targetDir, 'libs/template-shared/src/lib/i18n/keys.ts');
-  try {
-    const src = await readFile(keysPath, 'utf8');
-    const next = src.replace(/^\s{4}notes: \{\n(?:\s+.*\n)*?\s{4}\},\n/m, '');
-    await writeFile(keysPath, next);
-  } catch {
-    // ignore
-  }
-}
-
 /**
  * Deletes the shared `@icore/firebase-admin` init lib and its tsconfig alias.
  * Called only when no microservice uses the Firebase provider — the per-MS

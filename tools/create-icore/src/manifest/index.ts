@@ -115,6 +115,7 @@ export const MANIFEST = {
       tsPaths: { '@icore/notes-client': ['libs/notes-client/src/index.ts'] },
       gatewayModule: { importFrom: './notes/notes.module', symbol: 'NotesModule' },
       gatewayService: { name: 'notes', prefix: 'NOTES' },
+      clientNav: { route: '/notes', labelKey: 'nav.notes', iconName: 'notes' },
     },
     payment: {
       libDirs: [
