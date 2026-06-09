@@ -35,6 +35,7 @@ async function fixture(): Promise<string> {
         '@icore/auth-supabase': '*',
         '@icore/auth-firebase': '*',
         '@icore/auth-mongodb': '*',
+        '@supabase/supabase-js': '^2.106.2',
       },
     }),
   );
@@ -104,8 +105,22 @@ describe('cleanupUnusedAuth', () => {
     const pkg = JSON.parse(
       await readFile(join(dir, 'apps/microservices/auth/package.json'), 'utf8'),
     );
-    expect(pkg.dependencies).toEqual({ '@icore/auth-supabase': '*' });
+    expect(pkg.dependencies).toEqual({
+      '@icore/auth-supabase': '*',
+      '@supabase/supabase-js': '^2.106.2',
+    });
     const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
     expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/auth-supabase']);
+  });
+
+  it('cleanupUnusedAuth(firebase) strips the unchosen supabase raw SDK from the auth package.json', async () => {
+    const dir = await fixture();
+    await cleanupUnusedAuth(dir, 'firebase');
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/auth/package.json'), 'utf8'),
+    );
+    expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/auth-supabase');
+    expect(pkg.dependencies['@icore/auth-firebase']).toBe('*');
   });
 });
