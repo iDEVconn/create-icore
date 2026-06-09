@@ -10,6 +10,7 @@ import {
   writeRootEnv,
   removeUploadStack,
   rewriteRootPackageJson,
+  pruneRootProviderDeps,
 } from '../scaffold.js';
 import type { CreateIcoreOptions } from '../options.js';
 
@@ -228,6 +229,90 @@ describe('api package dependencies', () => {
     expect(apiPkg.dependencies?.['@idevconn/payment']).toBe('^1.2.0');
     expect(apiPkg.dependencies?.['express']).toMatch(/^\^5\./);
     expect(apiPkg.devDependencies?.['@types/express']).toMatch(/^\^5\./);
+  });
+});
+
+describe('pruneRootProviderDeps — prune unchosen provider SDKs from root package.json', () => {
+  // Fixture root package.json: all 4 marker SDKs + a transport driver + non-marker deps.
+  async function run(opts: Partial<CreateIcoreOptions>) {
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'icore',
+        version: '1.0.0',
+        dependencies: {
+          '@supabase/supabase-js': '^2.106.2',
+          cloudinary: '^2.10.0',
+          mongoose: '^9.6.3',
+          'firebase-admin': '^13.0.0',
+          // non-marker deps that must always survive
+          nats: '^2.29.3',
+          '@nestjs/mongoose': '^11.0.4',
+          bcrypt: '^6.0.0',
+          jsonwebtoken: '^9.0.3',
+        },
+      }),
+    );
+    await pruneRootProviderDeps(dir, { ...baseOpts, targetDir: dir, ...opts });
+    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    return pkg.dependencies ?? {};
+  }
+
+  it('removes unchosen SDKs while keeping chosen ones (supabase-only project)', async () => {
+    const deps = await run({
+      authProvider: 'supabase',
+      dbProvider: 'supabase',
+      upload: 'supabase',
+    });
+    // chosen → kept
+    expect(deps['@supabase/supabase-js']).toBeDefined();
+    // unchosen → removed
+    expect(deps['cloudinary']).toBeUndefined();
+    expect(deps['mongoose']).toBeUndefined();
+    expect(deps['firebase-admin']).toBeUndefined();
+  });
+
+  it('removes supabase + cloudinary + firebase for a mongodb-only project, keeps mongoose', async () => {
+    const deps = await run({
+      authProvider: 'mongodb',
+      dbProvider: 'mongodb',
+      upload: 'mongodb',
+    });
+    expect(deps['mongoose']).toBeDefined();
+    expect(deps['@supabase/supabase-js']).toBeUndefined();
+    expect(deps['cloudinary']).toBeUndefined();
+    expect(deps['firebase-admin']).toBeUndefined();
+  });
+
+  it('keeps cloudinary when upload=cloudinary even on a supabase auth/db project', async () => {
+    const deps = await run({
+      authProvider: 'supabase',
+      dbProvider: 'firebase',
+      upload: 'cloudinary',
+    });
+    expect(deps['cloudinary']).toBeDefined();
+    expect(deps['@supabase/supabase-js']).toBeDefined();
+    expect(deps['firebase-admin']).toBeDefined();
+    expect(deps['mongoose']).toBeUndefined();
+  });
+
+  it('never touches transport driver deps or @nestjs/mongoose/bcrypt/jsonwebtoken', async () => {
+    const deps = await run({
+      authProvider: 'firebase',
+      dbProvider: 'firebase',
+      upload: 'none',
+    });
+    expect(deps['nats']).toBeDefined();
+    expect(deps['@nestjs/mongoose']).toBeDefined();
+    expect(deps['bcrypt']).toBeDefined();
+    expect(deps['jsonwebtoken']).toBeDefined();
+    // firebase chosen → kept; the rest pruned
+    expect(deps['firebase-admin']).toBeDefined();
+    expect(deps['@supabase/supabase-js']).toBeUndefined();
+    expect(deps['cloudinary']).toBeUndefined();
+    expect(deps['mongoose']).toBeUndefined();
   });
 });
 

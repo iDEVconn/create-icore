@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import type { CreateIcoreOptions } from './options.js';
 import {
   rewriteRootPackageJson,
+  pruneRootProviderDeps,
   writeAuthEnv,
   writeUploadEnv,
   writeNotesEnv,
@@ -30,6 +31,7 @@ import {
 // Re-export everything so existing imports from './scaffold.js' keep working.
 export {
   rewriteRootPackageJson,
+  pruneRootProviderDeps,
   writeAuthEnv,
   writeUploadEnv,
   writeNotesEnv,
@@ -190,6 +192,9 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
     opts.dbProvider === 'firebase' ||
     opts.upload === 'firebase';
   if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
+  // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
+  // generated project audits clean (root keeps only chosen providers' SDKs).
+  await pruneRootProviderDeps(opts.targetDir, opts);
   await writeBlueprintJson(opts.targetDir, opts);
   await writeServiceBlueprints(opts.targetDir, opts);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
