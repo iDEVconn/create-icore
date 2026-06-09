@@ -55,7 +55,22 @@ describe('auditProject', () => {
     expect(await auditProject(dir)).toEqual([]);
   });
 
-  it('flags a forbidden raw SDK dep listed in FORBIDDEN', async () => {
+  it('flags an @icore package brought in via a dynamic import whose alias is absent', async () => {
+    const dir = await scaffold({
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
+      'package.json': JSON.stringify({ dependencies: {} }),
+      'apps/x/src/a.ts': `const m = import('@icore/auth-firebase');`,
+    });
+    const v = await auditProject(dir);
+    expect(v).toContainEqual(
+      expect.objectContaining({
+        kind: 'import-of-absent-lib',
+        detail: expect.stringContaining('@icore/auth-firebase'),
+      }),
+    );
+  });
+
+  it('flags a forbidden raw SDK dep passed via opts.forbiddenDeps', async () => {
     const dir = await scaffold({
       'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
       'package.json': JSON.stringify({ dependencies: { cloudinary: '^2.10.0' } }),

@@ -24,7 +24,9 @@ async function tsconfigAliases(dir: string): Promise<Set<string>> {
   try {
     const raw = await readFile(join(dir, 'tsconfig.base.json'), 'utf8');
     const aliases = new Set<string>();
-    for (const m of raw.matchAll(/"(@icore\/[a-z0-9-]+)"\s*:/g)) aliases.add(m[1]);
+    // `/`-subpath aliases (e.g. @icore/shared/testing) are intentionally excluded here, symmetric with ICORE_IMPORT.
+    // The char class allows `.` so alias keys like `@icore/package.json` are captured whole (kept symmetric with the import side).
+    for (const m of raw.matchAll(/"(@icore\/[a-z0-9.-]+)"\s*:/g)) aliases.add(m[1]);
     return aliases;
   } catch {
     return new Set();
@@ -47,7 +49,11 @@ async function rootDeps(dir: string): Promise<Set<string>> {
   }
 }
 
-const ICORE_IMPORT = /from '(@icore\/[a-z0-9-]+)'/g;
+// Matches static `from '…'`/`from "…"` and dynamic `import('…')` of an @icore package.
+// NOTE: `/`-subpath aliases (e.g. @icore/shared/testing) are intentionally not captured here;
+// the tsconfig alias regex is symmetric on this, so it produces no false positive. The `.` in the
+// char class keeps `@icore/package.json`-style aliases captured whole, symmetric with tsconfigAliases.
+const ICORE_IMPORT = /(?:from|import\()\s*['"](@icore\/[a-z0-9.-]+)/g;
 
 export async function auditProject(
   dir: string,
