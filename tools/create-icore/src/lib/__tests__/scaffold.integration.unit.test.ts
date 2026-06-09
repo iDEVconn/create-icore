@@ -209,7 +209,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // jobs-client lib stub + package.json (removeJobsStack deletes this dir)
+  // jobs-client lib stub + package.json (cleanupUnusedFeatures deletes this dir)
   await mkdir(join(tplDir, 'libs/jobs-client/src'), { recursive: true });
   await writeFile(join(tplDir, 'libs/jobs-client/src/index.ts'), 'export {};');
   await writeFile(
@@ -226,7 +226,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // admin dir stub (removeJobsStack deletes apps/api/src/app/admin)
+  // admin dir stub (cleanupUnusedFeatures deletes apps/api/src/app/admin)
   await mkdir(join(tplDir, 'apps/api/src/app/admin'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/api/src/app/admin/admin.module.ts'),
@@ -250,7 +250,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // payment-client lib stub + package.json (removePaymentStack deletes this)
+  // payment-client lib stub + package.json (cleanupUnusedFeatures deletes this)
   await mkdir(join(tplDir, 'libs/payment-client/src'), { recursive: true });
   await writeFile(join(tplDir, 'libs/payment-client/src/index.ts'), 'export {};');
   await writeFile(
@@ -267,7 +267,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // payment gateway module stub (removePaymentStack deletes apps/api/src/app/payment)
+  // payment gateway module stub (cleanupUnusedFeatures deletes apps/api/src/app/payment)
   await mkdir(join(tplDir, 'apps/api/src/app/payment'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/api/src/app/payment/payment.module.ts'),
