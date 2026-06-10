@@ -159,7 +159,7 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 
 - `tools/create-icore/` — `@idevconn/create-icore` CLI built with tsup. Entry: `dist/cli.js`. Templates baked into `tools/create-icore/templates/` by a build-time snapshot of the current monorepo source.
 - Interactive prompts via `@clack/prompts` 1.4+: project name → auth provider → db provider (records the choice, mirrors auth in v0.1.0) → upload provider (with `none` opt-out) → UI library → MS transport → init git → run install.
-- Non-interactive via flags: `--auth=supabase|firebase`, `--db=supabase|firebase`, `--upload=supabase|firebase|cloudinary|none`, `--ui=shadcn|antd|mui`, `--transport=tcp|redis|nats`, `--no-git`, `--no-install`. The legacy `--storage` flag is a deprecated alias that warns and maps to `--upload`.
+- Non-interactive via flags: `--auth=supabase|firebase`, `--db=supabase|firebase`, `--upload=supabase|firebase|cloudinary|none`, `--ui=shadcn|antd|mui`, `--transport=tcp|redis|nats`, `--no-git`, `--no-install`. The legacy `--storage` flag is a deprecated alias that warns and maps to `--upload`. `--config <path>` pre-fills any/all of these from a JSON file (field names match `CreateIcoreOptions`); missing fields fall back to interactive prompts; individual flags override config values.
 - `scaffold()` copies templates, rewrites `.env.example` → `.env` per provider selection, removes the upload stack when `--upload=none`, runs `git init` + initial commit + `yarn install`.
 - 19 tests cover env rewriting, flag parsing, deprecated-storage alias, upload=none stack removal, antd template selection, and full dry-run integration smoke.
 - Published to npm via OIDC trusted publishing + changesets (see `.github/workflows/release.yml`).
