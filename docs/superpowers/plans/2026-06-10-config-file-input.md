@@ -12,21 +12,22 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|------|--------|---------------|
-| `tools/create-icore/src/lib/config.ts` | **Create** | `ConfigFileError`, `validateConfig()`, `loadConfig()` |
-| `tools/create-icore/src/lib/__tests__/config.unit.test.ts` | **Create** | Unit tests for validateConfig + loadConfig |
-| `tools/create-icore/src/lib/prompts.ts` | **Modify** | Add `_configPath` to return type, `case 'config'` in switch, wire loadConfig in collectOptions |
-| `tools/create-icore/src/lib/__tests__/prompts.unit.test.ts` | **Modify** | Two new parseFlags tests for --config |
-| `tools/create-icore/README.md` | **Modify** | Add `--config` row to flags table + CI mode section |
-| `docs/architecture.md` | **Modify** | Add `--config` to non-interactive flags line |
-| `.changeset/<slug>.md` | **Create** | `minor` bump for new feature |
+| File                                                        | Action     | Responsibility                                                                                 |
+| ----------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| `tools/create-icore/src/lib/config.ts`                      | **Create** | `ConfigFileError`, `validateConfig()`, `loadConfig()`                                          |
+| `tools/create-icore/src/lib/__tests__/config.unit.test.ts`  | **Create** | Unit tests for validateConfig + loadConfig                                                     |
+| `tools/create-icore/src/lib/prompts.ts`                     | **Modify** | Add `_configPath` to return type, `case 'config'` in switch, wire loadConfig in collectOptions |
+| `tools/create-icore/src/lib/__tests__/prompts.unit.test.ts` | **Modify** | Two new parseFlags tests for --config                                                          |
+| `tools/create-icore/README.md`                              | **Modify** | Add `--config` row to flags table + CI mode section                                            |
+| `docs/architecture.md`                                      | **Modify** | Add `--config` to non-interactive flags line                                                   |
+| `.changeset/<slug>.md`                                      | **Create** | `minor` bump for new feature                                                                   |
 
 ---
 
 ## Task 1: Extend `parseFlags()` to capture `--config`
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/prompts.ts:60-114`
 - Modify: `tools/create-icore/src/lib/__tests__/prompts.unit.test.ts`
 
@@ -100,6 +101,7 @@ git commit -m "feat(create-icore): parseFlags captures --config path"
 ## Task 2: Create `config.ts` — `ConfigFileError` + `validateConfig()`
 
 **Files:**
+
 - Create: `tools/create-icore/src/lib/config.ts`
 - Create: `tools/create-icore/src/lib/__tests__/config.unit.test.ts`
 
@@ -258,11 +260,7 @@ const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
 const MS_TRANSPORTS: readonly MsTransport[] = ['tcp', 'redis', 'nats', 'mqtt', 'rmq', 'kafka'];
 const PACKAGE_MANAGERS: readonly PackageManager[] = ['yarn', 'npm', 'pnpm'];
 
-function assertEnum<T extends string>(
-  field: string,
-  value: unknown,
-  valid: readonly T[],
-): T {
+function assertEnum<T extends string>(field: string, value: unknown, valid: readonly T[]): T {
   if (typeof value !== 'string' || !valid.includes(value as T)) {
     throw new ConfigFileError(
       `config field "${field}" got "${String(value)}", expected one of: ${valid.join(', ')}`,
@@ -357,6 +355,7 @@ git commit -m "feat(create-icore): add ConfigFileError + validateConfig"
 ## Task 3: Add `loadConfig()` tests
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/__tests__/config.unit.test.ts`
 
 `loadConfig` does real IO — use temporary files (same pattern as `scaffold.unit.test.ts`).
@@ -384,11 +383,7 @@ describe('loadConfig', () => {
 
   it('reads and validates a valid JSON config file', async () => {
     const file = join(tmpDir, 'config.json');
-    await writeFile(
-      file,
-      JSON.stringify({ authProvider: 'supabase', transport: 'nats' }),
-      'utf8',
-    );
+    await writeFile(file, JSON.stringify({ authProvider: 'supabase', transport: 'nats' }), 'utf8');
     const result = await loadConfig(file);
     expect(result).toEqual({ authProvider: 'supabase', transport: 'nats' });
   });
@@ -452,6 +447,7 @@ git commit -m "test(create-icore): add loadConfig unit tests"
 ## Task 4: Wire `loadConfig` into `collectOptions()`
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/prompts.ts`
 
 - [ ] **Step 1: Add import for `loadConfig`**
@@ -467,14 +463,14 @@ import { loadConfig } from './config.js';
 In `collectOptions()`, after `const flags = parseFlags(argv);` (currently line 117), insert:
 
 ```typescript
-  const configPath = flags._configPath;
-  delete flags._configPath;
+const configPath = flags._configPath;
+delete flags._configPath;
 
-  if (configPath) {
-    const configValues = await loadConfig(configPath);
-    // Spread order: config values first, CLI flags win on top
-    Object.assign(flags, { ...configValues, ...flags });
-  }
+if (configPath) {
+  const configValues = await loadConfig(configPath);
+  // Spread order: config values first, CLI flags win on top
+  Object.assign(flags, { ...configValues, ...flags });
+}
 ```
 
 The full function opening should now look like:
@@ -524,6 +520,7 @@ git commit -m "feat(create-icore): wire --config file into collectOptions"
 ## Task 5: Update docs
 
 **Files:**
+
 - Modify: `tools/create-icore/README.md`
 - Modify: `docs/architecture.md`
 
@@ -532,14 +529,14 @@ git commit -m "feat(create-icore): wire --config file into collectOptions"
 In `tools/create-icore/README.md`, find the flags table. Add a new row after the `--no-install` row:
 
 ```markdown
-| `--config`     | path to `.json` file                               | —               | Pre-fill any wizard answer from a JSON file. Missing fields still prompt interactively. CLI flags override config values. See **Non-interactive / CI mode** below. |
+| `--config` | path to `.json` file | — | Pre-fill any wizard answer from a JSON file. Missing fields still prompt interactively. CLI flags override config values. See **Non-interactive / CI mode** below. |
 ```
 
 - [ ] **Step 2: Add Non-interactive / CI mode section to README**
 
 After the existing examples block (before `## Building`), add:
 
-```markdown
+````markdown
 ## Non-interactive / CI mode
 
 Pass `--config <path>` to skip individual prompts using a JSON file. Any field omitted from the file is still asked interactively. Individual CLI flags always override config file values.
@@ -560,6 +557,7 @@ Pass `--config <path>` to skip individual prompts using a JSON file. Any field o
   "install": false
 }
 ```
+````
 
 ```bash
 # Fully non-interactive — all fields in config, no prompts
@@ -570,6 +568,7 @@ npx @idevconn/create-icore --auth firebase --config ./my-config.json
 ```
 
 Field names mirror the TypeScript `CreateIcoreOptions` type. Unknown fields are silently ignored. `targetDir` is always derived from `projectName` + the working directory and is ignored if present.
+
 ```
 
 - [ ] **Step 3: Update `docs/architecture.md`**
@@ -577,14 +576,18 @@ Field names mirror the TypeScript `CreateIcoreOptions` type. Unknown fields are 
 Find the line (≈ line 162) that reads:
 
 ```
+
 - Non-interactive via flags: `--auth=supabase|firebase`, `--db=supabase|firebase`, ...
+
 ```
 
 Append to that bullet (or the paragraph it belongs to):
 
 ```
+
 `--config <path>` pre-fills any/all of these from a JSON file (field names match `CreateIcoreOptions`); missing fields fall back to interactive prompts; individual flags override config values.
-```
+
+````
 
 - [ ] **Step 4: Commit docs**
 
@@ -592,13 +595,14 @@ Append to that bullet (or the paragraph it belongs to):
 npx prettier --write tools/create-icore/README.md docs/architecture.md
 git add tools/create-icore/README.md docs/architecture.md
 git commit -m "docs(create-icore): document --config flag and CI mode"
-```
+````
 
 ---
 
 ## Task 6: Changeset + final checks
 
 **Files:**
+
 - Create: `.changeset/config-file-input.md`
 
 - [ ] **Step 1: Create changeset**
@@ -607,7 +611,7 @@ Create `.changeset/config-file-input.md`:
 
 ```markdown
 ---
-"@idevconn/create-icore": minor
+'@idevconn/create-icore': minor
 ---
 
 Add `--config <path>` flag for non-interactive / CI scaffolding from a JSON file

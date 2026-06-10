@@ -57,34 +57,34 @@ export class ConfigFileError extends Error {}
  * Reads JSON from filePath, validates, returns Partial<CreateIcoreOptions>.
  * Throws ConfigFileError for missing file, invalid JSON, or invalid field values.
  */
-export async function loadConfig(filePath: string): Promise<Partial<CreateIcoreOptions>>
+export async function loadConfig(filePath: string): Promise<Partial<CreateIcoreOptions>>;
 
 /**
  * Pure validation — no IO. Accepts unknown, returns Partial<CreateIcoreOptions>.
  * Unknown keys are silently ignored (forward compatibility).
  * Throws ConfigFileError with a message identifying the bad field + valid options.
  */
-export function validateConfig(raw: unknown): Partial<CreateIcoreOptions>
+export function validateConfig(raw: unknown): Partial<CreateIcoreOptions>;
 ```
 
 ### Validation rules
 
-| Field | Valid values |
-|-------|-------------|
-| `projectName` | `/^[a-z0-9-]+$/i` (same regex as wizard) |
-| `authProvider` | `supabase` \| `firebase` \| `mongodb` |
-| `dbProvider` | `supabase` \| `firebase` \| `mongodb` |
-| `upload` | `supabase` \| `firebase` \| `cloudinary` \| `mongodb` \| `none` |
-| `payment` | `paypal` \| `none` |
-| `jobs` | `bullmq` \| `none` |
-| `example` | `notes` \| `none` |
-| `ui` | `shadcn` \| `antd` \| `mui` |
-| `transport` | `tcp` \| `redis` \| `nats` \| `mqtt` \| `rmq` \| `kafka` |
-| `packageManager` | `yarn` \| `npm` \| `pnpm` |
-| `initGit` | boolean |
-| `install` | boolean |
-| `targetDir` | ignored (always derived from `projectName` + `cwd`) |
-| unknown keys | ignored silently |
+| Field            | Valid values                                                    |
+| ---------------- | --------------------------------------------------------------- |
+| `projectName`    | `/^[a-z0-9-]+$/i` (same regex as wizard)                        |
+| `authProvider`   | `supabase` \| `firebase` \| `mongodb`                           |
+| `dbProvider`     | `supabase` \| `firebase` \| `mongodb`                           |
+| `upload`         | `supabase` \| `firebase` \| `cloudinary` \| `mongodb` \| `none` |
+| `payment`        | `paypal` \| `none`                                              |
+| `jobs`           | `bullmq` \| `none`                                              |
+| `example`        | `notes` \| `none`                                               |
+| `ui`             | `shadcn` \| `antd` \| `mui`                                     |
+| `transport`      | `tcp` \| `redis` \| `nats` \| `mqtt` \| `rmq` \| `kafka`        |
+| `packageManager` | `yarn` \| `npm` \| `pnpm`                                       |
+| `initGit`        | boolean                                                         |
+| `install`        | boolean                                                         |
+| `targetDir`      | ignored (always derived from `projectName` + `cwd`)             |
+| unknown keys     | ignored silently                                                |
 
 ### Error messages
 
@@ -159,23 +159,23 @@ Partial config (only known fields; rest → wizard):
 
 ### New: `config.unit.test.ts`
 
-| Test | Assertion |
-|------|-----------|
-| full valid object | returns `Partial<CreateIcoreOptions>` with all fields |
-| partial valid object | returns only provided fields |
-| unknown keys | silently ignored, no error |
-| invalid `authProvider` value | throws `ConfigFileError` with field name + valid options |
-| invalid `projectName` pattern | throws `ConfigFileError` |
-| non-boolean `initGit` | throws `ConfigFileError` |
-| `loadConfig` — file not found | throws `ConfigFileError` |
-| `loadConfig` — invalid JSON string | throws `ConfigFileError` |
+| Test                               | Assertion                                                |
+| ---------------------------------- | -------------------------------------------------------- |
+| full valid object                  | returns `Partial<CreateIcoreOptions>` with all fields    |
+| partial valid object               | returns only provided fields                             |
+| unknown keys                       | silently ignored, no error                               |
+| invalid `authProvider` value       | throws `ConfigFileError` with field name + valid options |
+| invalid `projectName` pattern      | throws `ConfigFileError`                                 |
+| non-boolean `initGit`              | throws `ConfigFileError`                                 |
+| `loadConfig` — file not found      | throws `ConfigFileError`                                 |
+| `loadConfig` — invalid JSON string | throws `ConfigFileError`                                 |
 
 ### Extended: `prompts.unit.test.ts`
 
-| Test | Assertion |
-|------|-----------|
+| Test                                   | Assertion                     |
+| -------------------------------------- | ----------------------------- |
 | `parseFlags(['--config', './x.json'])` | `{ _configPath: './x.json' }` |
-| `parseFlags(['--config=./x.json'])` | `{ _configPath: './x.json' }` |
+| `parseFlags(['--config=./x.json'])`    | `{ _configPath: './x.json' }` |
 
 ### Docs to update
 
