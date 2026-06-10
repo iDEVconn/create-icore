@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadConfig } from './config.js';
 import type {
   AuthProvider,
   DbProvider,
@@ -57,8 +58,13 @@ export interface PromptInput {
   cwd: string;
 }
 
-export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { projectName?: string } {
-  const out: Partial<CreateIcoreOptions> & { projectName?: string } = {};
+export type ParsedFlags = Partial<CreateIcoreOptions> & {
+  projectName?: string;
+  _configPath?: string;
+};
+
+export function parseFlags(argv: string[]): ParsedFlags {
+  const out: ParsedFlags = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a || !a.startsWith('--')) {
@@ -108,6 +114,9 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
       case 'no-install':
         out.install = false;
         break;
+      case 'config':
+        out._configPath = v;
+        break;
     }
   }
   return out;
@@ -115,6 +124,14 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
 
 export async function collectOptions({ argv, cwd }: PromptInput): Promise<CreateIcoreOptions> {
   const flags = parseFlags(argv);
+  const configPath = flags._configPath;
+  delete flags._configPath;
+
+  if (configPath) {
+    const configValues = await loadConfig(configPath);
+    // Spread order: config values first, CLI flags win on top
+    Object.assign(flags, { ...configValues, ...flags });
+  }
 
   const [selfVersion, latestVersion] = await Promise.all([readSelfVersion(), fetchLatestVersion()]);
 
