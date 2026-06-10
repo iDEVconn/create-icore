@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import type { CreateIcoreOptions } from './options.js';
 import {
   rewriteRootPackageJson,
+  pruneRootProviderDeps,
   writeAuthEnv,
   writeUploadEnv,
   writeNotesEnv,
@@ -13,16 +14,13 @@ import {
   writeClientEnv,
   writePaymentEnv,
 } from './scaffold-env.js';
-import {
-  removeJobsStack,
-  removePaymentStack,
-  removeNotesStack,
-  removeUnusedAuthStrategies,
-  removeUnusedStorageStrategies,
-  removeUnusedDbStrategies,
-  removeFirebaseAdminLib,
-  removeUploadStack,
-} from './scaffold-strip.js';
+import { removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
+import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
+import { writeNavConfig } from '../manifest/wire-client.js';
+import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
+import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
+import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
+import { cleanupUnusedDb, writeDbProvider } from '../manifest/wire-db.js';
 import {
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
@@ -33,6 +31,7 @@ import {
 // Re-export everything so existing imports from './scaffold.js' keep working.
 export {
   rewriteRootPackageJson,
+  pruneRootProviderDeps,
   writeAuthEnv,
   writeUploadEnv,
   writeNotesEnv,
@@ -40,12 +39,6 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
-  removeJobsStack,
-  removePaymentStack,
-  removeNotesStack,
-  removeUnusedAuthStrategies,
-  removeUnusedStorageStrategies,
-  removeUnusedDbStrategies,
   removeFirebaseAdminLib,
   removeUploadStack,
   writePnpmWorkspace,
@@ -179,12 +172,19 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await selectClientTemplate(opts.targetDir, opts);
   await writeClientEnv(opts.targetDir);
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
-  if (opts.payment === 'none') await removePaymentStack(opts.targetDir);
-  if (opts.jobs === 'none') await removeJobsStack(opts.targetDir);
-  if (opts.example === 'none') await removeNotesStack(opts.targetDir);
-  await removeUnusedAuthStrategies(opts.targetDir, opts.authProvider);
-  await removeUnusedStorageStrategies(opts.targetDir, opts.upload);
-  await removeUnusedDbStrategies(opts.targetDir, opts.dbProvider);
+  await cleanupUnusedFeatures(opts.targetDir, opts);
+  await writeFeaturesWiring(opts.targetDir, opts);
+  await writeNavConfig(opts.targetDir, opts);
+  await cleanupUnusedAuth(opts.targetDir, opts.authProvider);
+  await writeAuthProvider(opts.targetDir, opts.authProvider);
+  if (opts.upload !== 'none') {
+    await cleanupUnusedStorage(opts.targetDir, opts.upload);
+    await writeStorageProvider(opts.targetDir, opts.upload);
+  }
+  if (opts.example !== 'none') {
+    await cleanupUnusedDb(opts.targetDir, opts.dbProvider);
+    await writeDbProvider(opts.targetDir, opts.dbProvider);
+  }
   // The shared firebase-admin init lib is only needed when SOME microservice
   // uses Firebase. If no provider is Firebase, drop the lib + its alias.
   const firebaseUsed =
@@ -192,6 +192,11 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
     opts.dbProvider === 'firebase' ||
     opts.upload === 'firebase';
   if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
+  // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
+  // generated project audits clean (root keeps only chosen providers' SDKs).
+  await pruneRootProviderDeps(opts.targetDir, opts);
+  await writeBlueprintJson(opts.targetDir, opts);
+  await writeServiceBlueprints(opts.targetDir, opts);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up
   // through parent directories and may pick up a stray package.json/yarn.lock
   // (e.g. in the user's $HOME), causing

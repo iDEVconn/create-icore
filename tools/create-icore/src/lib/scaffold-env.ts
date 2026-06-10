@@ -63,6 +63,54 @@ export async function stripGatewayTransport(targetDir: string, prefix: string): 
   }
 }
 
+/**
+ * A provider's raw marker SDK(s) in the ROOT package.json. Kept in sync with the
+ * audit's `PROVIDER_SDKS` (manifest/audit.ts). The shared `@icore/firebase-admin`
+ * workspace alias is NOT a raw SDK and is owned by `removeFirebaseAdminLib`, so it
+ * is intentionally excluded here.
+ */
+const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
+  supabase: ['@supabase/supabase-js'],
+  cloudinary: ['cloudinary'],
+  mongodb: ['mongoose'],
+  firebase: ['firebase-admin'],
+};
+
+/**
+ * Prune the raw provider SDK(s) of every provider NOT chosen from the generated
+ * ROOT package.json. Uses the SAME chosen-set as the audit gate
+ * (`{ authProvider, dbProvider, upload }`). The chosen provider's SDK and all
+ * transport driver deps (nats/mqtt/amqplib/kafkajs) are left untouched — this
+ * only removes the 4 unchosen marker SDKs. Run AFTER `rewriteRootPackageJson`
+ * (which may have ADDED `mongoose`) so a mongodb project keeps it.
+ */
+export async function pruneRootProviderDeps(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  const chosen = new Set<string>([opts.authProvider, opts.dbProvider, opts.upload]);
+  const drop = new Set<string>();
+  for (const [provider, sdks] of Object.entries(ROOT_PROVIDER_SDKS)) {
+    if (!chosen.has(provider)) for (const sdk of sdks) drop.add(sdk);
+  }
+  if (drop.size === 0) return;
+  const pkgPath = join(targetDir, 'package.json');
+  try {
+    const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    for (const field of ['dependencies', 'devDependencies'] as const) {
+      const deps = pkg[field];
+      if (!deps) continue;
+      for (const sdk of drop) delete deps[sdk];
+    }
+    await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  } catch {
+    // package.json may be absent in partial fixtures
+  }
+}
+
 export async function rewriteRootPackageJson(
   targetDir: string,
   opts: CreateIcoreOptions,

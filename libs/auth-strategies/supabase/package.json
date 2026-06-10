@@ -7,10 +7,13 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@icore/shared": "*",
+    "@nestjs/common": "^11.1.24",
+    "@nestjs/config": "^4.0.4",
     "@supabase/supabase-js": "^2.0.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
     "vitest": "^4.0.0"
   }
 }

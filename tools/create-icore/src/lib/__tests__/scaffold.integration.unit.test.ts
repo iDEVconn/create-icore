@@ -118,16 +118,28 @@ async function makeFakeTemplates(): Promise<string> {
     join(tplDir, 'apps/api/src/app/notes/notes.module.ts'),
     'export class NotesModule {}',
   );
+  // Static app.module — never touched by the generator. Feature wiring lives in
+  // the generated features.module.ts (written by writeFeaturesWiring).
   await writeFile(
     join(tplDir, 'apps/api/src/app/app.module.ts'),
     [
+      "import { StorageModule } from './storage/storage.module';",
+      "import { AuthModule } from './auth/auth.module';",
+      "import { FeaturesModule } from './features.module';",
+      '@Module({ imports: [AuthModule, StorageModule, FeaturesModule] })',
+      'export class AppModule {}',
+    ].join('\n'),
+  );
+  // Template ships a features.module.ts with all 3 (generator overwrites it).
+  await writeFile(
+    join(tplDir, 'apps/api/src/app/features.module.ts'),
+    [
+      "import { Module } from '@nestjs/common';",
       "import { NotesModule } from './notes/notes.module';",
       "import { PaymentModule } from './payment/payment.module';",
       "import { AdminModule } from './admin/admin.module';",
-      "import { StorageModule } from './storage/storage.module';",
-      "import { AuthModule } from './auth/auth.module';",
-      '@Module({ imports: [AuthModule, StorageModule, NotesModule, PaymentModule, AdminModule] })',
-      'export class AppModule {}',
+      '@Module({ imports: [NotesModule, PaymentModule, AdminModule] })',
+      'export class FeaturesModule {}',
     ].join('\n'),
   );
 
@@ -197,7 +209,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // jobs-client lib stub + package.json (removeJobsStack deletes this dir)
+  // jobs-client lib stub + package.json (cleanupUnusedFeatures deletes this dir)
   await mkdir(join(tplDir, 'libs/jobs-client/src'), { recursive: true });
   await writeFile(join(tplDir, 'libs/jobs-client/src/index.ts'), 'export {};');
   await writeFile(
@@ -214,7 +226,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // admin dir stub (removeJobsStack deletes apps/api/src/app/admin)
+  // admin dir stub (cleanupUnusedFeatures deletes apps/api/src/app/admin)
   await mkdir(join(tplDir, 'apps/api/src/app/admin'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/api/src/app/admin/admin.module.ts'),
@@ -238,7 +250,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // payment-client lib stub + package.json (removePaymentStack deletes this)
+  // payment-client lib stub + package.json (cleanupUnusedFeatures deletes this)
   await mkdir(join(tplDir, 'libs/payment-client/src'), { recursive: true });
   await writeFile(join(tplDir, 'libs/payment-client/src/index.ts'), 'export {};');
   await writeFile(
@@ -255,7 +267,7 @@ async function makeFakeTemplates(): Promise<string> {
     ),
   );
 
-  // payment gateway module stub (removePaymentStack deletes apps/api/src/app/payment)
+  // payment gateway module stub (cleanupUnusedFeatures deletes apps/api/src/app/payment)
   await mkdir(join(tplDir, 'apps/api/src/app/payment'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/api/src/app/payment/payment.module.ts'),
@@ -327,15 +339,30 @@ async function makeFakeTemplates(): Promise<string> {
   await writeFile(
     join(tplDir, 'apps/microservices/auth/package.json'),
     JSON.stringify(
-      { name: 'auth', dependencies: { '@icore/auth-supabase': '*', '@icore/auth-firebase': '*' } },
+      {
+        name: 'auth',
+        dependencies: {
+          '@icore/auth-supabase': '*',
+          '@icore/auth-firebase': '*',
+          '@icore/auth-mongodb': '*',
+          '@icore/firebase-admin': '*',
+        },
+      },
       null,
       2,
     ),
   );
   await mkdir(join(tplDir, 'apps/microservices/auth/src/app'), { recursive: true });
+  // Static app.module (never touched by the generator) + committed auth.provider
+  // default (supabase). The generator overwrites auth.provider.ts per chosen
+  // provider via writeAuthProvider — app.module.ts stays static.
   await writeFile(
     join(tplDir, 'apps/microservices/auth/src/app/app.module.ts'),
-    `import { FirebaseAuthStrategy } from '@icore/auth-firebase';\nimport { SupabaseAuthStrategy } from '@icore/auth-supabase';\nimport { getFirebaseAdmin } from '@icore/firebase-admin';\n`,
+    `import { AuthProviderModule } from './auth.provider';\nexport class AppModule {}\n`,
+  );
+  await writeFile(
+    join(tplDir, 'apps/microservices/auth/src/app/auth.provider.ts'),
+    `import { SupabaseAuthModule } from '@icore/auth-supabase';\nexport const AuthProviderModule = SupabaseAuthModule.forRoot('apps/microservices/auth/.env');\n`,
   );
 
   // Upload MS package.json
@@ -562,9 +589,17 @@ describe('scaffold (integration, dry-run)', () => {
       access(join(outputDir, 'apps/client/src/routes/_dashboard/notes.tsx')),
     ).rejects.toThrow();
 
-    // app.module.ts has no NotesModule
+    // app.module.ts is static — it imports FeaturesModule, never a feature module directly
     const mod = await readFile(join(outputDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(mod).toContain('FeaturesModule');
     expect(mod).not.toContain('NotesModule');
+    expect(mod).not.toContain('PaymentModule');
+    expect(mod).not.toContain('AdminModule');
+
+    // generated features.module.ts has no feature imports (all features off)
+    const features = await readFile(join(outputDir, 'apps/api/src/app/features.module.ts'), 'utf8');
+    expect(features).not.toContain('NotesModule');
+    expect(features).toMatch(/imports:\s*\[\]/);
 
     // rest of scaffold intact
     const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as {
@@ -608,7 +643,24 @@ describe('scaffold (integration, dry-run)', () => {
       .catch(() => false);
     expect(authLibExists).toBe(true);
 
-    // Auth module no longer imports firebase
+    // auth.provider wires the chosen provider only — never firebase
+    const authProvider = await readFile(
+      join(outputDir, 'apps/microservices/auth/src/app/auth.provider.ts'),
+      'utf8',
+    );
+    expect(authProvider).toContain('@icore/auth-supabase');
+    expect(authProvider).not.toContain('@icore/auth-firebase');
+    expect(authProvider).not.toContain('@icore/firebase-admin');
+    // Auth MS package.json: chosen strategy kept, every unused @icore alias —
+    // including the orphaned shared @icore/firebase-admin — stripped.
+    const authPkg = JSON.parse(
+      await readFile(join(outputDir, 'apps/microservices/auth/package.json'), 'utf8'),
+    ) as { dependencies?: Record<string, string> };
+    expect(authPkg.dependencies).toHaveProperty('@icore/auth-supabase');
+    expect(authPkg.dependencies).not.toHaveProperty('@icore/firebase-admin');
+    expect(authPkg.dependencies).not.toHaveProperty('@icore/auth-firebase');
+    expect(authPkg.dependencies).not.toHaveProperty('@icore/auth-mongodb');
+    // Static app.module never gets provider source surgery
     const authMod = await readFile(
       join(outputDir, 'apps/microservices/auth/src/app/app.module.ts'),
       'utf8',
@@ -679,6 +731,11 @@ describe('scaffold (integration, dry-run)', () => {
       'bullmq',
       'ioredis',
       '@idevconn/payment',
+      // Orphaned @icore workspace aliases that must not survive an auth=supabase
+      // generation — the libs they point at are deleted, so a stray dep breaks install.
+      '@icore/auth-firebase',
+      '@icore/auth-mongodb',
+      '@icore/firebase-admin',
     ];
     const pkgFiles = await findPackageJsonFiles(outputDir);
     for (const pkgFile of pkgFiles) {

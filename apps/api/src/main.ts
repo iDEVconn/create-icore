@@ -5,12 +5,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { formatGatewayBanner } from '@icore/shared';
 import { AppModule } from './app/app.module';
+import { GATEWAY_SERVICES } from './app/gateway-services';
 import pkg from '@icore/package.json';
-
-const GATEWAY_SERVICES = [
-  { name: 'auth', prefix: 'AUTH' },
-  { name: 'upload', prefix: 'UPLOAD' },
-];
 
 const DEFAULT_PORT = 3001;
 

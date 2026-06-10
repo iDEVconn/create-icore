@@ -6,9 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { AbilitiesModule } from './abilities/abilities.module';
 import { StorageModule } from './storage/storage.module';
-import { PaymentModule } from './payment/payment.module';
-import { NotesModule } from './notes/notes.module';
-import { AdminModule } from './admin/admin.module';
+import { FeaturesModule } from './features.module';
 
 @Module({
   imports: [
@@ -21,9 +19,7 @@ import { AdminModule } from './admin/admin.module';
     AbilitiesModule,
     ProfileModule,
     StorageModule,
-    PaymentModule,
-    NotesModule,
-    AdminModule,
+    FeaturesModule,
   ],
 })
 export class AppModule {}

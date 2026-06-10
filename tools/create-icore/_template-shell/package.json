@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
-    "@icore/vite-plugins": "workspace:*",
+    "@icore/vite-plugins": "*",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@nx/devkit": "22.7.5",

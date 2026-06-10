@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, LayoutDashboard, StickyNote, User } from 'lucide-react';
+import { NAV_CONFIG, type NavItem } from '@/nav.config';
 
-const NAV_ITEMS = [
-  { to: '/dashboard' as const, icon: LayoutDashboard, labelKey: 'nav.dashboard', exact: true },
-  { to: '/notes' as const, icon: StickyNote, labelKey: 'nav.notes', exact: false },
-  { to: '/profile' as const, icon: User, labelKey: 'nav.profile', exact: false },
-];
+const ICONS: Record<NavItem['iconName'], typeof LayoutDashboard> = {
+  dashboard: LayoutDashboard,
+  notes: StickyNote,
+  profile: User,
+};
 
 export function LayoutSider() {
   const { t } = useTranslation();
@@ -20,17 +21,20 @@ export function LayoutSider() {
       }`}
     >
       <nav className="flex flex-col gap-0.5 p-2 flex-1 pt-3">
-        {NAV_ITEMS.map(({ to, icon: Icon, labelKey, exact }) => (
-          <Link
-            key={to}
-            to={to}
-            activeOptions={{ exact }}
-            className="group flex items-center gap-3 rounded-md px-2.5 py-2 text-sm text-[--color-muted-foreground] transition-colors hover:bg-[--color-muted] hover:text-[--color-foreground] [&.active]:bg-[--color-primary]/10 [&.active]:text-[--color-primary] [&.active]:font-medium cursor-pointer"
-          >
-            <Icon size={16} className="shrink-0" />
-            {!collapsed && <span className="truncate">{t(labelKey)}</span>}
-          </Link>
-        ))}
+        {NAV_CONFIG.map(({ to, iconName, labelKey, exact }) => {
+          const Icon = ICONS[iconName];
+          return (
+            <Link
+              key={to}
+              to={to}
+              activeOptions={{ exact: exact ?? false }}
+              className="group flex items-center gap-3 rounded-md px-2.5 py-2 text-sm text-[--color-muted-foreground] transition-colors hover:bg-[--color-muted] hover:text-[--color-foreground] [&.active]:bg-[--color-primary]/10 [&.active]:text-[--color-primary] [&.active]:font-medium cursor-pointer"
+            >
+              <Icon size={16} className="shrink-0" />
+              {!collapsed && <span className="truncate">{t(labelKey)}</span>}
+            </Link>
+          );
+        })}
       </nav>
 
       <button

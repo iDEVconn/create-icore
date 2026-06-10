@@ -11,7 +11,7 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig([
   {
-    entry: { cli: 'src/cli.ts' },
+    entry: { cli: 'src/cli.ts', 'manifest/audit': 'src/manifest/audit.ts' },
     format: ['esm'],
     target: 'node20',
     outDir: 'dist',

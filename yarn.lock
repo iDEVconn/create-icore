@@ -2890,7 +2890,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/auth-firebase@workspace:libs/auth-strategies/firebase"
   dependencies:
+    "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"
   languageName: unknown
@@ -2900,7 +2904,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/auth-mongodb@workspace:libs/auth-strategies/mongodb"
   dependencies:
-    "@icore/shared": "workspace:*"
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/mongoose": "npm:^11.0.4"
     bcrypt: "npm:^6.0.0"
     jsonwebtoken: "npm:^9.0.2"
     mongodb-memory-server: "npm:^11.2.0"
@@ -2914,6 +2921,9 @@ __metadata:
   resolution: "@icore/auth-supabase@workspace:libs/auth-strategies/supabase"
   dependencies:
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
     "@supabase/supabase-js": "npm:^2.0.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"
@@ -2924,7 +2934,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/db-firestore@workspace:libs/db-strategies/firestore"
   dependencies:
+    "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"
   languageName: unknown
@@ -2934,7 +2948,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/db-mongodb@workspace:libs/db-strategies/mongodb"
   dependencies:
-    "@icore/shared": "workspace:*"
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/mongoose": "npm:^11.0.4"
     mongodb-memory-server: "npm:^11.2.0"
     mongoose: "npm:^9.6.3"
     tslib: "npm:^2.3.0"
@@ -2946,6 +2963,9 @@ __metadata:
   resolution: "@icore/db-supabase@workspace:libs/db-strategies/supabase"
   dependencies:
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
     "@supabase/supabase-js": "npm:^2.0.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"
@@ -2999,7 +3019,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/shared@npm:*, @icore/shared@workspace:*, @icore/shared@workspace:libs/shared":
+"@icore/shared@npm:*, @icore/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@icore/shared@workspace:libs/shared"
   dependencies:
@@ -3014,6 +3034,10 @@ __metadata:
   resolution: "@icore/storage-cloudinary@workspace:libs/storage-strategies/cloudinary"
   dependencies:
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
+    cloudinary: "npm:^2.10.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"
   languageName: unknown
@@ -3023,7 +3047,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/storage-firebase@workspace:libs/storage-strategies/firebase"
   dependencies:
+    "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"
   languageName: unknown
@@ -3033,7 +3061,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/storage-mongodb@workspace:libs/storage-strategies/mongodb"
   dependencies:
-    "@icore/shared": "workspace:*"
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/mongoose": "npm:^11.0.4"
     mongodb-memory-server: "npm:^11.2.0"
     mongoose: "npm:^9.6.3"
     tslib: "npm:^2.3.0"
@@ -3045,6 +3076,9 @@ __metadata:
   resolution: "@icore/storage-supabase@workspace:libs/storage-strategies/supabase"
   dependencies:
     "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.24"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.0.0"
     "@supabase/supabase-js": "npm:^2.0.0"
     tslib: "npm:^2.3.0"
     vitest: "npm:^4.0.0"

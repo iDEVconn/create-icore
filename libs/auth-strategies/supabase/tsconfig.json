@@ -3,6 +3,8 @@
   "compilerOptions": {
     "module": "node16",
     "moduleResolution": "node16",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "importHelpers": true,
