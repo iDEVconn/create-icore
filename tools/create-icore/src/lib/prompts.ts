@@ -57,8 +57,13 @@ export interface PromptInput {
   cwd: string;
 }
 
-export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { projectName?: string } {
-  const out: Partial<CreateIcoreOptions> & { projectName?: string } = {};
+export type ParsedFlags = Partial<CreateIcoreOptions> & {
+  projectName?: string;
+  _configPath?: string;
+};
+
+export function parseFlags(argv: string[]): ParsedFlags {
+  const out: ParsedFlags = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a || !a.startsWith('--')) {
@@ -107,6 +112,9 @@ export function parseFlags(argv: string[]): Partial<CreateIcoreOptions> & { proj
         break;
       case 'no-install':
         out.install = false;
+        break;
+      case 'config':
+        out._configPath = v;
         break;
     }
   }

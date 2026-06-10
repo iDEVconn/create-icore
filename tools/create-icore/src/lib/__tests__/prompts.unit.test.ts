@@ -75,4 +75,12 @@ describe('parseFlags', () => {
   it('honours --no-install', () => {
     expect(parseFlags(['my-app', '--no-install']).install).toBe(false);
   });
+
+  it('reads --config <path> as space-separated', () => {
+    expect(parseFlags(['--config', './base.json'])._configPath).toBe('./base.json');
+  });
+
+  it('reads --config=<path> as equals-separated', () => {
+    expect(parseFlags(['--config=./base.json'])._configPath).toBe('./base.json');
+  });
 });
