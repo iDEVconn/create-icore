@@ -26,17 +26,77 @@ async function tsconfigAliases(dir: string): Promise<Set<string>> {
     const aliases = new Set<string>();
     // `/`-subpath aliases (e.g. @icore/shared/testing) are intentionally excluded here, symmetric with ICORE_IMPORT.
     // The char class allows `.` so alias keys like `@icore/package.json` are captured whole (kept symmetric with the import side).
-    for (const m of raw.matchAll(/"(@icore\/[a-z0-9.-]+)"\s*:/g)) aliases.add(m[1]);
+    for (const m of raw.matchAll(/"(@icore\/[a-z0-9.-]+)"\s*:/g)) {
+      if (m[1]) aliases.add(m[1]);
+    }
     return aliases;
   } catch {
     return new Set();
   }
 }
 
-async function rootDeps(dir: string): Promise<Set<string>> {
+interface Blueprint {
+  authProvider?: string;
+  dbProvider?: string;
+  upload?: string;
+}
+
+/** A provider's raw marker dep(s) that must be ABSENT when the provider is unchosen. */
+const PROVIDER_SDKS: Record<string, string[]> = {
+  supabase: ['@supabase/supabase-js'],
+  cloudinary: ['cloudinary'],
+  mongodb: ['mongoose'],
+  firebase: ['firebase-admin', '@icore/firebase-admin'],
+};
+
+async function readBlueprint(dir: string): Promise<Blueprint | null> {
   try {
-    const raw = await readFile(join(dir, 'package.json'), 'utf8');
-    const pkg = JSON.parse(raw) as {
+    return JSON.parse(await readFile(join(dir, 'blueprint.json'), 'utf8')) as Blueprint;
+  } catch {
+    return null;
+  }
+}
+
+/** Forbidden raw SDKs derived from the blueprint: a provider's SDK is forbidden
+ *  iff that provider appears in none of auth/db/upload. */
+function forbiddenFromBlueprint(bp: Blueprint): string[] {
+  const chosen = new Set(
+    [bp.authProvider, bp.dbProvider, bp.upload].filter((p): p is string => Boolean(p)),
+  );
+  const forbidden: string[] = [];
+  for (const [provider, sdks] of Object.entries(PROVIDER_SDKS)) {
+    if (!chosen.has(provider)) forbidden.push(...sdks);
+  }
+  return forbidden;
+}
+
+/** Every package.json under the project (root + apps/**), skipping node_modules. */
+async function allPackageJsons(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  const root = join(dir, 'package.json');
+  out.push(root);
+  async function walk(d: string): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        if (!IGNORE_DIRS.has(e.name)) await walk(join(d, e.name));
+      } else if (e.name === 'package.json') {
+        out.push(join(d, e.name));
+      }
+    }
+  }
+  await walk(join(dir, 'apps'));
+  return out;
+}
+
+async function depKeys(pkgPath: string): Promise<Set<string>> {
+  try {
+    const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
@@ -66,7 +126,7 @@ export async function auditProject(
     const src = await readFile(file, 'utf8');
     for (const m of src.matchAll(ICORE_IMPORT)) {
       const alias = m[1];
-      if (!aliases.has(alias)) {
+      if (alias && !aliases.has(alias)) {
         violations.push({
           kind: 'import-of-absent-lib',
           detail: `${file} imports ${alias} (no tsconfig path → lib absent)`,
@@ -75,13 +135,23 @@ export async function auditProject(
     }
   }
 
-  const deps = await rootDeps(dir);
-  for (const forbidden of opts.forbiddenDeps ?? []) {
-    if (deps.has(forbidden)) {
-      violations.push({
-        kind: 'forbidden-dep',
-        detail: `root package.json keeps forbidden dep ${forbidden}`,
-      });
+  // Forbidden raw SDK deps: explicit (opts) ∪ derived from blueprint.json.
+  const bp = await readBlueprint(dir);
+  const forbidden = new Set<string>([
+    ...(opts.forbiddenDeps ?? []),
+    ...(bp ? forbiddenFromBlueprint(bp) : []),
+  ]);
+  if (forbidden.size > 0) {
+    for (const pkgPath of await allPackageJsons(dir)) {
+      const deps = await depKeys(pkgPath);
+      for (const f of forbidden) {
+        if (deps.has(f)) {
+          violations.push({
+            kind: 'forbidden-dep',
+            detail: `${pkgPath} keeps forbidden dep ${f}`,
+          });
+        }
+      }
     }
   }
 
