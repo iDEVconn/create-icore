@@ -2904,7 +2904,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/auth-mongodb@workspace:libs/auth-strategies/mongodb"
   dependencies:
-    "@icore/shared": "workspace:*"
+    "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
@@ -2948,7 +2948,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/db-mongodb@workspace:libs/db-strategies/mongodb"
   dependencies:
-    "@icore/shared": "workspace:*"
+    "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
@@ -3019,7 +3019,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/shared@npm:*, @icore/shared@workspace:*, @icore/shared@workspace:libs/shared":
+"@icore/shared@npm:*, @icore/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@icore/shared@workspace:libs/shared"
   dependencies:
@@ -3061,7 +3061,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/storage-mongodb@workspace:libs/storage-strategies/mongodb"
   dependencies:
-    "@icore/shared": "workspace:*"
+    "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
