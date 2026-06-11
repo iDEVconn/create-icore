@@ -19,8 +19,8 @@ export class ConfigFileError extends Error {
   }
 }
 
-const AUTH_PROVIDERS: readonly AuthProvider[] = ['supabase', 'firebase', 'mongodb'];
-const DB_PROVIDERS: readonly DbProvider[] = ['supabase', 'firebase', 'mongodb'];
+const AUTH_PROVIDERS: readonly AuthProvider[] = ['supabase', 'firebase', 'mongodb', 'none'];
+const DB_PROVIDERS: readonly DbProvider[] = ['supabase', 'firebase', 'mongodb', 'none'];
 const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
   'supabase',
   'firebase',
