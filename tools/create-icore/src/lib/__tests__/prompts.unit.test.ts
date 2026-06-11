@@ -83,4 +83,8 @@ describe('parseFlags', () => {
   it('reads --config=<path> as equals-separated', () => {
     expect(parseFlags(['--config=./base.json'])._configPath).toBe('./base.json');
   });
+
+  it('reads --auth=none', () => {
+    expect(parseFlags(['my-app', '--auth=none']).authProvider).toBe('none');
+  });
 });
