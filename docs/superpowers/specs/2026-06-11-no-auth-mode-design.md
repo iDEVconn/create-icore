@@ -57,20 +57,20 @@ Called after `selectClientTemplate` (client files already at `apps/client/`).
 
 ### Delete
 
-| Path | Reason |
-|------|--------|
-| `apps/microservices/auth` | Auth MS |
-| `libs/auth-strategies` | All 3 strategy libs |
-| `libs/auth-client` | Gateway→auth MS client lib |
-| `Dockerfile.ms-auth` | No auth MS to build |
-| `apps/api/src/app/auth/` | AuthController, AuthGuard, public.decorator |
-| `apps/api/src/app/profile/` | ProfileController depends on `req.user` |
-| `apps/api/src/app/abilities/` | AbilityGuard/Factory depends on `req.user` |
-| `apps/client/src/components/auth/` | LoginForm, RegisterForm, etc. |
-| `apps/client/src/routes/login.tsx` | Login page |
-| `apps/client/src/routes/auth.callback.tsx` | OAuth callback |
-| `apps/client/src/routes/auth.oauth.callback.tsx` | OAuth callback |
-| `apps/client/src/routes/_dashboard/profile.tsx` | Profile page |
+| Path                                             | Reason                                      |
+| ------------------------------------------------ | ------------------------------------------- |
+| `apps/microservices/auth`                        | Auth MS                                     |
+| `libs/auth-strategies`                           | All 3 strategy libs                         |
+| `libs/auth-client`                               | Gateway→auth MS client lib                  |
+| `Dockerfile.ms-auth`                             | No auth MS to build                         |
+| `apps/api/src/app/auth/`                         | AuthController, AuthGuard, public.decorator |
+| `apps/api/src/app/profile/`                      | ProfileController depends on `req.user`     |
+| `apps/api/src/app/abilities/`                    | AbilityGuard/Factory depends on `req.user`  |
+| `apps/client/src/components/auth/`               | LoginForm, RegisterForm, etc.               |
+| `apps/client/src/routes/login.tsx`               | Login page                                  |
+| `apps/client/src/routes/auth.callback.tsx`       | OAuth callback                              |
+| `apps/client/src/routes/auth.oauth.callback.tsx` | OAuth callback                              |
+| `apps/client/src/routes/_dashboard/profile.tsx`  | Profile page                                |
 
 ### Modify
 
@@ -122,13 +122,13 @@ if (opts.authProvider !== 'none') {
 
 ## Testing
 
-| File | What to cover |
-|------|--------------|
-| `lib/__tests__/prompts.unit.test.ts` | `parseFlags` parses `--auth none`; `collectOptions` cascade: db='none', example='none', transport skipped when upload=none |
-| `lib/__tests__/scaffold.unit.test.ts` | auth=none path: `removeAuthStack` called, `writeAuthProvider` not called |
-| `lib/__tests__/scaffold-strip.unit.test.ts` | `removeAuthStack` deletes expected dirs, strips `app.module.ts` imports, strips `_dashboard.tsx` beforeLoad |
-| `lib/__tests__/config.unit.test.ts` | `validateConfig` accepts `{ auth: 'none' }` |
-| `manifest/__tests__/wire-auth.unit.test.ts` | Types accept `AuthBackend` (not `AuthProvider`) — no runtime change |
+| File                                        | What to cover                                                                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `lib/__tests__/prompts.unit.test.ts`        | `parseFlags` parses `--auth none`; `collectOptions` cascade: db='none', example='none', transport skipped when upload=none |
+| `lib/__tests__/scaffold.unit.test.ts`       | auth=none path: `removeAuthStack` called, `writeAuthProvider` not called                                                   |
+| `lib/__tests__/scaffold-strip.unit.test.ts` | `removeAuthStack` deletes expected dirs, strips `app.module.ts` imports, strips `_dashboard.tsx` beforeLoad                |
+| `lib/__tests__/config.unit.test.ts`         | `validateConfig` accepts `{ auth: 'none' }`                                                                                |
+| `manifest/__tests__/wire-auth.unit.test.ts` | Types accept `AuthBackend` (not `AuthProvider`) — no runtime change                                                        |
 
 ---
 

@@ -12,27 +12,28 @@
 
 ## File Map
 
-| File | Change |
-|------|--------|
-| `tools/create-icore/src/lib/options.ts` | Add `AuthBackend`, widen `AuthProvider`, widen `DbProvider` |
-| `tools/create-icore/src/lib/config.ts` | Add `'none'` to `AUTH_PROVIDERS`, `DB_PROVIDERS` |
-| `tools/create-icore/src/manifest/wire-auth.ts` | Narrow param types from `AuthProvider` → `AuthBackend` |
-| `tools/create-icore/src/lib/prompts.ts` | Add `'none'` to auth select; cascade db/example; skip transport when no MS |
-| `tools/create-icore/src/manifest/wire-features.ts` | Guard auth entry in `gateway-services.ts` |
-| `tools/create-icore/src/lib/scaffold-strip.ts` | Add `removeAuthStack()` |
-| `tools/create-icore/src/lib/scaffold.ts` | Guard `writeAuthEnv`; branch auth≠none vs `removeAuthStack` |
-| `tools/create-icore/src/lib/__tests__/config.unit.test.ts` | Tests: `validateConfig` accepts `auth:'none'`, `db:'none'` |
-| `tools/create-icore/src/lib/__tests__/prompts.unit.test.ts` | Test: `--auth=none` parse |
-| `tools/create-icore/src/manifest/__tests__/wire-features.unit.test.ts` | Test: `gateway-services.ts` omits auth when `authProvider='none'` |
-| `tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts` | Tests: `removeAuthStack` deletes dirs, strips files |
-| `tools/create-icore/src/lib/__tests__/scaffold.integration.unit.test.ts` | Test: `scaffold()` with `authProvider='none'` |
-| `.changeset/no-auth-mode.md` | Changeset (minor) |
+| File                                                                     | Change                                                                     |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `tools/create-icore/src/lib/options.ts`                                  | Add `AuthBackend`, widen `AuthProvider`, widen `DbProvider`                |
+| `tools/create-icore/src/lib/config.ts`                                   | Add `'none'` to `AUTH_PROVIDERS`, `DB_PROVIDERS`                           |
+| `tools/create-icore/src/manifest/wire-auth.ts`                           | Narrow param types from `AuthProvider` → `AuthBackend`                     |
+| `tools/create-icore/src/lib/prompts.ts`                                  | Add `'none'` to auth select; cascade db/example; skip transport when no MS |
+| `tools/create-icore/src/manifest/wire-features.ts`                       | Guard auth entry in `gateway-services.ts`                                  |
+| `tools/create-icore/src/lib/scaffold-strip.ts`                           | Add `removeAuthStack()`                                                    |
+| `tools/create-icore/src/lib/scaffold.ts`                                 | Guard `writeAuthEnv`; branch auth≠none vs `removeAuthStack`                |
+| `tools/create-icore/src/lib/__tests__/config.unit.test.ts`               | Tests: `validateConfig` accepts `auth:'none'`, `db:'none'`                 |
+| `tools/create-icore/src/lib/__tests__/prompts.unit.test.ts`              | Test: `--auth=none` parse                                                  |
+| `tools/create-icore/src/manifest/__tests__/wire-features.unit.test.ts`   | Test: `gateway-services.ts` omits auth when `authProvider='none'`          |
+| `tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts`             | Tests: `removeAuthStack` deletes dirs, strips files                        |
+| `tools/create-icore/src/lib/__tests__/scaffold.integration.unit.test.ts` | Test: `scaffold()` with `authProvider='none'`                              |
+| `.changeset/no-auth-mode.md`                                             | Changeset (minor)                                                          |
 
 ---
 
 ## Task 1: Type Foundation + config.ts
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/options.ts`
 - Modify: `tools/create-icore/src/lib/config.ts`
 - Modify: `tools/create-icore/src/manifest/wire-auth.ts`
@@ -143,6 +144,7 @@ git commit -m "feat(create-icore): add AuthBackend type and 'none' to AuthProvid
 ## Task 2: collectOptions Wizard Cascade
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/prompts.ts`
 - Test: `tools/create-icore/src/lib/__tests__/prompts.unit.test.ts`
 
@@ -193,7 +195,7 @@ if (p.isCancel(authProvider)) throw new Error('cancelled');
 const dbProvider: DbProvider =
   authProvider === 'none'
     ? 'none'
-    : flags.dbProvider ??
+    : (flags.dbProvider ??
       ((await p.select({
         message: 'Database backend',
         options: [
@@ -202,7 +204,7 @@ const dbProvider: DbProvider =
           { value: 'mongodb', label: 'MongoDB' },
         ],
         initialValue: authProvider as DbProvider,
-      })) as DbProvider);
+      })) as DbProvider));
 if (p.isCancel(dbProvider)) throw new Error('cancelled');
 ```
 
@@ -212,7 +214,7 @@ if (p.isCancel(dbProvider)) throw new Error('cancelled');
 const example: ExampleMode =
   authProvider === 'none'
     ? 'none'
-    : flags.example ??
+    : (flags.example ??
       ((await p.select({
         message: 'Include notes sample feature? (CRUD demo — remove before production)',
         options: [
@@ -220,7 +222,7 @@ const example: ExampleMode =
           { value: 'none' as ExampleMode, label: 'No — skip notes (clean slate)' },
         ],
         initialValue: 'notes' as ExampleMode,
-      })) as ExampleMode);
+      })) as ExampleMode));
 if (p.isCancel(example)) throw new Error('cancelled');
 ```
 
@@ -248,6 +250,7 @@ if (p.isCancel(transport)) throw new Error('cancelled');
 ```
 
 Also add the `DbProvider` import to the type imports at the top if not already there:
+
 ```ts
 import type {
   AuthProvider,
@@ -287,6 +290,7 @@ git commit -m "feat(create-icore): cascade db/example/transport when authProvide
 ## Task 3: `writeFeaturesWiring` Auth Guard
 
 **Files:**
+
 - Modify: `tools/create-icore/src/manifest/wire-features.ts`
 - Test: `tools/create-icore/src/manifest/__tests__/wire-features.unit.test.ts`
 
@@ -307,10 +311,7 @@ it('gateway-services.ts omits auth entry when authProvider is none', async () =>
     jobs: 'none',
     upload: 'supabase',
   });
-  const gs = await readFile(
-    join(dir, 'apps/api/src/app/gateway-services.ts'),
-    'utf8',
-  );
+  const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
   expect(gs).not.toContain("name: 'auth'");
   expect(gs).toContain("name: 'upload'");
 });
@@ -324,10 +325,7 @@ it('gateway-services.ts includes auth entry when authProvider is supabase', asyn
     jobs: 'none',
     example: 'none',
   });
-  const gs = await readFile(
-    join(dir, 'apps/api/src/app/gateway-services.ts'),
-    'utf8',
-  );
+  const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
   expect(gs).toContain("name: 'auth'");
 });
 ```
@@ -376,6 +374,7 @@ git commit -m "feat(create-icore): omit auth entry in gateway-services.ts when a
 ## Task 4: `removeAuthStack()`
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/scaffold-strip.ts`
 - Test: `tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts`
 
@@ -743,6 +742,7 @@ git commit -m "feat(create-icore): implement removeAuthStack() for no-auth scaff
 ## Task 5: Wire `scaffold()` + Integration Test
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/scaffold.ts`
 - Test: `tools/create-icore/src/lib/__tests__/scaffold.integration.unit.test.ts`
 
@@ -773,10 +773,15 @@ await writeFile(join(tplDir, 'apps/api/src/app/abilities/ability.guard.ts'), '')
 // Client auth routes and components (for the chosen shadcn template)
 await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/components/auth'), { recursive: true });
 await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/components/auth/LoginForm.tsx'), '');
-await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard'), { recursive: true });
+await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard'), {
+  recursive: true,
+});
 await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/routes/login.tsx'), '');
 await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/routes/auth.callback.tsx'), '');
-await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/routes/auth.oauth.callback.tsx'), '');
+await writeFile(
+  join(tplDir, 'apps/templates/client-shadcn/src/routes/auth.oauth.callback.tsx'),
+  '',
+);
 await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard/profile.tsx'), '');
 await writeFile(
   join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard.tsx'),
@@ -784,15 +789,15 @@ await writeFile(
     "import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';",
     "import { useAuthStore } from '@icore/template-shared';",
     "import { MainLayout } from '../layouts/MainLayout';",
-    "",
+    '',
     "export const Route = createFileRoute('/_dashboard')({",
-    "  beforeLoad: () => {",
-    "    if (!useAuthStore.getState().accessToken) {",
+    '  beforeLoad: () => {',
+    '    if (!useAuthStore.getState().accessToken) {',
     "      throw redirect({ to: '/login' });",
-    "    }",
-    "  },",
-    "  component: () => (<MainLayout><Outlet /></MainLayout>),",
-    "});",
+    '    }',
+    '  },',
+    '  component: () => (<MainLayout><Outlet /></MainLayout>),',
+    '});',
   ].join('\n'),
 );
 // docker-compose.yml stub
@@ -880,19 +885,13 @@ describe('scaffold with authProvider=none', () => {
   });
 
   it('client _dashboard.tsx has no beforeLoad', async () => {
-    const content = await readFile(
-      join(outDir, 'apps/client/src/routes/_dashboard.tsx'),
-      'utf8',
-    );
+    const content = await readFile(join(outDir, 'apps/client/src/routes/_dashboard.tsx'), 'utf8');
     expect(content).not.toContain('beforeLoad');
     expect(content).not.toContain('useAuthStore');
   });
 
   it('gateway-services.ts has no auth entry', async () => {
-    const gs = await readFile(
-      join(outDir, 'apps/api/src/app/gateway-services.ts'),
-      'utf8',
-    );
+    const gs = await readFile(join(outDir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
     expect(gs).not.toContain("name: 'auth'");
   });
 });
@@ -920,6 +919,7 @@ import type { AuthBackend } from './options.js';
 ```
 
 Or combine:
+
 ```ts
 import type { CreateIcoreOptions, AuthBackend } from './options.js';
 ```
@@ -997,6 +997,7 @@ git commit -m "feat(create-icore): branch scaffold() on authProvider=none to cal
 ## Task 6: Changeset + Docs
 
 **Files:**
+
 - Create: `.changeset/no-auth-mode.md`
 - Modify: `docs/create-icore/README.md` or equivalent (check `docs/` for the CLI docs file)
 
@@ -1006,7 +1007,7 @@ Create `.changeset/no-auth-mode.md`:
 
 ```md
 ---
-"@idevconn/create-icore": minor
+'@idevconn/create-icore': minor
 ---
 
 Add `authProvider: 'none'` option — scaffolds a minimal Nx monorepo (gateway + React client) with no auth microservice, no AuthGuard, and no login routes.
@@ -1061,25 +1062,25 @@ git commit -m "chore: changeset + docs for authProvider=none feature"
 
 **Spec coverage check:**
 
-| Spec requirement | Covered by |
-|-----------------|-----------|
-| `AuthBackend` + `AuthProvider\|='none'` + `DbProvider\|='none'` | Task 1 |
-| `validateConfig` accepts `'none'` | Task 1 |
-| `--auth none` CLI flag | Task 2 (parseFlags already works; test added) |
-| `collectOptions` cascade: db='none', example='none' | Task 2 |
-| `collectOptions` cascade: skip transport when no MS | Task 2 |
-| `writeFeaturesWiring` omits auth from `gateway-services.ts` | Task 3 |
-| `removeAuthStack` deletes dirs | Task 4 |
-| `removeAuthStack` strips `app.module.ts` | Task 4 |
-| `removeAuthStack` strips `_dashboard.tsx` | Task 4 |
-| `removeAuthStack` strips tsconfig aliases | Task 4 |
-| `removeAuthStack` strips api `package.json` | Task 4 |
-| `removeAuthStack` strips gateway `.env` AUTH vars | Task 4 |
-| `removeAuthStack` strips `docker-compose.yml` | Task 4 |
-| `scaffold()` guards `writeAuthEnv` | Task 5 |
-| `scaffold()` branches to `removeAuthStack` | Task 5 |
-| Integration test: full scaffold with auth=none | Task 5 |
-| Changeset (minor) | Task 6 |
-| `wire-auth.ts` uses `AuthBackend` type | Task 1 |
+| Spec requirement                                                | Covered by                                    |
+| --------------------------------------------------------------- | --------------------------------------------- |
+| `AuthBackend` + `AuthProvider\|='none'` + `DbProvider\|='none'` | Task 1                                        |
+| `validateConfig` accepts `'none'`                               | Task 1                                        |
+| `--auth none` CLI flag                                          | Task 2 (parseFlags already works; test added) |
+| `collectOptions` cascade: db='none', example='none'             | Task 2                                        |
+| `collectOptions` cascade: skip transport when no MS             | Task 2                                        |
+| `writeFeaturesWiring` omits auth from `gateway-services.ts`     | Task 3                                        |
+| `removeAuthStack` deletes dirs                                  | Task 4                                        |
+| `removeAuthStack` strips `app.module.ts`                        | Task 4                                        |
+| `removeAuthStack` strips `_dashboard.tsx`                       | Task 4                                        |
+| `removeAuthStack` strips tsconfig aliases                       | Task 4                                        |
+| `removeAuthStack` strips api `package.json`                     | Task 4                                        |
+| `removeAuthStack` strips gateway `.env` AUTH vars               | Task 4                                        |
+| `removeAuthStack` strips `docker-compose.yml`                   | Task 4                                        |
+| `scaffold()` guards `writeAuthEnv`                              | Task 5                                        |
+| `scaffold()` branches to `removeAuthStack`                      | Task 5                                        |
+| Integration test: full scaffold with auth=none                  | Task 5                                        |
+| Changeset (minor)                                               | Task 6                                        |
+| `wire-auth.ts` uses `AuthBackend` type                          | Task 1                                        |
 
 All spec requirements covered. ✓
