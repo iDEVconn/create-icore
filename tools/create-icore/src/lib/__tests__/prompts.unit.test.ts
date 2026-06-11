@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 // flags map to options correctly.
 // (If parseFlags is not exported, export it from prompts.ts for tests.)
 
-import { parseFlags } from '../prompts.js';
+import { parseFlags, collectOptions } from '../prompts.js';
 
 describe('parseFlags', () => {
   it('reads project name from the first positional arg', () => {
@@ -82,5 +82,63 @@ describe('parseFlags', () => {
 
   it('reads --config=<path> as equals-separated', () => {
     expect(parseFlags(['--config=./base.json'])._configPath).toBe('./base.json');
+  });
+
+  it('reads --auth=none', () => {
+    expect(parseFlags(['my-app', '--auth=none']).authProvider).toBe('none');
+  });
+});
+
+// Mock @clack/prompts to prevent any interactive I/O in the test environment.
+// collectOptions cascade tests only verify the cascade logic (dbProvider=none,
+// example=none, transport defaulting) — not the prompt UI itself.
+vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
+  note: vi.fn(),
+  text: vi.fn().mockResolvedValue('my-app'),
+  select: vi.fn().mockResolvedValue(undefined),
+  confirm: vi.fn().mockResolvedValue(true),
+  isCancel: vi.fn().mockReturnValue(false),
+}));
+
+describe('collectOptions cascade when authProvider=none', () => {
+  const baseArgv = [
+    'my-app',
+    '--auth=none',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=none',
+    '--ui=shadcn',
+    '--transport=tcp',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+
+  it('forces dbProvider=none without prompting', async () => {
+    const opts = await collectOptions({ argv: baseArgv, cwd: '.' });
+    expect(opts.dbProvider).toBe('none');
+  });
+
+  it('forces example=none without prompting', async () => {
+    const opts = await collectOptions({ argv: baseArgv, cwd: '.' });
+    expect(opts.example).toBe('none');
+  });
+
+  it('defaults transport to tcp when no microservices', async () => {
+    const argv = [
+      'my-app',
+      '--auth=none',
+      '--upload=none',
+      '--payment=none',
+      '--jobs=none',
+      '--ui=shadcn',
+      '--package-manager=yarn',
+      '--no-git',
+      '--no-install',
+      // transport NOT passed — should default to tcp when all MS are none
+    ];
+    const opts = await collectOptions({ argv, cwd: '.' });
+    expect(opts.transport).toBe('tcp');
   });
 });

@@ -19,16 +19,16 @@ npm i -g @idevconn/create-icore && create-icore my-saas
 
 ## Flags
 
-| Flag           | Values                                             | Default         | Notes                                                                                                                                                              |
-| -------------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--auth`       | `supabase` \| `firebase`                           | prompted        | Auth provider                                                                                                                                                      |
-| `--db`         | `supabase` \| `firebase`                           | prompted        | Database backend. Fully independent of `--auth` — mix-and-match combos like `--auth=firebase --db=supabase` are first-class.                                       |
-| `--upload`     | `supabase` \| `firebase` \| `cloudinary` \| `none` | prompted        | File upload provider. Use `none` to remove the upload microservice entirely.                                                                                       |
-| `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`        | UI library. All three are fully implemented: `shadcn` (Tailwind 4 + shadcn/ui), `antd` (Ant Design 6), `mui` (MUI 6 / Material Design).                            |
-| `--transport`  | `tcp` \| `redis` \| `nats`                         | `tcp`           | Microservice transport                                                                                                                                             |
-| `--no-git`     | —                                                  | git enabled     | Skip `git init`                                                                                                                                                    |
-| `--no-install` | —                                                  | install enabled | Skip `yarn install`                                                                                                                                                |
-| `--config`     | path to `.json` file                               | —               | Pre-fill any wizard answer from a JSON file. Missing fields still prompt interactively. CLI flags override config values. See **Non-interactive / CI mode** below. |
+| Flag           | Values                                             | Default         | Notes                                                                                                                                                                           |
+| -------------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--auth`       | `supabase` \| `firebase` \| `mongodb` \| `none`    | prompted        | Auth provider. Use `none` for a minimal SPA with no login system — skips db, example, and transport questions.                                                                  |
+| `--db`         | `supabase` \| `firebase` \| `mongodb` \| `none`    | prompted        | Database backend. Fully independent of `--auth` — mix-and-match combos like `--auth=firebase --db=supabase` are first-class. Use `none` when `--auth=none` (set automatically). |
+| `--upload`     | `supabase` \| `firebase` \| `cloudinary` \| `none` | prompted        | File upload provider. Use `none` to remove the upload microservice entirely.                                                                                                    |
+| `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`        | UI library. All three are fully implemented: `shadcn` (Tailwind 4 + shadcn/ui), `antd` (Ant Design 6), `mui` (MUI 6 / Material Design).                                         |
+| `--transport`  | `tcp` \| `redis` \| `nats`                         | `tcp`           | Microservice transport                                                                                                                                                          |
+| `--no-git`     | —                                                  | git enabled     | Skip `git init`                                                                                                                                                                 |
+| `--no-install` | —                                                  | install enabled | Skip `yarn install`                                                                                                                                                             |
+| `--config`     | path to `.json` file                               | —               | Pre-fill any wizard answer from a JSON file. Missing fields still prompt interactively. CLI flags override config values. See **Non-interactive / CI mode** below.              |
 
 > **Deprecated:** `--storage` is a deprecated alias for `--upload`. A warning is printed to stderr and the value is forwarded to `--upload`. Remove `--storage` from your scripts.
 
@@ -52,6 +52,9 @@ npm init @idevconn/icore my-app -- --auth=firebase --db=firebase --upload=cloudi
 
 # Skip the upload microservice entirely (--upload=none)
 npm init @idevconn/icore api-only -- --auth=supabase --db=supabase --upload=none --no-install
+
+# No auth — simple SPA (no login system, no auth microservice)
+npm init @idevconn/icore spa-app -- --auth=none --upload=none --no-install
 
 # NATS transport
 npm init @idevconn/icore my-app -- --auth=supabase --db=supabase --upload=supabase --transport=nats

@@ -55,10 +55,24 @@ describe('validateConfig', () => {
     expect(result).toEqual({ authProvider: 'supabase' });
   });
 
+  it('accepts authProvider: "none"', () => {
+    expect(validateConfig({ authProvider: 'none' })).toEqual({ authProvider: 'none' });
+  });
+
+  it('accepts dbProvider: "none"', () => {
+    expect(validateConfig({ dbProvider: 'none' })).toEqual({ dbProvider: 'none' });
+  });
+
+  it('error message for invalid authProvider lists none as valid', () => {
+    expect(() => validateConfig({ authProvider: 'oracle' })).toThrowError(
+      'expected one of: supabase, firebase, mongodb, none',
+    );
+  });
+
   it('throws ConfigFileError for invalid authProvider', () => {
     expect(() => validateConfig({ authProvider: 'postgres' })).toThrowError(ConfigFileError);
     expect(() => validateConfig({ authProvider: 'postgres' })).toThrowError(
-      'config field "authProvider" got "postgres", expected one of: supabase, firebase, mongodb',
+      'config field "authProvider" got "postgres", expected one of: supabase, firebase, mongodb, none',
     );
   });
 

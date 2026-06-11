@@ -164,21 +164,24 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'supabase', label: 'Supabase' },
         { value: 'firebase', label: 'Firebase' },
         { value: 'mongodb', label: 'MongoDB (Custom Auth)' },
+        { value: 'none', label: 'None — no login, open API (simple SPA)' },
       ],
     })) as AuthProvider);
   if (p.isCancel(authProvider)) throw new Error('cancelled');
 
-  const dbProvider =
-    flags.dbProvider ??
-    ((await p.select({
-      message: 'Database backend',
-      options: [
-        { value: 'supabase', label: 'Supabase Postgres' },
-        { value: 'firebase', label: 'Firestore' },
-        { value: 'mongodb', label: 'MongoDB' },
-      ],
-      initialValue: authProvider as DbProvider,
-    })) as DbProvider);
+  const dbProvider: DbProvider =
+    authProvider === 'none'
+      ? 'none'
+      : (flags.dbProvider ??
+        ((await p.select({
+          message: 'Database backend',
+          options: [
+            { value: 'supabase', label: 'Supabase Postgres' },
+            { value: 'firebase', label: 'Firestore' },
+            { value: 'mongodb', label: 'MongoDB' },
+          ],
+          initialValue: authProvider as DbProvider,
+        })) as DbProvider));
   if (p.isCancel(dbProvider)) throw new Error('cancelled');
 
   const upload =
@@ -219,16 +222,18 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as JobsProvider);
   if (p.isCancel(jobs)) throw new Error('cancelled');
 
-  const example =
-    flags.example ??
-    ((await p.select({
-      message: 'Include notes sample feature? (CRUD demo — remove before production)',
-      options: [
-        { value: 'notes' as ExampleMode, label: 'Yes — include notes sample' },
-        { value: 'none' as ExampleMode, label: 'No — skip notes (clean slate)' },
-      ],
-      initialValue: 'notes' as ExampleMode,
-    })) as ExampleMode);
+  const example: ExampleMode =
+    authProvider === 'none'
+      ? 'none'
+      : (flags.example ??
+        ((await p.select({
+          message: 'Include notes sample feature? (CRUD demo — remove before production)',
+          options: [
+            { value: 'notes' as ExampleMode, label: 'Yes — include notes sample' },
+            { value: 'none' as ExampleMode, label: 'No — skip notes (clean slate)' },
+          ],
+          initialValue: 'notes' as ExampleMode,
+        })) as ExampleMode));
   if (p.isCancel(example)) throw new Error('cancelled');
 
   const ui =
@@ -250,20 +255,23 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as 'shadcn' | 'antd' | 'mui');
   if (p.isCancel(ui)) throw new Error('cancelled');
 
-  const transport =
+  const noMicroservices = authProvider === 'none' && upload === 'none' && payment === 'none';
+  const transport: MsTransport =
     flags.transport ??
-    ((await p.select({
-      message: 'Microservice transport',
-      options: [
-        { value: 'tcp' as MsTransport, label: 'TCP (default, no broker required)' },
-        { value: 'redis' as MsTransport, label: 'Redis' },
-        { value: 'nats' as MsTransport, label: 'NATS' },
-        { value: 'mqtt' as MsTransport, label: 'MQTT' },
-        { value: 'rmq' as MsTransport, label: 'RabbitMQ' },
-        { value: 'kafka' as MsTransport, label: 'Kafka' },
-      ],
-      initialValue: 'tcp' as MsTransport,
-    })) as MsTransport);
+    (noMicroservices
+      ? 'tcp'
+      : ((await p.select({
+          message: 'Microservice transport',
+          options: [
+            { value: 'tcp' as MsTransport, label: 'TCP (default, no broker required)' },
+            { value: 'redis' as MsTransport, label: 'Redis' },
+            { value: 'nats' as MsTransport, label: 'NATS' },
+            { value: 'mqtt' as MsTransport, label: 'MQTT' },
+            { value: 'rmq' as MsTransport, label: 'RabbitMQ' },
+            { value: 'kafka' as MsTransport, label: 'Kafka' },
+          ],
+          initialValue: 'tcp' as MsTransport,
+        })) as MsTransport));
   if (p.isCancel(transport)) throw new Error('cancelled');
 
   const packageManager = flags.packageManager ?? detectPackageManager();

@@ -1,4 +1,4 @@
-import type { AuthProvider } from '../lib/options.js';
+import type { AuthBackend } from '../lib/options.js';
 import { MANIFEST } from './index.js';
 import type { Unit } from './types.js';
 import { writeProvider, cleanupUnusedAxis, type AxisWiring } from './wire-provider.js';
@@ -11,8 +11,8 @@ const AUTH: AxisWiring = {
   envPath: 'apps/microservices/auth/.env',
 };
 
-export const writeAuthProvider = (targetDir: string, provider: AuthProvider): Promise<void> =>
+export const writeAuthProvider = (targetDir: string, provider: AuthBackend): Promise<void> =>
   writeProvider(targetDir, AUTH, provider);
 
-export const cleanupUnusedAuth = (targetDir: string, chosen: AuthProvider): Promise<void> =>
+export const cleanupUnusedAuth = (targetDir: string, chosen: AuthBackend): Promise<void> =>
   cleanupUnusedAxis(targetDir, AUTH, chosen);

@@ -42,8 +42,9 @@ export async function writeFeaturesWiring(
     `\n@Module({\n  imports: [${symbols}],\n})\nexport class FeaturesModule {}\n`;
   await writeFile(join(targetDir, FEATURES_MODULE), featuresModule);
 
-  // gateway-services.ts — auth (always) + upload (unless none) + chosen feature services.
-  const services: { name: string; prefix: string }[] = [{ name: 'auth', prefix: 'AUTH' }];
+  // gateway-services.ts — auth (unless none) + upload (unless none) + chosen feature services.
+  const services: { name: string; prefix: string }[] = [];
+  if (opts.authProvider !== 'none') services.push({ name: 'auth', prefix: 'AUTH' });
   if (opts.upload !== 'none') services.push({ name: 'upload', prefix: 'UPLOAD' });
   for (const k of chosen) {
     const svc = FEATURES[k].gatewayService;
