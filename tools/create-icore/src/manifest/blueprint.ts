@@ -56,12 +56,14 @@ export async function writeServiceBlueprints(
 ): Promise<void> {
   const t = opts.transport;
 
-  await writeJson(targetDir, 'apps/microservices/auth', {
-    schemaVersion: 1,
-    service: 'auth',
-    authProvider: opts.authProvider,
-    transport: t,
-  });
+  if (opts.authProvider !== 'none') {
+    await writeJson(targetDir, 'apps/microservices/auth', {
+      schemaVersion: 1,
+      service: 'auth',
+      authProvider: opts.authProvider,
+      transport: t,
+    });
+  }
 
   if (opts.upload !== 'none') {
     await writeJson(targetDir, 'apps/microservices/upload', {

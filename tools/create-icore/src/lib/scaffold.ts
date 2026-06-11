@@ -2,7 +2,7 @@ import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import type { CreateIcoreOptions } from './options.js';
+import type { CreateIcoreOptions, AuthBackend } from './options.js';
 import {
   rewriteRootPackageJson,
   pruneRootProviderDeps,
@@ -164,7 +164,7 @@ function runInstall(cwd: string, pm: string): void {
 export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): Promise<void> {
   await copyTree(templatesDir, opts.targetDir);
   await rewriteRootPackageJson(opts.targetDir, opts);
-  await writeAuthEnv(opts.targetDir, opts);
+  if (opts.authProvider !== 'none') await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
   await writeNotesEnv(opts.targetDir, opts);
   await writePaymentEnv(opts.targetDir, opts);
@@ -176,8 +176,12 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
   await writeNavConfig(opts.targetDir, opts);
-  await cleanupUnusedAuth(opts.targetDir, opts.authProvider);
-  await writeAuthProvider(opts.targetDir, opts.authProvider);
+  if (opts.authProvider !== 'none') {
+    await cleanupUnusedAuth(opts.targetDir, opts.authProvider as AuthBackend);
+    await writeAuthProvider(opts.targetDir, opts.authProvider as AuthBackend);
+  } else {
+    await removeAuthStack(opts.targetDir);
+  }
   if (opts.upload !== 'none') {
     await cleanupUnusedStorage(opts.targetDir, opts.upload);
     await writeStorageProvider(opts.targetDir, opts.upload);
