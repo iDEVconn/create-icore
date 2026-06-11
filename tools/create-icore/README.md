@@ -21,7 +21,7 @@ npm i -g @idevconn/create-icore && create-icore my-saas
 
 | Flag           | Values                                             | Default         | Notes                                                                                                                                                              |
 | -------------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--auth`       | `supabase` \| `firebase`                           | prompted        | Auth provider                                                                                                                                                      |
+| `--auth`       | `supabase` \| `firebase` \| `mongodb` \| `none`    | prompted        | Auth provider. Use `none` for a minimal SPA with no login system — skips db, example, and transport questions.                                                     |
 | `--db`         | `supabase` \| `firebase`                           | prompted        | Database backend. Fully independent of `--auth` — mix-and-match combos like `--auth=firebase --db=supabase` are first-class.                                       |
 | `--upload`     | `supabase` \| `firebase` \| `cloudinary` \| `none` | prompted        | File upload provider. Use `none` to remove the upload microservice entirely.                                                                                       |
 | `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`        | UI library. All three are fully implemented: `shadcn` (Tailwind 4 + shadcn/ui), `antd` (Ant Design 6), `mui` (MUI 6 / Material Design).                            |
@@ -52,6 +52,9 @@ npm init @idevconn/icore my-app -- --auth=firebase --db=firebase --upload=cloudi
 
 # Skip the upload microservice entirely (--upload=none)
 npm init @idevconn/icore api-only -- --auth=supabase --db=supabase --upload=none --no-install
+
+# No auth — simple SPA (no login system, no auth microservice)
+npm init @idevconn/icore spa-app -- --auth=none --upload=none --no-install
 
 # NATS transport
 npm init @idevconn/icore my-app -- --auth=supabase --db=supabase --upload=supabase --transport=nats
