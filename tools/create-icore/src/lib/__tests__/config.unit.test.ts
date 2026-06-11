@@ -72,7 +72,7 @@ describe('validateConfig', () => {
   it('throws ConfigFileError for invalid authProvider', () => {
     expect(() => validateConfig({ authProvider: 'postgres' })).toThrowError(ConfigFileError);
     expect(() => validateConfig({ authProvider: 'postgres' })).toThrowError(
-      'config field "authProvider" got "postgres", expected one of: supabase, firebase, mongodb',
+      'config field "authProvider" got "postgres", expected one of: supabase, firebase, mongodb, none',
     );
   });
 
