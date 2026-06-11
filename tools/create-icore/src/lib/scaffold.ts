@@ -14,7 +14,7 @@ import {
   writeClientEnv,
   writePaymentEnv,
 } from './scaffold-env.js';
-import { removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
+import { removeAuthStack, removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
@@ -39,6 +39,7 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
+  removeAuthStack,
   removeFirebaseAdminLib,
   removeUploadStack,
   writePnpmWorkspace,
