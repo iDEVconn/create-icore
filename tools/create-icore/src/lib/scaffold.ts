@@ -186,17 +186,21 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
     await cleanupUnusedStorage(opts.targetDir, opts.upload);
     await writeStorageProvider(opts.targetDir, opts.upload);
   }
-  if (opts.example !== 'none') {
-    await cleanupUnusedDb(opts.targetDir, opts.dbProvider);
-    await writeDbProvider(opts.targetDir, opts.dbProvider);
-  }
   // The shared firebase-admin init lib is only needed when SOME microservice
   // uses Firebase. If no provider is Firebase, drop the lib + its alias.
+  // Must run BEFORE cleanupUnusedDb to avoid the regex-stripped tsconfig
+  // having a trailing comma that breaks the JSON.parse inside stripTsconfigKeys.
   const firebaseUsed =
     opts.authProvider === 'firebase' ||
     opts.dbProvider === 'firebase' ||
     opts.upload === 'firebase';
   if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
+  // Clean up unused db strategies unconditionally — even when example=none,
+  // we still want to remove libs for DB backends that weren't chosen.
+  await cleanupUnusedDb(opts.targetDir, opts.dbProvider);
+  if (opts.dbProvider !== 'none' && opts.example !== 'none') {
+    await writeDbProvider(opts.targetDir, opts.dbProvider);
+  }
   // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
   // generated project audits clean (root keeps only chosen providers' SDKs).
   await pruneRootProviderDeps(opts.targetDir, opts);
