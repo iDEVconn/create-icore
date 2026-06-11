@@ -149,6 +149,7 @@ async function makeFakeTemplates(): Promise<string> {
       {
         name: 'api',
         dependencies: {
+          '@icore/auth-client': '*',
           '@icore/jobs-client': '*',
           '@bull-board/api': '^7',
           '@bull-board/express': '^7',
@@ -318,6 +319,7 @@ async function makeFakeTemplates(): Promise<string> {
       {
         compilerOptions: {
           paths: {
+            '@icore/auth-client': ['./libs/auth-client/src/index.ts'],
             '@icore/auth-supabase': ['./libs/auth-strategies/supabase/src/index.ts'],
             '@icore/auth-firebase': ['./libs/auth-strategies/firebase/src/index.ts'],
             '@icore/storage-supabase': ['./libs/storage-strategies/supabase/src/index.ts'],
@@ -841,5 +843,29 @@ describe('scaffold with authProvider=none', () => {
   it('gateway-services.ts has no auth entry', async () => {
     const gs = await readFile(join(outDir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
     expect(gs).not.toContain("name: 'auth'");
+  });
+
+  it('strips auth modules from app.module.ts', async () => {
+    const content = await readFile(join(outDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(content).not.toContain('AuthModule');
+    expect(content).not.toContain('ProfileModule');
+    expect(content).not.toContain('AbilitiesModule');
+    expect(content).toContain('FeaturesModule');
+  });
+
+  it('strips @icore/auth-client from api package.json', async () => {
+    const pkg = JSON.parse(await readFile(join(outDir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['@icore/auth-client']).toBeUndefined();
+  });
+
+  it('strips auth tsconfig aliases', async () => {
+    const ts = JSON.parse(await readFile(join(outDir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(ts.compilerOptions.paths['@icore/auth-client']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-supabase']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-firebase']).toBeUndefined();
   });
 });
