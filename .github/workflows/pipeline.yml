@@ -166,7 +166,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [gateway, ms-auth, ms-upload, ms-jobs]
+        image: [gateway, ms-auth, ms-upload, ms-jobs, ms-payment]
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4
