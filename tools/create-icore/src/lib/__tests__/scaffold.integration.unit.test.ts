@@ -149,6 +149,7 @@ async function makeFakeTemplates(): Promise<string> {
       {
         name: 'api',
         dependencies: {
+          '@icore/auth-client': '*',
           '@icore/jobs-client': '*',
           '@bull-board/api': '^7',
           '@bull-board/express': '^7',
@@ -318,6 +319,7 @@ async function makeFakeTemplates(): Promise<string> {
       {
         compilerOptions: {
           paths: {
+            '@icore/auth-client': ['./libs/auth-client/src/index.ts'],
             '@icore/auth-supabase': ['./libs/auth-strategies/supabase/src/index.ts'],
             '@icore/auth-firebase': ['./libs/auth-strategies/firebase/src/index.ts'],
             '@icore/storage-supabase': ['./libs/storage-strategies/supabase/src/index.ts'],
@@ -403,6 +405,40 @@ async function makeFakeTemplates(): Promise<string> {
     join(tplDir, 'apps/microservices/notes/src/app/app.module.ts'),
     `import { FirestoreDBStrategy } from '@icore/db-firestore';\nimport { SupabaseDBStrategy } from '@icore/db-supabase';\nimport { getFirebaseAdmin } from '@icore/firebase-admin';\n`,
   );
+
+  // _dashboard.tsx with auth guard (stripped by removeAuthStack when auth=none)
+  await writeFile(
+    join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard.tsx'),
+    [
+      "import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';",
+      "import { useAuthStore } from '@icore/template-shared';",
+      "import { MainLayout } from '../layouts/MainLayout';",
+      '',
+      "export const Route = createFileRoute('/_dashboard')({",
+      '  beforeLoad: () => {',
+      '    if (!useAuthStore.getState().accessToken) {',
+      "      throw redirect({ to: '/login' });",
+      '    }',
+      '  },',
+      '  component: () => (',
+      '    <MainLayout>',
+      '      <Outlet />',
+      '    </MainLayout>',
+      '  ),',
+      '});',
+    ].join('\n'),
+  );
+  // auth MS gateway dirs (removeAuthStack deletes these from the output)
+  await mkdir(join(tplDir, 'apps/api/src/app/auth'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/api/src/app/auth/auth.module.ts'), '');
+  await mkdir(join(tplDir, 'apps/api/src/app/profile'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/api/src/app/profile/profile.controller.ts'), '');
+  await mkdir(join(tplDir, 'apps/api/src/app/abilities'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/api/src/app/abilities/ability.guard.ts'), '');
+  await writeFile(join(tplDir, 'Dockerfile.ms-auth'), '');
+  // auth-client lib stub
+  await mkdir(join(tplDir, 'libs/auth-client/src'), { recursive: true });
+  await writeFile(join(tplDir, 'libs/auth-client/src/index.ts'), 'export {};');
 
   return tplDir;
 }
@@ -748,5 +784,88 @@ describe('scaffold (integration, dry-run)', () => {
         expect(allDeps, `${pkgFile} should not declare ${dep}`).not.toHaveProperty(dep);
       }
     }
+  });
+});
+
+describe('scaffold with authProvider=none', () => {
+  let outDir: string;
+  let tplDir: string;
+
+  beforeAll(async () => {
+    tplDir = await makeFakeTemplates();
+    outDir = await mkdtemp(join(tmpdir(), 'icore-no-auth-'));
+    await scaffold(
+      {
+        projectName: 'no-auth-app',
+        targetDir: outDir,
+        authProvider: 'none',
+        dbProvider: 'none',
+        upload: 'none',
+        payment: 'none',
+        jobs: 'none',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'tcp',
+        packageManager: 'yarn',
+        initGit: false,
+        install: false,
+      },
+      tplDir,
+    );
+  });
+
+  it('removes auth MS directory', async () => {
+    await expect(access(join(outDir, 'apps/microservices/auth'))).rejects.toThrow();
+  });
+
+  it('removes auth strategy libs', async () => {
+    await expect(access(join(outDir, 'libs/auth-strategies'))).rejects.toThrow();
+  });
+
+  it('removes auth-client lib', async () => {
+    await expect(access(join(outDir, 'libs/auth-client'))).rejects.toThrow();
+  });
+
+  it('removes gateway auth/, profile/, abilities/ dirs', async () => {
+    await expect(access(join(outDir, 'apps/api/src/app/auth'))).rejects.toThrow();
+    await expect(access(join(outDir, 'apps/api/src/app/profile'))).rejects.toThrow();
+    await expect(access(join(outDir, 'apps/api/src/app/abilities'))).rejects.toThrow();
+  });
+
+  it('client _dashboard.tsx has no beforeLoad', async () => {
+    const content = await readFile(join(outDir, 'apps/client/src/routes/_dashboard.tsx'), 'utf8');
+    expect(content).not.toContain('beforeLoad');
+    expect(content).not.toContain('useAuthStore');
+    expect(content).toContain('MainLayout');
+    expect(content).toContain('Outlet');
+  });
+
+  it('gateway-services.ts has no auth entry', async () => {
+    const gs = await readFile(join(outDir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
+    expect(gs).not.toContain("name: 'auth'");
+  });
+
+  it('strips auth modules from app.module.ts', async () => {
+    const content = await readFile(join(outDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(content).not.toContain('AuthModule');
+    expect(content).not.toContain('ProfileModule');
+    expect(content).not.toContain('AbilitiesModule');
+    expect(content).toContain('FeaturesModule');
+  });
+
+  it('strips @icore/auth-client from api package.json', async () => {
+    const pkg = JSON.parse(await readFile(join(outDir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['@icore/auth-client']).toBeUndefined();
+  });
+
+  it('strips auth tsconfig aliases', async () => {
+    const ts = JSON.parse(await readFile(join(outDir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(ts.compilerOptions.paths['@icore/auth-client']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-supabase']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-firebase']).toBeUndefined();
   });
 });

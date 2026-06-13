@@ -97,6 +97,36 @@ describe('writeFeaturesWiring', () => {
     const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
     expect(gs).not.toContain("{ name: 'upload', prefix: 'UPLOAD' }");
   });
+
+  it('omits auth entry in gateway-services.ts when authProvider is none', async () => {
+    const dir = await fixture();
+    await writeFeaturesWiring(dir, {
+      ...base,
+      targetDir: dir,
+      authProvider: 'none',
+      dbProvider: 'none',
+      example: 'none',
+      payment: 'none',
+      jobs: 'none',
+      upload: 'supabase',
+    });
+    const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
+    expect(gs).not.toContain("name: 'auth'");
+    expect(gs).toContain("name: 'upload'");
+  });
+
+  it('includes auth entry in gateway-services.ts when authProvider is supabase', async () => {
+    const dir = await fixture();
+    await writeFeaturesWiring(dir, {
+      ...base,
+      targetDir: dir,
+      payment: 'none',
+      jobs: 'none',
+      example: 'none',
+    });
+    const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
+    expect(gs).toContain("name: 'auth'");
+  });
 });
 
 describe('cleanupUnusedFeatures', () => {

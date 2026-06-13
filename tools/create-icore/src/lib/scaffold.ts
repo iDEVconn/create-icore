@@ -2,7 +2,7 @@ import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import type { CreateIcoreOptions } from './options.js';
+import type { CreateIcoreOptions, AuthBackend } from './options.js';
 import {
   rewriteRootPackageJson,
   pruneRootProviderDeps,
@@ -14,7 +14,7 @@ import {
   writeClientEnv,
   writePaymentEnv,
 } from './scaffold-env.js';
-import { removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
+import { removeAuthStack, removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
@@ -39,6 +39,7 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
+  removeAuthStack,
   removeFirebaseAdminLib,
   removeUploadStack,
   writePnpmWorkspace,
@@ -163,7 +164,7 @@ function runInstall(cwd: string, pm: string): void {
 export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): Promise<void> {
   await copyTree(templatesDir, opts.targetDir);
   await rewriteRootPackageJson(opts.targetDir, opts);
-  await writeAuthEnv(opts.targetDir, opts);
+  if (opts.authProvider !== 'none') await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
   await writeNotesEnv(opts.targetDir, opts);
   await writePaymentEnv(opts.targetDir, opts);
@@ -175,23 +176,31 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
   await writeNavConfig(opts.targetDir, opts);
-  await cleanupUnusedAuth(opts.targetDir, opts.authProvider);
-  await writeAuthProvider(opts.targetDir, opts.authProvider);
+  if (opts.authProvider !== 'none') {
+    await cleanupUnusedAuth(opts.targetDir, opts.authProvider as AuthBackend);
+    await writeAuthProvider(opts.targetDir, opts.authProvider as AuthBackend);
+  } else {
+    await removeAuthStack(opts.targetDir);
+  }
   if (opts.upload !== 'none') {
     await cleanupUnusedStorage(opts.targetDir, opts.upload);
     await writeStorageProvider(opts.targetDir, opts.upload);
   }
-  if (opts.example !== 'none') {
-    await cleanupUnusedDb(opts.targetDir, opts.dbProvider);
-    await writeDbProvider(opts.targetDir, opts.dbProvider);
-  }
   // The shared firebase-admin init lib is only needed when SOME microservice
   // uses Firebase. If no provider is Firebase, drop the lib + its alias.
+  // Must run BEFORE cleanupUnusedDb to avoid the regex-stripped tsconfig
+  // having a trailing comma that breaks the JSON.parse inside stripTsconfigKeys.
   const firebaseUsed =
     opts.authProvider === 'firebase' ||
     opts.dbProvider === 'firebase' ||
     opts.upload === 'firebase';
   if (!firebaseUsed) await removeFirebaseAdminLib(opts.targetDir);
+  // Clean up unused db strategies unconditionally — even when example=none,
+  // we still want to remove libs for DB backends that weren't chosen.
+  await cleanupUnusedDb(opts.targetDir, opts.dbProvider);
+  if (opts.dbProvider !== 'none' && opts.example !== 'none') {
+    await writeDbProvider(opts.targetDir, opts.dbProvider);
+  }
   // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
   // generated project audits clean (root keeps only chosen providers' SDKs).
   await pruneRootProviderDeps(opts.targetDir, opts);

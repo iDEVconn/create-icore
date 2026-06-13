@@ -139,6 +139,26 @@ describe('writeServiceBlueprints', () => {
     });
   });
 
+  it('skips auth blueprint when authProvider=none', async () => {
+    const dir = await svcFixture();
+    await writeServiceBlueprints(dir, {
+      ...opts,
+      targetDir: dir,
+      authProvider: 'none',
+      dbProvider: 'none',
+      example: 'none',
+      upload: 'none',
+      payment: 'none',
+      jobs: 'none',
+    });
+    // auth blueprint should NOT exist (authProvider=none skips it)
+    expect(await exists(join(dir, 'apps/microservices/auth/blueprint.json'))).toBe(false);
+    // gateway blueprint should still exist
+    expect(await exists(join(dir, 'apps/api/blueprint.json'))).toBe(true);
+    // client blueprint should still exist
+    expect(await exists(join(dir, 'apps/client/blueprint.json'))).toBe(true);
+  });
+
   it('skips optional services that are off (no file written there)', async () => {
     const dir = await svcFixture();
     await writeServiceBlueprints(dir, {

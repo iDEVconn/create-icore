@@ -2,11 +2,13 @@ import type { CreateIcoreOptions } from '../lib/options.js';
 import type { Unit } from './types.js';
 import { MANIFEST } from './index.js';
 
+const EMPTY: Unit = { libDirs: [], deps: {}, tsPaths: {} };
+
 /** Map the user's choices to the concrete set of units to add. Additive only. */
 export function resolveUnits(opts: CreateIcoreOptions): Unit[] {
   const units: Unit[] = [
-    MANIFEST.auth[opts.authProvider],
-    MANIFEST.db[opts.dbProvider],
+    opts.authProvider === 'none' ? EMPTY : MANIFEST.auth[opts.authProvider],
+    opts.dbProvider === 'none' ? EMPTY : MANIFEST.db[opts.dbProvider],
     MANIFEST.ui[opts.ui],
     MANIFEST.transport[opts.transport],
   ];

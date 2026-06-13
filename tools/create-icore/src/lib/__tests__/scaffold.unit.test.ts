@@ -9,6 +9,7 @@ import {
   writeUploadEnv,
   writeRootEnv,
   removeUploadStack,
+  removeAuthStack,
   rewriteRootPackageJson,
   pruneRootProviderDeps,
 } from '../scaffold.js';
@@ -184,6 +185,217 @@ describe('removeUploadStack', () => {
     expect(gatewayEnv).not.toContain('UPLOAD_TRANSPORT');
     expect(gatewayEnv).not.toContain('UPLOAD_HOST');
     expect(gatewayEnv).not.toContain('MAX_FILE_SIZE_KB');
+  });
+});
+
+describe('removeAuthStack', () => {
+  let authDir: string;
+
+  beforeEach(async () => {
+    authDir = await mkdtemp(join(tmpdir(), 'icore-no-auth-'));
+
+    // Dirs that should be deleted
+    await mkdir(join(authDir, 'apps/microservices/auth/src'), { recursive: true });
+    await writeFile(join(authDir, 'apps/microservices/auth/src/main.ts'), '');
+    await mkdir(join(authDir, 'libs/auth-strategies/supabase'), { recursive: true });
+    await writeFile(join(authDir, 'libs/auth-strategies/supabase/index.ts'), '');
+    await mkdir(join(authDir, 'libs/auth-client/src'), { recursive: true });
+    await writeFile(join(authDir, 'libs/auth-client/src/index.ts'), '');
+    await mkdir(join(authDir, 'apps/api/src/app/auth'), { recursive: true });
+    await writeFile(join(authDir, 'apps/api/src/app/auth/auth.module.ts'), '');
+    await mkdir(join(authDir, 'apps/api/src/app/profile'), { recursive: true });
+    await writeFile(join(authDir, 'apps/api/src/app/profile/profile.controller.ts'), '');
+    await mkdir(join(authDir, 'apps/api/src/app/abilities'), { recursive: true });
+    await writeFile(join(authDir, 'apps/api/src/app/abilities/ability.guard.ts'), '');
+    await mkdir(join(authDir, 'apps/client/src/components/auth'), { recursive: true });
+    await writeFile(join(authDir, 'apps/client/src/components/auth/LoginForm.tsx'), '');
+    await mkdir(join(authDir, 'apps/client/src/routes/_dashboard'), { recursive: true });
+    await writeFile(join(authDir, 'apps/client/src/routes/login.tsx'), '');
+    await writeFile(join(authDir, 'apps/client/src/routes/auth.callback.tsx'), '');
+    await writeFile(join(authDir, 'apps/client/src/routes/auth.oauth.callback.tsx'), '');
+    await writeFile(join(authDir, 'apps/client/src/routes/_dashboard/profile.tsx'), '');
+    await writeFile(join(authDir, 'Dockerfile.ms-auth'), '');
+
+    // app.module.ts
+    await writeFile(
+      join(authDir, 'apps/api/src/app/app.module.ts'),
+      [
+        "import { AuthModule } from './auth/auth.module';",
+        "import { ProfileModule } from './profile/profile.module';",
+        "import { AbilitiesModule } from './abilities/abilities.module';",
+        "import { FeaturesModule } from './features.module';",
+        '@Module({ imports: [AuthModule, ProfileModule, AbilitiesModule, FeaturesModule] })',
+        'export class AppModule {}',
+      ].join('\n'),
+    );
+
+    // _dashboard.tsx
+    await writeFile(
+      join(authDir, 'apps/client/src/routes/_dashboard.tsx'),
+      [
+        "import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';",
+        "import { useAuthStore } from '@icore/template-shared';",
+        "import { MainLayout } from '../layouts/MainLayout';",
+        '',
+        "export const Route = createFileRoute('/_dashboard')({",
+        '  beforeLoad: () => {',
+        '    if (!useAuthStore.getState().accessToken) {',
+        "      throw redirect({ to: '/login' });",
+        '    }',
+        '  },',
+        '  component: () => (',
+        '    <MainLayout>',
+        '      <Outlet />',
+        '    </MainLayout>',
+        '  ),',
+        '});',
+      ].join('\n'),
+    );
+
+    // tsconfig.base.json
+    await writeFile(
+      join(authDir, 'tsconfig.base.json'),
+      JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@icore/auth-client': ['libs/auth-client/src/index.ts'],
+            '@icore/auth-supabase': ['libs/auth-strategies/supabase/src/index.ts'],
+            '@icore/auth-firebase': ['libs/auth-strategies/firebase/src/index.ts'],
+            '@icore/auth-mongodb': ['libs/auth-strategies/mongodb/src/index.ts'],
+            '@icore/upload-client': ['libs/upload-client/src/index.ts'],
+          },
+        },
+      }),
+    );
+
+    // api package.json
+    await writeFile(
+      join(authDir, 'apps/api/package.json'),
+      JSON.stringify({
+        name: 'api',
+        dependencies: {
+          '@icore/auth-client': '*',
+          '@icore/upload-client': '*',
+        },
+      }),
+    );
+
+    // gateway .env
+    await writeFile(
+      join(authDir, 'apps/api/.env'),
+      'AUTH_TRANSPORT=tcp\nAUTH_HOST=127.0.0.1\nUPLOAD_TRANSPORT=tcp\n',
+    );
+
+    // docker-compose.yml
+    await writeFile(
+      join(authDir, 'docker-compose.yml'),
+      [
+        'services:',
+        '  auth:',
+        '    build:',
+        '      context: .',
+        '      dockerfile: Dockerfile.ms-auth',
+        '    restart: unless-stopped',
+        '  gateway:',
+        '    environment:',
+        '      API_PORT: 3001',
+        '      AUTH_TRANSPORT: redis',
+        '      AUTH_REDIS_URL: redis://redis:6379',
+        '    depends_on:',
+        '      redis:',
+        '        condition: service_healthy',
+        '      auth:',
+        '        condition: service_started',
+        'networks:',
+        '  icore:',
+        '    driver: bridge',
+      ].join('\n'),
+    );
+  });
+
+  it('removes auth MS, strategy libs, auth-client, and gateway auth dirs', async () => {
+    await removeAuthStack(authDir);
+    await expect(access(join(authDir, 'apps/microservices/auth'))).rejects.toThrow();
+    await expect(access(join(authDir, 'libs/auth-strategies'))).rejects.toThrow();
+    await expect(access(join(authDir, 'libs/auth-client'))).rejects.toThrow();
+    await expect(access(join(authDir, 'apps/api/src/app/auth'))).rejects.toThrow();
+    await expect(access(join(authDir, 'apps/api/src/app/profile'))).rejects.toThrow();
+    await expect(access(join(authDir, 'apps/api/src/app/abilities'))).rejects.toThrow();
+    await expect(access(join(authDir, 'Dockerfile.ms-auth'))).rejects.toThrow();
+  });
+
+  it('removes client auth routes and components', async () => {
+    await removeAuthStack(authDir);
+    await expect(access(join(authDir, 'apps/client/src/components/auth'))).rejects.toThrow();
+    await expect(access(join(authDir, 'apps/client/src/routes/login.tsx'))).rejects.toThrow();
+    await expect(
+      access(join(authDir, 'apps/client/src/routes/auth.callback.tsx')),
+    ).rejects.toThrow();
+    await expect(
+      access(join(authDir, 'apps/client/src/routes/auth.oauth.callback.tsx')),
+    ).rejects.toThrow();
+    await expect(
+      access(join(authDir, 'apps/client/src/routes/_dashboard/profile.tsx')),
+    ).rejects.toThrow();
+  });
+
+  it('strips AuthModule, ProfileModule, AbilitiesModule from app.module.ts', async () => {
+    await removeAuthStack(authDir);
+    const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(content).not.toContain('AuthModule');
+    expect(content).not.toContain('ProfileModule');
+    expect(content).not.toContain('AbilitiesModule');
+    expect(content).toContain('FeaturesModule');
+  });
+
+  it('strips beforeLoad, useAuthStore, and redirect from _dashboard.tsx', async () => {
+    await removeAuthStack(authDir);
+    const content = await readFile(join(authDir, 'apps/client/src/routes/_dashboard.tsx'), 'utf8');
+    expect(content).not.toContain('beforeLoad');
+    expect(content).not.toContain('useAuthStore');
+    expect(content).not.toContain('redirect');
+    expect(content).toContain('MainLayout');
+    expect(content).toContain('Outlet');
+  });
+
+  it('strips auth tsconfig aliases, keeps unrelated aliases', async () => {
+    await removeAuthStack(authDir);
+    const ts = JSON.parse(await readFile(join(authDir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(ts.compilerOptions.paths['@icore/auth-client']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-supabase']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-firebase']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/auth-mongodb']).toBeUndefined();
+    expect(ts.compilerOptions.paths['@icore/upload-client']).toBeDefined();
+  });
+
+  it('strips @icore/auth-client from api package.json, keeps other deps', async () => {
+    await removeAuthStack(authDir);
+    const pkg = JSON.parse(await readFile(join(authDir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies['@icore/auth-client']).toBeUndefined();
+    expect(pkg.dependencies['@icore/upload-client']).toBeDefined();
+  });
+
+  it('strips AUTH_* lines from gateway .env, keeps other env vars', async () => {
+    await removeAuthStack(authDir);
+    const env = await readFile(join(authDir, 'apps/api/.env'), 'utf8');
+    expect(env).not.toContain('AUTH_TRANSPORT');
+    expect(env).not.toContain('AUTH_HOST');
+    expect(env).toContain('UPLOAD_TRANSPORT');
+  });
+
+  it('strips auth service from docker-compose.yml and gateway depends_on', async () => {
+    await removeAuthStack(authDir);
+    const compose = await readFile(join(authDir, 'docker-compose.yml'), 'utf8');
+    expect(compose).not.toContain('Dockerfile.ms-auth');
+    expect(compose).not.toContain('AUTH_TRANSPORT');
+    expect(compose).not.toContain('AUTH_REDIS_URL');
+    expect(compose).toContain('gateway:');
+    const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
+    expect(gatewaySection).not.toContain('auth:');
   });
 });
 
