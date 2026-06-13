@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.9.1
+
+### Patch Changes
+
+- a3b63fa: feat: add Dockerfile.ms-payment, wire payment service in docker-compose, add to CI build matrix
+
 ## 0.9.0
 
 ### Minor Changes
