@@ -1,5 +1,16 @@
 # @idevconn/create-icore
 
+## 0.9.0
+
+### Minor Changes
+
+- d1dd77a: Add `--config <path>` flag for non-interactive / CI scaffolding from a JSON file
+- e72c2e3: Add `authProvider: 'none'` option — scaffolds a minimal Nx monorepo (gateway + React client) with no auth microservice, no AuthGuard, and no login routes.
+
+### Patch Changes
+
+- fac7ae8: fix(mongodb): add missing @types/bcrypt/@types/jsonwebtoken; approve native builds for pnpm; suppress smoke cleanup ENOTEMPTY
+
 ## 0.8.0
 
 ### Minor Changes
