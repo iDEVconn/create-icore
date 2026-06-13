@@ -249,7 +249,7 @@ async function main() {
       process.exit(1);
     }
     console.log(`\n✓ smoke OK — typecheck clean (${combo})`);
-    await rm(dir, { recursive: true, force: true });
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
     return;
   }
 
@@ -311,7 +311,7 @@ async function main() {
   }
 
   console.log(`\n✓ smoke OK (${combo})`);
-  await rm(dir, { recursive: true, force: true });
+  await rm(dir, { recursive: true, force: true }).catch(() => {});
 }
 
 main().catch((err) => {
