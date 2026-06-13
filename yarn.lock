@@ -2908,6 +2908,8 @@ __metadata:
     "@nestjs/common": "npm:^11.1.24"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
+    "@types/bcrypt": "npm:^6.0.0"
+    "@types/jsonwebtoken": "npm:^9.0.10"
     bcrypt: "npm:^6.0.0"
     jsonwebtoken: "npm:^9.0.2"
     mongodb-memory-server: "npm:^11.2.0"
