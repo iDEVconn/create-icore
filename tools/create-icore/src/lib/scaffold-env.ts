@@ -137,6 +137,14 @@ export async function rewriteRootPackageJson(
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, MONGODB_DEPS);
   }
+  // @types/bcrypt and @types/jsonwebtoken are devDeps of auth-mongodb lib, but pnpm strict
+  // isolation does not hoist them to root node_modules — TypeScript can't find them during
+  // nx build which runs from root. Add to root devDependencies when auth=mongodb.
+  if (opts.authProvider === 'mongodb') {
+    const devDeps = (pkg['devDependencies'] ??= {}) as Record<string, string>;
+    devDeps['@types/bcrypt'] = '^6.0.0';
+    devDeps['@types/jsonwebtoken'] = '^9.0.10';
+  }
   // Remove the yarn-specific packageManager field for npm/pnpm so corepack doesn't reject them.
   // For yarn, update it to the current version (corepack uses this to download the runtime).
   if (opts.packageManager !== 'yarn') {
