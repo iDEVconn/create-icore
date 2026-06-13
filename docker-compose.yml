@@ -48,6 +48,18 @@ services:
     networks: [icore]
     restart: unless-stopped
 
+  payment:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-payment
+    env_file: .env.docker
+    environment:
+      PAYMENT_TRANSPORT: tcp
+      PAYMENT_HOST: 0.0.0.0
+      PAYMENT_PORT: 4003
+    networks: [icore]
+    restart: unless-stopped
+
   gateway:
     build:
       context: .
@@ -60,6 +72,9 @@ services:
       UPLOAD_TRANSPORT: redis
       UPLOAD_REDIS_URL: redis://redis:6379
       JOBS_REDIS_URL: redis://redis:6379
+      PAYMENT_TRANSPORT: tcp
+      PAYMENT_HOST: payment
+      PAYMENT_PORT: 4003
     ports:
       - '3001:3001'
     depends_on:
@@ -70,6 +85,8 @@ services:
       upload:
         condition: service_started
       jobs:
+        condition: service_started
+      payment:
         condition: service_started
     networks: [icore]
     restart: unless-stopped
