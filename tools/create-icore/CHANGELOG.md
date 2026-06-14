@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.9.2
+
+### Patch Changes
+
+- 19dd74a: fix: point @icore/shared package.json exports to .ts source to resolve Windows exportsNotFound error
+
 ## 0.9.1
 
 ### Patch Changes
