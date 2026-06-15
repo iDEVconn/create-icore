@@ -63,6 +63,39 @@ export async function removeFirebaseAdminLib(targetDir: string): Promise<void> {
   ]);
 }
 
+export async function removeStrategiesLib(targetDir: string): Promise<void> {
+  await rm(join(targetDir, 'libs/shared/src/strategies'), { recursive: true, force: true });
+  await rm(join(targetDir, 'libs/shared/src/testing.ts'), { force: true });
+  // transport.ts only wires MS client options — dead when no microservices exist
+  await rm(join(targetDir, 'libs/shared/src/transport.ts'), { force: true });
+
+  const indexPath = join(targetDir, 'libs/shared/src/index.ts');
+  try {
+    const src = await readFile(indexPath, 'utf8');
+    await writeFile(
+      indexPath,
+      src
+        .replace(/^export \* from '\.\/strategies';\n/m, '')
+        .replace(/^export \* from '\.\/transport';\n?/m, ''),
+    );
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+
+  const pkgPath = join(targetDir, 'libs/shared/package.json');
+  try {
+    const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as {
+      exports?: Record<string, unknown>;
+      dependencies?: Record<string, string>;
+    };
+    if (pkg.exports) delete pkg.exports['./testing'];
+    if (pkg.dependencies) delete pkg.dependencies['@nestjs/microservices'];
+    await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+}
+
 export async function removeAuthStack(targetDir: string): Promise<void> {
   // Delete dirs and files
   const rmPaths = [
@@ -73,6 +106,7 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     'apps/api/src/app/auth',
     'apps/api/src/app/profile',
     'apps/api/src/app/abilities',
+    'libs/shared/src/abilities',
     'apps/client/src/components/auth',
     'apps/client/src/routes/login.tsx',
     'apps/client/src/routes/auth.callback.tsx',
@@ -154,6 +188,68 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
   } catch {
     // ignore
   }
+
+  // Strip abilities re-export from libs/shared/src/index.ts
+  const sharedIndexPath = join(targetDir, 'libs/shared/src/index.ts');
+  try {
+    const src = await readFile(sharedIndexPath, 'utf8');
+    await writeFile(sharedIndexPath, src.replace(/^export \* from '\.\/abilities';\n/m, ''));
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+
+  // routes/index.tsx: CTA points to /login — redirect to /dashboard instead
+  const routesIndexPath = join(targetDir, 'apps/client/src/routes/index.tsx');
+  try {
+    const src = await readFile(routesIndexPath, 'utf8');
+    await writeFile(
+      routesIndexPath,
+      src
+        .replace(/ctaHref="\/login"/, 'ctaHref="/dashboard"')
+        .replace(/ctaLabel="Log in →"/, 'ctaLabel="Dashboard →"'),
+    );
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+
+  // main.tsx: onUnauthorized redirects to /login — remove the callback
+  const mainTsxPath = join(targetDir, 'apps/client/src/main.tsx');
+  try {
+    const src = await readFile(mainTsxPath, 'utf8');
+    await writeFile(
+      mainTsxPath,
+      src.replace(/\n {2}onUnauthorized: \(\) => router\.navigate\(\{ to: '\/login' \}\),/, ''),
+    );
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+
+  // LayoutHeader.tsx: strip auth state, logout button, unused imports
+  const headerPath = join(targetDir, 'apps/client/src/components/layout/LayoutHeader.tsx');
+  try {
+    const src = await readFile(headerPath, 'utf8');
+    await writeFile(
+      headerPath,
+      src
+        .replace(/^import \{ useTranslation \} from 'react-i18next';\n/m, '')
+        .replace(/^import \{ useNavigate \} from '@tanstack\/react-router';\n/m, '')
+        .replace(/^import \{ LogOut \} from 'lucide-react';\n/m, '')
+        .replace(/^import \{ Button \} from '\.\.\/ui\/button';\n/m, '')
+        .replace(
+          /import \{ useAuthStore, setStoredLocale, type IcoreLocale \} from '@icore\/template-shared';/,
+          "import { setStoredLocale, type IcoreLocale } from '@icore/template-shared';",
+        )
+        .replace(/^ {2}const \{ t \} = useTranslation\(\);\n/m, '')
+        .replace(/^ {2}const navigate = useNavigate\(\);\n/m, '')
+        .replace(/^ {2}const user = useAuthStore\(\(s\) => s\.user\);\n/m, '')
+        .replace(/^ {2}const logout = useAuthStore\(\(s\) => s\.logout\);\n/m, '')
+        .replace(/\n {2}function handleLogout\(\) \{[\s\S]*?\n {2}\}\n(?=\n {2}return)/m, '\n')
+        .replace(/\n {8}<div className="hidden sm:flex[\s\S]*?\n {8}<\/div>\n/m, '\n')
+        .replace(/\n {8}<Button[\s\S]*?sm:hidden[\s\S]*?\n {8}<\/Button>\n/m, '\n'),
+    );
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
 }
 
 export async function removeUploadStack(targetDir: string): Promise<void> {
@@ -163,6 +259,7 @@ export async function removeUploadStack(targetDir: string): Promise<void> {
     'libs/storage-strategies',
     'libs/upload-client',
     'apps/api/src/app/storage',
+    'Dockerfile.ms-upload',
   ];
   for (const p of paths) {
     await rm(join(targetDir, p), { recursive: true, force: true });
@@ -199,4 +296,18 @@ export async function removeUploadStack(targetDir: string): Promise<void> {
     '@icore/upload-client',
     '@types/multer',
   ]);
+
+  // Strip upload service from docker-compose.yml
+  const uploadComposePath = join(targetDir, 'docker-compose.yml');
+  try {
+    const compose = await readFile(uploadComposePath, 'utf8');
+    const next = compose
+      .replace(/\n {2}upload:[\s\S]+?(?=\n {2}\w|\nnetworks:)/m, '\n')
+      .replace(/\n {6}upload:\n {8}condition: service_started/g, '')
+      .replace(/\n {6}UPLOAD_TRANSPORT:[^\n]*/g, '')
+      .replace(/\n {6}UPLOAD_REDIS_URL:[^\n]*/g, '');
+    await writeFile(uploadComposePath, next);
+  } catch {
+    // ignore
+  }
 }

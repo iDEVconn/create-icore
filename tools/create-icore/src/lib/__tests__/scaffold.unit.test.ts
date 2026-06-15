@@ -10,6 +10,7 @@ import {
   writeRootEnv,
   removeUploadStack,
   removeAuthStack,
+  removeStrategiesLib,
   rewriteRootPackageJson,
   pruneRootProviderDeps,
 } from '../scaffold.js';
@@ -165,6 +166,31 @@ describe('removeUploadStack', () => {
         'MAX_FILE_SIZE_KB=2048',
       ].join('\n'),
     );
+    await writeFile(join(dir, 'Dockerfile.ms-upload'), '# upload dockerfile');
+    await writeFile(
+      join(dir, 'docker-compose.yml'),
+      [
+        'services:',
+        '  upload:',
+        '    build:',
+        '      context: .',
+        '      dockerfile: Dockerfile.ms-upload',
+        '    restart: unless-stopped',
+        '  gateway:',
+        '    environment:',
+        '      API_PORT: 3001',
+        '      UPLOAD_TRANSPORT: redis',
+        '      UPLOAD_REDIS_URL: redis://redis:6379',
+        '    depends_on:',
+        '      redis:',
+        '        condition: service_healthy',
+        '      upload:',
+        '        condition: service_started',
+        'networks:',
+        '  icore:',
+        '    driver: bridge',
+      ].join('\n'),
+    );
 
     await removeUploadStack(dir);
 
@@ -174,6 +200,7 @@ describe('removeUploadStack', () => {
     await expect(access(join(dir, 'libs/storage-strategies'))).rejects.toThrow();
     await expect(access(join(dir, 'libs/upload-client'))).rejects.toThrow();
     await expect(access(join(dir, 'apps/api/src/app/storage'))).rejects.toThrow();
+    await expect(access(join(dir, 'Dockerfile.ms-upload'))).rejects.toThrow();
 
     // StorageModule stripped from app.module.ts
     const appModule = await readFile(join(dir, 'apps/api/src/app/app.module.ts'), 'utf8');
@@ -185,6 +212,15 @@ describe('removeUploadStack', () => {
     expect(gatewayEnv).not.toContain('UPLOAD_TRANSPORT');
     expect(gatewayEnv).not.toContain('UPLOAD_HOST');
     expect(gatewayEnv).not.toContain('MAX_FILE_SIZE_KB');
+
+    // upload service stripped from docker-compose.yml
+    const compose = await readFile(join(dir, 'docker-compose.yml'), 'utf8');
+    expect(compose).not.toContain('Dockerfile.ms-upload');
+    expect(compose).not.toContain('UPLOAD_TRANSPORT');
+    expect(compose).not.toContain('UPLOAD_REDIS_URL');
+    expect(compose).toContain('gateway:');
+    const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
+    expect(gatewaySection).not.toContain('upload:');
   });
 });
 
@@ -207,6 +243,16 @@ describe('removeAuthStack', () => {
     await writeFile(join(authDir, 'apps/api/src/app/profile/profile.controller.ts'), '');
     await mkdir(join(authDir, 'apps/api/src/app/abilities'), { recursive: true });
     await writeFile(join(authDir, 'apps/api/src/app/abilities/ability.guard.ts'), '');
+    await mkdir(join(authDir, 'libs/shared/src/abilities'), { recursive: true });
+    await writeFile(
+      join(authDir, 'libs/shared/src/abilities/index.ts'),
+      'export function defineAbilitiesFor() {}',
+    );
+    await mkdir(join(authDir, 'libs/shared/src'), { recursive: true });
+    await writeFile(
+      join(authDir, 'libs/shared/src/index.ts'),
+      "export * from './env';\nexport * from './abilities';\nexport * from './transport';\n",
+    );
     await mkdir(join(authDir, 'apps/client/src/components/auth'), { recursive: true });
     await writeFile(join(authDir, 'apps/client/src/components/auth/LoginForm.tsx'), '');
     await mkdir(join(authDir, 'apps/client/src/routes/_dashboard'), { recursive: true });
@@ -311,6 +357,87 @@ describe('removeAuthStack', () => {
         '    driver: bridge',
       ].join('\n'),
     );
+
+    // routes/index.tsx — CTA points to /login
+    await writeFile(
+      join(authDir, 'apps/client/src/routes/index.tsx'),
+      [
+        "import { createFileRoute } from '@tanstack/react-router';",
+        "import { LandingPage } from '@icore/template-shared';",
+        "export const Route = createFileRoute('/')({",
+        '  component: () => (',
+        '    <LandingPage',
+        '      coreVersion="0.0.0"',
+        '      deps={[]}',
+        '      ctaHref="/login"',
+        '      ctaLabel="Log in →"',
+        '    />',
+        '  ),',
+        '});',
+      ].join('\n'),
+    );
+
+    // main.tsx — onUnauthorized redirects to /login
+    await writeFile(
+      join(authDir, 'apps/client/src/main.tsx'),
+      [
+        "import { createIcoreApi } from '@icore/template-shared';",
+        'export const api = createIcoreApi({',
+        "  baseUrl: '/api',",
+        "  onUnauthorized: () => router.navigate({ to: '/login' }),",
+        '});',
+      ].join('\n'),
+    );
+
+    // LayoutHeader.tsx — full auth UI
+    await mkdir(join(authDir, 'apps/client/src/components/layout'), { recursive: true });
+    await writeFile(
+      join(authDir, 'apps/client/src/components/layout/LayoutHeader.tsx'),
+      [
+        "import { useTranslation } from 'react-i18next';",
+        "import { useNavigate } from '@tanstack/react-router';",
+        "import { LogOut } from 'lucide-react';",
+        "import { useAuthStore, setStoredLocale, type IcoreLocale } from '@icore/template-shared';",
+        "import { Button } from '../ui/button';",
+        "import { ThemeToggle } from '../ThemeToggle';",
+        '',
+        'export function LayoutHeader() {',
+        '  const { t } = useTranslation();',
+        '  const navigate = useNavigate();',
+        '  const user = useAuthStore((s) => s.user);',
+        '  const logout = useAuthStore((s) => s.logout);',
+        '  function handleLocale(code: IcoreLocale) {',
+        '    setStoredLocale(code);',
+        '  }',
+        '  function handleLogout() {',
+        '    logout();',
+        "    void navigate({ to: '/login' });",
+        '  }',
+        '',
+        '  return (',
+        '    <header>',
+        '      <div className="flex items-center gap-1">',
+        '        <ThemeToggle />',
+        '        <div className="hidden sm:flex items-center gap-2 ml-1 pl-2 border-l border-[--color-border]">',
+        "          <span>{user?.email ?? ''}</span>",
+        '          <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t(\'common.logout\')}>',
+        '            <LogOut size={15} />',
+        '          </Button>',
+        '        </div>',
+        '        <Button',
+        '          variant="ghost"',
+        '          size="sm"',
+        '          onClick={handleLogout}',
+        '          className="sm:hidden cursor-pointer"',
+        '        >',
+        '          <LogOut size={15} />',
+        '        </Button>',
+        '      </div>',
+        '    </header>',
+        '  );',
+        '}',
+      ].join('\n'),
+    );
   });
 
   it('removes auth MS, strategy libs, auth-client, and gateway auth dirs', async () => {
@@ -322,6 +449,15 @@ describe('removeAuthStack', () => {
     await expect(access(join(authDir, 'apps/api/src/app/profile'))).rejects.toThrow();
     await expect(access(join(authDir, 'apps/api/src/app/abilities'))).rejects.toThrow();
     await expect(access(join(authDir, 'Dockerfile.ms-auth'))).rejects.toThrow();
+  });
+
+  it('removes libs/shared/src/abilities and strips its re-export from index.ts', async () => {
+    await removeAuthStack(authDir);
+    await expect(access(join(authDir, 'libs/shared/src/abilities'))).rejects.toThrow();
+    const src = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain("'./abilities'");
+    expect(src).toContain("'./env'");
+    expect(src).toContain("'./transport'");
   });
 
   it('removes client auth routes and components', async () => {
@@ -396,6 +532,194 @@ describe('removeAuthStack', () => {
     expect(compose).toContain('gateway:');
     const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
     expect(gatewaySection).not.toContain('auth:');
+  });
+
+  it('rewrites ctaHref and ctaLabel in routes/index.tsx', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'apps/client/src/routes/index.tsx'), 'utf8');
+    expect(src).not.toContain('ctaHref="/login"');
+    expect(src).not.toContain('ctaLabel="Log in →"');
+    expect(src).toContain('ctaHref="/dashboard"');
+    expect(src).toContain('ctaLabel="Dashboard →"');
+  });
+
+  it('removes onUnauthorized /login redirect from main.tsx', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'apps/client/src/main.tsx'), 'utf8');
+    expect(src).not.toContain('onUnauthorized');
+    expect(src).not.toContain('/login');
+    expect(src).toContain('createIcoreApi');
+  });
+
+  it('strips auth imports, state hooks, handleLogout, and logout UI from LayoutHeader.tsx', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(
+      join(authDir, 'apps/client/src/components/layout/LayoutHeader.tsx'),
+      'utf8',
+    );
+    // removed imports
+    expect(src).not.toContain('import { useTranslation }');
+    expect(src).not.toContain('import { useNavigate }');
+    expect(src).not.toContain('import { LogOut }');
+    expect(src).not.toContain('import { Button }');
+    expect(src).not.toContain('useAuthStore');
+    // kept imports
+    expect(src).toContain('setStoredLocale');
+    expect(src).toContain('ThemeToggle');
+    // removed runtime code
+    expect(src).not.toContain('handleLogout');
+    expect(src).not.toContain('sm:hidden');
+    expect(src).not.toContain('hidden sm:flex');
+    expect(src).not.toContain('/login');
+    // kept runtime code
+    expect(src).toContain('handleLocale');
+    expect(src).toContain('LayoutHeader');
+  });
+});
+
+describe('removeStrategiesLib', () => {
+  let stratDir: string;
+
+  beforeEach(async () => {
+    stratDir = await mkdtemp(join(tmpdir(), 'icore-no-strat-'));
+    await mkdir(join(stratDir, 'libs/shared/src/strategies/fakes'), { recursive: true });
+    await writeFile(
+      join(stratDir, 'libs/shared/src/strategies/auth.ts'),
+      'export interface AuthStrategy {}',
+    );
+    await writeFile(join(stratDir, 'libs/shared/src/strategies/fakes/fake-auth.ts'), '');
+    await writeFile(join(stratDir, 'libs/shared/src/testing.ts'), 'export const test = 1;');
+    await writeFile(
+      join(stratDir, 'libs/shared/src/transport.ts'),
+      "import { Transport } from '@nestjs/microservices'; export function buildTransport() {}",
+    );
+    await writeFile(
+      join(stratDir, 'libs/shared/src/index.ts'),
+      [
+        "export * from './env';",
+        "export * from './strategies';",
+        "export * from './transport';",
+      ].join('\n'),
+    );
+    await writeFile(
+      join(stratDir, 'libs/shared/package.json'),
+      JSON.stringify({
+        name: '@icore/shared',
+        exports: {
+          '.': { default: './src/index.ts' },
+          './client': { default: './src/client.ts' },
+          './testing': { default: './src/testing.ts' },
+        },
+        dependencies: { '@nestjs/microservices': '^11.0.0', tslib: '^2.3.0' },
+      }),
+    );
+  });
+
+  it('removes libs/shared/src/strategies dir, testing.ts, and transport.ts', async () => {
+    await removeStrategiesLib(stratDir);
+    await expect(access(join(stratDir, 'libs/shared/src/strategies'))).rejects.toThrow();
+    await expect(access(join(stratDir, 'libs/shared/src/testing.ts'))).rejects.toThrow();
+    await expect(access(join(stratDir, 'libs/shared/src/transport.ts'))).rejects.toThrow();
+  });
+
+  it('strips strategies and transport re-exports from index.ts, keeps others', async () => {
+    await removeStrategiesLib(stratDir);
+    const src = await readFile(join(stratDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain("'./strategies'");
+    expect(src).not.toContain("'./transport'");
+    expect(src).toContain("'./env'");
+  });
+
+  it('removes ./testing export and @nestjs/microservices from package.json', async () => {
+    await removeStrategiesLib(stratDir);
+    const pkg = JSON.parse(await readFile(join(stratDir, 'libs/shared/package.json'), 'utf8')) as {
+      exports: Record<string, unknown>;
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.exports['./testing']).toBeUndefined();
+    expect(pkg.exports['.']).toBeDefined();
+    expect(pkg.exports['./client']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/microservices']).toBeUndefined();
+    expect(pkg.dependencies['tslib']).toBeDefined();
+  });
+});
+
+describe('rewriteRootPackageJson — workspace glob and dep pruning', () => {
+  async function run(opts: Partial<CreateIcoreOptions>) {
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'icore',
+        version: '1.0.0',
+        workspaces: [
+          'apps/*',
+          'apps/microservices/*',
+          'apps/templates/*',
+          'libs/*',
+          'libs/auth-strategies/*',
+          'libs/storage-strategies/*',
+          'libs/db-strategies/*',
+        ],
+        dependencies: {
+          'cookie-parser': '^1.4.7',
+          axios: '^1.6.0',
+          '@nestjs/microservices': '^11.0.0',
+        },
+        devDependencies: { '@types/cookie-parser': '^1.4.10', '@types/multer': '^2.1.0' },
+      }),
+    );
+    await rewriteRootPackageJson(dir, { ...baseOpts, targetDir: dir, ...opts });
+    return JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      workspaces: string[];
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+  }
+
+  it('removes apps/templates/* and dead strategy globs for all-none', async () => {
+    const pkg = await run({
+      authProvider: 'none',
+      upload: 'none',
+      dbProvider: 'none',
+      payment: 'none',
+      jobs: 'none',
+      example: 'none',
+    });
+    expect(pkg.workspaces).not.toContain('apps/templates/*');
+    expect(pkg.workspaces).not.toContain('apps/microservices/*');
+    expect(pkg.workspaces).not.toContain('libs/auth-strategies/*');
+    expect(pkg.workspaces).not.toContain('libs/storage-strategies/*');
+    expect(pkg.workspaces).not.toContain('libs/db-strategies/*');
+    expect(pkg.workspaces).toContain('apps/*');
+    expect(pkg.workspaces).toContain('libs/*');
+    expect(pkg.dependencies['@nestjs/microservices']).toBeUndefined();
+    expect(pkg.dependencies['axios']).toBeDefined();
+  });
+
+  it('keeps apps/microservices/* when any MS is active', async () => {
+    const pkg = await run({ authProvider: 'supabase', upload: 'none', dbProvider: 'none' });
+    expect(pkg.workspaces).toContain('apps/microservices/*');
+    expect(pkg.workspaces).toContain('libs/auth-strategies/*');
+    expect(pkg.workspaces).not.toContain('libs/storage-strategies/*');
+  });
+
+  it('removes cookie-parser and @types/cookie-parser when auth=none', async () => {
+    const pkg = await run({ authProvider: 'none' });
+    expect(pkg.dependencies['cookie-parser']).toBeUndefined();
+    expect(pkg.devDependencies['@types/cookie-parser']).toBeUndefined();
+    expect(pkg.dependencies['axios']).toBeDefined();
+  });
+
+  it('removes @types/multer when upload=none', async () => {
+    const pkg = await run({ upload: 'none' });
+    expect(pkg.devDependencies['@types/multer']).toBeUndefined();
+  });
+
+  it('keeps all deps when providers are active', async () => {
+    const pkg = await run({ authProvider: 'supabase', upload: 'cloudinary' });
+    expect(pkg.dependencies['cookie-parser']).toBeDefined();
+    expect(pkg.devDependencies['@types/cookie-parser']).toBeDefined();
+    expect(pkg.devDependencies['@types/multer']).toBeDefined();
   });
 });
 

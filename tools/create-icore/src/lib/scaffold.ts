@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readdir, readFile, stat, writeFile, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, rmdir, stat, writeFile, rm } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +14,12 @@ import {
   writeClientEnv,
   writePaymentEnv,
 } from './scaffold-env.js';
-import { removeAuthStack, removeFirebaseAdminLib, removeUploadStack } from './scaffold-strip.js';
+import {
+  removeAuthStack,
+  removeFirebaseAdminLib,
+  removeStrategiesLib,
+  removeUploadStack,
+} from './scaffold-strip.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
@@ -41,6 +46,7 @@ export {
   writePaymentEnv,
   removeAuthStack,
   removeFirebaseAdminLib,
+  removeStrategiesLib,
   removeUploadStack,
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
@@ -204,6 +210,20 @@ export async function scaffold(opts: CreateIcoreOptions, templatesDir: string): 
   // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
   // generated project audits clean (root keeps only chosen providers' SDKs).
   await pruneRootProviderDeps(opts.targetDir, opts);
+
+  // When no provider is selected at all, the strategy interfaces + testing
+  // harness in libs/shared are dead code — remove them.
+  if (opts.authProvider === 'none' && opts.upload === 'none' && opts.dbProvider === 'none') {
+    await removeStrategiesLib(opts.targetDir);
+  }
+
+  // Remove apps/microservices/ if all MS were pruned (rmdir is a no-op when not empty).
+  try {
+    await rmdir(join(opts.targetDir, 'apps/microservices'));
+  } catch {
+    // ignore — not empty or doesn't exist
+  }
+
   await writeBlueprintJson(opts.targetDir, opts);
   await writeServiceBlueprints(opts.targetDir, opts);
   // Anchor yarn 4 to this directory. Without an empty yarn.lock yarn walks up

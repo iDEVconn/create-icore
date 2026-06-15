@@ -165,6 +165,43 @@ export async function rewriteRootPackageJson(
   // live in pnpm-workspace.yaml. The pnpm-workspace.yaml is written by
   // writePnpmWorkspace(); nothing goes into package.json for pnpm.
   delete (pkg as { pnpm?: unknown }).pnpm;
+
+  // Prune dead workspace globs.
+  // apps/templates/* is always removed by selectClientTemplate.
+  // auth/storage/db strategy dirs are removed when their provider is 'none'.
+  // apps/microservices/* is empty when every MS is disabled.
+  const noMs =
+    opts.authProvider === 'none' &&
+    opts.upload === 'none' &&
+    opts.payment === 'none' &&
+    opts.jobs === 'none' &&
+    opts.example === 'none';
+  const ws = (pkg as { workspaces?: string[] }).workspaces;
+  if (ws) {
+    (pkg as { workspaces?: string[] }).workspaces = ws.filter((entry) => {
+      if (entry === 'apps/templates/*') return false;
+      if (entry === 'apps/microservices/*' && noMs) return false;
+      if (entry === 'libs/auth-strategies/*' && opts.authProvider === 'none') return false;
+      if (entry === 'libs/storage-strategies/*' && opts.upload === 'none') return false;
+      if (entry === 'libs/db-strategies/*' && opts.dbProvider === 'none') return false;
+      return true;
+    });
+  }
+
+  // Prune deps that only apply to specific providers/features.
+  const rootDeps = (pkg as { dependencies?: Record<string, string> }).dependencies ?? {};
+  const rootDevDeps = (pkg as { devDependencies?: Record<string, string> }).devDependencies ?? {};
+  if (opts.authProvider === 'none') {
+    delete rootDeps['cookie-parser'];
+    delete rootDevDeps['@types/cookie-parser'];
+  }
+  if (opts.upload === 'none') {
+    delete rootDevDeps['@types/multer'];
+  }
+  if (noMs) {
+    delete rootDeps['@nestjs/microservices'];
+  }
+
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
