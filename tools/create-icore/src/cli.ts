@@ -42,11 +42,14 @@ async function main() {
   p.log.info(`Next:`);
   p.log.info(`  cd ${opts.projectName}`);
   if (!opts.install) p.log.info(`  ${opts.packageManager} install`);
-  p.log.info(
-    `  ${pmRun(opts.packageManager, 'dev')}      # gateway + auth MS + upload MS + client`,
-  );
+  const services = ['gateway', 'client'];
+  if (opts.authProvider !== 'none') services.splice(1, 0, 'auth MS');
+  if (opts.upload !== 'none') services.splice(-1, 0, 'upload MS');
+  p.log.info(`  ${pmRun(opts.packageManager, 'dev')}      # ${services.join(' + ')}`);
   p.log.info(`  open http://localhost:4200`);
-  p.log.info(`  edit apps/microservices/auth/.env to plug in real ${opts.authProvider} creds`);
+  if (opts.authProvider !== 'none') {
+    p.log.info(`  edit apps/microservices/auth/.env to plug in real ${opts.authProvider} creds`);
+  }
 }
 
 main().catch((err) => {
