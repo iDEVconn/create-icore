@@ -189,13 +189,15 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     // ignore
   }
 
-  // Strip abilities re-export from libs/shared/src/index.ts
-  const sharedIndexPath = join(targetDir, 'libs/shared/src/index.ts');
-  try {
-    const src = await readFile(sharedIndexPath, 'utf8');
-    await writeFile(sharedIndexPath, src.replace(/^export \* from '\.\/abilities';\n/m, ''));
-  } catch {
-    // ignore — may be absent in test scaffolds
+  // Strip abilities re-export from libs/shared/src/index.ts and client.ts
+  for (const rel of ['libs/shared/src/index.ts', 'libs/shared/src/client.ts']) {
+    const sharedIndexPath = join(targetDir, rel);
+    try {
+      const src = await readFile(sharedIndexPath, 'utf8');
+      await writeFile(sharedIndexPath, src.replace(/^export \* from '\.\/abilities';\n?/m, ''));
+    } catch {
+      // ignore — may be absent in test scaffolds
+    }
   }
 
   // routes/index.tsx: CTA points to /login — redirect to /dashboard instead
