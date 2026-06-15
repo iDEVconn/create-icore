@@ -134,7 +134,8 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
   const nx = pm === 'npm' ? 'npx nx' : `${pm} nx`;
   const devCmd = pmRun(pm, 'dev');
 
-  const activeMSes = ['auth (port 4001)'];
+  const activeMSes: string[] = [];
+  if (opts.authProvider !== 'none') activeMSes.push('auth (port 4001)');
   if (opts.upload !== 'none') activeMSes.push(`upload (port 4002)`);
   if (opts.payment !== 'none') activeMSes.push(`payment (port 4003)`);
   if (opts.example !== 'none') activeMSes.push(`notes (port 4004)`);
@@ -174,9 +175,7 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
 
 \`\`\`bash
 # 1. Fill in provider credentials
-#    apps/microservices/auth/.env
-#    apps/microservices/upload/.env  (if upload is enabled)
-#    apps/client/.env               (VITE_API_URL — already defaults to /api)
+${opts.authProvider !== 'none' ? '#    apps/microservices/auth/.env\n' : ''}${opts.upload !== 'none' ? '#    apps/microservices/upload/.env\n' : ''}#    apps/client/.env               (VITE_API_URL — already defaults to /api)
 
 # 2. Start everything
 ${devCmd}
@@ -272,9 +271,7 @@ ${nx} g @nx/nest:resource     # generate NestJS resource
 
 | File | Key vars |
 |------|----------|
-| \`apps/microservices/auth/.env\` | \`AUTH_PROVIDER=${opts.authProvider}\`, ${opts.authProvider === 'supabase' ? '`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`' : '`FB_ADMIN_*`, `FIREBASE_WEB_API_KEY`'} |
-${opts.upload !== 'none' ? `| \`apps/microservices/upload/.env\` | \`STORAGE_PROVIDER=${opts.upload}\`, provider creds |\n` : ''}| \`apps/microservices/notes/.env\` | \`DB_PROVIDER=${opts.dbProvider}\`, DB creds |
-| \`apps/client/.env\` | \`VITE_API_URL=/api\` (proxied to :3001 in dev) |
+${opts.authProvider !== 'none' ? `| \`apps/microservices/auth/.env\` | \`AUTH_PROVIDER=${opts.authProvider}\`, ${opts.authProvider === 'supabase' ? '`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`' : '`FB_ADMIN_*`, `FIREBASE_WEB_API_KEY`'} |\n` : ''}${opts.upload !== 'none' ? `| \`apps/microservices/upload/.env\` | \`STORAGE_PROVIDER=${opts.upload}\`, provider creds |\n` : ''}${opts.example !== 'none' ? `| \`apps/microservices/notes/.env\` | \`DB_PROVIDER=${opts.dbProvider}\`, DB creds |\n` : ''}| \`apps/client/.env\` | \`VITE_API_URL=/api\` (proxied to :3001 in dev) |
 
 ## Testing
 

@@ -1,4 +1,4 @@
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm, rmdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateIcoreOptions } from '../lib/options.js';
 import type { Unit } from './types.js';
@@ -90,5 +90,11 @@ export async function cleanupUnusedFeatures(
     await stripTsconfigKeys(targetDir, Object.keys(unit.tsPaths));
     if (unit.gatewayService) await stripGatewayTransport(targetDir, unit.gatewayService.prefix);
     if (unit.dockerService === 'jobs') await stripJobsDockerCompose(targetDir);
+  }
+  // Remove queries dir if emptied by feature removal (no-op when files remain)
+  try {
+    await rmdir(join(targetDir, 'apps/client/src/queries'));
+  } catch {
+    // ignore — not empty or doesn't exist
   }
 }
