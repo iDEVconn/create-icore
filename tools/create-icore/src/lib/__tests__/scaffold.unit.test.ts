@@ -253,6 +253,10 @@ describe('removeAuthStack', () => {
       join(authDir, 'libs/shared/src/index.ts'),
       "export * from './env';\nexport * from './abilities';\nexport * from './transport';\n",
     );
+    await writeFile(
+      join(authDir, 'libs/shared/src/client.ts'),
+      "export * from './abilities';\nexport * from './types';\n",
+    );
     await mkdir(join(authDir, 'apps/client/src/components/auth'), { recursive: true });
     await writeFile(join(authDir, 'apps/client/src/components/auth/LoginForm.tsx'), '');
     await mkdir(join(authDir, 'apps/client/src/routes/_dashboard'), { recursive: true });
@@ -451,13 +455,16 @@ describe('removeAuthStack', () => {
     await expect(access(join(authDir, 'Dockerfile.ms-auth'))).rejects.toThrow();
   });
 
-  it('removes libs/shared/src/abilities and strips its re-export from index.ts', async () => {
+  it('removes libs/shared/src/abilities and strips its re-export from index.ts and client.ts', async () => {
     await removeAuthStack(authDir);
     await expect(access(join(authDir, 'libs/shared/src/abilities'))).rejects.toThrow();
-    const src = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
-    expect(src).not.toContain("'./abilities'");
-    expect(src).toContain("'./env'");
-    expect(src).toContain("'./transport'");
+    const idx = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).not.toContain("'./abilities'");
+    expect(idx).toContain("'./env'");
+    expect(idx).toContain("'./transport'");
+    const client = await readFile(join(authDir, 'libs/shared/src/client.ts'), 'utf8');
+    expect(client).not.toContain("'./abilities'");
+    expect(client).toContain("'./types'");
   });
 
   it('removes client auth routes and components', async () => {
