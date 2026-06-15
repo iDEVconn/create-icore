@@ -9,5 +9,18 @@
   },
   "enabledPlugins": {
     "nx@nx-claude-plugins": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/check-pr-before-push.sh"
+          }
+        ]
+      }
+    ]
   }
 }
