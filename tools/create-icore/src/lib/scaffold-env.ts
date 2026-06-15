@@ -198,6 +198,9 @@ export async function rewriteRootPackageJson(
   if (opts.upload === 'none') {
     delete rootDevDeps['@types/multer'];
   }
+  if (noMs) {
+    delete rootDeps['@nestjs/microservices'];
+  }
 
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }

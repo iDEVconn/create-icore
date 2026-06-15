@@ -66,11 +66,18 @@ export async function removeFirebaseAdminLib(targetDir: string): Promise<void> {
 export async function removeStrategiesLib(targetDir: string): Promise<void> {
   await rm(join(targetDir, 'libs/shared/src/strategies'), { recursive: true, force: true });
   await rm(join(targetDir, 'libs/shared/src/testing.ts'), { force: true });
+  // transport.ts only wires MS client options — dead when no microservices exist
+  await rm(join(targetDir, 'libs/shared/src/transport.ts'), { force: true });
 
   const indexPath = join(targetDir, 'libs/shared/src/index.ts');
   try {
     const src = await readFile(indexPath, 'utf8');
-    await writeFile(indexPath, src.replace(/^export \* from '\.\/strategies';\n/m, ''));
+    await writeFile(
+      indexPath,
+      src
+        .replace(/^export \* from '\.\/strategies';\n/m, '')
+        .replace(/^export \* from '\.\/transport';\n?/m, ''),
+    );
   } catch {
     // ignore — may be absent in test scaffolds
   }
@@ -79,8 +86,10 @@ export async function removeStrategiesLib(targetDir: string): Promise<void> {
   try {
     const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as {
       exports?: Record<string, unknown>;
+      dependencies?: Record<string, string>;
     };
     if (pkg.exports) delete pkg.exports['./testing'];
+    if (pkg.dependencies) delete pkg.dependencies['@nestjs/microservices'];
     await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   } catch {
     // ignore — may be absent in test scaffolds

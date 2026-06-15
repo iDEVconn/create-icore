@@ -590,6 +590,10 @@ describe('removeStrategiesLib', () => {
     await writeFile(join(stratDir, 'libs/shared/src/strategies/fakes/fake-auth.ts'), '');
     await writeFile(join(stratDir, 'libs/shared/src/testing.ts'), 'export const test = 1;');
     await writeFile(
+      join(stratDir, 'libs/shared/src/transport.ts'),
+      "import { Transport } from '@nestjs/microservices'; export function buildTransport() {}",
+    );
+    await writeFile(
       join(stratDir, 'libs/shared/src/index.ts'),
       [
         "export * from './env';",
@@ -606,32 +610,37 @@ describe('removeStrategiesLib', () => {
           './client': { default: './src/client.ts' },
           './testing': { default: './src/testing.ts' },
         },
+        dependencies: { '@nestjs/microservices': '^11.0.0', tslib: '^2.3.0' },
       }),
     );
   });
 
-  it('removes libs/shared/src/strategies dir and testing.ts', async () => {
+  it('removes libs/shared/src/strategies dir, testing.ts, and transport.ts', async () => {
     await removeStrategiesLib(stratDir);
     await expect(access(join(stratDir, 'libs/shared/src/strategies'))).rejects.toThrow();
     await expect(access(join(stratDir, 'libs/shared/src/testing.ts'))).rejects.toThrow();
+    await expect(access(join(stratDir, 'libs/shared/src/transport.ts'))).rejects.toThrow();
   });
 
-  it('strips export * from strategies from index.ts, keeps other exports', async () => {
+  it('strips strategies and transport re-exports from index.ts, keeps others', async () => {
     await removeStrategiesLib(stratDir);
     const src = await readFile(join(stratDir, 'libs/shared/src/index.ts'), 'utf8');
     expect(src).not.toContain("'./strategies'");
+    expect(src).not.toContain("'./transport'");
     expect(src).toContain("'./env'");
-    expect(src).toContain("'./transport'");
   });
 
-  it('removes ./testing subpath from package.json exports, keeps others', async () => {
+  it('removes ./testing export and @nestjs/microservices from package.json', async () => {
     await removeStrategiesLib(stratDir);
     const pkg = JSON.parse(await readFile(join(stratDir, 'libs/shared/package.json'), 'utf8')) as {
       exports: Record<string, unknown>;
+      dependencies: Record<string, string>;
     };
     expect(pkg.exports['./testing']).toBeUndefined();
     expect(pkg.exports['.']).toBeDefined();
     expect(pkg.exports['./client']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/microservices']).toBeUndefined();
+    expect(pkg.dependencies['tslib']).toBeDefined();
   });
 });
 
@@ -651,7 +660,11 @@ describe('rewriteRootPackageJson — workspace glob and dep pruning', () => {
           'libs/storage-strategies/*',
           'libs/db-strategies/*',
         ],
-        dependencies: { 'cookie-parser': '^1.4.7', axios: '^1.6.0' },
+        dependencies: {
+          'cookie-parser': '^1.4.7',
+          axios: '^1.6.0',
+          '@nestjs/microservices': '^11.0.0',
+        },
         devDependencies: { '@types/cookie-parser': '^1.4.10', '@types/multer': '^2.1.0' },
       }),
     );
@@ -679,6 +692,8 @@ describe('rewriteRootPackageJson — workspace glob and dep pruning', () => {
     expect(pkg.workspaces).not.toContain('libs/db-strategies/*');
     expect(pkg.workspaces).toContain('apps/*');
     expect(pkg.workspaces).toContain('libs/*');
+    expect(pkg.dependencies['@nestjs/microservices']).toBeUndefined();
+    expect(pkg.dependencies['axios']).toBeDefined();
   });
 
   it('keeps apps/microservices/* when any MS is active', async () => {
