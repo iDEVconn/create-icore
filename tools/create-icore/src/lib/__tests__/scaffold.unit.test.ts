@@ -166,6 +166,31 @@ describe('removeUploadStack', () => {
         'MAX_FILE_SIZE_KB=2048',
       ].join('\n'),
     );
+    await writeFile(join(dir, 'Dockerfile.ms-upload'), '# upload dockerfile');
+    await writeFile(
+      join(dir, 'docker-compose.yml'),
+      [
+        'services:',
+        '  upload:',
+        '    build:',
+        '      context: .',
+        '      dockerfile: Dockerfile.ms-upload',
+        '    restart: unless-stopped',
+        '  gateway:',
+        '    environment:',
+        '      API_PORT: 3001',
+        '      UPLOAD_TRANSPORT: redis',
+        '      UPLOAD_REDIS_URL: redis://redis:6379',
+        '    depends_on:',
+        '      redis:',
+        '        condition: service_healthy',
+        '      upload:',
+        '        condition: service_started',
+        'networks:',
+        '  icore:',
+        '    driver: bridge',
+      ].join('\n'),
+    );
 
     await removeUploadStack(dir);
 
@@ -175,6 +200,7 @@ describe('removeUploadStack', () => {
     await expect(access(join(dir, 'libs/storage-strategies'))).rejects.toThrow();
     await expect(access(join(dir, 'libs/upload-client'))).rejects.toThrow();
     await expect(access(join(dir, 'apps/api/src/app/storage'))).rejects.toThrow();
+    await expect(access(join(dir, 'Dockerfile.ms-upload'))).rejects.toThrow();
 
     // StorageModule stripped from app.module.ts
     const appModule = await readFile(join(dir, 'apps/api/src/app/app.module.ts'), 'utf8');
@@ -186,6 +212,15 @@ describe('removeUploadStack', () => {
     expect(gatewayEnv).not.toContain('UPLOAD_TRANSPORT');
     expect(gatewayEnv).not.toContain('UPLOAD_HOST');
     expect(gatewayEnv).not.toContain('MAX_FILE_SIZE_KB');
+
+    // upload service stripped from docker-compose.yml
+    const compose = await readFile(join(dir, 'docker-compose.yml'), 'utf8');
+    expect(compose).not.toContain('Dockerfile.ms-upload');
+    expect(compose).not.toContain('UPLOAD_TRANSPORT');
+    expect(compose).not.toContain('UPLOAD_REDIS_URL');
+    expect(compose).toContain('gateway:');
+    const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
+    expect(gatewaySection).not.toContain('upload:');
   });
 });
 
@@ -208,6 +243,16 @@ describe('removeAuthStack', () => {
     await writeFile(join(authDir, 'apps/api/src/app/profile/profile.controller.ts'), '');
     await mkdir(join(authDir, 'apps/api/src/app/abilities'), { recursive: true });
     await writeFile(join(authDir, 'apps/api/src/app/abilities/ability.guard.ts'), '');
+    await mkdir(join(authDir, 'libs/shared/src/abilities'), { recursive: true });
+    await writeFile(
+      join(authDir, 'libs/shared/src/abilities/index.ts'),
+      'export function defineAbilitiesFor() {}',
+    );
+    await mkdir(join(authDir, 'libs/shared/src'), { recursive: true });
+    await writeFile(
+      join(authDir, 'libs/shared/src/index.ts'),
+      "export * from './env';\nexport * from './abilities';\nexport * from './transport';\n",
+    );
     await mkdir(join(authDir, 'apps/client/src/components/auth'), { recursive: true });
     await writeFile(join(authDir, 'apps/client/src/components/auth/LoginForm.tsx'), '');
     await mkdir(join(authDir, 'apps/client/src/routes/_dashboard'), { recursive: true });
@@ -404,6 +449,15 @@ describe('removeAuthStack', () => {
     await expect(access(join(authDir, 'apps/api/src/app/profile'))).rejects.toThrow();
     await expect(access(join(authDir, 'apps/api/src/app/abilities'))).rejects.toThrow();
     await expect(access(join(authDir, 'Dockerfile.ms-auth'))).rejects.toThrow();
+  });
+
+  it('removes libs/shared/src/abilities and strips its re-export from index.ts', async () => {
+    await removeAuthStack(authDir);
+    await expect(access(join(authDir, 'libs/shared/src/abilities'))).rejects.toThrow();
+    const src = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain("'./abilities'");
+    expect(src).toContain("'./env'");
+    expect(src).toContain("'./transport'");
   });
 
   it('removes client auth routes and components', async () => {

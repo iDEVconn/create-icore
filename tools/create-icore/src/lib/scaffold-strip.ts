@@ -97,6 +97,7 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     'apps/api/src/app/auth',
     'apps/api/src/app/profile',
     'apps/api/src/app/abilities',
+    'libs/shared/src/abilities',
     'apps/client/src/components/auth',
     'apps/client/src/routes/login.tsx',
     'apps/client/src/routes/auth.callback.tsx',
@@ -179,6 +180,15 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     // ignore
   }
 
+  // Strip abilities re-export from libs/shared/src/index.ts
+  const sharedIndexPath = join(targetDir, 'libs/shared/src/index.ts');
+  try {
+    const src = await readFile(sharedIndexPath, 'utf8');
+    await writeFile(sharedIndexPath, src.replace(/^export \* from '\.\/abilities';\n/m, ''));
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+
   // routes/index.tsx: CTA points to /login — redirect to /dashboard instead
   const routesIndexPath = join(targetDir, 'apps/client/src/routes/index.tsx');
   try {
@@ -206,10 +216,7 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
   }
 
   // LayoutHeader.tsx: strip auth state, logout button, unused imports
-  const headerPath = join(
-    targetDir,
-    'apps/client/src/components/layout/LayoutHeader.tsx',
-  );
+  const headerPath = join(targetDir, 'apps/client/src/components/layout/LayoutHeader.tsx');
   try {
     const src = await readFile(headerPath, 'utf8');
     await writeFile(
@@ -243,6 +250,7 @@ export async function removeUploadStack(targetDir: string): Promise<void> {
     'libs/storage-strategies',
     'libs/upload-client',
     'apps/api/src/app/storage',
+    'Dockerfile.ms-upload',
   ];
   for (const p of paths) {
     await rm(join(targetDir, p), { recursive: true, force: true });
@@ -279,4 +287,18 @@ export async function removeUploadStack(targetDir: string): Promise<void> {
     '@icore/upload-client',
     '@types/multer',
   ]);
+
+  // Strip upload service from docker-compose.yml
+  const uploadComposePath = join(targetDir, 'docker-compose.yml');
+  try {
+    const compose = await readFile(uploadComposePath, 'utf8');
+    const next = compose
+      .replace(/\n {2}upload:[\s\S]+?(?=\n {2}\w|\nnetworks:)/m, '\n')
+      .replace(/\n {6}upload:\n {8}condition: service_started/g, '')
+      .replace(/\n {6}UPLOAD_TRANSPORT:[^\n]*/g, '')
+      .replace(/\n {6}UPLOAD_REDIS_URL:[^\n]*/g, '');
+    await writeFile(uploadComposePath, next);
+  } catch {
+    // ignore
+  }
 }

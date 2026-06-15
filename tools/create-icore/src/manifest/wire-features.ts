@@ -1,4 +1,4 @@
-import { readFile, writeFile, rm, rmdir } from 'node:fs/promises';
+import { readFile, writeFile, rm, rmdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateIcoreOptions } from '../lib/options.js';
 import type { Unit } from './types.js';
@@ -90,6 +90,21 @@ export async function cleanupUnusedFeatures(
     await stripTsconfigKeys(targetDir, Object.keys(unit.tsPaths));
     if (unit.gatewayService) await stripGatewayTransport(targetDir, unit.gatewayService.prefix);
     if (unit.dockerService === 'jobs') await stripJobsDockerCompose(targetDir);
+    if (key === 'jobs') {
+      // jobs.ts in libs/shared is only used by BullMQ — dead when jobs=none
+      try {
+        await unlink(join(targetDir, 'libs/shared/src/jobs.ts'));
+      } catch {
+        /* ignore */
+      }
+      const sharedIdx = join(targetDir, 'libs/shared/src/index.ts');
+      try {
+        const src = await readFile(sharedIdx, 'utf8');
+        await writeFile(sharedIdx, src.replace(/^export \* from '\.\/jobs';\n/m, ''));
+      } catch {
+        /* ignore */
+      }
+    }
   }
   // Remove queries dir if emptied by feature removal (no-op when files remain)
   try {
