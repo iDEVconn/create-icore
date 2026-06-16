@@ -1,5 +1,13 @@
 # @idevconn/create-icore
 
+## 0.9.3
+
+### Patch Changes
+
+- ceff2e4: fix: repair all-none scaffold mode — remove empty dirs, prune dead strategy libs/deps/workspace globs, fix /login 404 in client header and routes, and add test coverage for all new stripping logic
+- b0bf41d: fix: strip abilities re-export from libs/shared/src/client.ts when auth=none to prevent Vite import resolution error at dev-server startup
+- a0f08ca: fix: strip cookie-parser dep and usage from gateway when auth=none
+
 ## 0.9.2
 
 ### Patch Changes
