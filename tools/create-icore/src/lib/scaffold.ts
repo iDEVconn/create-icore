@@ -238,9 +238,15 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   // generated project audits clean (root keeps only chosen providers' SDKs).
   await pruneRootProviderDeps(opts.targetDir, opts);
 
-  // When no provider is selected at all, the strategy interfaces + testing
-  // harness in libs/shared are dead code — remove them.
-  if (opts.authProvider === 'none' && opts.upload === 'none' && opts.dbProvider === 'none') {
+  // Remove strategy interfaces + testing harness only when NO microservice
+  // uses them. payment-client imports buildTransport from @icore/shared, so
+  // transport.ts (bundled with strategies) must stay when payment is active.
+  if (
+    opts.authProvider === 'none' &&
+    opts.upload === 'none' &&
+    opts.dbProvider === 'none' &&
+    opts.payment === 'none'
+  ) {
     await removeStrategiesLib(opts.targetDir);
   }
 

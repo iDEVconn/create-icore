@@ -869,3 +869,43 @@ describe('scaffold with authProvider=none', () => {
     expect(ts.compilerOptions.paths['@icore/auth-firebase']).toBeUndefined();
   });
 });
+
+describe('scaffold with authProvider=none + payment=paypal', () => {
+  let outDir: string;
+  let tplDir: string;
+
+  beforeAll(async () => {
+    tplDir = await makeFakeTemplates();
+    outDir = await mkdtemp(join(tmpdir(), 'icore-no-auth-paypal-'));
+    await scaffold(
+      {
+        projectName: 'no-auth-paypal-app',
+        targetDir: outDir,
+        authProvider: 'none',
+        dbProvider: 'none',
+        upload: 'none',
+        payment: 'paypal',
+        jobs: 'none',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'tcp',
+        packageManager: 'yarn',
+        initGit: false,
+        install: false,
+      },
+      tplDir,
+    );
+  });
+
+  it('keeps ./transport export in libs/shared/src/index.ts (payment-client needs buildTransport)', async () => {
+    // removeStrategiesLib must NOT run when payment=paypal — payment-client
+    // imports buildTransport from @icore/shared, so transport.ts must stay.
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).toContain("'./transport'");
+  });
+
+  it('keeps ./strategies export in libs/shared/src/index.ts', async () => {
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).toContain("'./strategies'");
+  });
+});
