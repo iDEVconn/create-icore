@@ -626,6 +626,11 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(idx).not.toContain("'./abilities'");
     expect(idx).toContain("'./env'");
     expect(idx).toContain("'./transport'");
+    // ./jobs MUST be present so cleanupUnusedFeatures can strip it when jobs=none.
+    // If missing here, all-none combos fail: applyAuthNoneVariants runs first, then
+    // cleanupUnusedFeatures strips ./jobs — but if it was never written, jobs.ts
+    // ref leak is impossible, yet the ordering contract must still hold.
+    expect(idx).toContain("'./jobs'");
   });
 
   it('applyAuthNoneVariants: writes libs/shared/src/client.ts without abilities export', async () => {
@@ -653,6 +658,20 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(ts.compilerOptions.paths['@icore/auth-firebase']).toBeUndefined();
     expect(ts.compilerOptions.paths['@icore/auth-mongodb']).toBeUndefined();
     expect(ts.compilerOptions.paths['@icore/upload-client']).toBeDefined();
+  });
+
+  it('ordering: removeUploadStack after applyAuthNoneVariants strips StorageModule (upload=none)', async () => {
+    // applyAuthNoneVariants writes GATEWAY_APP_MODULE_TS which contains StorageModule.
+    // removeUploadStack must run AFTER to strip it for the upload=none combo.
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const before = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(before).toContain('StorageModule');
+
+    await removeUploadStack(authDir);
+    const after = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(after).not.toContain('StorageModule');
+    expect(after).not.toContain("'./storage/storage.module'");
+    expect(after).toContain('FeaturesModule');
   });
 
   it('removeDockerComposeAuthService: strips auth service and gateway auth deps from docker-compose.yml', async () => {

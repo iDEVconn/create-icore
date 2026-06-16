@@ -195,6 +195,14 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
   await writeClientEnv(opts.targetDir);
+  if (opts.authProvider === 'none') {
+    // Blueprint-driven auth=none: delete auth-only paths then overlay auth-none
+    // file variants. Must run BEFORE removeUploadStack and cleanupUnusedFeatures
+    // so those functions can do their own surgery on the freshly-written variants
+    // (e.g. strip StorageModule when upload=none, strip ./jobs when jobs=none).
+    await removeAuthOnlyPaths(opts.targetDir);
+    await applyAuthNoneVariants(opts.targetDir, opts.ui);
+  }
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
@@ -203,11 +211,7 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
     await cleanupUnusedAuth(opts.targetDir, opts.authProvider as AuthBackend);
     await writeAuthProvider(opts.targetDir, opts.authProvider as AuthBackend);
   } else {
-    // Blueprint-driven auth=none: delete auth-only paths, overlay auth-none
-    // file variants, strip tsconfig aliases, remove docker-compose auth service.
-    // No regex source surgery — new files default to excluded, not included.
-    await removeAuthOnlyPaths(opts.targetDir);
-    await applyAuthNoneVariants(opts.targetDir, opts.ui);
+    // Remaining auth=none cleanup: no file writes, safe after feature cleanup.
     await removeAuthTsconfigPaths(opts.targetDir);
     await removeDockerComposeAuthService(opts.targetDir);
   }
