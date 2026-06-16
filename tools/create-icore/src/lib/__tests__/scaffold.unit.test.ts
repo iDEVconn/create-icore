@@ -419,15 +419,40 @@ describe('removeAuthStack', () => {
       ].join('\n'),
     );
 
-    // main.tsx — onUnauthorized redirects to /login
+    // main.tsx — onUnauthorized redirects to /login + AbilityProvider wrapper
     await writeFile(
       join(authDir, 'apps/client/src/main.tsx'),
       [
-        "import { createIcoreApi } from '@icore/template-shared';",
+        'import {',
+        '  AbilityProvider,',
+        '  createIcoreApi,',
+        "} from '@icore/template-shared';",
         'export const api = createIcoreApi({',
         "  baseUrl: '/api',",
         "  onUnauthorized: () => router.navigate({ to: '/login' }),",
         '});',
+        'createRoot(document.getElementById("root")!).render(',
+        '  <StrictMode>',
+        '    <AbilityProvider>',
+        '      <App />',
+        '    </AbilityProvider>',
+        '  </StrictMode>,',
+        ');',
+      ].join('\n'),
+    );
+
+    // template-shared index + abilities dir
+    await mkdir(join(authDir, 'libs/template-shared/src/lib/abilities'), { recursive: true });
+    await writeFile(
+      join(authDir, 'libs/template-shared/src/lib/abilities/ability-provider.tsx'),
+      'export function AbilityProvider() { return null; }',
+    );
+    await writeFile(
+      join(authDir, 'libs/template-shared/src/index.ts'),
+      [
+        "export * from './lib/stores/auth.store.js';",
+        "export * from './lib/abilities/ability-provider.js';",
+        "export * from './lib/api/create-api.js';",
       ].join('\n'),
     );
 
@@ -636,6 +661,27 @@ describe('removeAuthStack', () => {
     expect(src).not.toContain('cookie-parser');
     expect(src).not.toContain('cookieParser');
     expect(src).toContain('AppModule');
+  });
+
+  it('removes libs/template-shared/src/lib/abilities directory', async () => {
+    await removeAuthStack(authDir);
+    await expect(access(join(authDir, 'libs/template-shared/src/lib/abilities'))).rejects.toThrow();
+  });
+
+  it('strips ability-provider export from libs/template-shared/src/index.ts', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'libs/template-shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain('ability-provider');
+    expect(src).toContain('auth.store');
+    expect(src).toContain('create-api');
+  });
+
+  it('strips AbilityProvider from apps/client/src/main.tsx import and JSX', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'apps/client/src/main.tsx'), 'utf8');
+    expect(src).not.toContain('AbilityProvider');
+    expect(src).toContain('createIcoreApi');
+    expect(src).toContain('<App />');
   });
 });
 
