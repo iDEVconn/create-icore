@@ -1045,4 +1045,93 @@ describe('writeAuthEnv — broker transport env', () => {
       expect(env).not.toContain(`# ${expected}`);
     }
   });
+
+  it('appends MONGODB_URI and JWT_SECRET when authProvider=mongodb', async () => {
+    await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'mongodb' });
+    const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+    expect(env).toContain('MONGODB_URI=mongodb://localhost:27017/icore-auth');
+    expect(env).toContain('JWT_SECRET=change-me-in-production');
+  });
+
+  it('does not append MONGODB_URI when authProvider is not mongodb', async () => {
+    await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'supabase' });
+    const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+    expect(env).not.toContain('MONGODB_URI');
+    expect(env).not.toContain('JWT_SECRET');
+  });
+});
+
+describe('writeUploadEnv — mongodb', () => {
+  it('appends MONGODB_URI when upload=mongodb', async () => {
+    await writeUploadEnv(dir, { ...baseOpts, targetDir: dir, upload: 'mongodb' });
+    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
+    expect(env).toContain('MONGODB_URI=mongodb://localhost:27017/icore-upload');
+  });
+
+  it('does not append MONGODB_URI when upload is not mongodb', async () => {
+    await writeUploadEnv(dir, { ...baseOpts, targetDir: dir, upload: 'cloudinary' });
+    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
+    expect(env).not.toContain('MONGODB_URI');
+  });
+});
+
+describe('rewriteRootPackageJson — mongodb deps', () => {
+  async function run(opts: Partial<CreateIcoreOptions>) {
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'icore',
+        version: '1.0.0',
+        dependencies: { axios: '^1.6.0' },
+        devDependencies: {},
+      }),
+    );
+    await rewriteRootPackageJson(dir, { ...baseOpts, targetDir: dir, ...opts });
+    return JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+  }
+
+  it('adds mongoose and @nestjs/mongoose when authProvider=mongodb', async () => {
+    const pkg = await run({ authProvider: 'mongodb', dbProvider: 'none', upload: 'none' });
+    expect(pkg.dependencies['mongoose']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeDefined();
+  });
+
+  it('adds @types/bcrypt and @types/jsonwebtoken to devDeps when authProvider=mongodb', async () => {
+    const pkg = await run({ authProvider: 'mongodb', dbProvider: 'none', upload: 'none' });
+    expect(pkg.devDependencies['@types/bcrypt']).toBeDefined();
+    expect(pkg.devDependencies['@types/jsonwebtoken']).toBeDefined();
+  });
+
+  it('adds mongoose when only upload=mongodb (no auth mongodb)', async () => {
+    const pkg = await run({ authProvider: 'supabase', dbProvider: 'supabase', upload: 'mongodb' });
+    expect(pkg.dependencies['mongoose']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeDefined();
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
+    expect(pkg.devDependencies['@types/jsonwebtoken']).toBeUndefined();
+  });
+
+  it('adds mongoose when dbProvider=mongodb even if auth and upload are not mongodb', async () => {
+    const pkg = await run({
+      authProvider: 'supabase',
+      dbProvider: 'mongodb',
+      upload: 'cloudinary',
+    });
+    expect(pkg.dependencies['mongoose']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeDefined();
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
+  });
+
+  it('does not add mongoose when no provider is mongodb', async () => {
+    const pkg = await run({
+      authProvider: 'supabase',
+      dbProvider: 'supabase',
+      upload: 'cloudinary',
+    });
+    expect(pkg.dependencies['mongoose']).toBeUndefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeUndefined();
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
+  });
 });
