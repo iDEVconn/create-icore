@@ -11,6 +11,7 @@ import {
   removeUploadStack,
   removeAuthStack,
   removeStrategiesLib,
+  removeFirebaseAdminLib,
   rewriteRootPackageJson,
   pruneRootProviderDeps,
 } from '../scaffold.js';
@@ -221,6 +222,26 @@ describe('removeUploadStack', () => {
     expect(compose).toContain('gateway:');
     const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
     expect(gatewaySection).not.toContain('upload:');
+  });
+
+  it('removes @icore/upload-client and @types/multer from apps/api/package.json', async () => {
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/package.json'),
+      JSON.stringify({
+        name: 'api',
+        dependencies: { '@icore/upload-client': '*', '@icore/auth-client': '*' },
+        devDependencies: { '@types/multer': '^2.1.0' },
+      }),
+    );
+    await removeUploadStack(dir);
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['@icore/upload-client']).toBeUndefined();
+    expect(pkg.devDependencies?.['@types/multer']).toBeUndefined();
+    expect(pkg.dependencies?.['@icore/auth-client']).toBeDefined();
   });
 });
 
@@ -682,6 +703,65 @@ describe('removeStrategiesLib', () => {
     expect(pkg.exports['./client']).toBeDefined();
     expect(pkg.dependencies['@nestjs/microservices']).toBeUndefined();
     expect(pkg.dependencies['tslib']).toBeDefined();
+  });
+});
+
+describe('removeFirebaseAdminLib', () => {
+  let fbDir: string;
+
+  beforeEach(async () => {
+    fbDir = await mkdtemp(join(tmpdir(), 'icore-no-fb-'));
+
+    await mkdir(join(fbDir, 'libs/firebase-admin/src'), { recursive: true });
+    await writeFile(join(fbDir, 'libs/firebase-admin/src/index.ts'), 'export {};');
+
+    await writeFile(
+      join(fbDir, 'tsconfig.base.json'),
+      JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@icore/firebase-admin': ['libs/firebase-admin/src/index.ts'],
+            '@icore/shared': ['libs/shared/src/index.ts'],
+          },
+        },
+      }),
+    );
+
+    for (const ms of ['auth', 'upload', 'notes']) {
+      await mkdir(join(fbDir, `apps/microservices/${ms}`), { recursive: true });
+      await writeFile(
+        join(fbDir, `apps/microservices/${ms}/package.json`),
+        JSON.stringify({
+          name: ms,
+          dependencies: { '@icore/firebase-admin': '*', tslib: '^2.0.0' },
+        }),
+      );
+    }
+  });
+
+  it('deletes libs/firebase-admin directory', async () => {
+    await removeFirebaseAdminLib(fbDir);
+    await expect(access(join(fbDir, 'libs/firebase-admin'))).rejects.toThrow();
+  });
+
+  it('removes @icore/firebase-admin tsconfig alias', async () => {
+    await removeFirebaseAdminLib(fbDir);
+    const tsconfig = JSON.parse(await readFile(join(fbDir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(tsconfig.compilerOptions.paths['@icore/firebase-admin']).toBeUndefined();
+    expect(tsconfig.compilerOptions.paths['@icore/shared']).toBeDefined();
+  });
+
+  it('removes @icore/firebase-admin dep from all three MS package.json files', async () => {
+    await removeFirebaseAdminLib(fbDir);
+    for (const ms of ['auth', 'upload', 'notes']) {
+      const pkg = JSON.parse(
+        await readFile(join(fbDir, `apps/microservices/${ms}/package.json`), 'utf8'),
+      ) as { dependencies?: Record<string, string> };
+      expect(pkg.dependencies?.['@icore/firebase-admin']).toBeUndefined();
+      expect(pkg.dependencies?.['tslib']).toBeDefined();
+    }
   });
 });
 
