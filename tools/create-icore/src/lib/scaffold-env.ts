@@ -257,6 +257,12 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   for (const prefix of ['AUTH', 'UPLOAD', 'NOTES', 'PAYMENT']) {
     next = uncommentTransportEnv(next, prefix, opts.transport);
   }
+  if (opts.authProvider === 'none') {
+    next = next
+      .split('\n')
+      .filter((line) => !line.startsWith('AUTH_') && !line.startsWith('# AUTH_'))
+      .join('\n');
+  }
   await writeFile(join(targetDir, 'apps/api/.env'), next);
 }
 

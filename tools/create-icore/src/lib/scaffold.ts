@@ -15,11 +15,16 @@ import {
   writePaymentEnv,
 } from './scaffold-env.js';
 import {
-  removeAuthStack,
   removeFirebaseAdminLib,
   removeStrategiesLib,
   removeUploadStack,
 } from './scaffold-strip.js';
+import {
+  applyAuthNoneVariants,
+  removeAuthOnlyPaths,
+  removeAuthTsconfigPaths,
+  removeDockerComposeAuthService,
+} from './scaffold-auth-none.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
@@ -44,7 +49,10 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
-  removeAuthStack,
+  applyAuthNoneVariants,
+  removeAuthOnlyPaths,
+  removeAuthTsconfigPaths,
+  removeDockerComposeAuthService,
   removeFirebaseAdminLib,
   removeStrategiesLib,
   removeUploadStack,
@@ -195,7 +203,13 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
     await cleanupUnusedAuth(opts.targetDir, opts.authProvider as AuthBackend);
     await writeAuthProvider(opts.targetDir, opts.authProvider as AuthBackend);
   } else {
-    await removeAuthStack(opts.targetDir);
+    // Blueprint-driven auth=none: delete auth-only paths, overlay auth-none
+    // file variants, strip tsconfig aliases, remove docker-compose auth service.
+    // No regex source surgery — new files default to excluded, not included.
+    await removeAuthOnlyPaths(opts.targetDir);
+    await applyAuthNoneVariants(opts.targetDir, opts.ui);
+    await removeAuthTsconfigPaths(opts.targetDir);
+    await removeDockerComposeAuthService(opts.targetDir);
   }
   if (opts.upload !== 'none') {
     await cleanupUnusedStorage(opts.targetDir, opts.upload);
