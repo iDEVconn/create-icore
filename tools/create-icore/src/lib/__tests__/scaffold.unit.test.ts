@@ -11,6 +11,7 @@ import {
   removeUploadStack,
   removeAuthStack,
   removeStrategiesLib,
+  removeFirebaseAdminLib,
   rewriteRootPackageJson,
   pruneRootProviderDeps,
 } from '../scaffold.js';
@@ -222,6 +223,26 @@ describe('removeUploadStack', () => {
     const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
     expect(gatewaySection).not.toContain('upload:');
   });
+
+  it('removes @icore/upload-client and @types/multer from apps/api/package.json', async () => {
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/package.json'),
+      JSON.stringify({
+        name: 'api',
+        dependencies: { '@icore/upload-client': '*', '@icore/auth-client': '*' },
+        devDependencies: { '@types/multer': '^2.1.0' },
+      }),
+    );
+    await removeUploadStack(dir);
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['@icore/upload-client']).toBeUndefined();
+    expect(pkg.devDependencies?.['@types/multer']).toBeUndefined();
+    expect(pkg.dependencies?.['@icore/auth-client']).toBeDefined();
+  });
 });
 
 describe('removeAuthStack', () => {
@@ -326,8 +347,25 @@ describe('removeAuthStack', () => {
         dependencies: {
           '@icore/auth-client': '*',
           '@icore/upload-client': '*',
+          'cookie-parser': '^1.4.7',
         },
       }),
+    );
+
+    // gateway main.ts
+    await writeFile(
+      join(authDir, 'apps/api/src/main.ts'),
+      [
+        "import { Logger } from '@nestjs/common';",
+        "import { NestFactory } from '@nestjs/core';",
+        "import cookieParser from 'cookie-parser';",
+        "import { AppModule } from './app/app.module';",
+        '',
+        'async function bootstrap() {',
+        '  const app = await NestFactory.create(AppModule);',
+        '  app.use(cookieParser());',
+        '}',
+      ].join('\n'),
     );
 
     // gateway .env
@@ -381,15 +419,40 @@ describe('removeAuthStack', () => {
       ].join('\n'),
     );
 
-    // main.tsx — onUnauthorized redirects to /login
+    // main.tsx — onUnauthorized redirects to /login + AbilityProvider wrapper
     await writeFile(
       join(authDir, 'apps/client/src/main.tsx'),
       [
-        "import { createIcoreApi } from '@icore/template-shared';",
+        'import {',
+        '  AbilityProvider,',
+        '  createIcoreApi,',
+        "} from '@icore/template-shared';",
         'export const api = createIcoreApi({',
         "  baseUrl: '/api',",
         "  onUnauthorized: () => router.navigate({ to: '/login' }),",
         '});',
+        'createRoot(document.getElementById("root")!).render(',
+        '  <StrictMode>',
+        '    <AbilityProvider>',
+        '      <App />',
+        '    </AbilityProvider>',
+        '  </StrictMode>,',
+        ');',
+      ].join('\n'),
+    );
+
+    // template-shared index + abilities dir
+    await mkdir(join(authDir, 'libs/template-shared/src/lib/abilities'), { recursive: true });
+    await writeFile(
+      join(authDir, 'libs/template-shared/src/lib/abilities/ability-provider.tsx'),
+      'export function AbilityProvider() { return null; }',
+    );
+    await writeFile(
+      join(authDir, 'libs/template-shared/src/index.ts'),
+      [
+        "export * from './lib/stores/auth.store.js';",
+        "export * from './lib/abilities/ability-provider.js';",
+        "export * from './lib/api/create-api.js';",
       ].join('\n'),
     );
 
@@ -582,6 +645,44 @@ describe('removeAuthStack', () => {
     expect(src).toContain('handleLocale');
     expect(src).toContain('LayoutHeader');
   });
+
+  it('removes cookie-parser from apps/api/package.json', async () => {
+    await removeAuthStack(authDir);
+    const pkg = JSON.parse(await readFile(join(authDir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['cookie-parser']).toBeUndefined();
+    expect(pkg.dependencies?.['@icore/upload-client']).toBeDefined();
+  });
+
+  it('strips cookie-parser import and app.use from apps/api/src/main.ts', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'apps/api/src/main.ts'), 'utf8');
+    expect(src).not.toContain('cookie-parser');
+    expect(src).not.toContain('cookieParser');
+    expect(src).toContain('AppModule');
+  });
+
+  it('removes libs/template-shared/src/lib/abilities directory', async () => {
+    await removeAuthStack(authDir);
+    await expect(access(join(authDir, 'libs/template-shared/src/lib/abilities'))).rejects.toThrow();
+  });
+
+  it('strips ability-provider export from libs/template-shared/src/index.ts', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'libs/template-shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain('ability-provider');
+    expect(src).toContain('auth.store');
+    expect(src).toContain('create-api');
+  });
+
+  it('strips AbilityProvider from apps/client/src/main.tsx import and JSX', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'apps/client/src/main.tsx'), 'utf8');
+    expect(src).not.toContain('AbilityProvider');
+    expect(src).toContain('createIcoreApi');
+    expect(src).toContain('<App />');
+  });
 });
 
 describe('removeStrategiesLib', () => {
@@ -648,6 +749,65 @@ describe('removeStrategiesLib', () => {
     expect(pkg.exports['./client']).toBeDefined();
     expect(pkg.dependencies['@nestjs/microservices']).toBeUndefined();
     expect(pkg.dependencies['tslib']).toBeDefined();
+  });
+});
+
+describe('removeFirebaseAdminLib', () => {
+  let fbDir: string;
+
+  beforeEach(async () => {
+    fbDir = await mkdtemp(join(tmpdir(), 'icore-no-fb-'));
+
+    await mkdir(join(fbDir, 'libs/firebase-admin/src'), { recursive: true });
+    await writeFile(join(fbDir, 'libs/firebase-admin/src/index.ts'), 'export {};');
+
+    await writeFile(
+      join(fbDir, 'tsconfig.base.json'),
+      JSON.stringify({
+        compilerOptions: {
+          paths: {
+            '@icore/firebase-admin': ['libs/firebase-admin/src/index.ts'],
+            '@icore/shared': ['libs/shared/src/index.ts'],
+          },
+        },
+      }),
+    );
+
+    for (const ms of ['auth', 'upload', 'notes']) {
+      await mkdir(join(fbDir, `apps/microservices/${ms}`), { recursive: true });
+      await writeFile(
+        join(fbDir, `apps/microservices/${ms}/package.json`),
+        JSON.stringify({
+          name: ms,
+          dependencies: { '@icore/firebase-admin': '*', tslib: '^2.0.0' },
+        }),
+      );
+    }
+  });
+
+  it('deletes libs/firebase-admin directory', async () => {
+    await removeFirebaseAdminLib(fbDir);
+    await expect(access(join(fbDir, 'libs/firebase-admin'))).rejects.toThrow();
+  });
+
+  it('removes @icore/firebase-admin tsconfig alias', async () => {
+    await removeFirebaseAdminLib(fbDir);
+    const tsconfig = JSON.parse(await readFile(join(fbDir, 'tsconfig.base.json'), 'utf8')) as {
+      compilerOptions: { paths: Record<string, unknown> };
+    };
+    expect(tsconfig.compilerOptions.paths['@icore/firebase-admin']).toBeUndefined();
+    expect(tsconfig.compilerOptions.paths['@icore/shared']).toBeDefined();
+  });
+
+  it('removes @icore/firebase-admin dep from all three MS package.json files', async () => {
+    await removeFirebaseAdminLib(fbDir);
+    for (const ms of ['auth', 'upload', 'notes']) {
+      const pkg = JSON.parse(
+        await readFile(join(fbDir, `apps/microservices/${ms}/package.json`), 'utf8'),
+      ) as { dependencies?: Record<string, string> };
+      expect(pkg.dependencies?.['@icore/firebase-admin']).toBeUndefined();
+      expect(pkg.dependencies?.['tslib']).toBeDefined();
+    }
   });
 });
 
@@ -884,5 +1044,94 @@ describe('writeAuthEnv — broker transport env', () => {
       expect(env).toContain(expected);
       expect(env).not.toContain(`# ${expected}`);
     }
+  });
+
+  it('appends MONGODB_URI and JWT_SECRET when authProvider=mongodb', async () => {
+    await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'mongodb' });
+    const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+    expect(env).toContain('MONGODB_URI=mongodb://localhost:27017/icore-auth');
+    expect(env).toContain('JWT_SECRET=change-me-in-production');
+  });
+
+  it('does not append MONGODB_URI when authProvider is not mongodb', async () => {
+    await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'supabase' });
+    const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+    expect(env).not.toContain('MONGODB_URI');
+    expect(env).not.toContain('JWT_SECRET');
+  });
+});
+
+describe('writeUploadEnv — mongodb', () => {
+  it('appends MONGODB_URI when upload=mongodb', async () => {
+    await writeUploadEnv(dir, { ...baseOpts, targetDir: dir, upload: 'mongodb' });
+    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
+    expect(env).toContain('MONGODB_URI=mongodb://localhost:27017/icore-upload');
+  });
+
+  it('does not append MONGODB_URI when upload is not mongodb', async () => {
+    await writeUploadEnv(dir, { ...baseOpts, targetDir: dir, upload: 'cloudinary' });
+    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
+    expect(env).not.toContain('MONGODB_URI');
+  });
+});
+
+describe('rewriteRootPackageJson — mongodb deps', () => {
+  async function run(opts: Partial<CreateIcoreOptions>) {
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'icore',
+        version: '1.0.0',
+        dependencies: { axios: '^1.6.0' },
+        devDependencies: {},
+      }),
+    );
+    await rewriteRootPackageJson(dir, { ...baseOpts, targetDir: dir, ...opts });
+    return JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+  }
+
+  it('adds mongoose and @nestjs/mongoose when authProvider=mongodb', async () => {
+    const pkg = await run({ authProvider: 'mongodb', dbProvider: 'none', upload: 'none' });
+    expect(pkg.dependencies['mongoose']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeDefined();
+  });
+
+  it('adds @types/bcrypt and @types/jsonwebtoken to devDeps when authProvider=mongodb', async () => {
+    const pkg = await run({ authProvider: 'mongodb', dbProvider: 'none', upload: 'none' });
+    expect(pkg.devDependencies['@types/bcrypt']).toBeDefined();
+    expect(pkg.devDependencies['@types/jsonwebtoken']).toBeDefined();
+  });
+
+  it('adds mongoose when only upload=mongodb (no auth mongodb)', async () => {
+    const pkg = await run({ authProvider: 'supabase', dbProvider: 'supabase', upload: 'mongodb' });
+    expect(pkg.dependencies['mongoose']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeDefined();
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
+    expect(pkg.devDependencies['@types/jsonwebtoken']).toBeUndefined();
+  });
+
+  it('adds mongoose when dbProvider=mongodb even if auth and upload are not mongodb', async () => {
+    const pkg = await run({
+      authProvider: 'supabase',
+      dbProvider: 'mongodb',
+      upload: 'cloudinary',
+    });
+    expect(pkg.dependencies['mongoose']).toBeDefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeDefined();
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
+  });
+
+  it('does not add mongoose when no provider is mongodb', async () => {
+    const pkg = await run({
+      authProvider: 'supabase',
+      dbProvider: 'supabase',
+      upload: 'cloudinary',
+    });
+    expect(pkg.dependencies['mongoose']).toBeUndefined();
+    expect(pkg.dependencies['@nestjs/mongoose']).toBeUndefined();
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
   });
 });

@@ -63,7 +63,7 @@ const doRun = args.run === 'true' || args.run === '';
 // --lint=false to skip. Ignored in link mode (nx lint needs a real install).
 const doLint = mode === 'install' && args.lint !== 'false';
 const runSeconds = Number(args['run-seconds'] ?? 20);
-const projects = (args.projects ?? 'shared,auth,upload,notes,api')
+const projects = (args.projects ?? 'shared,auth,upload,notes,api,template-shared')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -118,6 +118,7 @@ const TSCONFIG = {
   payment: 'apps/microservices/payment/tsconfig.app.json',
   jobs: 'apps/microservices/jobs/tsconfig.app.json',
   api: 'apps/api/tsconfig.app.json',
+  'template-shared': 'libs/template-shared/tsconfig.lib.json',
   client: 'apps/client/tsconfig.app.json',
 };
 

@@ -159,8 +159,23 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     await stripTsconfigPath(targetDir, alias);
   }
 
-  // Strip @icore/auth-client from gateway package.json
-  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/auth-client']);
+  // Strip @icore/auth-client and cookie-parser from gateway package.json
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/auth-client',
+    'cookie-parser',
+  ]);
+
+  // Strip cookie-parser import and usage from gateway main.ts
+  const gatewayMainPath = join(targetDir, 'apps/api/src/main.ts');
+  try {
+    const src = await readFile(gatewayMainPath, 'utf8');
+    const next = src
+      .replace(/^import cookieParser from 'cookie-parser';\n/m, '')
+      .replace(/^\s*app\.use\(cookieParser\(\)\);\n/m, '');
+    await writeFile(gatewayMainPath, next);
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
 
   // Strip AUTH_* transport vars from gateway .env
   const gatewayEnv = join(targetDir, 'apps/api/.env');
@@ -214,13 +229,31 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     // ignore — may be absent in test scaffolds
   }
 
-  // main.tsx: onUnauthorized redirects to /login — remove the callback
+  // main.tsx: strip onUnauthorized callback and AbilityProvider wrapper
   const mainTsxPath = join(targetDir, 'apps/client/src/main.tsx');
   try {
     const src = await readFile(mainTsxPath, 'utf8');
+    const next = src
+      .replace(/\n {2}onUnauthorized: \(\) => router\.navigate\(\{ to: '\/login' \}\),/, '')
+      .replace(/^\s*AbilityProvider,\n/m, '')
+      .replace(/^\s*<AbilityProvider>\n/m, '')
+      .replace(/^\s*<\/AbilityProvider>\n/m, '');
+    await writeFile(mainTsxPath, next);
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
+
+  // template-shared: remove abilities dir (depends on @icore/shared/client abilities exports)
+  await rm(join(targetDir, 'libs/template-shared/src/lib/abilities'), {
+    recursive: true,
+    force: true,
+  });
+  const templateSharedIndexPath = join(targetDir, 'libs/template-shared/src/index.ts');
+  try {
+    const src = await readFile(templateSharedIndexPath, 'utf8');
     await writeFile(
-      mainTsxPath,
-      src.replace(/\n {2}onUnauthorized: \(\) => router\.navigate\(\{ to: '\/login' \}\),/, ''),
+      templateSharedIndexPath,
+      src.replace(/^export \* from '\.\/lib\/abilities\/ability-provider\.js';\n/m, ''),
     );
   } catch {
     // ignore — may be absent in test scaffolds
