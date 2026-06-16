@@ -326,8 +326,25 @@ describe('removeAuthStack', () => {
         dependencies: {
           '@icore/auth-client': '*',
           '@icore/upload-client': '*',
+          'cookie-parser': '^1.4.7',
         },
       }),
+    );
+
+    // gateway main.ts
+    await writeFile(
+      join(authDir, 'apps/api/src/main.ts'),
+      [
+        "import { Logger } from '@nestjs/common';",
+        "import { NestFactory } from '@nestjs/core';",
+        "import cookieParser from 'cookie-parser';",
+        "import { AppModule } from './app/app.module';",
+        '',
+        'async function bootstrap() {',
+        '  const app = await NestFactory.create(AppModule);',
+        '  app.use(cookieParser());',
+        '}',
+      ].join('\n'),
     );
 
     // gateway .env
@@ -581,6 +598,23 @@ describe('removeAuthStack', () => {
     // kept runtime code
     expect(src).toContain('handleLocale');
     expect(src).toContain('LayoutHeader');
+  });
+
+  it('removes cookie-parser from apps/api/package.json', async () => {
+    await removeAuthStack(authDir);
+    const pkg = JSON.parse(await readFile(join(authDir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['cookie-parser']).toBeUndefined();
+    expect(pkg.dependencies?.['@icore/upload-client']).toBeDefined();
+  });
+
+  it('strips cookie-parser import and app.use from apps/api/src/main.ts', async () => {
+    await removeAuthStack(authDir);
+    const src = await readFile(join(authDir, 'apps/api/src/main.ts'), 'utf8');
+    expect(src).not.toContain('cookie-parser');
+    expect(src).not.toContain('cookieParser');
+    expect(src).toContain('AppModule');
   });
 });
 

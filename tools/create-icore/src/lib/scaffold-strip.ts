@@ -159,8 +159,23 @@ export async function removeAuthStack(targetDir: string): Promise<void> {
     await stripTsconfigPath(targetDir, alias);
   }
 
-  // Strip @icore/auth-client from gateway package.json
-  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@icore/auth-client']);
+  // Strip @icore/auth-client and cookie-parser from gateway package.json
+  await stripDeps(join(targetDir, 'apps/api/package.json'), [
+    '@icore/auth-client',
+    'cookie-parser',
+  ]);
+
+  // Strip cookie-parser import and usage from gateway main.ts
+  const gatewayMainPath = join(targetDir, 'apps/api/src/main.ts');
+  try {
+    const src = await readFile(gatewayMainPath, 'utf8');
+    const next = src
+      .replace(/^import cookieParser from 'cookie-parser';\n/m, '')
+      .replace(/^\s*app\.use\(cookieParser\(\)\);\n/m, '');
+    await writeFile(gatewayMainPath, next);
+  } catch {
+    // ignore — may be absent in test scaffolds
+  }
 
   // Strip AUTH_* transport vars from gateway .env
   const gatewayEnv = join(targetDir, 'apps/api/.env');
