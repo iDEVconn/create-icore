@@ -130,6 +130,22 @@ describe('writeFeaturesWiring', () => {
 });
 
 describe('cleanupUnusedFeatures', () => {
+  it('removes libs/shared/src/jobs.ts and its re-export when jobs=none', async () => {
+    const dir = await fixture();
+    await mkdir(join(dir, 'libs/shared/src'), { recursive: true });
+    await writeFile(join(dir, 'libs/shared/src/jobs.ts'), 'export const QUEUE = "q";');
+    await writeFile(
+      join(dir, 'libs/shared/src/index.ts'),
+      "export * from './env';\nexport * from './jobs';\nexport * from './transport';\n",
+    );
+    await cleanupUnusedFeatures(dir, { ...base, targetDir: dir, jobs: 'none' });
+    await expect(access(join(dir, 'libs/shared/src/jobs.ts'))).rejects.toThrow();
+    const src = await readFile(join(dir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain("'./jobs'");
+    expect(src).toContain("'./env'");
+    expect(src).toContain("'./transport'");
+  });
+
   it('rm unchosen feature libDirs + strips their gateway deps/tsPaths + transport block', async () => {
     const dir = await fixture();
     // payment OFF -> its dirs/deps/tsPath/PAYMENT_ env gone; notes+jobs kept
