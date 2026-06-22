@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/check-pr-before-push.sh"
+            "command": "ROOT=$(git rev-parse --show-toplevel 2>/dev/null) && bash \"$ROOT/.claude/hooks/check-pr-before-push.sh\""
           }
         ]
       }
