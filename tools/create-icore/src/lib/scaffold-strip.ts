@@ -68,6 +68,7 @@ export async function removeStrategiesLib(targetDir: string): Promise<void> {
   await rm(join(targetDir, 'libs/shared/src/testing.ts'), { force: true });
   // transport.ts only wires MS client options — dead when no microservices exist
   await rm(join(targetDir, 'libs/shared/src/transport.ts'), { force: true });
+  await rm(join(targetDir, 'libs/shared/src/__tests__/transport.unit.test.ts'), { force: true });
 
   const indexPath = join(targetDir, 'libs/shared/src/index.ts');
   try {
