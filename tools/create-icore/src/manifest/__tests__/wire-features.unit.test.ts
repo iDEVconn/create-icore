@@ -134,10 +134,7 @@ describe('cleanupUnusedFeatures', () => {
     const dir = await fixture();
     await mkdir(join(dir, 'libs/shared/src/__tests__'), { recursive: true });
     await writeFile(join(dir, 'libs/shared/src/jobs.ts'), 'export const QUEUE = "q";');
-    await writeFile(
-      join(dir, 'libs/shared/src/__tests__/jobs.unit.test.ts'),
-      "import '../jobs';",
-    );
+    await writeFile(join(dir, 'libs/shared/src/__tests__/jobs.unit.test.ts'), "import '../jobs';");
     await writeFile(
       join(dir, 'libs/shared/src/index.ts'),
       "export * from './env';\nexport * from './jobs';\nexport * from './transport';\n",
