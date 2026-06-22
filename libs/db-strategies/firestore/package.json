@@ -8,12 +8,12 @@
   "dependencies": {
     "@icore/firebase-admin": "*",
     "@icore/shared": "*",
-    "@nestjs/common": "^11.1.24",
+    "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^4.0.4",
-    "tslib": "^2.3.0"
+    "tslib": "^2.8.1"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.0.0",
-    "vitest": "^4.0.0"
+    "@nestjs/testing": "^11.1.27",
+    "vitest": "^4.1.9"
   }
 }

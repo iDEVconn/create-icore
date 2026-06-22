@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@icore/shared": "*",
-    "@nestjs/common": "^11.1.24",
+    "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^4.0.4",
     "@nestjs/mongoose": "^11.0.4",
     "bcrypt": "^6.0.0",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "mongodb-memory-server": "^11.2.0",
-    "mongoose": "^9.6.3",
-    "tslib": "^2.3.0"
+    "mongoose": "^9.7.1",
+    "tslib": "^2.8.1"
   }
 }
