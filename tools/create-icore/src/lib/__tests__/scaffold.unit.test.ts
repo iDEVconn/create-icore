@@ -692,6 +692,7 @@ describe('removeStrategiesLib', () => {
   beforeEach(async () => {
     stratDir = await mkdtemp(join(tmpdir(), 'icore-no-strat-'));
     await mkdir(join(stratDir, 'libs/shared/src/strategies/fakes'), { recursive: true });
+    await mkdir(join(stratDir, 'libs/shared/src/__tests__'), { recursive: true });
     await writeFile(
       join(stratDir, 'libs/shared/src/strategies/auth.ts'),
       'export interface AuthStrategy {}',
@@ -701,6 +702,10 @@ describe('removeStrategiesLib', () => {
     await writeFile(
       join(stratDir, 'libs/shared/src/transport.ts'),
       "import { Transport } from '@nestjs/microservices'; export function buildTransport() {}",
+    );
+    await writeFile(
+      join(stratDir, 'libs/shared/src/__tests__/transport.unit.test.ts'),
+      "import '../transport';",
     );
     await writeFile(
       join(stratDir, 'libs/shared/src/index.ts'),
@@ -724,11 +729,14 @@ describe('removeStrategiesLib', () => {
     );
   });
 
-  it('removes libs/shared/src/strategies dir, testing.ts, and transport.ts', async () => {
+  it('removes libs/shared/src/strategies dir, testing.ts, transport.ts, and transport test', async () => {
     await removeStrategiesLib(stratDir);
     await expect(access(join(stratDir, 'libs/shared/src/strategies'))).rejects.toThrow();
     await expect(access(join(stratDir, 'libs/shared/src/testing.ts'))).rejects.toThrow();
     await expect(access(join(stratDir, 'libs/shared/src/transport.ts'))).rejects.toThrow();
+    await expect(
+      access(join(stratDir, 'libs/shared/src/__tests__/transport.unit.test.ts')),
+    ).rejects.toThrow();
   });
 
   it('strips strategies and transport re-exports from index.ts, keeps others', async () => {

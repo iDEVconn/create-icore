@@ -4,11 +4,11 @@
   "private": true,
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/multer": "*"
+    "@types/multer": "^2.1.0"
   },
   "dependencies": {
-    "@bull-board/api": "^7.1.5",
-    "@bull-board/express": "^7.1.5",
+    "@bull-board/api": "^7.2.1",
+    "@bull-board/express": "^7.2.1",
     "@casl/ability": "^7.0.0",
     "@icore/auth-client": "*",
     "@icore/jobs-client": "*",
@@ -17,10 +17,10 @@
     "@icore/shared": "*",
     "@icore/upload-client": "*",
     "@idevconn/payment": "^1.2.0",
-    "@nestjs/common": "^11.1.24",
+    "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.1.24",
-    "@nestjs/platform-express": "^11.1.24",
+    "@nestjs/core": "^11.1.27",
+    "@nestjs/platform-express": "^11.1.27",
     "@nestjs/swagger": "^11.4.4",
     "@nestjs/throttler": "^6.5.0",
     "cookie-parser": "^1.4.7",
