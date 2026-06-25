@@ -15,11 +15,16 @@ import {
   writePaymentEnv,
 } from './scaffold-env.js';
 import {
-  removeAuthStack,
   removeFirebaseAdminLib,
   removeStrategiesLib,
   removeUploadStack,
 } from './scaffold-strip.js';
+import {
+  applyAuthNoneVariants,
+  removeAuthOnlyPaths,
+  removeAuthTsconfigPaths,
+  removeDockerComposeAuthService,
+} from './scaffold-auth-none.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
@@ -44,7 +49,10 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
-  removeAuthStack,
+  applyAuthNoneVariants,
+  removeAuthOnlyPaths,
+  removeAuthTsconfigPaths,
+  removeDockerComposeAuthService,
   removeFirebaseAdminLib,
   removeStrategiesLib,
   removeUploadStack,
@@ -187,6 +195,14 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
   await writeClientEnv(opts.targetDir);
+  if (opts.authProvider === 'none') {
+    // Blueprint-driven auth=none: delete auth-only paths then overlay auth-none
+    // file variants. Must run BEFORE removeUploadStack and cleanupUnusedFeatures
+    // so those functions can do their own surgery on the freshly-written variants
+    // (e.g. strip StorageModule when upload=none, strip ./jobs when jobs=none).
+    await removeAuthOnlyPaths(opts.targetDir);
+    await applyAuthNoneVariants(opts.targetDir, opts.ui);
+  }
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
@@ -195,7 +211,9 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
     await cleanupUnusedAuth(opts.targetDir, opts.authProvider as AuthBackend);
     await writeAuthProvider(opts.targetDir, opts.authProvider as AuthBackend);
   } else {
-    await removeAuthStack(opts.targetDir);
+    // Remaining auth=none cleanup: no file writes, safe after feature cleanup.
+    await removeAuthTsconfigPaths(opts.targetDir);
+    await removeDockerComposeAuthService(opts.targetDir);
   }
   if (opts.upload !== 'none') {
     await cleanupUnusedStorage(opts.targetDir, opts.upload);
@@ -220,9 +238,15 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   // generated project audits clean (root keeps only chosen providers' SDKs).
   await pruneRootProviderDeps(opts.targetDir, opts);
 
-  // When no provider is selected at all, the strategy interfaces + testing
-  // harness in libs/shared are dead code — remove them.
-  if (opts.authProvider === 'none' && opts.upload === 'none' && opts.dbProvider === 'none') {
+  // Remove strategy interfaces + testing harness only when NO microservice
+  // uses them. payment-client imports buildTransport from @icore/shared, so
+  // transport.ts (bundled with strategies) must stay when payment is active.
+  if (
+    opts.authProvider === 'none' &&
+    opts.upload === 'none' &&
+    opts.dbProvider === 'none' &&
+    opts.payment === 'none'
+  ) {
     await removeStrategiesLib(opts.targetDir);
   }
 

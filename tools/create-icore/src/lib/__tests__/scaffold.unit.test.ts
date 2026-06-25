@@ -9,7 +9,10 @@ import {
   writeUploadEnv,
   writeRootEnv,
   removeUploadStack,
-  removeAuthStack,
+  removeAuthOnlyPaths,
+  applyAuthNoneVariants,
+  removeAuthTsconfigPaths,
+  removeDockerComposeAuthService,
   removeStrategiesLib,
   removeFirebaseAdminLib,
   rewriteRootPackageJson,
@@ -111,6 +114,14 @@ describe('writeGatewayEnv', () => {
     const env = await readFile(join(dir, 'apps/api/.env'), 'utf8');
     expect(env).toContain('AUTH_TRANSPORT=nats');
     expect(env).toContain('UPLOAD_TRANSPORT=nats');
+  });
+
+  it('strips AUTH_* lines when authProvider=none', async () => {
+    await writeGatewayEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'none' });
+    const env = await readFile(join(dir, 'apps/api/.env'), 'utf8');
+    expect(env).not.toContain('AUTH_TRANSPORT');
+    expect(env).not.toContain('AUTH_REDIS_URL');
+    expect(env).toContain('UPLOAD_TRANSPORT');
   });
 });
 
@@ -245,7 +256,7 @@ describe('removeUploadStack', () => {
   });
 });
 
-describe('removeAuthStack', () => {
+describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths + removeDockerComposeAuthService', () => {
   let authDir: string;
 
   beforeEach(async () => {
@@ -507,8 +518,8 @@ describe('removeAuthStack', () => {
     );
   });
 
-  it('removes auth MS, strategy libs, auth-client, and gateway auth dirs', async () => {
-    await removeAuthStack(authDir);
+  it('removeAuthOnlyPaths: removes auth MS, strategy libs, auth-client, and gateway auth dirs', async () => {
+    await removeAuthOnlyPaths(authDir);
     await expect(access(join(authDir, 'apps/microservices/auth'))).rejects.toThrow();
     await expect(access(join(authDir, 'libs/auth-strategies'))).rejects.toThrow();
     await expect(access(join(authDir, 'libs/auth-client'))).rejects.toThrow();
@@ -518,20 +529,8 @@ describe('removeAuthStack', () => {
     await expect(access(join(authDir, 'Dockerfile.ms-auth'))).rejects.toThrow();
   });
 
-  it('removes libs/shared/src/abilities and strips its re-export from index.ts and client.ts', async () => {
-    await removeAuthStack(authDir);
-    await expect(access(join(authDir, 'libs/shared/src/abilities'))).rejects.toThrow();
-    const idx = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
-    expect(idx).not.toContain("'./abilities'");
-    expect(idx).toContain("'./env'");
-    expect(idx).toContain("'./transport'");
-    const client = await readFile(join(authDir, 'libs/shared/src/client.ts'), 'utf8');
-    expect(client).not.toContain("'./abilities'");
-    expect(client).toContain("'./types'");
-  });
-
-  it('removes client auth routes and components', async () => {
-    await removeAuthStack(authDir);
+  it('removeAuthOnlyPaths: removes client auth routes and components', async () => {
+    await removeAuthOnlyPaths(authDir);
     await expect(access(join(authDir, 'apps/client/src/components/auth'))).rejects.toThrow();
     await expect(access(join(authDir, 'apps/client/src/routes/login.tsx'))).rejects.toThrow();
     await expect(
@@ -545,17 +544,34 @@ describe('removeAuthStack', () => {
     ).rejects.toThrow();
   });
 
-  it('strips AuthModule, ProfileModule, AbilitiesModule from app.module.ts', async () => {
-    await removeAuthStack(authDir);
+  it('removeAuthOnlyPaths: removes libs/shared/src/abilities and template-shared abilities dir', async () => {
+    await removeAuthOnlyPaths(authDir);
+    await expect(access(join(authDir, 'libs/shared/src/abilities'))).rejects.toThrow();
+    await expect(access(join(authDir, 'libs/template-shared/src/lib/abilities'))).rejects.toThrow();
+  });
+
+  it('removeAuthOnlyPaths: strips @icore/auth-client and cookie-parser from api package.json', async () => {
+    await removeAuthOnlyPaths(authDir);
+    const pkg = JSON.parse(await readFile(join(authDir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies['@icore/auth-client']).toBeUndefined();
+    expect(pkg.dependencies['cookie-parser']).toBeUndefined();
+    expect(pkg.dependencies['@icore/upload-client']).toBeDefined();
+  });
+
+  it('applyAuthNoneVariants: writes app.module.ts without auth modules', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
     const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
     expect(content).not.toContain('AuthModule');
     expect(content).not.toContain('ProfileModule');
     expect(content).not.toContain('AbilitiesModule');
     expect(content).toContain('FeaturesModule');
+    expect(content).toContain('StorageModule');
   });
 
-  it('strips beforeLoad, useAuthStore, and redirect from _dashboard.tsx', async () => {
-    await removeAuthStack(authDir);
+  it('applyAuthNoneVariants: writes _dashboard.tsx without beforeLoad auth guard', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
     const content = await readFile(join(authDir, 'apps/client/src/routes/_dashboard.tsx'), 'utf8');
     expect(content).not.toContain('beforeLoad');
     expect(content).not.toContain('useAuthStore');
@@ -564,8 +580,76 @@ describe('removeAuthStack', () => {
     expect(content).toContain('Outlet');
   });
 
-  it('strips auth tsconfig aliases, keeps unrelated aliases', async () => {
-    await removeAuthStack(authDir);
+  it('applyAuthNoneVariants: writes routes/index.tsx with /dashboard CTA', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const src = await readFile(join(authDir, 'apps/client/src/routes/index.tsx'), 'utf8');
+    expect(src).not.toContain('ctaHref="/login"');
+    expect(src).toContain('ctaHref="/dashboard"');
+    expect(src).toContain('ctaLabel="Dashboard →"');
+  });
+
+  it('applyAuthNoneVariants: writes main.tsx without onUnauthorized and AbilityProvider', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const src = await readFile(join(authDir, 'apps/client/src/main.tsx'), 'utf8');
+    expect(src).not.toContain('onUnauthorized');
+    expect(src).not.toContain('AbilityProvider');
+    expect(src).not.toContain('/login');
+    expect(src).toContain('createIcoreApi');
+  });
+
+  it('applyAuthNoneVariants: writes LayoutHeader.tsx without auth state and logout', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const src = await readFile(
+      join(authDir, 'apps/client/src/components/layout/LayoutHeader.tsx'),
+      'utf8',
+    );
+    expect(src).not.toContain('useAuthStore');
+    expect(src).not.toContain('handleLogout');
+    expect(src).not.toContain('/login');
+    expect(src).toContain('setStoredLocale');
+    expect(src).toContain('ThemeToggle');
+    expect(src).toContain('LayoutHeader');
+  });
+
+  it('applyAuthNoneVariants: writes main.ts without cookie-parser', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const src = await readFile(join(authDir, 'apps/api/src/main.ts'), 'utf8');
+    expect(src).not.toContain('cookie-parser');
+    expect(src).not.toContain('cookieParser');
+    expect(src).toContain('AppModule');
+    expect(src).toContain('NestFactory');
+  });
+
+  it('applyAuthNoneVariants: writes libs/shared/src/index.ts without abilities export', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const idx = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).not.toContain("'./abilities'");
+    expect(idx).toContain("'./env'");
+    expect(idx).toContain("'./transport'");
+    // ./jobs MUST be present so cleanupUnusedFeatures can strip it when jobs=none.
+    // If missing here, all-none combos fail: applyAuthNoneVariants runs first, then
+    // cleanupUnusedFeatures strips ./jobs — but if it was never written, jobs.ts
+    // ref leak is impossible, yet the ordering contract must still hold.
+    expect(idx).toContain("'./jobs'");
+  });
+
+  it('applyAuthNoneVariants: writes libs/shared/src/client.ts without abilities export', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const client = await readFile(join(authDir, 'libs/shared/src/client.ts'), 'utf8');
+    expect(client).not.toContain("'./abilities'");
+    expect(client).toContain("'./types'");
+  });
+
+  it('applyAuthNoneVariants: writes template-shared/index.ts without ability-provider export', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const src = await readFile(join(authDir, 'libs/template-shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain('ability-provider');
+    expect(src).toContain('auth.store');
+    expect(src).toContain('create-api');
+  });
+
+  it('removeAuthTsconfigPaths: strips auth tsconfig aliases, keeps unrelated aliases', async () => {
+    await removeAuthTsconfigPaths(authDir);
     const ts = JSON.parse(await readFile(join(authDir, 'tsconfig.base.json'), 'utf8')) as {
       compilerOptions: { paths: Record<string, unknown> };
     };
@@ -576,25 +660,22 @@ describe('removeAuthStack', () => {
     expect(ts.compilerOptions.paths['@icore/upload-client']).toBeDefined();
   });
 
-  it('strips @icore/auth-client from api package.json, keeps other deps', async () => {
-    await removeAuthStack(authDir);
-    const pkg = JSON.parse(await readFile(join(authDir, 'apps/api/package.json'), 'utf8')) as {
-      dependencies: Record<string, string>;
-    };
-    expect(pkg.dependencies['@icore/auth-client']).toBeUndefined();
-    expect(pkg.dependencies['@icore/upload-client']).toBeDefined();
+  it('ordering: removeUploadStack after applyAuthNoneVariants strips StorageModule (upload=none)', async () => {
+    // applyAuthNoneVariants writes GATEWAY_APP_MODULE_TS which contains StorageModule.
+    // removeUploadStack must run AFTER to strip it for the upload=none combo.
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const before = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(before).toContain('StorageModule');
+
+    await removeUploadStack(authDir);
+    const after = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(after).not.toContain('StorageModule');
+    expect(after).not.toContain("'./storage/storage.module'");
+    expect(after).toContain('FeaturesModule');
   });
 
-  it('strips AUTH_* lines from gateway .env, keeps other env vars', async () => {
-    await removeAuthStack(authDir);
-    const env = await readFile(join(authDir, 'apps/api/.env'), 'utf8');
-    expect(env).not.toContain('AUTH_TRANSPORT');
-    expect(env).not.toContain('AUTH_HOST');
-    expect(env).toContain('UPLOAD_TRANSPORT');
-  });
-
-  it('strips auth service from docker-compose.yml and gateway depends_on', async () => {
-    await removeAuthStack(authDir);
+  it('removeDockerComposeAuthService: strips auth service and gateway auth deps from docker-compose.yml', async () => {
+    await removeDockerComposeAuthService(authDir);
     const compose = await readFile(join(authDir, 'docker-compose.yml'), 'utf8');
     expect(compose).not.toContain('Dockerfile.ms-auth');
     expect(compose).not.toContain('AUTH_TRANSPORT');
@@ -602,86 +683,6 @@ describe('removeAuthStack', () => {
     expect(compose).toContain('gateway:');
     const gatewaySection = compose.slice(compose.indexOf('  gateway:'));
     expect(gatewaySection).not.toContain('auth:');
-  });
-
-  it('rewrites ctaHref and ctaLabel in routes/index.tsx', async () => {
-    await removeAuthStack(authDir);
-    const src = await readFile(join(authDir, 'apps/client/src/routes/index.tsx'), 'utf8');
-    expect(src).not.toContain('ctaHref="/login"');
-    expect(src).not.toContain('ctaLabel="Log in →"');
-    expect(src).toContain('ctaHref="/dashboard"');
-    expect(src).toContain('ctaLabel="Dashboard →"');
-  });
-
-  it('removes onUnauthorized /login redirect from main.tsx', async () => {
-    await removeAuthStack(authDir);
-    const src = await readFile(join(authDir, 'apps/client/src/main.tsx'), 'utf8');
-    expect(src).not.toContain('onUnauthorized');
-    expect(src).not.toContain('/login');
-    expect(src).toContain('createIcoreApi');
-  });
-
-  it('strips auth imports, state hooks, handleLogout, and logout UI from LayoutHeader.tsx', async () => {
-    await removeAuthStack(authDir);
-    const src = await readFile(
-      join(authDir, 'apps/client/src/components/layout/LayoutHeader.tsx'),
-      'utf8',
-    );
-    // removed imports
-    expect(src).not.toContain('import { useTranslation }');
-    expect(src).not.toContain('import { useNavigate }');
-    expect(src).not.toContain('import { LogOut }');
-    expect(src).not.toContain('import { Button }');
-    expect(src).not.toContain('useAuthStore');
-    // kept imports
-    expect(src).toContain('setStoredLocale');
-    expect(src).toContain('ThemeToggle');
-    // removed runtime code
-    expect(src).not.toContain('handleLogout');
-    expect(src).not.toContain('sm:hidden');
-    expect(src).not.toContain('hidden sm:flex');
-    expect(src).not.toContain('/login');
-    // kept runtime code
-    expect(src).toContain('handleLocale');
-    expect(src).toContain('LayoutHeader');
-  });
-
-  it('removes cookie-parser from apps/api/package.json', async () => {
-    await removeAuthStack(authDir);
-    const pkg = JSON.parse(await readFile(join(authDir, 'apps/api/package.json'), 'utf8')) as {
-      dependencies?: Record<string, string>;
-    };
-    expect(pkg.dependencies?.['cookie-parser']).toBeUndefined();
-    expect(pkg.dependencies?.['@icore/upload-client']).toBeDefined();
-  });
-
-  it('strips cookie-parser import and app.use from apps/api/src/main.ts', async () => {
-    await removeAuthStack(authDir);
-    const src = await readFile(join(authDir, 'apps/api/src/main.ts'), 'utf8');
-    expect(src).not.toContain('cookie-parser');
-    expect(src).not.toContain('cookieParser');
-    expect(src).toContain('AppModule');
-  });
-
-  it('removes libs/template-shared/src/lib/abilities directory', async () => {
-    await removeAuthStack(authDir);
-    await expect(access(join(authDir, 'libs/template-shared/src/lib/abilities'))).rejects.toThrow();
-  });
-
-  it('strips ability-provider export from libs/template-shared/src/index.ts', async () => {
-    await removeAuthStack(authDir);
-    const src = await readFile(join(authDir, 'libs/template-shared/src/index.ts'), 'utf8');
-    expect(src).not.toContain('ability-provider');
-    expect(src).toContain('auth.store');
-    expect(src).toContain('create-api');
-  });
-
-  it('strips AbilityProvider from apps/client/src/main.tsx import and JSX', async () => {
-    await removeAuthStack(authDir);
-    const src = await readFile(join(authDir, 'apps/client/src/main.tsx'), 'utf8');
-    expect(src).not.toContain('AbilityProvider');
-    expect(src).toContain('createIcoreApi');
-    expect(src).toContain('<App />');
   });
 });
 
@@ -691,6 +692,7 @@ describe('removeStrategiesLib', () => {
   beforeEach(async () => {
     stratDir = await mkdtemp(join(tmpdir(), 'icore-no-strat-'));
     await mkdir(join(stratDir, 'libs/shared/src/strategies/fakes'), { recursive: true });
+    await mkdir(join(stratDir, 'libs/shared/src/__tests__'), { recursive: true });
     await writeFile(
       join(stratDir, 'libs/shared/src/strategies/auth.ts'),
       'export interface AuthStrategy {}',
@@ -700,6 +702,10 @@ describe('removeStrategiesLib', () => {
     await writeFile(
       join(stratDir, 'libs/shared/src/transport.ts'),
       "import { Transport } from '@nestjs/microservices'; export function buildTransport() {}",
+    );
+    await writeFile(
+      join(stratDir, 'libs/shared/src/__tests__/transport.unit.test.ts'),
+      "import '../transport';",
     );
     await writeFile(
       join(stratDir, 'libs/shared/src/index.ts'),
@@ -723,11 +729,14 @@ describe('removeStrategiesLib', () => {
     );
   });
 
-  it('removes libs/shared/src/strategies dir, testing.ts, and transport.ts', async () => {
+  it('removes libs/shared/src/strategies dir, testing.ts, transport.ts, and transport test', async () => {
     await removeStrategiesLib(stratDir);
     await expect(access(join(stratDir, 'libs/shared/src/strategies'))).rejects.toThrow();
     await expect(access(join(stratDir, 'libs/shared/src/testing.ts'))).rejects.toThrow();
     await expect(access(join(stratDir, 'libs/shared/src/transport.ts'))).rejects.toThrow();
+    await expect(
+      access(join(stratDir, 'libs/shared/src/__tests__/transport.unit.test.ts')),
+    ).rejects.toThrow();
   });
 
   it('strips strategies and transport re-exports from index.ts, keeps others', async () => {

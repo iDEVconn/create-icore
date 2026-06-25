@@ -8,9 +8,9 @@
   "dependencies": {
     "@icore/shared": "*",
     "@idevconn/payment": "^1.2.0",
-    "@nestjs/common": "^11.1.24",
-    "@nestjs/microservices": "^11.1.24",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/microservices": "^11.1.27",
     "rxjs": "^7.8.2",
-    "tslib": "^2.3.0"
+    "tslib": "^2.8.1"
   }
 }

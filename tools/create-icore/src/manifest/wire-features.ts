@@ -97,6 +97,11 @@ export async function cleanupUnusedFeatures(
       } catch {
         /* ignore */
       }
+      try {
+        await unlink(join(targetDir, 'libs/shared/src/__tests__/jobs.unit.test.ts'));
+      } catch {
+        /* ignore */
+      }
       const sharedIdx = join(targetDir, 'libs/shared/src/index.ts');
       try {
         const src = await readFile(sharedIdx, 'utf8');

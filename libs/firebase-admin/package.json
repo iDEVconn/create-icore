@@ -7,6 +7,6 @@
   "types": "./src/index.ts",
   "dependencies": {
     "firebase-admin": "^13.10.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.8.1"
   }
 }
