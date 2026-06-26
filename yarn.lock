@@ -3005,6 +3005,7 @@ __metadata:
     "@nestjs/common": "npm:^11.1.27"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.1.27"
+    firebase-admin: "npm:^14.1.0"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.9"
   languageName: unknown
@@ -3051,6 +3052,7 @@ __metadata:
     "@nestjs/common": "npm:^11.1.27"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.1.27"
+    firebase-admin: "npm:^14.1.0"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.9"
   languageName: unknown
@@ -3164,6 +3166,7 @@ __metadata:
     "@nestjs/common": "npm:^11.1.27"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.1.27"
+    firebase-admin: "npm:^14.1.0"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.9"
   languageName: unknown
