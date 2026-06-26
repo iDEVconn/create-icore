@@ -1,6 +1,7 @@
 import { Module, DynamicModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
+import { getStorage } from 'firebase-admin/storage';
 import { buildStrategyWithFallback, FakeStorageStrategy } from '@icore/shared';
 import type { StorageStrategy } from '@icore/shared';
 import {
@@ -32,7 +33,9 @@ export class FirebaseStorageModule {
                 const bucketName = cfg.getOrThrow<string>('FIREBASE_STORAGE_BUCKET');
                 const app = getFirebaseAdmin(cfg);
                 return new FirebaseStorageStrategy({
-                  bucket: app.storage().bucket(bucketName) as unknown as FirebaseStorageBucketLike,
+                  bucket: getStorage(app).bucket(
+                    bucketName,
+                  ) as unknown as FirebaseStorageBucketLike,
                 });
               },
               fake: () => new FakeStorageStrategy(),

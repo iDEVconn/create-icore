@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, getApp, cert, App, ServiceAccount } from 'firebase-admin/app';
 
 /**
  * Minimal structural view of NestJS's `ConfigService` — just the two readers
@@ -46,11 +46,11 @@ export const FIREBASE_ADMIN_REQUIRED_ENV = [
  * tokens from project_id/client_email/private_key, but feeding the complete
  * downloaded JSON keeps the code aligned with the documented FB_ADMIN_* env.
  */
-export function getFirebaseAdmin(cfg: FirebaseConfigReader): admin.app.App {
-  if (admin.apps.length > 0) return admin.app();
+export function getFirebaseAdmin(cfg: FirebaseConfigReader): App {
+  if (getApps().length > 0) return getApp();
 
-  return admin.initializeApp({
-    credential: admin.credential.cert({
+  return initializeApp({
+    credential: cert({
       type: cfg.getOrThrow<string>('FB_ADMIN_TYPE'),
       project_id: cfg.getOrThrow<string>('FB_ADMIN_PROJECT_ID'),
       private_key_id: cfg.getOrThrow<string>('FB_ADMIN_PRIVATE_KEY_ID'),
@@ -62,7 +62,7 @@ export function getFirebaseAdmin(cfg: FirebaseConfigReader): admin.app.App {
       auth_provider_x509_cert_url: cfg.getOrThrow<string>('FB_ADMIN_AUTH_PROVIDER_X509_CERT_URL'),
       client_x509_cert_url: cfg.getOrThrow<string>('FB_ADMIN_CLIENT_X509_CERT_URL'),
       universe_domain: cfg.getOrThrow<string>('FB_ADMIN_UNIVERSE_DOMAIN'),
-    } as unknown as admin.ServiceAccount),
+    } as ServiceAccount),
     // Optional: the storage MS also passes the bucket name explicitly to
     // .bucket(); set here too so admin.storage().bucket() (no arg) works.
     storageBucket: cfg.get<string>('FIREBASE_STORAGE_BUCKET'),

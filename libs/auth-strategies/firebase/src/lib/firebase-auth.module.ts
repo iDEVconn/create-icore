@@ -1,6 +1,7 @@
 import { Module, DynamicModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 import { buildStrategyWithFallback, FakeAuthStrategy } from '@icore/shared';
 import type { AuthStrategy } from '@icore/shared';
 import { FirebaseAuthStrategy } from './firebase-auth.strategy';
@@ -28,7 +29,7 @@ export class FirebaseAuthModule {
                 const identityToolkit = new HttpIdentityToolkitClient(
                   cfg.getOrThrow<string>('FIREBASE_WEB_API_KEY'),
                 );
-                return new FirebaseAuthStrategy({ identityToolkit, adminAuth: app.auth() });
+                return new FirebaseAuthStrategy({ identityToolkit, adminAuth: getAuth(app) });
               },
               fake: () => new FakeAuthStrategy(),
             }),
