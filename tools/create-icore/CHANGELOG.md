@@ -1,5 +1,21 @@
 # @idevconn/create-icore
 
+## 0.10.0
+
+### Minor Changes
+
+- 8502ed9: feat(scaffold): replace removeAuthStack regex with blueprint-driven auth=none
+
+  New `scaffold-auth-none.ts` handles auth=none via additive overlay rather than regex
+  source-surgery: auth-only paths are deleted, auth-none file variants (14 files across
+  3 UI templates) are written directly — no string replacement, no pattern matching.
+  Gateway .env AUTH\_\* filtering moved to writeGatewayEnv. removeAuthStack deleted.
+
+### Patch Changes
+
+- 2b82ef5: Bump all safe dependencies to latest minor/patch versions
+- 87feb3b: Remove orphaned test files when source modules are deleted by the generator
+
 ## 0.9.3
 
 ### Patch Changes
