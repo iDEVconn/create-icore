@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@icore/firebase-admin": "*",
+    "firebase-admin": "^14.1.0",
     "@icore/shared": "*",
     "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^4.0.4",

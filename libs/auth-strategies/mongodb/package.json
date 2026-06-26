@@ -17,7 +17,7 @@
     "bcrypt": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb-memory-server": "^11.2.0",
-    "mongoose": "^9.7.1",
+    "mongoose": "^9.7.2",
     "tslib": "^2.8.1"
   }
 }
