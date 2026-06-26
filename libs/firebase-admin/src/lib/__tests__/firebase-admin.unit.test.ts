@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apps, cert, initializeApp, app } = vi.hoisted(() => {
+const { apps, cert, initializeApp, getApp, getApps } = vi.hoisted(() => {
   const apps: unknown[] = [];
   return {
     apps,
@@ -10,17 +10,16 @@ const { apps, cert, initializeApp, app } = vi.hoisted(() => {
       apps.push(created);
       return created;
     }),
-    app: vi.fn(() => apps[0]),
+    getApp: vi.fn(() => apps[0]),
+    getApps: vi.fn(() => apps),
   };
 });
 
-vi.mock('firebase-admin', () => ({
-  get apps() {
-    return apps;
-  },
-  app,
+vi.mock('firebase-admin/app', () => ({
+  cert,
   initializeApp,
-  credential: { cert },
+  getApp,
+  getApps,
 }));
 
 import { FIREBASE_ADMIN_REQUIRED_ENV, getFirebaseAdmin } from '../firebase-admin';
@@ -59,7 +58,8 @@ describe('getFirebaseAdmin', () => {
     apps.length = 0;
     cert.mockClear();
     initializeApp.mockClear();
-    app.mockClear();
+    getApp.mockClear();
+    getApps.mockClear();
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -94,12 +94,12 @@ describe('getFirebaseAdmin', () => {
     expect(sa['private_key']).not.toContain('\\n');
   });
 
-  it('initializes the default app only once (guards on admin.apps)', () => {
+  it('initializes the default app only once (guards on getApps)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cfg = makeCfg() as any;
     getFirebaseAdmin(cfg);
     getFirebaseAdmin(cfg);
     expect(initializeApp).toHaveBeenCalledTimes(1);
-    expect(app).toHaveBeenCalledTimes(1); // second call returns the existing app
+    expect(getApp).toHaveBeenCalledTimes(1); // second call returns the existing app
   });
 });

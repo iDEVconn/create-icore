@@ -1,6 +1,7 @@
 import { Module, DynamicModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getFirebaseAdmin, FIREBASE_ADMIN_REQUIRED_ENV } from '@icore/firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { buildStrategyWithFallback, FakeDBStrategy } from '@icore/shared';
 import type { DBStrategy } from '@icore/shared';
 import { FirestoreDBStrategy } from './firestore-db.strategy';
@@ -25,7 +26,7 @@ export class FirestoreDbModule {
               build: () => {
                 const app = getFirebaseAdmin(cfg);
                 return new FirestoreDBStrategy({
-                  db: app.firestore() as unknown as ConstructorParameters<
+                  db: getFirestore(app) as unknown as ConstructorParameters<
                     typeof FirestoreDBStrategy
                   >[0]['db'],
                 });
