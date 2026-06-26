@@ -278,6 +278,12 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
     await writePnpmWorkspace(opts.targetDir);
     await rewritePnpmWorkspaceDeps(opts.targetDir);
   }
+  // npm's strict peer-dep resolution fails when @nx/* packages have micro-version
+  // skew (e.g. @nx/vitest@22.7.5 peerOptional @nx/eslint@22.7.5 but root resolved
+  // @nx/eslint@22.7.6). legacy-peer-deps is the standard Nx+npm workaround.
+  if (opts.packageManager === 'npm') {
+    await writeFile(join(opts.targetDir, '.npmrc'), 'legacy-peer-deps=true\n');
+  }
   await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
   if (opts.install) runInstall(opts.targetDir, opts.packageManager);
