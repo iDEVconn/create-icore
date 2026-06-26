@@ -1,5 +1,12 @@
 # @idevconn/create-icore
 
+## 0.10.1
+
+### Patch Changes
+
+- 16f955a: Migrate firebase-admin to v14 modular API (firebase-admin/app, firebase-admin/auth, firebase-admin/storage, firebase-admin/firestore).
+- 16f955a: Write .npmrc with legacy-peer-deps=true for npm scaffolds to fix peer dep resolution failures with @nx/\* micro-version skew.
+
 ## 0.10.0
 
 ### Minor Changes
