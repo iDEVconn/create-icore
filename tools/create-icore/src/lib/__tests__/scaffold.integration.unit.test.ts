@@ -909,3 +909,58 @@ describe('scaffold with authProvider=none + payment=paypal', () => {
     expect(idx).toContain("'./strategies'");
   });
 });
+
+describe('scaffold — pm-specific file generation', () => {
+  let templatesDir: string;
+
+  beforeAll(async () => {
+    templatesDir = await makeFakeTemplates();
+  });
+
+  it('writes .npmrc with legacy-peer-deps=true for npm', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'my-app');
+    await scaffold(
+      {
+        projectName: 'my-app',
+        targetDir: outputDir,
+        authProvider: 'supabase',
+        dbProvider: 'supabase',
+        upload: 'supabase',
+        payment: 'none',
+        jobs: 'none',
+        example: 'notes',
+        ui: 'shadcn',
+        transport: 'tcp',
+        initGit: false,
+        packageManager: 'npm',
+        install: false,
+      },
+      templatesDir,
+    );
+    const npmrc = await readFile(join(outputDir, '.npmrc'), 'utf8');
+    expect(npmrc).toContain('legacy-peer-deps=true');
+  });
+
+  it('does not write .npmrc for yarn', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'my-app');
+    await scaffold(
+      {
+        projectName: 'my-app',
+        targetDir: outputDir,
+        authProvider: 'supabase',
+        dbProvider: 'supabase',
+        upload: 'supabase',
+        payment: 'none',
+        jobs: 'none',
+        example: 'notes',
+        ui: 'shadcn',
+        transport: 'tcp',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      templatesDir,
+    );
+    await expect(access(join(outputDir, '.npmrc'))).rejects.toThrow();
+  });
+});
