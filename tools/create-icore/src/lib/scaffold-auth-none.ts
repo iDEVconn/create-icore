@@ -428,7 +428,7 @@ export const Route = createFileRoute('/')({
 `;
 
 const SHADCN_LAYOUT_HEADER_TSX = `\
-import { setStoredLocale, type IcoreLocale } from '@icore/template-shared';
+import { setStoredLocale, type IcoreLocale, i18next } from '@icore/template-shared';
 import { ThemeToggle } from '../ThemeToggle';
 
 const LOCALES: { code: IcoreLocale; label: string }[] = [
@@ -440,7 +440,7 @@ const LOCALES: { code: IcoreLocale; label: string }[] = [
 export function LayoutHeader() {
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18next.changeLanguage(code);
   }
 
   return (
@@ -582,7 +582,7 @@ export const Route = createFileRoute('/')({
 
 const ANTD_LAYOUT_HEADER_TSX = `\
 import { Button, Layout, Space } from 'antd';
-import { setStoredLocale, type IcoreLocale } from '@icore/template-shared';
+import { setStoredLocale, type IcoreLocale, i18next } from '@icore/template-shared';
 import { ThemeToggle } from '../ThemeToggle';
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '0.0.0-dev';
@@ -596,7 +596,7 @@ const LOCALES: { code: IcoreLocale; label: string }[] = [
 export function LayoutHeader() {
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18next.changeLanguage(code);
   }
 
   return (
@@ -776,7 +776,7 @@ export function LayoutHeader() {
 
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18n.changeLanguage(code);
   }
 
   return (
