@@ -1,5 +1,13 @@
 # @idevconn/create-icore
 
+## 0.10.2
+
+### Patch Changes
+
+- c09ce95: Fix landing page: tailwindcss version now resolves from app package.json when absent from root; iCore scaffold version embedded via build-time constant; RTL aside toggle button and border use logical CSS properties.
+- 874dbb7: fix: replace window.location.reload with i18next.changeLanguage in LayoutHeader
+- 31c34e6: fix: generate CASL-free PageLayout when auth=none
+
 ## 0.10.1
 
 ### Patch Changes
