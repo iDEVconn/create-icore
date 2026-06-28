@@ -19,12 +19,26 @@ import {
 const rootPackageJsonPath = new URL('../../../package.json', import.meta.url);
 const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf-8')) as {
   version: string;
+  icoreVersion?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+};
+
+const selfPackageJson = JSON.parse(
+  fs.readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
+) as {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
 
 function depVersion(name: string): string {
-  return rootPackageJson.dependencies?.[name] ?? rootPackageJson.devDependencies?.[name] ?? '?';
+  return (
+    rootPackageJson.dependencies?.[name] ??
+    rootPackageJson.devDependencies?.[name] ??
+    selfPackageJson.dependencies?.[name] ??
+    selfPackageJson.devDependencies?.[name] ??
+    '?'
+  );
 }
 
 export default defineConfig(() => ({
@@ -37,6 +51,9 @@ export default defineConfig(() => ({
   },
   define: {
     ...commonDefines(rootPackageJson),
+    'import.meta.env.VITE_ICORE_VERSION': JSON.stringify(
+      rootPackageJson.icoreVersion ?? rootPackageJson.version,
+    ),
     'import.meta.env.VITE_DEP_TAILWINDCSS': JSON.stringify(depVersion('tailwindcss')),
   },
   plugins: [

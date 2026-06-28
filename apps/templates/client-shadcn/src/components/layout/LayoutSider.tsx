@@ -16,7 +16,7 @@ export function LayoutSider() {
 
   return (
     <aside
-      className={`relative flex flex-col border-r border-[--color-border] bg-[--color-card] transition-all duration-200 ${
+      className={`relative flex flex-col border-e border-[--color-border] bg-[--color-card] transition-all duration-200 ${
         collapsed ? 'w-14' : 'w-52'
       }`}
     >
@@ -41,9 +41,13 @@ export function LayoutSider() {
         type="button"
         onClick={() => setCollapsed((c) => !c)}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className="absolute -right-3 top-5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-[--color-border] bg-[--color-card] text-[--color-muted-foreground] shadow-sm hover:text-[--color-foreground] transition-colors"
+        className="absolute -end-3 top-5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-[--color-border] bg-[--color-card] text-[--color-muted-foreground] shadow-sm hover:text-[--color-foreground] transition-colors"
       >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        {collapsed ? (
+          <ChevronRight size={12} className="rtl:scale-x-[-1]" />
+        ) : (
+          <ChevronLeft size={12} className="rtl:scale-x-[-1]" />
+        )}
       </button>
     </aside>
   );

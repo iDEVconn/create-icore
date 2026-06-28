@@ -32,6 +32,7 @@ const AUTH_ONLY_PATHS = [
   'apps/api/src/app/abilities',
   'libs/shared/src/abilities',
   'apps/client/src/components/auth',
+  'apps/client/src/components/AccessDeniedPage.tsx',
   'apps/client/src/routes/login.tsx',
   'apps/client/src/routes/auth.callback.tsx',
   'apps/client/src/routes/auth.oauth.callback.tsx',
@@ -195,6 +196,129 @@ export * from './lib/landing/LandingPage.js';
 export * from './lib/stores/theme.store.js';
 `;
 
+// ─── PageLayout auth=none variants (no CASL) ─────────────────────────────────
+
+const SHADCN_PAGE_LAYOUT_TSX = `\
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useDraft, useLoading } from '@icore/template-shared';
+
+interface PageLayoutProps {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}
+
+export function PageLayout({ title, description, actions, children }: PageLayoutProps) {
+  const { t } = useTranslation();
+  const isLoading = useLoading();
+
+  useDraft(false);
+
+  return (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+          {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+        </div>
+        {actions && <div>{actions}</div>}
+      </div>
+
+      {isLoading && (
+        <div
+          role="status"
+          aria-label={t('common.loading')}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm"
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {children}
+    </div>
+  );
+}
+`;
+
+const ANTD_PAGE_LAYOUT_TSX = `\
+import type { ReactNode } from 'react';
+import { Descriptions, Spin } from 'antd';
+import { useDraft, useLoading } from '@icore/template-shared';
+
+export interface PageLayoutProps {
+  title: ReactNode;
+  description?: ReactNode;
+  extra?: ReactNode;
+  children?: ReactNode;
+}
+
+export function PageLayout({ title, description, extra, children }: PageLayoutProps) {
+  useDraft(false);
+  const loading = useLoading();
+
+  return (
+    <div style={{ padding: 24 }}>
+      <Descriptions title={title} extra={extra} style={{ marginBottom: 16 }}>
+        {description ? <Descriptions.Item>{description}</Descriptions.Item> : null}
+      </Descriptions>
+      <Spin spinning={loading}>
+        <div>{children}</div>
+      </Spin>
+    </div>
+  );
+}
+`;
+
+const MUI_PAGE_LAYOUT_TSX = `\
+import type { ReactNode } from 'react';
+import { Box, LinearProgress, Stack, Typography } from '@mui/material';
+import { useDraft, useLoading } from '@icore/template-shared';
+
+export interface PageLayoutProps {
+  title: ReactNode;
+  description?: ReactNode;
+  extra?: ReactNode;
+  children?: ReactNode;
+}
+
+export function PageLayout({ title, description, extra, children }: PageLayoutProps) {
+  useDraft(false);
+  const loading = useLoading();
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        spacing={2}
+        mb={3}
+      >
+        <Box>
+          <Typography variant="h4" component="h1">
+            {title}
+          </Typography>
+          {description ? (
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              {description}
+            </Typography>
+          ) : null}
+        </Box>
+        {extra ? (
+          <Stack direction="row" spacing={1}>
+            {extra}
+          </Stack>
+        ) : null}
+      </Stack>
+      {loading ? <LinearProgress sx={{ mb: 2 }} /> : null}
+      <Box>{children}</Box>
+    </Box>
+  );
+}
+`;
+
 // ─── Client UI variants ───────────────────────────────────────────────────────
 
 const SHADCN_MAIN_TSX = `\
@@ -304,7 +428,7 @@ export const Route = createFileRoute('/')({
 `;
 
 const SHADCN_LAYOUT_HEADER_TSX = `\
-import { setStoredLocale, type IcoreLocale } from '@icore/template-shared';
+import { setStoredLocale, type IcoreLocale, i18next } from '@icore/template-shared';
 import { ThemeToggle } from '../ThemeToggle';
 
 const LOCALES: { code: IcoreLocale; label: string }[] = [
@@ -316,7 +440,7 @@ const LOCALES: { code: IcoreLocale; label: string }[] = [
 export function LayoutHeader() {
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18next.changeLanguage(code);
   }
 
   return (
@@ -458,7 +582,7 @@ export const Route = createFileRoute('/')({
 
 const ANTD_LAYOUT_HEADER_TSX = `\
 import { Button, Layout, Space } from 'antd';
-import { setStoredLocale, type IcoreLocale } from '@icore/template-shared';
+import { setStoredLocale, type IcoreLocale, i18next } from '@icore/template-shared';
 import { ThemeToggle } from '../ThemeToggle';
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '0.0.0-dev';
@@ -472,7 +596,7 @@ const LOCALES: { code: IcoreLocale; label: string }[] = [
 export function LayoutHeader() {
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18next.changeLanguage(code);
   }
 
   return (
@@ -652,7 +776,7 @@ export function LayoutHeader() {
 
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18n.changeLanguage(code);
   }
 
   return (
@@ -701,18 +825,21 @@ const UI_VARIANTS: Record<string, Record<string, string>> = {
     'apps/client/src/routes/_dashboard.tsx': SHADCN_DASHBOARD_TSX,
     'apps/client/src/routes/index.tsx': SHADCN_INDEX_TSX,
     'apps/client/src/components/layout/LayoutHeader.tsx': SHADCN_LAYOUT_HEADER_TSX,
+    'apps/client/src/components/PageLayout.tsx': SHADCN_PAGE_LAYOUT_TSX,
   },
   antd: {
     'apps/client/src/main.tsx': ANTD_MAIN_TSX,
     'apps/client/src/routes/_dashboard.tsx': ANTD_DASHBOARD_TSX,
     'apps/client/src/routes/index.tsx': ANTD_INDEX_TSX,
     'apps/client/src/components/layout/LayoutHeader.tsx': ANTD_LAYOUT_HEADER_TSX,
+    'apps/client/src/components/PageLayout.tsx': ANTD_PAGE_LAYOUT_TSX,
   },
   mui: {
     'apps/client/src/main.tsx': MUI_MAIN_TSX,
     'apps/client/src/routes/_dashboard.tsx': MUI_DASHBOARD_TSX,
     'apps/client/src/routes/index.tsx': MUI_INDEX_TSX,
     'apps/client/src/components/layout/LayoutHeader.tsx': MUI_LAYOUT_HEADER_TSX,
+    'apps/client/src/components/PageLayout.tsx': MUI_PAGE_LAYOUT_TSX,
   },
 };
 

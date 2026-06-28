@@ -32,7 +32,7 @@ export function LayoutHeader() {
 
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18n.changeLanguage(code);
   }
 
   function handleMenuOpen(event: React.MouseEvent<HTMLElement>) {
