@@ -1,4 +1,9 @@
 import { defineConfig } from 'tsup';
+import { readFileSync } from 'node:fs';
+
+const { version: icoreVersion } = JSON.parse(readFileSync('./package.json', 'utf8')) as {
+  version: string;
+};
 
 // Two entries with different output contracts:
 //
@@ -19,6 +24,7 @@ export default defineConfig([
     dts: false,
     shims: true,
     splitting: false,
+    define: { ICORE_OWN_VERSION: JSON.stringify(icoreVersion) },
   },
   {
     entry: { index: 'src/index.ts' },

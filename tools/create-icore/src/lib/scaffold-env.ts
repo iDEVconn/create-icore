@@ -2,6 +2,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateIcoreOptions } from './options.js';
 
+// Injected at build time by tsup (see tsup.config.ts define block).
+declare const ICORE_OWN_VERSION: string;
+
 // Broker transport → the FOO_<TOKEN>_* env prefix used in the .env files.
 export const TRANSPORT_ENV_TOKEN: Record<string, string> = {
   redis: 'REDIS',
@@ -120,6 +123,8 @@ export async function rewriteRootPackageJson(
   const pkg = JSON.parse(raw) as Record<string, unknown>;
   pkg['name'] = opts.projectName;
   pkg['version'] = '0.0.1';
+  // Record which iCore scaffold version generated this project so the landing page can display it.
+  pkg['icoreVersion'] = typeof ICORE_OWN_VERSION !== 'undefined' ? ICORE_OWN_VERSION : 'unknown';
   pkg['private'] = true;
   delete (pkg as { description?: string }).description;
   // Add the chosen broker transport's driver dep(s) (see TRANSPORT_DEPS).
