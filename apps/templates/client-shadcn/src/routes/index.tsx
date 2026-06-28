@@ -4,12 +4,12 @@ import { LandingPage } from '@icore/template-shared';
 // All version strings are injected at build time by vite.config.mts
 // (reads root package.json via fs.readFileSync so they stay accurate
 // even when workspace packages are bumped independently).
-const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '0.0.0-dev';
+const ICORE_VERSION = (import.meta.env.VITE_ICORE_VERSION as string | undefined) ?? '0.0.0-dev';
 
 export const Route = createFileRoute('/')({
   component: () => (
     <LandingPage
-      coreVersion={APP_VERSION}
+      coreVersion={ICORE_VERSION}
       uiLibrary="shadcn"
       deps={[
         { name: 'react', version: (import.meta.env.VITE_DEP_REACT as string) ?? '?' },
