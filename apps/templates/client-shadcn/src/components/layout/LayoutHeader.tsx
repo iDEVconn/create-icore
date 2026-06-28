@@ -12,14 +12,14 @@ const LOCALES: { code: IcoreLocale; label: string }[] = [
 ];
 
 export function LayoutHeader() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
   function handleLocale(code: IcoreLocale) {
     setStoredLocale(code);
-    window.location.reload();
+    void i18n.changeLanguage(code);
   }
 
   function handleLogout() {
