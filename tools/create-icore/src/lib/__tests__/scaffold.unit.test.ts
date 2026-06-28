@@ -291,6 +291,19 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     );
     await mkdir(join(authDir, 'apps/client/src/components/auth'), { recursive: true });
     await writeFile(join(authDir, 'apps/client/src/components/auth/LoginForm.tsx'), '');
+    await writeFile(
+      join(authDir, 'apps/client/src/components/PageLayout.tsx'),
+      [
+        "import { Can, useDraft, useLoading } from '@icore/template-shared';",
+        "import type { AbilityAction, AbilitySubject } from '@icore/shared';",
+        "import { AccessDeniedPage } from './AccessDeniedPage';",
+        'export function PageLayout() { return null; }',
+      ].join('\n'),
+    );
+    await writeFile(
+      join(authDir, 'apps/client/src/components/AccessDeniedPage.tsx'),
+      'export function AccessDeniedPage() { return null; }',
+    );
     await mkdir(join(authDir, 'apps/client/src/routes/_dashboard'), { recursive: true });
     await writeFile(join(authDir, 'apps/client/src/routes/login.tsx'), '');
     await writeFile(join(authDir, 'apps/client/src/routes/auth.callback.tsx'), '');
@@ -548,6 +561,26 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     await removeAuthOnlyPaths(authDir);
     await expect(access(join(authDir, 'libs/shared/src/abilities'))).rejects.toThrow();
     await expect(access(join(authDir, 'libs/template-shared/src/lib/abilities'))).rejects.toThrow();
+  });
+
+  it('removeAuthOnlyPaths: removes AccessDeniedPage.tsx', async () => {
+    await removeAuthOnlyPaths(authDir);
+    await expect(
+      access(join(authDir, 'apps/client/src/components/AccessDeniedPage.tsx')),
+    ).rejects.toThrow();
+  });
+
+  it('applyAuthNoneVariants: writes PageLayout.tsx without CASL imports (shadcn)', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const src = await readFile(join(authDir, 'apps/client/src/components/PageLayout.tsx'), 'utf8');
+    expect(src).not.toContain('@icore/shared');
+    expect(src).not.toContain('AbilityAction');
+    expect(src).not.toContain('AbilitySubject');
+    expect(src).not.toContain('Can');
+    expect(src).not.toContain('AccessDeniedPage');
+    expect(src).toContain('useDraft');
+    expect(src).toContain('useLoading');
+    expect(src).toContain('PageLayout');
   });
 
   it('removeAuthOnlyPaths: strips @icore/auth-client and cookie-parser from api package.json', async () => {
