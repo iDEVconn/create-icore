@@ -27,6 +27,7 @@
       "@idevconn/create-icore": ["./tools/create-icore/src/index.ts"],
       "@icore/db-supabase": ["./libs/db-strategies/supabase/src/index.ts"],
       "@icore/db-firestore": ["./libs/db-strategies/firestore/src/index.ts"],
+      "@icore/db-postgres": ["./libs/db-strategies/postgres/src/index.ts"],
       "@icore/payment-client": ["./libs/payment-client/src/index.ts"],
       "@icore/notes-client": ["./libs/notes-client/src/index.ts"],
       "@icore/jobs-client": ["./libs/jobs-client/src/index.ts"],
