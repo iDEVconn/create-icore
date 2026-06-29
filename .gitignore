@@ -31,3 +31,6 @@ vite.config.*.timestamp*
 # Claude Code per-user
 .claude/worktrees
 .claude/settings.local.json
+
+# Playwright MCP
+.playwright-mcp/
