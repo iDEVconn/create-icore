@@ -179,6 +179,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
             { value: 'supabase', label: 'Supabase Postgres' },
             { value: 'firebase', label: 'Firestore' },
             { value: 'mongodb', label: 'MongoDB' },
+            { value: 'postgres', label: 'PostgreSQL (direct, postgres.js)' },
           ],
           initialValue: authProvider as DbProvider,
         })) as DbProvider));

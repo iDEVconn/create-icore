@@ -1,0 +1,19 @@
+{
+  "name": "db-postgres",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/db-strategies/postgres/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/db-strategies/postgres",
+        "main": "libs/db-strategies/postgres/src/index.ts",
+        "tsConfig": "libs/db-strategies/postgres/tsconfig.lib.json",
+        "assets": ["libs/db-strategies/postgres/*.md"]
+      }
+    }
+  }
+}

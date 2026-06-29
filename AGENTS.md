@@ -173,6 +173,25 @@ JWT_SECRET=your-secret
 3. Storage uses GridFS. No additional setup required beyond the connection string.
 4. Auth is a custom implementation storing users and sessions in MongoDB collections.
 
+### PostgreSQL (db only)
+
+**Env vars:**
+
+```
+DB_PROVIDER=postgres
+POSTGRES_URL=postgresql://user:pass@host:5432/dbname
+```
+
+**Setup:**
+
+1. Any PostgreSQL >= 14 instance works: Docker, Neon, Railway, AWS RDS, self-hosted.
+2. No schema setup required — tables auto-created on first write per collection.
+3. GIN index on `data` JSONB column created automatically per collection.
+
+**Schema:** Each collection maps to one table: `id TEXT PRIMARY KEY, data JSONB NOT NULL`.
+
+**Note:** `POSTGRES_URL` must include credentials. For SSL, append `?sslmode=require` to the URL.
+
 ### Cloudinary (storage only)
 
 **Env vars:**
