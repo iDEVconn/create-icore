@@ -1,5 +1,15 @@
 # @idevconn/create-icore
 
+## 0.11.0
+
+### Minor Changes
+
+- e2882fb: Add PostgreSQL direct DB strategy (`--db=postgres`) using postgres.js with JSONB document storage and auto-created GIN indexes.
+
+### Patch Changes
+
+- d6fc6f5: Use environment variable substitution for postgres credentials in docker-compose
+
 ## 0.10.2
 
 ### Patch Changes
