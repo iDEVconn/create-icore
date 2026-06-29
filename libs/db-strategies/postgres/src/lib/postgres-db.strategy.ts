@@ -34,6 +34,7 @@ export class PostgresDBStrategy implements DBStrategy {
       ON ${this.sql(collection)} USING GIN (data)
     `;
     this.initialized.add(collection);
+    this.initializing.delete(collection);
   }
 
   async get<T>(collection: string, id: string): Promise<DBDocument<T> | null> {
