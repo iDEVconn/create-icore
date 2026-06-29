@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: icore
-      POSTGRES_PASSWORD: icore
-      POSTGRES_DB: icore
+      POSTGRES_USER: ${POSTGRES_USER:-icore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-icore}
+      POSTGRES_DB: ${POSTGRES_DB:-icore}
     ports:
       - '5432:5432'
     healthcheck:
