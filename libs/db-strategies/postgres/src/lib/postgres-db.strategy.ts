@@ -3,6 +3,7 @@ import type { DBDocument, DBStrategy, QueryOptions } from '@icore/shared';
 
 export class PostgresDBStrategy implements DBStrategy {
   private readonly sql: postgres.Sql;
+  private readonly initializing = new Map<string, Promise<void>>();
   private readonly initialized = new Set<string>();
 
   constructor(url: string) {
@@ -11,6 +12,14 @@ export class PostgresDBStrategy implements DBStrategy {
 
   private async ensureTable(collection: string): Promise<void> {
     if (this.initialized.has(collection)) return;
+    const inflight = this.initializing.get(collection);
+    if (inflight) return inflight;
+    const promise = this._createTable(collection);
+    this.initializing.set(collection, promise);
+    return promise;
+  }
+
+  private async _createTable(collection: string): Promise<void> {
     await this.sql`
       CREATE TABLE IF NOT EXISTS ${this.sql(collection)} (
         id   TEXT PRIMARY KEY,
