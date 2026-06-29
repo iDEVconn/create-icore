@@ -3072,6 +3072,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/db-postgres@workspace:libs/db-strategies/postgres":
+  version: 0.0.0-use.local
+  resolution: "@icore/db-postgres@workspace:libs/db-strategies/postgres"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.27"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.1.27"
+    postgres: "npm:^3.4.5"
+    tslib: "npm:^2.8.1"
+    vitest: "npm:^4.1.9"
+  languageName: unknown
+  linkType: soft
+
 "@icore/db-supabase@npm:*, @icore/db-supabase@workspace:libs/db-strategies/supabase":
   version: 0.0.0-use.local
   resolution: "@icore/db-supabase@workspace:libs/db-strategies/supabase"
@@ -15962,6 +15976,7 @@ __metadata:
     mqtt: "npm:^5.15.1"
     nats: "npm:^2.29.3"
     nx: "npm:22.7.6"
+    postgres: "npm:^3"
     prettier: "npm:~3.8.4"
     react: "npm:^19.2.7"
     react-dom: "npm:^19.2.7"
@@ -20566,6 +20581,13 @@ __metadata:
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
   checksum: 10c0/7f2e63ae22fbe43aace1bf652bd99da4e90737c64194d49e51ddc9cd0f9e51ff2861a7d734379b494deffa03a880a5c65eec70bc29ee9ebaa7136dde3eee8f31
+  languageName: node
+  linkType: hard
+
+"postgres@npm:^3, postgres@npm:^3.4.5":
+  version: 3.4.9
+  resolution: "postgres@npm:3.4.9"
+  checksum: 10c0/b767dd2258df0f6523ce1ec0bce0a87e93c6fb961c97be0059f8ea2bc4c57c6057689258361a0988f0bb61d636483d35f0c591620566218f7083c78ab7955862
   languageName: node
   linkType: hard
 

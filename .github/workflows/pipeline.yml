@@ -141,6 +141,8 @@ jobs:
             flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp
           - name: mongodb-mixed
             flags: --auth=mongodb --db=firebase --upload=cloudinary --payment=none --jobs=none --example=notes --transport=redis
+          - name: postgres-direct
+            flags: --auth=supabase --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
     steps:
       - uses: actions/checkout@v5
         with:
