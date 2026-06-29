@@ -22,6 +22,8 @@ async function fixture(): Promise<string> {
       dependencies: {
         '@icore/db-supabase': '*',
         '@icore/db-firestore': '*',
+        '@icore/db-mongodb': '*',
+        '@icore/db-postgres': '*',
         '@supabase/supabase-js': '^2.106.2',
       },
     }),
@@ -88,6 +90,7 @@ describe('cleanupUnusedDb', () => {
     );
     expect(pkg.dependencies['@icore/db-firestore']).toBe('*');
     expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
     expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js'); // supabase raw dep stripped
 
     const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));

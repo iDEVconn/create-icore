@@ -12,11 +12,14 @@ export class PostgresDBStrategy implements DBStrategy {
 
   private async ensureTable(collection: string): Promise<void> {
     if (this.initialized.has(collection)) return;
-    const inflight = this.initializing.get(collection);
+    let inflight = this.initializing.get(collection);
     if (inflight) return inflight;
-    const promise = this._createTable(collection);
-    this.initializing.set(collection, promise);
-    return promise;
+    inflight = this._createTable(collection).catch((err) => {
+      this.initializing.delete(collection);
+      throw err;
+    });
+    this.initializing.set(collection, inflight);
+    return inflight;
   }
 
   private async _createTable(collection: string): Promise<void> {
@@ -53,20 +56,22 @@ export class PostgresDBStrategy implements DBStrategy {
   }
 
   async update<T>(collection: string, id: string, patch: Partial<T>): Promise<void> {
-    const existing = await this.get<T>(collection, id);
-    if (!existing) throw new Error(`not_found: ${collection}/${id}`);
-    const merged = { ...(existing.data as object), ...(patch as object) };
-    await this.sql`
+    await this.ensureTable(collection);
+    const rows = await this.sql`
       UPDATE ${this.sql(collection)}
-      SET data = ${this.sql.json(merged as unknown as postgres.JSONValue)}
+      SET data = data || ${this.sql.json(patch as postgres.JSONValue)}
       WHERE id = ${id}
+      RETURNING id
     `;
+    if (rows.count === 0) throw new Error(`not_found: ${collection}/${id}`);
   }
 
   async delete(collection: string, id: string): Promise<void> {
-    const existing = await this.get(collection, id);
-    if (!existing) throw new Error(`not_found: ${collection}/${id}`);
-    await this.sql`DELETE FROM ${this.sql(collection)} WHERE id = ${id}`;
+    await this.ensureTable(collection);
+    const rows = await this.sql`
+      DELETE FROM ${this.sql(collection)} WHERE id = ${id} RETURNING id
+    `;
+    if (rows.count === 0) throw new Error(`not_found: ${collection}/${id}`);
   }
 
   async list<T>(collection: string, opts?: QueryOptions): Promise<DBDocument<T>[]> {
