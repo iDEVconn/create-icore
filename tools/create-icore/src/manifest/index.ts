@@ -98,6 +98,16 @@ export const MANIFEST = {
       tsPaths: { '@icore/db-mongodb': ['libs/db-strategies/mongodb/src/index.ts'] },
       nestModule: { importFrom: '@icore/db-mongodb', symbol: 'MongoDbDbModule', into: 'notes' },
     },
+    postgres: {
+      libDirs: ['libs/db-strategies/postgres'],
+      deps: { postgres: '^3' },
+      tsPaths: { '@icore/db-postgres': ['libs/db-strategies/postgres/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/db-postgres',
+        symbol: 'PostgresDbModule',
+        into: 'notes',
+      },
+    },
   },
   feature: {
     notes: {
