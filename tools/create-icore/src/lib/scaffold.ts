@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { CreateIcoreOptions, AuthBackend } from './options.js';
+import { validateOptions } from './options.js';
 import {
   rewriteRootPackageJson,
   pruneRootProviderDeps,
@@ -176,14 +177,8 @@ function runInstall(cwd: string, pm: string): void {
 }
 
 export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string): Promise<void> {
-  // Mirror the collectOptions cascade: notes requires auth, CASL, and abilities.
-  // Silently downgrade example to none when auth is disabled so the scaffold is
-  // safe to call directly (e.g. smoke scripts, tests) without going through
-  // collectOptions first.
-  const opts: CreateIcoreOptions =
-    rawOpts.authProvider === 'none' && rawOpts.example !== 'none'
-      ? { ...rawOpts, example: 'none' }
-      : rawOpts;
+  const { warnings, corrected: opts } = validateOptions(rawOpts);
+  for (const w of warnings) process.stderr.write(`Warning: ${w}\n`);
 
   await copyTree(templatesDir, opts.targetDir);
   await rewriteRootPackageJson(opts.targetDir, opts);
