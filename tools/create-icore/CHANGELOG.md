@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.12.0
+
+### Minor Changes
+
+- 3289ca0: Add PostgreSQL auth strategy (@icore/auth-postgres): bcrypt + JWT, users and sessions stored in auto-created \_icore_users / \_icore_sessions tables, selectable via --auth=postgres
+
 ## 0.11.0
 
 ### Minor Changes
