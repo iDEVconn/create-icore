@@ -35,7 +35,8 @@
       "@icore/firebase-admin": ["./libs/firebase-admin/src/index.ts"],
       "@icore/db-mongodb": ["./libs/db-strategies/mongodb/src/index.ts"],
       "@icore/storage-mongodb": ["./libs/storage-strategies/mongodb/src/index.ts"],
-      "@icore/auth-mongodb": ["./libs/auth-strategies/mongodb/src/index.ts"]
+      "@icore/auth-mongodb": ["./libs/auth-strategies/mongodb/src/index.ts"],
+      "@icore/auth-postgres": ["./libs/auth-strategies/postgres/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".nx", "tools/create-icore/templates"]

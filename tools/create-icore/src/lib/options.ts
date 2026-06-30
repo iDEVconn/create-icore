@@ -1,4 +1,4 @@
-export type AuthBackend = 'supabase' | 'firebase' | 'mongodb';
+export type AuthBackend = 'supabase' | 'firebase' | 'mongodb' | 'postgres';
 export type AuthProvider = AuthBackend | 'none';
 export type DbProvider = 'supabase' | 'firebase' | 'mongodb' | 'postgres' | 'none';
 export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'mongodb' | 'none';

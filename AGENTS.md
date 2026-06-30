@@ -173,24 +173,42 @@ JWT_SECRET=your-secret
 3. Storage uses GridFS. No additional setup required beyond the connection string.
 4. Auth is a custom implementation storing users and sessions in MongoDB collections.
 
-### PostgreSQL (db only)
+### PostgreSQL (db + auth)
 
-**Env vars:**
+**Env vars (db strategy):**
 
 ```
 DB_PROVIDER=postgres
 POSTGRES_URL=postgresql://user:pass@host:5432/dbname
 ```
 
+**Env vars (auth strategy):**
+
+```
+AUTH_PROVIDER=postgres
+POSTGRES_URL=postgresql://user:pass@host:5432/dbname
+JWT_SECRET=your-secret
+JWT_EXPIRES_IN=15m # optional, default 15m
+JWT_REFRESH_EXPIRES_IN=7d # optional, default 7d
+```
+
 **Setup:**
 
-1. Any PostgreSQL >= 14 instance works: Docker, Neon, Railway, AWS RDS, self-hosted.
-2. No schema setup required — tables auto-created on first write per collection.
-3. GIN index on `data` JSONB column created automatically per collection.
+1. Any PostgreSQL >= 14 instance works: Docker (`docker-compose up postgres`), Neon, Railway, AWS RDS, self-hosted.
+2. No schema setup required — tables auto-created on first write per collection (db) or first auth call (auth).
+3. Auth tables: `_icore_users`, `_icore_sessions` (prefixed to avoid conflict with your schema).
+4. `last_logged_in` column on `_icore_users` updated on every `signIn` and `refresh`.
 
-**Schema:** Each collection maps to one table: `id TEXT PRIMARY KEY, data JSONB NOT NULL`.
+**Schema (db):** Each collection maps to one table: `id TEXT PRIMARY KEY, data JSONB NOT NULL`.
 
-**Note:** `POSTGRES_URL` must include credentials. For SSL, append `?sslmode=require` to the URL.
+**Schema (auth):**
+
+```sql
+_icore_users  (id, email, password_hash, role, last_logged_in, created_at)
+_icore_sessions (id, user_id, refresh_token, expires_at)
+```
+
+**Note:** `POSTGRES_URL` must include credentials. For SSL, append `?sslmode=require` to the URL. Both `--auth=postgres` and `--db=postgres` use the same `POSTGRES_URL` — single instance covers both.
 
 ### Cloudinary (storage only)
 

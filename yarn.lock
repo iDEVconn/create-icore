@@ -3029,6 +3029,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/auth-postgres@workspace:libs/auth-strategies/postgres":
+  version: 0.0.0-use.local
+  resolution: "@icore/auth-postgres@workspace:libs/auth-strategies/postgres"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.1.27"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.1.27"
+    "@types/bcrypt": "npm:^6.0.0"
+    "@types/jsonwebtoken": "npm:^9.0.10"
+    bcrypt: "npm:^6.0.0"
+    jsonwebtoken: "npm:^9.0.3"
+    postgres: "npm:^3.4.5"
+    tslib: "npm:^2.8.1"
+    vitest: "npm:^4.1.9"
+  languageName: unknown
+  linkType: soft
+
 "@icore/auth-supabase@npm:*, @icore/auth-supabase@workspace:libs/auth-strategies/supabase":
   version: 0.0.0-use.local
   resolution: "@icore/auth-supabase@workspace:libs/auth-strategies/supabase"
