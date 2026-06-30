@@ -164,6 +164,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'supabase', label: 'Supabase' },
         { value: 'firebase', label: 'Firebase' },
         { value: 'mongodb', label: 'MongoDB (Custom Auth)' },
+        { value: 'postgres', label: 'PostgreSQL (direct, postgres.js + bcrypt + JWT)' },
         { value: 'none', label: 'None — no login, open API (simple SPA)' },
       ],
     })) as AuthProvider);
