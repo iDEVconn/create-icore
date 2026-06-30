@@ -37,4 +37,13 @@ describe('PostgresAuthModule', () => {
     }).compile();
     expect(ref.get('AuthStrategy')).toBeInstanceOf(PostgresAuthStrategy);
   });
+
+  it('provides FakeAuthStrategy when JWT_SECRET is missing', async () => {
+    ENV = { POSTGRES_URL: 'postgresql://user:pass@localhost:5432/test' };
+    const ref = await Test.createTestingModule({
+      imports: [StubConfigModule, PostgresAuthModule.forRoot('.env')],
+    }).compile();
+    const strategy = ref.get('AuthStrategy');
+    expect(strategy).not.toBeInstanceOf(PostgresAuthStrategy);
+  });
 });

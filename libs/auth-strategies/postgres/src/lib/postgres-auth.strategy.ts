@@ -35,14 +35,20 @@ function parseDurationMs(s: string): number {
 
 export class PostgresAuthStrategy implements AuthStrategy {
   private readonly sql: postgres.Sql;
-  private tablesReady = false;
+  private tablesReadyPromise: Promise<void> | null = null;
 
   constructor(private readonly opts: PostgresAuthStrategyOptions) {
     this.sql = postgres(opts.url);
   }
 
-  private async ensureTables(): Promise<void> {
-    if (this.tablesReady) return;
+  private ensureTables(): Promise<void> {
+    if (!this.tablesReadyPromise) {
+      this.tablesReadyPromise = this._createTables();
+    }
+    return this.tablesReadyPromise;
+  }
+
+  private async _createTables(): Promise<void> {
     await this.sql`
       CREATE TABLE IF NOT EXISTS _icore_users (
         id             TEXT PRIMARY KEY,
@@ -61,7 +67,6 @@ export class PostgresAuthStrategy implements AuthStrategy {
         expires_at     TIMESTAMPTZ NOT NULL
       )
     `;
-    this.tablesReady = true;
   }
 
   async verifyToken(token: string): Promise<VerifiedToken> {
@@ -96,15 +101,23 @@ export class PostgresAuthStrategy implements AuthStrategy {
 
   async signUp(email: string, password: string): Promise<AuthSession> {
     await this.ensureTables();
-    const existing = await this.sql`
-      SELECT id FROM _icore_users WHERE email = ${email}
-    `;
-    if (existing.count > 0) throw new Error('user_already_exists');
     const id = randomUUID();
     const passwordHash = await bcrypt.hash(password, 10);
-    await this.sql`
-      INSERT INTO _icore_users (id, email, password_hash) VALUES (${id}, ${email}, ${passwordHash})
-    `;
+    try {
+      await this.sql`
+        INSERT INTO _icore_users (id, email, password_hash) VALUES (${id}, ${email}, ${passwordHash})
+      `;
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        (err as { code: string }).code === '23505'
+      ) {
+        throw new Error('user_already_exists');
+      }
+      throw err;
+    }
     return this.createSession({ id, email });
   }
 
