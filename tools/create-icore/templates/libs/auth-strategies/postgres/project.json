@@ -1,0 +1,19 @@
+{
+  "name": "auth-postgres",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/auth-strategies/postgres/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/auth-strategies/postgres",
+        "main": "libs/auth-strategies/postgres/src/index.ts",
+        "tsConfig": "libs/auth-strategies/postgres/tsconfig.lib.json",
+        "assets": ["libs/auth-strategies/postgres/*.md"]
+      }
+    }
+  }
+}

@@ -36,6 +36,16 @@ export const MANIFEST = {
       tsPaths: { '@icore/auth-mongodb': ['libs/auth-strategies/mongodb/src/index.ts'] },
       nestModule: { importFrom: '@icore/auth-mongodb', symbol: 'MongoDbAuthModule', into: 'auth' },
     },
+    postgres: {
+      libDirs: ['libs/auth-strategies/postgres'],
+      deps: { postgres: '^3', bcrypt: '^6', jsonwebtoken: '^9' },
+      tsPaths: { '@icore/auth-postgres': ['libs/auth-strategies/postgres/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/auth-postgres',
+        symbol: 'PostgresAuthModule',
+        into: 'auth',
+      },
+    },
   },
   storage: {
     supabase: {

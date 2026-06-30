@@ -22,7 +22,7 @@ async function fixture(): Promise<string> {
     );
   }
   // lib dirs
-  for (const p of ['supabase', 'firebase', 'mongodb']) {
+  for (const p of ['supabase', 'firebase', 'mongodb', 'postgres']) {
     await mkdir(join(dir, `libs/auth-strategies/${p}/src`), { recursive: true });
     await writeFile(join(dir, `libs/auth-strategies/${p}/src/index.ts`), 'export {};');
   }
@@ -35,7 +35,11 @@ async function fixture(): Promise<string> {
         '@icore/auth-supabase': '*',
         '@icore/auth-firebase': '*',
         '@icore/auth-mongodb': '*',
+        '@icore/auth-postgres': '*',
         '@supabase/supabase-js': '^2.106.2',
+        postgres: '^3',
+        bcrypt: '^6',
+        jsonwebtoken: '^9',
       },
     }),
   );
@@ -47,6 +51,7 @@ async function fixture(): Promise<string> {
           '@icore/auth-supabase': ['libs/auth-strategies/supabase/src/index.ts'],
           '@icore/auth-firebase': ['libs/auth-strategies/firebase/src/index.ts'],
           '@icore/auth-mongodb': ['libs/auth-strategies/mongodb/src/index.ts'],
+          '@icore/auth-postgres': ['libs/auth-strategies/postgres/src/index.ts'],
         },
       },
     }),
@@ -71,6 +76,18 @@ describe('writeAuthProvider', () => {
     expect(src).toContain('FirebaseAuthModule.forRoot');
     expect(src).not.toContain('SupabaseAuthModule');
   });
+
+  it('writes auth.provider.ts wiring the postgres provider module', async () => {
+    const dir = await fixture();
+    await writeAuthProvider(dir, 'postgres');
+    const src = await readFile(
+      join(dir, 'apps/microservices/auth/src/app/auth.provider.ts'),
+      'utf8',
+    );
+    expect(src).toContain("from '@icore/auth-postgres'");
+    expect(src).toContain('PostgresAuthModule.forRoot');
+    expect(src).not.toContain('SupabaseAuthModule');
+  });
 });
 
 describe('cleanupUnusedAuth', () => {
@@ -81,6 +98,8 @@ describe('cleanupUnusedAuth', () => {
     // unchosen libs gone, chosen kept
     expect(await exists(join(dir, 'libs/auth-strategies/firebase'))).toBe(false);
     expect(await exists(join(dir, 'libs/auth-strategies/mongodb'))).toBe(false);
+    // postgres also removed when supabase chosen
+    expect(await exists(join(dir, 'libs/auth-strategies/postgres'))).toBe(false);
     expect(await exists(join(dir, 'libs/auth-strategies/supabase'))).toBe(true);
 
     // firebase controller test removed; supabase kept
