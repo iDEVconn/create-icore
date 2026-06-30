@@ -42,7 +42,7 @@ fi
 
 echo_print "✅ Files staged: $FILES_CHANGED" "\033[32m"
 
-check_command "npx lint-staged --concurrent false --relative" \
+check_command "npx lint-staged --concurrent false --relative --config package.json" \
   "lint-staged passed." \
   "lint-staged failed. Fix the issues before committing."
 
