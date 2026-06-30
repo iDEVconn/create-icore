@@ -21,8 +21,8 @@ export interface PostgresAuthStrategyOptions {
 function parseDurationSeconds(s: string): number {
   const m = /^(\d+)(s|m|h|d)$/.exec(s);
   if (!m) return 900;
-  const n = parseInt(m[1]!, 10);
-  const unit = m[2]!;
+  const n = parseInt(m[1] as string, 10);
+  const unit = m[2] as string;
   if (unit === 's') return n;
   if (unit === 'm') return n * 60;
   if (unit === 'h') return n * 3600;
@@ -114,7 +114,7 @@ export class PostgresAuthStrategy implements AuthStrategy {
         'code' in err &&
         (err as { code: string }).code === '23505'
       ) {
-        throw new Error('user_already_exists');
+        throw new Error('user_already_exists', { cause: err });
       }
       throw err;
     }
