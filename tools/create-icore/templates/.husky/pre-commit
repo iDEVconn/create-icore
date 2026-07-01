@@ -42,15 +42,15 @@ fi
 
 echo_print "✅ Files staged: $FILES_CHANGED" "\033[32m"
 
-check_command "yarn lint-staged --concurrent false --relative --config package.json" \
+check_command "npx lint-staged --concurrent false --relative --config package.json" \
   "lint-staged passed." \
   "lint-staged failed. Fix the issues before committing."
 
 if [ -d libs ] || [ -d apps ]; then
-  check_command "yarn nx affected -t lint" \
+  check_command "npx nx affected -t lint" \
     "nx affected lint passed." \
     "nx affected lint failed."
-  check_command "yarn nx affected -t test" \
+  check_command "npx nx affected -t test" \
     "nx affected tests passed." \
     "nx affected tests failed."
 fi
