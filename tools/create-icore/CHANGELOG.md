@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.12.1
+
+### Patch Changes
+
+- a7bf43e: Fix webpack-cli --node-env flag (removed in v7), use env object instead; fix husky hooks to use npx for PM-agnostic execution; fix lint-staged --config package.json to avoid picking up node_modules linter configs
+
 ## 0.12.0
 
 ### Minor Changes
