@@ -34,3 +34,5 @@ vite.config.*.timestamp*
 
 # Playwright MCP
 .playwright-mcp/
+
+.nx/migrate-runs

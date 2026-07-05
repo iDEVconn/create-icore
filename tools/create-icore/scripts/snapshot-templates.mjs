@@ -26,7 +26,6 @@ const PATHS_TO_COPY = [
   '.yarnrc.yml',
   '.yarn/releases',
   'eslint.config.mjs',
-  '.husky/pre-commit',
   'Dockerfile.gateway',
   'Dockerfile.ms-auth',
   'Dockerfile.ms-upload',
@@ -37,7 +36,10 @@ const PATHS_TO_COPY = [
   'tools/remove-notes.mjs',
 ];
 
-const SHELL_OVERRIDES = ['package.json'];
+// Files where the repo's own root version must NOT be copied verbatim,
+// because the generated project needs a different (PM-agnostic, or
+// otherwise scaffold-specific) version. Copied LAST so they win.
+const SHELL_OVERRIDES = ['package.json', '.husky/pre-commit'];
 
 const IGNORE_REL = new Set([
   'node_modules',
@@ -68,11 +70,11 @@ async function main() {
     });
   }
 
-  // shell-level overrides — a curated package.json that strips devDeps and
-  // tools-specific scripts; copied LAST so it wins.
+  // shell-level overrides (see SHELL_OVERRIDES above for why each one exists).
   for (const f of SHELL_OVERRIDES) {
     const shell = resolve(here, '..', '_template-shell', f);
     const dest = resolve(out, f);
+    await mkdir(dirname(dest), { recursive: true });
     await cp(shell, dest);
   }
 

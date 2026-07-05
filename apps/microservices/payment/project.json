@@ -9,12 +9,12 @@
       "outputs": ["{workspaceRoot}/dist/apps/microservices/payment"],
       "options": {
         "command": "webpack-cli build",
-        "args": ["--node-env=production"],
+        "env": { "NODE_ENV": "production" },
         "cwd": "apps/microservices/payment"
       },
       "configurations": {
         "development": {
-          "args": ["--node-env=development"]
+          "env": { "NODE_ENV": "development" }
         }
       }
     },
