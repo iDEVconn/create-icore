@@ -11791,6 +11791,7 @@ __metadata:
     sonner: "npm:^2.0.7"
     tailwind-merge: "npm:^3.6.0"
     tailwindcss: "npm:^4.3.1"
+    tw-animate-css: "npm:^1.4.0"
   languageName: unknown
   linkType: soft
 
@@ -23522,6 +23523,13 @@ __metadata:
   dependencies:
     tslib: "npm:^1.9.3"
   checksum: 10c0/918594b4dfac97beb8be2c041c6ec45f078ef3768ed4edfe35ae2c709ab503e2e6b454b2b37e692c658572d1972a428fbfdbc0a2b42fee727a83c1c685fbe5e1
+  languageName: node
+  linkType: hard
+
+"tw-animate-css@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "tw-animate-css@npm:1.4.0"
+  checksum: 10c0/6cfbc19ccc73883ec80ef1f9147f43e736cb01ee99c8172968b37eb81b720523d30e38b1a96aef92db3c586d864204db5510b51744ddacbbf0ad8e3c7fb56ec7
   languageName: node
   linkType: hard
 
