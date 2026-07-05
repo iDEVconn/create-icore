@@ -221,6 +221,10 @@ export async function writeAuthEnv(targetDir: string, opts: CreateIcoreOptions):
     next +=
       '\nMONGODB_URI=mongodb://localhost:27017/icore-auth\nJWT_SECRET=change-me-in-production\n';
   }
+  if (opts.authProvider === 'postgres') {
+    next +=
+      '\nPOSTGRES_URL=postgresql://user:pass@localhost:5432/icore\nJWT_SECRET=change-me-in-production\n';
+  }
   await writeFile(join(targetDir, 'apps/microservices/auth/.env'), next);
 }
 
@@ -280,6 +284,10 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   ];
   if (opts.dbProvider === 'mongodb') {
     lines.push(`MONGODB_URI=mongodb://localhost:27017/icore-data`);
+    lines.push(``);
+  }
+  if (opts.dbProvider === 'postgres') {
+    lines.push(`POSTGRES_URL=postgresql://user:pass@localhost:5432/icore`);
     lines.push(``);
   }
   await writeFile(join(targetDir, '.env'), lines.join('\n'));

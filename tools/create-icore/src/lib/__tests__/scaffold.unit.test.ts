@@ -137,6 +137,13 @@ describe('writeRootEnv', () => {
     const env = await readFile(join(dir, '.env'), 'utf8');
     expect(env).toContain('DB_PROVIDER=supabase');
   });
+
+  it('appends POSTGRES_URL to .env when dbProvider=postgres', async () => {
+    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'postgres' });
+    const env = await readFile(join(dir, '.env'), 'utf8');
+    expect(env).toContain('DB_PROVIDER=postgres');
+    expect(env).toContain('POSTGRES_URL=postgresql://user:pass@localhost:5432/icore');
+  });
 });
 
 describe('removeUploadStack', () => {
@@ -1100,6 +1107,19 @@ describe('writeAuthEnv — broker transport env', () => {
     const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
     expect(env).not.toContain('MONGODB_URI');
     expect(env).not.toContain('JWT_SECRET');
+  });
+
+  it('appends POSTGRES_URL and JWT_SECRET when authProvider=postgres', async () => {
+    await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'postgres' });
+    const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+    expect(env).toContain('POSTGRES_URL=postgresql://user:pass@localhost:5432/icore');
+    expect(env).toContain('JWT_SECRET=change-me-in-production');
+  });
+
+  it('does not append POSTGRES_URL when authProvider is not postgres', async () => {
+    await writeAuthEnv(dir, { ...baseOpts, targetDir: dir, authProvider: 'supabase' });
+    const env = await readFile(join(dir, 'apps/microservices/auth/.env'), 'utf8');
+    expect(env).not.toContain('POSTGRES_URL');
   });
 });
 
