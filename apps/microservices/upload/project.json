@@ -9,12 +9,12 @@
       "outputs": ["{workspaceRoot}/dist/apps/microservices/upload"],
       "options": {
         "command": "webpack-cli build",
-        "args": ["--node-env=production"],
+        "env": { "NODE_ENV": "production" },
         "cwd": "apps/microservices/upload"
       },
       "configurations": {
         "development": {
-          "args": ["--node-env=development"]
+          "env": { "NODE_ENV": "development" }
         }
       }
     },
