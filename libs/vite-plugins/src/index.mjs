@@ -149,7 +149,7 @@ export function apiInfoPlugin(opts = {}) {
               `Gateway must be running on ${target}.`,
               `Override with VITE_API_URL in the client .env.`,
             ];
-        server.config.logger.info(box([`ℹ  iCore client API wiring`, '', ...lines]));
+        server.config.logger.info(box([`iCore client API wiring`, '', ...lines]));
       });
     },
   };
