@@ -1,5 +1,12 @@
 # @idevconn/create-icore
 
+## 0.12.2
+
+### Patch Changes
+
+- 3840e61: Bump nx to 23.0.1, fix webpack-cli 7 --node-env removal in auth/notes/payment/jobs/upload, generate POSTGRES_URL/JWT_SECRET for postgres auth/db provider, ship components.json and wire up dialog/dropdown-menu in the shadcn client template.
+- e971374: Fix snapshot-templates.mjs silently reverting the PM-agnostic (npx) husky pre-commit hook back to the repo's own yarn-based one on every build.
+
 ## 0.12.1
 
 ### Patch Changes
