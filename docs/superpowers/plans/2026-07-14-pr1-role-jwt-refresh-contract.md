@@ -16,18 +16,18 @@
 - `nx lint <project>` must be 0 errors and `nx build <project>` must be green before commit, per the post-coding routine.
 - Every PR needs a `.changeset/<slug>.md` — `patch` bump, frontmatter `--- "@idevconn/create-icore": patch ---`.
 - Branch: `bug/postgres-role-jwt-refresh-contract` cut from `dev`. PR base is `dev` (`gh pr create --base dev ...`). Never push to `main`, never merge autonomously.
-- Files touched here live under `tools/create-icore/templates/...` — these are the generator's source templates, not a scaffolded project. They are also live, testable Nx projects in this repo (confirmed: `apps/microservices/auth` → project `auth`; `libs/template-shared` → project `template-shared`).
+- Files touched here live at the repo root under `apps/`/`libs/` — these ARE the generator's source of truth (not a scaffolded output). `tools/create-icore/templates/` is a gitignored build artifact produced from these paths by `tools/create-icore/scripts/snapshot-templates.mjs` at package/publish time — never edit it directly, and no manual sync step is needed after editing the real source. Both touched paths are live, testable Nx projects in this repo (confirmed: `apps/microservices/auth` → project `auth`; `libs/template-shared` → project `template-shared`).
 
 ---
 
 ### Task 1: Auth MS re-mints the session after role assignment
 
 **Files:**
-- Modify: `tools/create-icore/templates/apps/microservices/auth/src/app/auth.controller.ts:31-36,53-58,67-78`
-- Create: `tools/create-icore/templates/apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts`
+- Modify: `apps/microservices/auth/src/app/auth.controller.ts:31-36,53-58,67-78`
+- Create: `apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts`
 
 **Interfaces:**
-- Consumes: `AuthStrategy.refresh(refreshToken: string): Promise<AuthSession>` (already exists on the interface, `tools/create-icore/templates/libs/shared/src/strategies/auth.ts:30`).
+- Consumes: `AuthStrategy.refresh(refreshToken: string): Promise<AuthSession>` (already exists on the interface, `libs/shared/src/strategies/auth.ts:30`).
 - Produces: no new public signatures — `signup`, `verifyMagicLink`, `completeOAuth` keep their existing return types (`Promise<AuthSession>`).
 
 **Root cause:** `PostgresAuthStrategy.signUp()` returns a session built from `{ id, email }` with no role (`postgres-auth.strategy.ts:121`) — the role doesn't exist yet at that point. `AuthController.signup()` then calls `assignInitialRole()` to set the role in Postgres, but returns the *original* pre-assignment session. Since `createSession()` bakes `role` into the JWT at sign time (`postgres-auth.strategy.ts:187-191`), the very first access token a new user receives has no role claim — any role-gated check against that token (client-side route guard, `@CheckAbility` on the gateway) fails until the user's next login or token refresh. The same pattern repeats in `verifyMagicLink` and `completeOAuth` (both call `assignInitialRole` then return the pre-assignment `session`).
@@ -37,7 +37,7 @@
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-// tools/create-icore/templates/apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts
+// apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts
 import { describe, expect, it } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { createMockPostgresAuth } from '@icore/auth-postgres';
@@ -79,7 +79,7 @@ Expected: FAIL — first test's `verified.role` is `undefined`, not `'admin'`.
 - [ ] **Step 3: Fix the three call sites in the MS controller**
 
 ```typescript
-// tools/create-icore/templates/apps/microservices/auth/src/app/auth.controller.ts
+// apps/microservices/auth/src/app/auth.controller.ts
 // Replace the signup handler:
   @MessagePattern('auth.signup')
   async signup(@Payload() payload: { email: string; password: string }): Promise<AuthSession> {
@@ -127,9 +127,9 @@ Expected: PASS — `auth.controller.unit.test.ts` and `auth.controller.supabase.
 - [ ] **Step 6: Commit**
 
 ```bash
-npx prettier --write tools/create-icore/templates/apps/microservices/auth/src/app/auth.controller.ts tools/create-icore/templates/apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts
+npx prettier --write apps/microservices/auth/src/app/auth.controller.ts apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts
 npx nx lint auth
-git add tools/create-icore/templates/apps/microservices/auth/src/app/auth.controller.ts tools/create-icore/templates/apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts
+git add apps/microservices/auth/src/app/auth.controller.ts apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts
 git commit -m "fix(auth): re-mint session after role assignment so the first JWT carries the role"
 ```
 
@@ -138,8 +138,8 @@ git commit -m "fix(auth): re-mint session after role assignment so the first JWT
 ### Task 2: Client API layer matches the gateway's camelCase refresh contract
 
 **Files:**
-- Modify: `tools/create-icore/templates/libs/template-shared/src/lib/api/create-api.ts`
-- Create: `tools/create-icore/templates/libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts`
+- Modify: `libs/template-shared/src/lib/api/create-api.ts`
+- Create: `libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts`
 
 **Interfaces:**
 - Consumes: `createApiClient(config: ApiClientConfig)` from `@idevconn/api-client` — `refreshRequestField`, `accessTokenField`, `refreshTokenField` are optional config fields whose defaults are `refresh_token` / `access_token` / `refresh_token` (verified in `node_modules/@idevconn/api-client/dist/index.d.ts:34-39`).
@@ -150,7 +150,7 @@ git commit -m "fix(auth): re-mint session after role assignment so the first JWT
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-// tools/create-icore/templates/libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
+// libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@idevconn/api-client', async () => {
@@ -185,7 +185,7 @@ Expected: FAIL — `createApiClient` was called without the three override field
 - [ ] **Step 3: Add the field overrides**
 
 ```typescript
-// tools/create-icore/templates/libs/template-shared/src/lib/api/create-api.ts
+// libs/template-shared/src/lib/api/create-api.ts
 import { createApiClient } from '@idevconn/api-client';
 import { useAuthStore } from '../stores/auth.store.js';
 
@@ -228,9 +228,9 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-npx prettier --write tools/create-icore/templates/libs/template-shared/src/lib/api/create-api.ts tools/create-icore/templates/libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
+npx prettier --write libs/template-shared/src/lib/api/create-api.ts libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
 npx nx lint template-shared
-git add tools/create-icore/templates/libs/template-shared/src/lib/api/create-api.ts tools/create-icore/templates/libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
+git add libs/template-shared/src/lib/api/create-api.ts libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
 git commit -m "fix(client): match api-client token fields to the gateway's camelCase AuthSession contract"
 ```
 
