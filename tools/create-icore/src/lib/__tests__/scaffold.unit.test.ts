@@ -1167,6 +1167,22 @@ describe('rewriteRootPackageJson — mongodb deps', () => {
     expect(pkg.devDependencies['@types/jsonwebtoken']).toBeDefined();
   });
 
+  it('adds @types/bcrypt and @types/jsonwebtoken to devDeps when authProvider=postgres', async () => {
+    const pkg = await run({ authProvider: 'postgres', dbProvider: 'none', upload: 'none' });
+    expect(pkg.devDependencies['@types/bcrypt']).toBeDefined();
+    expect(pkg.devDependencies['@types/jsonwebtoken']).toBeDefined();
+  });
+
+  it('does not add @types/bcrypt when neither auth provider needs it', async () => {
+    const pkg = await run({
+      authProvider: 'supabase',
+      dbProvider: 'postgres',
+      upload: 'cloudinary',
+    });
+    expect(pkg.devDependencies['@types/bcrypt']).toBeUndefined();
+    expect(pkg.devDependencies['@types/jsonwebtoken']).toBeUndefined();
+  });
+
   it('adds mongoose when only upload=mongodb (no auth mongodb)', async () => {
     const pkg = await run({ authProvider: 'supabase', dbProvider: 'supabase', upload: 'mongodb' });
     expect(pkg.dependencies['mongoose']).toBeDefined();
