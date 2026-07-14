@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeAuthProvider, cleanupUnusedAuth } from '../wire-auth.js';
 
-async function fixture(): Promise<string> {
+async function fixture(pkgDeps?: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'icore-wire-'));
   // auth provider + app dirs
   await mkdir(join(dir, 'apps/microservices/auth/src/app/__tests__'), { recursive: true });
@@ -26,12 +26,14 @@ async function fixture(): Promise<string> {
     await mkdir(join(dir, `libs/auth-strategies/${p}/src`), { recursive: true });
     await writeFile(join(dir, `libs/auth-strategies/${p}/src/index.ts`), 'export {};');
   }
-  // auth package.json with all workspace deps + tsconfig with all aliases
+  // auth package.json — defaults to all workspace deps pre-seeded; callers that need
+  // to exercise the merge-in-a-missing-dep path (e.g. a realistic starting fixture)
+  // pass their own `dependencies` map instead.
   await writeFile(
     join(dir, 'apps/microservices/auth/package.json'),
     JSON.stringify({
       name: 'auth',
-      dependencies: {
+      dependencies: pkgDeps ?? {
         '@icore/auth-supabase': '*',
         '@icore/auth-firebase': '*',
         '@icore/auth-mongodb': '*',
@@ -87,6 +89,29 @@ describe('writeAuthProvider', () => {
     expect(src).toContain("from '@icore/auth-postgres'");
     expect(src).toContain('PostgresAuthModule.forRoot');
     expect(src).not.toContain('SupabaseAuthModule');
+  });
+
+  it('merges postgres deps into a package.json that never had them, mirroring the real auth template', async () => {
+    // Real apps/microservices/auth/package.json only ships @icore/auth-firebase,
+    // @icore/auth-supabase and @supabase/supabase-js — postgres's workspace alias
+    // and raw deps are entirely absent (no @icore/auth-postgres/postgres/bcrypt/
+    // jsonwebtoken), unlike the all-providers-preseeded default fixture() above.
+    // This is the realistic starting point the postgres-dep-plumbing fix targets.
+    const dir = await fixture({
+      '@icore/auth-supabase': '*',
+      '@icore/auth-firebase': '*',
+      '@supabase/supabase-js': '^2.106.2',
+    });
+    await writeAuthProvider(dir, 'postgres');
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/auth/package.json'), 'utf8'),
+    );
+    // Expected versions come straight from MANIFEST.auth.postgres.deps in
+    // tools/create-icore/src/manifest/index.ts — not guessed.
+    expect(pkg.dependencies['@icore/auth-postgres']).toBe('*');
+    expect(pkg.dependencies.postgres).toBe('^3');
+    expect(pkg.dependencies.bcrypt).toBe('^6');
+    expect(pkg.dependencies.jsonwebtoken).toBe('^9');
   });
 });
 
