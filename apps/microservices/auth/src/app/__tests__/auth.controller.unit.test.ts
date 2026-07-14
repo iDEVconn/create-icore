@@ -41,7 +41,10 @@ describe('AuthController', () => {
   it('setRole writes a role visible on verify after re-login', async () => {
     const { controller } = fixture();
     const session = await controller.signup({ email: 's@x.com', password: 'pw12345!' });
-    await controller.setRole({ uid: session.user.id, role: 'admin' });
+    const result = await controller.setRole({ uid: session.user.id, role: 'admin' });
+    // Non-empty object, not bare void — a firstValueFrom() client waiting on
+    // this over TCP throws "no elements in sequence" on an empty response.
+    expect(result).toEqual({ ok: true });
     const re = await controller.login({ email: 's@x.com', password: 'pw12345!' });
     const verified = await controller.verify({ token: re.accessToken });
     expect(verified.role).toBe('admin');
@@ -73,7 +76,11 @@ describe('AuthController', () => {
 
   it('sendMagicLink forwards email + callbackUrl to the strategy', async () => {
     const { strategy, controller } = fixture();
-    await controller.sendMagicLink({ email: 'ml@x.com', callbackUrl: 'http://localhost/cb' });
+    const result = await controller.sendMagicLink({
+      email: 'ml@x.com',
+      callbackUrl: 'http://localhost/cb',
+    });
+    expect(result).toEqual({ ok: true });
     const token = strategy.getLastMagicLinkToken('ml@x.com');
     expect(token).toBeTruthy();
   });

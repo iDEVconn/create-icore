@@ -24,12 +24,17 @@ export class AuthClientService {
     return firstValueFrom(this.client.send<AuthSession>('auth.refresh', { refreshToken }));
   }
 
-  setRole(uid: string, role: string): Promise<void> {
-    return firstValueFrom(this.client.send<void>('auth.setRole', { uid, role }));
+  async setRole(uid: string, role: string): Promise<void> {
+    // `{ ok: true }`, not void — an empty/undefined TCP response completes
+    // the observable with no emission, and firstValueFrom() throws "no
+    // elements in sequence" instead of resolving.
+    await firstValueFrom(this.client.send<{ ok: true }>('auth.setRole', { uid, role }));
   }
 
-  sendMagicLink(email: string, callbackUrl: string): Promise<void> {
-    return firstValueFrom(this.client.send<void>('auth.magicLink.send', { email, callbackUrl }));
+  async sendMagicLink(email: string, callbackUrl: string): Promise<void> {
+    await firstValueFrom(
+      this.client.send<{ ok: true }>('auth.magicLink.send', { email, callbackUrl }),
+    );
   }
 
   verifyMagicLink(token: string): Promise<AuthSession> {

@@ -44,13 +44,17 @@ export class AuthController {
   }
 
   @MessagePattern('auth.setRole')
-  setRole(@Payload() payload: { uid: string; role: string }): Promise<void> {
-    return this.strategy.setRole(payload.uid, payload.role);
+  async setRole(@Payload() payload: { uid: string; role: string }): Promise<{ ok: true }> {
+    await this.strategy.setRole(payload.uid, payload.role);
+    return { ok: true };
   }
 
   @MessagePattern('auth.magicLink.send')
-  sendMagicLink(@Payload() payload: { email: string; callbackUrl: string }): Promise<void> {
-    return this.strategy.sendMagicLink(payload);
+  async sendMagicLink(
+    @Payload() payload: { email: string; callbackUrl: string },
+  ): Promise<{ ok: true }> {
+    await this.strategy.sendMagicLink(payload);
+    return { ok: true };
   }
 
   @MessagePattern('auth.magicLink.verify')
