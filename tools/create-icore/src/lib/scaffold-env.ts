@@ -306,12 +306,9 @@ export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions
   try {
     const env = await readFile(envExample, 'utf8');
     const supported = OAUTH_MAGIC_LINK_PROVIDERS.has(opts.authProvider);
-    const next =
-      env +
-      `\n# Written by the generator from --auth=${opts.authProvider}. Gates the OAuth buttons\n` +
-      `# and the magic-link toggle in LoginForm — postgres/mongodb don't implement either.\n` +
-      `VITE_AUTH_HAS_OAUTH=${supported}\n` +
-      `VITE_AUTH_HAS_MAGIC_LINK=${supported}\n`;
+    const next = env
+      .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${supported}`)
+      .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`);
     await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {
     // .env.example may not exist in older snapshots
