@@ -87,6 +87,29 @@ describe('writeProvider', () => {
     const bad: AxisWiring = { ...AXIS, section: { gamma: { libDirs: [], deps: {}, tsPaths: {} } } };
     await expect(writeProvider(dir, bad, 'gamma')).rejects.toThrow();
   });
+
+  it('merges the chosen provider workspace alias + raw deps into the microservice package.json', async () => {
+    const dir = await fixture();
+    // Simulate the real-world case: the static package.json template has
+    // NEITHER the workspace alias nor the raw SDK dep for 'beta' yet (unlike
+    // the fixture's default, which pre-seeds both — this mirrors how
+    // apps/microservices/auth/package.json has no @icore/auth-postgres entry
+    // in the actual generator templates today).
+    await writeFile(
+      join(dir, 'apps/microservices/x/package.json'),
+      JSON.stringify({ name: 'x', dependencies: { '@icore/x-alpha': '*', 'sdk-alpha': '^1.0.0' } }),
+    );
+
+    await writeProvider(dir, AXIS, 'beta');
+
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/microservices/x/package.json'), 'utf8'));
+    expect(pkg.dependencies).toEqual({
+      '@icore/x-alpha': '*',
+      'sdk-alpha': '^1.0.0',
+      '@icore/x-beta': '*',
+      'sdk-beta': '^2.0.0',
+    });
+  });
 });
 
 describe('cleanupUnusedAxis', () => {

@@ -142,10 +142,11 @@ export async function rewriteRootPackageJson(
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, MONGODB_DEPS);
   }
-  // @types/bcrypt and @types/jsonwebtoken are devDeps of auth-mongodb lib, but pnpm strict
-  // isolation does not hoist them to root node_modules — TypeScript can't find them during
-  // nx build which runs from root. Add to root devDependencies when auth=mongodb.
-  if (opts.authProvider === 'mongodb') {
+  // @types/bcrypt and @types/jsonwebtoken are devDeps of the postgres/mongodb
+  // auth-strategy libs, but pnpm strict isolation does not hoist them to root
+  // node_modules — TypeScript can't find them during nx build, which runs
+  // from root. Add to root devDependencies when either provider is chosen.
+  if (opts.authProvider === 'mongodb' || opts.authProvider === 'postgres') {
     const devDeps = (pkg['devDependencies'] ??= {}) as Record<string, string>;
     devDeps['@types/bcrypt'] = '^6.0.0';
     devDeps['@types/jsonwebtoken'] = '^9.0.10';
