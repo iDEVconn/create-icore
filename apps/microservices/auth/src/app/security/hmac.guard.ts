@@ -6,9 +6,10 @@ let warnedMissingSecret = false;
 
 /**
  * Verifies the HMAC signature the gateway attaches to every TCP payload (see
- * AuthClientService.send). AUTH_TCP_SECRET missing crashes boot in production
- * (same missingEnv/formatEnvBanner convention as MS strategy factories); in
- * dev it prints one banner and lets requests through unsigned.
+ * AuthClientService.send). In production (NODE_ENV=production), an unset/empty
+ * AUTH_TCP_SECRET causes per-request rejection at runtime via canActivate,
+ * resulting in 100% traffic failure (not a boot crash). Outside production,
+ * it logs one warning and lets requests through unsigned.
  */
 @Injectable()
 export class HmacAuthGuard implements CanActivate {
