@@ -63,6 +63,10 @@ export class AuthClientService {
     return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.refresh', { refreshToken })));
   }
 
+  async revoke(refreshToken: string): Promise<void> {
+    await firstValueFrom(this.send<{ ok: true }>('auth.revoke', { refreshToken }));
+  }
+
   async setRole(uid: string, role: string): Promise<void> {
     await firstValueFrom(this.send<{ ok: true }>('auth.setRole', { uid, role }));
   }

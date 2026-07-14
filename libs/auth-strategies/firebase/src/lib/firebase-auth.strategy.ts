@@ -85,6 +85,13 @@ export class FirebaseAuthStrategy implements AuthStrategy {
     };
   }
 
+  async revoke(_refreshToken: string): Promise<void> {
+    // Firebase's admin.auth().revokeRefreshTokens(uid) invalidates by uid, not
+    // by the opaque refresh-token string, and this strategy has no local
+    // refresh-token → uid mapping to bridge the two. Follow-up, not here.
+    throw new Error('not_implemented');
+  }
+
   async verifyToken(token: string): Promise<VerifiedToken> {
     const decoded = await this.adminAuth.verifyIdToken(token);
     return {

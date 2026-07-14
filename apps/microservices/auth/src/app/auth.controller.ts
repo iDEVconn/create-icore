@@ -49,6 +49,12 @@ export class AuthController {
     return { ok: true };
   }
 
+  @MessagePattern('auth.revoke')
+  async revoke(@Payload() payload: { refreshToken: string }): Promise<{ ok: true }> {
+    await this.strategy.revoke(payload.refreshToken);
+    return { ok: true };
+  }
+
   @MessagePattern('auth.magicLink.send')
   async sendMagicLink(
     @Payload() payload: { email: string; callbackUrl: string },

@@ -38,6 +38,14 @@ describe('AuthController', () => {
     await expect(controller.refresh({ refreshToken: first.refreshToken })).rejects.toThrow();
   });
 
+  it('logout (auth.revoke) ends the session — a further refresh fails', async () => {
+    const { controller } = fixture();
+    const session = await controller.signup({ email: 'logout@x.com', password: 'pw12345!' });
+    const result = await controller.revoke({ refreshToken: session.refreshToken });
+    expect(result).toEqual({ ok: true });
+    await expect(controller.refresh({ refreshToken: session.refreshToken })).rejects.toThrow();
+  });
+
   it('setRole writes a role visible on verify after re-login', async () => {
     const { controller } = fixture();
     const session = await controller.signup({ email: 's@x.com', password: 'pw12345!' });

@@ -44,6 +44,14 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     return this.toSession(data.session);
   }
 
+  async revoke(_refreshToken: string): Promise<void> {
+    // Supabase's admin.signOut() revokes by access-token JWT, not by refresh
+    // token, and this strategy doesn't retain a refresh-token → JWT mapping.
+    // Wiring this properly needs its own session-tracking design — tracked
+    // as a follow-up, not implemented here.
+    throw new Error('not_implemented');
+  }
+
   async verifyToken(token: string): Promise<VerifiedToken> {
     const { data, error } = await this.client.auth.getUser(token);
     if (error || !data.user) {
