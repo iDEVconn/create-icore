@@ -41,4 +41,30 @@ describe('LoginForm — provider capability gating', () => {
     expect(screen.getByText('GitHub')).toBeDefined();
     expect(screen.getByText('auth.withMagicLink')).toBeDefined();
   });
+
+  it('shows OAuth buttons but hides magic-link toggle when only OAuth is supported', async () => {
+    vi.stubEnv('VITE_AUTH_HAS_OAUTH', 'true');
+    vi.stubEnv('VITE_AUTH_HAS_MAGIC_LINK', 'false');
+    vi.resetModules();
+    const { LoginForm } = await import('../LoginForm');
+
+    render(<LoginForm {...baseProps} />);
+
+    expect(screen.getByText('Google')).toBeDefined();
+    expect(screen.getByText('GitHub')).toBeDefined();
+    expect(screen.queryByText('auth.withMagicLink')).toBeNull();
+  });
+
+  it('hides OAuth buttons but shows magic-link toggle when only magic-link is supported', async () => {
+    vi.stubEnv('VITE_AUTH_HAS_OAUTH', 'false');
+    vi.stubEnv('VITE_AUTH_HAS_MAGIC_LINK', 'true');
+    vi.resetModules();
+    const { LoginForm } = await import('../LoginForm');
+
+    render(<LoginForm {...baseProps} />);
+
+    expect(screen.queryByText('Google')).toBeNull();
+    expect(screen.queryByText('GitHub')).toBeNull();
+    expect(screen.getByText('auth.withMagicLink')).toBeDefined();
+  });
 });
