@@ -16,6 +16,8 @@ runAuthContract(
     return strategy;
   },
   {
+    // revoke() is intentionally not_implemented — see SupabaseAuthStrategy.revoke.
+    supportsRevoke: false,
     getMagicLinkToken: (strategy, email) => {
       const mock = mocks.get(strategy as SupabaseAuthStrategy);
       if (!mock) throw new Error('mock not registered for strategy');

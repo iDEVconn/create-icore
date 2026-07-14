@@ -27,6 +27,8 @@ runAuthContract(
     return strategy;
   },
   {
+    // revoke() is intentionally not_implemented — see FirebaseAuthStrategy.revoke.
+    supportsRevoke: false,
     getMagicLinkToken: (strategy, email) => {
       const toolkit = toolkits.get(strategy as FirebaseAuthStrategy);
       if (!toolkit) throw new Error('toolkit not registered for strategy');

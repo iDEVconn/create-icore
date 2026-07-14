@@ -18,6 +18,14 @@ export interface AuthContractHelpers {
     provider: OAuthProvider,
     email: string,
   ) => { code: string; state: string };
+  /**
+   * Set to `false` when the strategy intentionally does not support revoke()
+   * (its SDK has no clean "delete by refresh-token string" mapping — see
+   * SupabaseAuthStrategy / FirebaseAuthStrategy). When absent or `true`, the
+   * contract asserts full revoke semantics; when `false`, it instead asserts
+   * the documented `not_implemented` rejection so the stub stays covered.
+   */
+  supportsRevoke?: boolean;
 }
 
 export function runAuthContract(
@@ -66,6 +74,30 @@ export function runAuthContract(
       await strategy.refresh(first.refreshToken);
       await expect(strategy.refresh(first.refreshToken)).rejects.toThrow();
     });
+
+    if (helpers?.supportsRevoke === false) {
+      it('revoke rejects — strategy documents revoke as not implemented', async () => {
+        const session = await strategy.signUp('revoke-x@x.com', 'pw12345!');
+        await expect(strategy.revoke(session.refreshToken)).rejects.toThrow();
+      });
+    } else {
+      it('revoke invalidates the refresh token — a further refresh() call fails', async () => {
+        const session = await strategy.signUp('revoke-a@x.com', 'pw12345!');
+        await strategy.revoke(session.refreshToken);
+        await expect(strategy.refresh(session.refreshToken)).rejects.toThrow();
+      });
+
+      it('revoke does not affect other sessions for the same user', async () => {
+        const session = await strategy.signUp('revoke-b@x.com', 'pw12345!');
+        const other = await strategy.signIn('revoke-b@x.com', 'pw12345!');
+        await strategy.revoke(session.refreshToken);
+        await expect(strategy.refresh(other.refreshToken)).resolves.toBeTruthy();
+      });
+
+      it('revoke is idempotent — revoking an unknown/already-revoked token does not throw', async () => {
+        await expect(strategy.revoke('not-a-real-refresh-token')).resolves.toBeUndefined();
+      });
+    }
 
     it('setRole writes a role visible on verifyToken', async () => {
       const session = await strategy.signUp('e@x.com', 'pw12345!');

@@ -146,6 +146,11 @@ export class PostgresAuthStrategy implements AuthStrategy {
     return this.createSession({ id: user.id, email: user.email, role: user.role ?? undefined });
   }
 
+  async revoke(refreshToken: string): Promise<void> {
+    await this.ensureTables();
+    await this.sql`DELETE FROM _icore_sessions WHERE refresh_token = ${refreshToken}`;
+  }
+
   async setRole(uid: string, role: string): Promise<void> {
     await this.ensureTables();
     await this.sql`UPDATE _icore_users SET role = ${role} WHERE id = ${uid}`;
