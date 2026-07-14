@@ -6,12 +6,12 @@
 
 **Architecture:** Gap 1: the generator already knows which provider was chosen at scaffold time; write two boolean `VITE_*` flags into the generated client's `.env` and gate the JSX on them (build-time flag, no runtime API round-trip — consistent with how every other provider-driven choice in this codebase is baked in). Gap 2: add the missing CSS custom properties to both the light and dark blocks in `globals.css`, following the same naming/value pattern already used for every other token there.
 
-**Tech Stack:** Vite (`import.meta.env`), Tailwind CSS 4 `@theme`, React 19, Vitest (generator-side only — see the test-coverage note in Task 1).
+**Tech Stack:** Vite (`import.meta.env`), Tailwind CSS 4 `@theme`, React 19, Vitest + `@testing-library/react` + `jsdom` (both projects have a working component-test harness — confirmed via `apps/templates/client-shadcn/src/app/app.spec.tsx`, an existing passing RTL test; `@testing-library/react`/`jsdom` are root-hoisted devDependencies, not listed in `client-shadcn`'s own `package.json`, which is why an earlier draft of this plan incorrectly claimed no test infra existed here).
 
 ## Global Constraints
 
 - Nx monorepo — run tests via `nx test <project>`.
-- TDD where a test harness exists (`tools/create-icore` has Vitest); where it doesn't (React components in `apps/templates/client-shadcn` have zero test infra today — no `vitest`, `@testing-library/react`, or `jsdom` devDependency), verify by build + manual dev-server check instead of inventing a new test framework as a side effect of a two-gap bug-fix PR.
+- TDD in both tasks — `tools/create-icore` (Vitest) and `apps/templates/client-shadcn` (Vitest + `@testing-library/react`, `environment: 'jsdom'` per `commonTestConfig` in `libs/vite-plugins/src/index.mjs:98`) both have real test harnesses. Task 2 (CSS custom-property values) still gets a build+manual check only, since JSDOM doesn't run the real Tailwind build pipeline and can't observe computed CSS custom-property values meaningfully.
 - `npx prettier --write <touched files>` before every commit.
 - `nx lint <project>` 0 errors, `nx build <project>` green before commit.
 - Every PR needs a `.changeset/<slug>.md`, `patch` bump.
@@ -27,6 +27,7 @@
 - Modify: `tools/create-icore/src/lib/scaffold.ts:192` (call site)
 - Create: `tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts`
 - Modify: `apps/templates/client-shadcn/src/components/auth/LoginForm.tsx`
+- Create: `apps/templates/client-shadcn/src/components/auth/__tests__/LoginForm.spec.tsx`
 - Modify: `apps/templates/client-shadcn/.env.example`
 
 **Interfaces:**
@@ -142,7 +143,64 @@ Expected: PASS.
 Run: `npx nx test create-icore`
 Expected: PASS — `writeClientEnv` has exactly one caller (`scaffold.ts:192`), already updated in Step 3.
 
-- [ ] **Step 6: Gate the JSX in `LoginForm.tsx`**
+- [ ] **Step 6: Write the failing component test**
+
+```tsx
+// apps/templates/client-shadcn/src/components/auth/__tests__/LoginForm.spec.tsx
+import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const noop = () => undefined;
+const baseProps = {
+  api: async () => ({}) as never,
+  onSuccess: noop,
+  onError: noop,
+  onSwitchToRegister: noop,
+  onSwitchToMagicLink: noop,
+};
+
+describe('LoginForm — provider capability gating', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('hides the OAuth buttons and magic-link toggle when the provider supports neither (postgres/mongodb default)', async () => {
+    vi.stubEnv('VITE_AUTH_HAS_OAUTH', 'false');
+    vi.stubEnv('VITE_AUTH_HAS_MAGIC_LINK', 'false');
+    vi.resetModules();
+    const { LoginForm } = await import('../LoginForm');
+
+    render(<LoginForm {...baseProps} />);
+
+    expect(screen.queryByText('Google')).not.toBeInTheDocument();
+    expect(screen.queryByText('GitHub')).not.toBeInTheDocument();
+    expect(screen.queryByText('auth.withMagicLink')).not.toBeInTheDocument();
+  });
+
+  it('shows the OAuth buttons and magic-link toggle when the provider supports both (supabase/firebase)', async () => {
+    vi.stubEnv('VITE_AUTH_HAS_OAUTH', 'true');
+    vi.stubEnv('VITE_AUTH_HAS_MAGIC_LINK', 'true');
+    vi.resetModules();
+    const { LoginForm } = await import('../LoginForm');
+
+    render(<LoginForm {...baseProps} />);
+
+    expect(screen.getByText('Google')).toBeInTheDocument();
+    expect(screen.getByText('GitHub')).toBeInTheDocument();
+    expect(screen.getByText('auth.withMagicLink')).toBeInTheDocument();
+  });
+});
+```
+
+Note: `t('auth.withMagicLink')` renders the raw i18next key (`auth.withMagicLink`) in this test since no i18next provider/translation bundle is initialized — that's expected and fine, the test only asserts presence/absence, not the translated string. `vi.resetModules()` is required both before AND after `import.meta.env` changes because `AUTH_HAS_OAUTH`/`AUTH_HAS_MAGIC_LINK` are evaluated once at module load (module-level `const`), so re-importing without resetting the module cache would reuse the first test's cached module and its stale constants.
+
+- [ ] **Step 7: Run test to verify it fails**
+
+Run: `npx nx test client-shadcn -- LoginForm.spec.tsx`
+Expected: FAIL — `LoginForm.tsx` doesn't read `VITE_AUTH_HAS_OAUTH`/`VITE_AUTH_HAS_MAGIC_LINK` yet, so both tests see the OAuth buttons and magic-link toggle rendered unconditionally (the first test's "hides" assertions fail).
+
+- [ ] **Step 8: Gate the JSX in `LoginForm.tsx`**
 
 ```tsx
 // apps/templates/client-shadcn/src/components/auth/LoginForm.tsx
@@ -216,7 +274,17 @@ const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string)
 
 (Only the two new constants and the two new conditional wraps are additions — the email/password form, the Google/GitHub button markup, and the register-switch link are unchanged from the current file.)
 
-- [ ] **Step 7: Document the new client env vars**
+- [ ] **Step 9: Run test to verify it passes**
+
+Run: `npx nx test client-shadcn -- LoginForm.spec.tsx`
+Expected: PASS — both cases.
+
+- [ ] **Step 10: Run the full client-shadcn suite to confirm no regression**
+
+Run: `npx nx test client-shadcn`
+Expected: PASS — includes the pre-existing `app.spec.tsx`.
+
+- [ ] **Step 11: Document the new client env vars**
 
 ```bash
 # apps/templates/client-shadcn/.env.example
@@ -228,23 +296,18 @@ VITE_AUTH_HAS_OAUTH=false
 VITE_AUTH_HAS_MAGIC_LINK=false
 ```
 
-- [ ] **Step 8: Verify by build + manual check (no component test harness exists for this template)**
+- [ ] **Step 12: Build verification**
 
 Run: `npx nx build client-shadcn`
-Expected: green — confirms the `import.meta.env.VITE_*` usage type-checks and the conditional JSX compiles.
+Expected: green.
 
-Manual check (documented, not automated — no `@testing-library/react`/`jsdom` exists in this template):
-1. In a scaffolded project with `--auth=postgres`, run the client dev server with `VITE_AUTH_HAS_OAUTH=false` and `VITE_AUTH_HAS_MAGIC_LINK=false` in `apps/client/.env` (the generator's default for postgres).
-2. Load `/login` — confirm neither the Google/GitHub buttons nor the "sign in with a magic link" link render.
-3. Temporarily flip both vars to `true`, restart the dev server, reload `/login` — confirm both render again (proves the gate isn't accidentally inverted or dead-code-eliminated).
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
-npx prettier --write tools/create-icore/src/lib/scaffold-env.ts tools/create-icore/src/lib/scaffold.ts tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts apps/templates/client-shadcn/src/components/auth/LoginForm.tsx apps/templates/client-shadcn/.env.example
+npx prettier --write tools/create-icore/src/lib/scaffold-env.ts tools/create-icore/src/lib/scaffold.ts tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts apps/templates/client-shadcn/src/components/auth/LoginForm.tsx apps/templates/client-shadcn/src/components/auth/__tests__/LoginForm.spec.tsx apps/templates/client-shadcn/.env.example
 npx nx lint create-icore
 npx nx lint client-shadcn
-git add tools/create-icore/src/lib/scaffold-env.ts tools/create-icore/src/lib/scaffold.ts tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts apps/templates/client-shadcn/src/components/auth/LoginForm.tsx apps/templates/client-shadcn/.env.example
+git add tools/create-icore/src/lib/scaffold-env.ts tools/create-icore/src/lib/scaffold.ts tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts apps/templates/client-shadcn/src/components/auth/LoginForm.tsx apps/templates/client-shadcn/src/components/auth/__tests__/LoginForm.spec.tsx apps/templates/client-shadcn/.env.example
 git commit -m "fix(client): gate OAuth buttons + magic-link toggle on provider capability"
 ```
 
@@ -366,6 +429,6 @@ git commit -m "chore: add changeset for PR4 shadcn UI gap fixes"
 ## Self-Review
 
 - **Spec coverage:** Gap #7 (OAuth/magic-link UI shown unconditionally) → Task 1. Gap #8 (dead shadcn tokens) → Task 2. Both closed for the shadcn template.
-- **Placeholder scan:** none. The "manual check" steps are explicit, numbered, and give a concrete pass/fail criterion — not a vague "test it works."
+- **Placeholder scan:** none. Task 1 has a real automated RTL test (client-shadcn does have a working test harness — corrected from an earlier draft's mistaken claim otherwise). Task 2's "manual check" steps are explicit, numbered, and give a concrete pass/fail criterion since JSDOM can't observe real computed CSS custom-property values.
 - **Type consistency:** `writeClientEnv`'s new `opts: CreateIcoreOptions` parameter matches every other `write*Env` function in `scaffold-env.ts` (`writeAuthEnv`, `writeUploadEnv`, etc. already take `opts`).
 - **Scope note:** `client-mui` and `client-antd` have the *identical* gap — both `LoginForm.tsx` files render unconditional Google/GitHub buttons and a magic-link switch (confirmed via grep: `client-mui/.../LoginForm.tsx` and `client-antd/.../LoginForm.tsx` both reference `GoogleIcon`/`GithubOutlined`/`onSwitchMagicLink`). This PR deliberately fixes only `client-shadcn`, matching the original audit's blueprint scope (`ui=shadcn`). Fixing `client-mui`/`client-antd` the same way is a natural, low-risk follow-up — not silently dropped, just out of this PR's stated scope.
