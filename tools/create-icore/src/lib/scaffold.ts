@@ -189,7 +189,7 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
-  await writeClientEnv(opts.targetDir);
+  await writeClientEnv(opts.targetDir, opts);
   if (opts.authProvider === 'none') {
     // Blueprint-driven auth=none: delete auth-only paths then overlay auth-none
     // file variants. Must run BEFORE removeUploadStack and cleanupUnusedFeatures
