@@ -293,11 +293,26 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 
-export async function writeClientEnv(targetDir: string): Promise<void> {
+// authProvider values that implement startOAuth/sendMagicLink. postgres and
+// mongodb both throw not_implemented for either, so their generated client
+// must not surface the OAuth buttons or the magic-link toggle.
+const OAUTH_MAGIC_LINK_PROVIDERS: ReadonlySet<CreateIcoreOptions['authProvider']> = new Set([
+  'supabase',
+  'firebase',
+]);
+
+export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   const envExample = join(targetDir, 'apps/client/.env.example');
   try {
     const env = await readFile(envExample, 'utf8');
-    await writeFile(join(targetDir, 'apps/client/.env'), env);
+    const supported = OAUTH_MAGIC_LINK_PROVIDERS.has(opts.authProvider);
+    const next =
+      env +
+      `\n# Written by the generator from --auth=${opts.authProvider}. Gates the OAuth buttons\n` +
+      `# and the magic-link toggle in LoginForm — postgres/mongodb don't implement either.\n` +
+      `VITE_AUTH_HAS_OAUTH=${supported}\n` +
+      `VITE_AUTH_HAS_MAGIC_LINK=${supported}\n`;
+    await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {
     // .env.example may not exist in older snapshots
   }
