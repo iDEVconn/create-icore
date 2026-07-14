@@ -3036,6 +3036,7 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.1.27"
     "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/microservices": "npm:^11.1.27"
     "@nestjs/testing": "npm:^11.1.27"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/jsonwebtoken": "npm:^9.0.10"
