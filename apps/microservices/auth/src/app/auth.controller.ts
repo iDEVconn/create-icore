@@ -32,7 +32,10 @@ export class AuthController {
   async signup(@Payload() payload: { email: string; password: string }): Promise<AuthSession> {
     const session = await this.strategy.signUp(payload.email, payload.password);
     await this.assignInitialRole(session.user.id, session.user.email);
-    return session;
+    // Re-mint via refresh(): JWT-based strategies bake `role` into the token at
+    // sign time, so the pre-assignment session's token would otherwise report
+    // no role until the client's next login or refresh.
+    return this.strategy.refresh(session.refreshToken);
   }
 
   @MessagePattern('auth.refresh')
@@ -54,7 +57,7 @@ export class AuthController {
   async verifyMagicLink(@Payload() payload: { token: string }): Promise<AuthSession> {
     const session = await this.strategy.verifyMagicLink(payload.token);
     await this.assignInitialRole(session.user.id, session.user.email);
-    return session;
+    return this.strategy.refresh(session.refreshToken);
   }
 
   @MessagePattern('auth.oauth.start')
@@ -74,7 +77,7 @@ export class AuthController {
       payload.state,
     );
     await this.assignInitialRole(session.user.id, session.user.email);
-    return session;
+    return this.strategy.refresh(session.refreshToken);
   }
 
   // Idempotent: skips work when a role already exists. Admin emails come
