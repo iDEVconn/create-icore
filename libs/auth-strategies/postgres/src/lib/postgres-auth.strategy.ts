@@ -2,6 +2,7 @@ import postgres from 'postgres';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
+import { RpcException } from '@nestjs/microservices';
 import type {
   AuthSession,
   AuthStrategy,
@@ -77,8 +78,8 @@ export class PostgresAuthStrategy implements AuthStrategy {
         email: decoded['email'] as string,
         role: decoded['role'] as string,
       };
-    } catch (err) {
-      throw new Error('invalid_token', { cause: err });
+    } catch {
+      throw new RpcException('invalid_token');
     }
   }
 
@@ -90,9 +91,9 @@ export class PostgresAuthStrategy implements AuthStrategy {
       SELECT id, email, password_hash, role FROM _icore_users WHERE email = ${email}
     `;
     const user = rows[0];
-    if (!user || !user.password_hash) throw new Error('invalid_credentials');
+    if (!user || !user.password_hash) throw new RpcException('invalid_credentials');
     const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) throw new Error('invalid_credentials');
+    if (!ok) throw new RpcException('invalid_credentials');
     await this.sql`
       UPDATE _icore_users SET last_logged_in = now() WHERE id = ${user.id}
     `;
@@ -114,7 +115,7 @@ export class PostgresAuthStrategy implements AuthStrategy {
         'code' in err &&
         (err as { code: string }).code === '23505'
       ) {
-        throw new Error('user_already_exists', { cause: err });
+        throw new RpcException('user_already_exists');
       }
       throw err;
     }
@@ -131,13 +132,13 @@ export class PostgresAuthStrategy implements AuthStrategy {
       if (session) {
         await this.sql`DELETE FROM _icore_sessions WHERE id = ${session.id}`;
       }
-      throw new Error('invalid_refresh_token');
+      throw new RpcException('invalid_refresh_token');
     }
     const users = await this.sql<{ id: string; email: string; role: string | null }[]>`
       SELECT id, email, role FROM _icore_users WHERE id = ${session.user_id}
     `;
     const user = users[0];
-    if (!user) throw new Error('user_not_found');
+    if (!user) throw new RpcException('user_not_found');
     await this.sql`DELETE FROM _icore_sessions WHERE id = ${session.id}`;
     await this.sql`
       UPDATE _icore_users SET last_logged_in = now() WHERE id = ${user.id}

@@ -1,8 +1,33 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import type { AuthSession, OAuthProvider, OAuthStartResult, VerifiedToken } from '@icore/shared';
 import { AUTH_CLIENT } from './auth-client.tokens';
+
+const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
+  user_already_exists: ConflictException,
+  invalid_credentials: UnauthorizedException,
+  invalid_refresh_token: UnauthorizedException,
+  user_not_found: UnauthorizedException,
+};
+
+function rpcMessage(err: unknown): string | undefined {
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+    return err.message;
+  }
+  return undefined;
+}
+
+async function mapRpcErrors<T>(promise: Promise<T>): Promise<T> {
+  try {
+    return await promise;
+  } catch (err) {
+    const message = rpcMessage(err);
+    const ExceptionCtor = message ? RPC_ERROR_MAP[message] : undefined;
+    if (ExceptionCtor) throw new ExceptionCtor(message as string);
+    throw err;
+  }
+}
 
 @Injectable()
 export class AuthClientService {
@@ -13,21 +38,24 @@ export class AuthClientService {
   }
 
   login(email: string, password: string): Promise<AuthSession> {
-    return firstValueFrom(this.client.send<AuthSession>('auth.login', { email, password }));
+    return mapRpcErrors(
+      firstValueFrom(this.client.send<AuthSession>('auth.login', { email, password })),
+    );
   }
 
   signup(email: string, password: string): Promise<AuthSession> {
-    return firstValueFrom(this.client.send<AuthSession>('auth.signup', { email, password }));
+    return mapRpcErrors(
+      firstValueFrom(this.client.send<AuthSession>('auth.signup', { email, password })),
+    );
   }
 
   refresh(refreshToken: string): Promise<AuthSession> {
-    return firstValueFrom(this.client.send<AuthSession>('auth.refresh', { refreshToken }));
+    return mapRpcErrors(
+      firstValueFrom(this.client.send<AuthSession>('auth.refresh', { refreshToken })),
+    );
   }
 
   async setRole(uid: string, role: string): Promise<void> {
-    // `{ ok: true }`, not void — an empty/undefined TCP response completes
-    // the observable with no emission, and firstValueFrom() throws "no
-    // elements in sequence" instead of resolving.
     await firstValueFrom(this.client.send<{ ok: true }>('auth.setRole', { uid, role }));
   }
 

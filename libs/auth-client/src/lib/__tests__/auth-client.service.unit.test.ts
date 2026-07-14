@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import type { ClientProxy } from '@nestjs/microservices';
+import { RpcException } from '@nestjs/microservices';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthClientService } from '../auth-client.service';
 
 describe('AuthClientService — wire contract', () => {
@@ -23,5 +25,31 @@ describe('AuthClientService — wire contract', () => {
       email: 'a@x.com',
       callbackUrl: 'http://localhost/cb',
     });
+  });
+});
+
+describe('AuthClientService — RPC error mapping', () => {
+  it('maps user_already_exists to ConflictException', async () => {
+    const send = vi.fn(() => throwError(() => new RpcException('user_already_exists')));
+    const client = { send } as unknown as ClientProxy;
+    const service = new AuthClientService(client);
+
+    await expect(service.signup('a@x.com', 'pw12345!')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('maps invalid_credentials to UnauthorizedException', async () => {
+    const send = vi.fn(() => throwError(() => new RpcException('invalid_credentials')));
+    const client = { send } as unknown as ClientProxy;
+    const service = new AuthClientService(client);
+
+    await expect(service.login('a@x.com', 'wrong')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('passes through unrecognized RPC errors unchanged', async () => {
+    const send = vi.fn(() => throwError(() => new RpcException('some_unmapped_error')));
+    const client = { send } as unknown as ClientProxy;
+    const service = new AuthClientService(client);
+
+    await expect(service.login('a@x.com', 'pw')).rejects.not.toBeInstanceOf(UnauthorizedException);
   });
 });
