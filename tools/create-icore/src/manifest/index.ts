@@ -45,6 +45,9 @@ export const MANIFEST = {
         symbol: 'PostgresAuthModule',
         into: 'auth',
       },
+      appTests: [
+        'apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts',
+      ],
     },
   },
   storage: {

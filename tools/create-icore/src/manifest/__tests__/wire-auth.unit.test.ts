@@ -12,7 +12,7 @@ async function fixture(): Promise<string> {
     join(dir, 'apps/microservices/auth/src/app/auth.provider.ts'),
     `import { SupabaseAuthModule } from '@icore/auth-supabase';\nexport const AuthProviderModule = SupabaseAuthModule.forRoot('x');\n`,
   );
-  for (const p of ['supabase', 'firebase']) {
+  for (const p of ['supabase', 'firebase', 'postgres']) {
     await writeFile(
       join(
         dir,
@@ -119,6 +119,17 @@ describe('cleanupUnusedAuth', () => {
         ),
       ),
     ).toBe(true);
+    // postgres controller test removed too (not chosen) — regression guard for the
+    // orphan-import CI failure: this file imports @icore/auth-postgres, which gets
+    // pruned above, so it MUST be removed alongside the lib or the audit flags it.
+    expect(
+      await exists(
+        join(
+          dir,
+          'apps/microservices/auth/src/app/__tests__/auth.controller.postgres.integration.unit.test.ts',
+        ),
+      ),
+    ).toBe(false);
 
     // deps + tsconfig pruned to supabase only
     const pkg = JSON.parse(
