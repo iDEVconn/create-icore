@@ -1,5 +1,6 @@
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { mergeDeps } from './assemble.js';
 import type { Unit } from './types.js';
 
 /** Per-axis wiring config: which manifest section + where the generated files live. */
@@ -16,13 +17,18 @@ export interface AxisWiring {
   envPath: string;
 }
 
-/** Write the `<svc>.provider.ts` wiring the chosen provider's DynamicModule. */
+/** Write the `<svc>.provider.ts` wiring the chosen provider's DynamicModule, and
+ * merge its workspace alias + raw deps into the microservice's package.json —
+ * cleanupUnusedAxis() only ever removes the unchosen providers' keys, so the
+ * chosen one's own deps must be added here or the MS's manifest never
+ * declares what it actually imports (works by yarn-hoisting accident only). */
 export async function writeProvider(
   targetDir: string,
   axis: AxisWiring,
   provider: string,
 ): Promise<void> {
-  const nestModule = axis.section[provider]?.nestModule;
+  const unit = axis.section[provider];
+  const nestModule = unit?.nestModule;
   if (!nestModule) throw new Error(`provider "${provider}" has no nestModule in the manifest`);
   const { importFrom, symbol } = nestModule;
   const content =
@@ -30,6 +36,23 @@ export async function writeProvider(
     `const ENV_PATH = '${axis.envPath}';\n\n` +
     `export const ${axis.exportConst} = ${symbol}.forRoot(ENV_PATH);\n`;
   await writeFile(join(targetDir, axis.providerFile), content);
+  await mergeJsonDeps(join(targetDir, axis.msPackageJson), {
+    [importFrom]: '*',
+    ...mergeDeps([unit]),
+  });
+}
+
+/** Merges `deps` into a package.json's `dependencies`, creating the field if absent. */
+export async function mergeJsonDeps(path: string, deps: Record<string, string>): Promise<void> {
+  try {
+    const pkg = JSON.parse(await readFile(path, 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    pkg.dependencies = { ...(pkg.dependencies ?? {}), ...deps };
+    await writeFile(path, JSON.stringify(pkg, null, 2) + '\n');
+  } catch {
+    // pkg may be absent in partial fixtures
+  }
 }
 
 export async function stripJsonKeys(path: string, drop: (k: string) => boolean): Promise<void> {
