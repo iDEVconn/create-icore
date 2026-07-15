@@ -30,6 +30,10 @@ export interface FirebaseAdminAuthLike {
   getUser(
     uid: string,
   ): Promise<{ uid: string; email?: string; customClaims?: Record<string, unknown> }>;
+  /** Invalidates every refresh token currently issued to this uid (Firebase has
+   *  no per-session revoke primitive — this is always uid-wide, unlike
+   *  Supabase's/postgres's per-refresh-token revoke). */
+  revokeRefreshTokens(uid: string): Promise<void>;
 }
 
 export interface FirebaseAuthStrategyOptions {
@@ -85,11 +89,22 @@ export class FirebaseAuthStrategy implements AuthStrategy {
     };
   }
 
-  async revoke(_refreshToken: string): Promise<void> {
-    // Firebase's admin.auth().revokeRefreshTokens(uid) invalidates by uid, not
-    // by the opaque refresh-token string, and this strategy has no local
-    // refresh-token → uid mapping to bridge the two. Follow-up, not here.
-    throw new Error('not_implemented');
+  /**
+   * Exchanges the refresh token to derive its uid (Firebase refresh tokens are
+   * opaque — there's no way to read the uid without a round-trip), then calls
+   * revokeRefreshTokens(uid). This invalidates EVERY session that uid has open,
+   * not just this one — Firebase has no narrower primitive. A single logout
+   * ends all of a Firebase user's sessions; this is a real SDK limitation, not
+   * a design choice.
+   */
+  async revoke(refreshToken: string): Promise<void> {
+    try {
+      const res = await this.identityToolkit.refresh(refreshToken);
+      const verified = await this.adminAuth.verifyIdToken(res.id_token);
+      await this.adminAuth.revokeRefreshTokens(verified.uid);
+    } catch {
+      // idempotent: revoking an unknown/already-dead token is not an error
+    }
   }
 
   async verifyToken(token: string): Promise<VerifiedToken> {

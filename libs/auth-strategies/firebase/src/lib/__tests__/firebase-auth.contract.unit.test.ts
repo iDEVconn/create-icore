@@ -27,8 +27,10 @@ runAuthContract(
     return strategy;
   },
   {
-    // revoke() is intentionally not_implemented — see FirebaseAuthStrategy.revoke.
-    supportsRevoke: false,
+    // revoke() is fully implemented — see FirebaseAuthStrategy.revoke. Firebase
+    // has no per-session revoke primitive, so it's uid-wide: revoking one
+    // session ends every session for that user.
+    revokeIsUserWide: true,
     getMagicLinkToken: (strategy, email) => {
       const toolkit = toolkits.get(strategy as FirebaseAuthStrategy);
       if (!toolkit) throw new Error('toolkit not registered for strategy');
