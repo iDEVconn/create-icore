@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { writeClientEnv } from '../scaffold-env.js';
 import type { CreateIcoreOptions } from '../options.js';
+
+// Mirrors the exact pattern already used in scaffold.unit.test.ts:976 for reading
+// real repo files from a test (not a synthetic fixture).
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 
 async function fixture(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'icore-clientenv-'));
@@ -72,4 +77,18 @@ describe('writeClientEnv', () => {
     expect(env).toMatch(/^VITE_AUTH_HAS_OAUTH=true$/m);
     expect(env).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=true$/m);
   });
+});
+
+describe('writeClientEnv — real template .env.example files have the VITE_AUTH_HAS_* placeholder', () => {
+  it.each(['client-shadcn', 'client-mui', 'client-antd'])(
+    '%s/.env.example has both placeholder lines writeClientEnv depends on',
+    async (uiTemplate) => {
+      const envExample = await readFile(
+        join(repoRoot, `apps/templates/${uiTemplate}/.env.example`),
+        'utf8',
+      );
+      expect(envExample).toMatch(/^VITE_AUTH_HAS_OAUTH=.*$/m);
+      expect(envExample).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m);
+    },
+  );
 });
