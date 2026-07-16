@@ -51,7 +51,9 @@ Filters `registry.entries` to `semver.gt(entry.version, currentVersion) && semve
 export async function isApplied(id: string, projectDir: string): Promise<boolean>
 ```
 
-Runs `git log --grep "^migrate: ${id}$" --fixed-strings --format=%H -1` in `projectDir`; returns `true` iff it prints a SHA. `--fixed-strings` avoids `id` values that happen to contain regex metacharacters being misinterpreted.
+**Correction from initial draft:** the natural-seeming `git log --grep "^migrate: ${id}$" --fixed-strings` is actually broken — verified experimentally (a scratch repo, real `git` invocations). `--fixed-strings` disables regex interpretation entirely, so the `^`/`$` anchors are matched as **literal** caret/dollar characters, which never appear in a real commit subject — the pattern then matches nothing, ever, for any commit. Dropping the anchors and keeping `--fixed-strings` fixes that, but reintroduces a different bug: `--fixed-strings` still does *substring* matching, so id `"foo-bar"` would incorrectly match a real commit `"migrate: foo-barbaz"`.
+
+Correct implementation: fetch every commit subject via `git log --format=%s` in `projectDir`, split into lines, and check for an exact equality match against `` `migrate: ${id}` `` in JS — no grep flag combination gives exact-match semantics safely, so exactness is enforced in application code instead.
 
 ### 4. `run.ts` — orchestration
 
