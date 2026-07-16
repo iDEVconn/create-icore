@@ -25,24 +25,25 @@ A second decision, made while designing this spec: registry content is **not han
 
 `writeBlueprintJson` (`tools/create-icore/src/manifest/blueprint.ts`) gains a `generatorVersion` field recording the `create-icore` package semver at scaffold time. This is the anchor sub-project 2's CLI will use to know "what version is this project currently at." Projects generated before this field existed simply lack it — treated as version `0` by any future consumer, meaning "every migration applies."
 
-### 2. Changeset schema extension
+### 2. Migration metadata: sibling file, not changeset frontmatter
 
-Every PR that touches scaffold-owned generator/template output already requires a changeset (`AGENTS.md` mandate). This spec adds an **optional** `migration` block to changeset frontmatter:
+**Correction from initial draft:** `@changesets/parse` (verified by reading `node_modules/@changesets/parse`) treats every top-level frontmatter key as `{name: <key>, type: <value>}` and throws unless `type` is a string (`major`/`minor`/`patch`/`none`). Nesting a `migration:` object inside a changeset's YAML frontmatter — as first drafted — crashes `changeset version` the moment such a changeset exists. Migration metadata must never enter the changeset's own frontmatter block.
+
+Instead: an **optional sibling file**, same basename as the changeset, `.migration.yml` extension: a changeset at `.changeset/mui-9-2-icon-rename.md` pairs with `.changeset/mui-9-2-icon-rename.migration.yml`. The changeset itself (frontmatter + summary) is completely unaffected by this spec and stays exactly as `AGENTS.md` already mandates — this file is additive, read only by our own build script, invisible to `changesets` tooling.
 
 ```yaml
----
-"@idevconn/create-icore": patch
-migration:
-  id: mui-9-2-icon-rename
-  kind: codemod          # or: ai-prompt
-  affectedAxes:
-    - "ui:mui"
-  affectedGlobs:
-    - "apps/templates/client-mui/src/**/*.tsx"
-  commitRange: "336161f..a1b2c3d"
----
-One-line description of the change, same as any changeset body today.
+# .changeset/mui-9-2-icon-rename.migration.yml
+id: mui-9-2-icon-rename
+kind: codemod          # or: ai-prompt
+affectedAxes:
+  - "ui:mui"
+affectedGlobs:
+  - "apps/templates/client-mui/src/**/*.tsx"
+commitRange: "336161f..a1b2c3d"
+description: "Rename 3 icon imports for MUI v9 (un-suffixed Outline aliases removed)."
 ```
+
+`description` is duplicated here (rather than reused from the changeset body) because the changeset summary is prose aimed at a changelog reader, while this field is the text the future CLI will show a user mid-migration — the two audiences don't always want the same wording, and decoupling them avoids the build script needing to scrape and reformat changeset markdown.
 
 Field semantics:
 - `id` — unique slug across the whole registry (build fails on collision).
@@ -69,9 +70,9 @@ Codemods must be narrow and anchor-based (e.g. "replace this exact import specif
 
 `tools/create-icore/scripts/build-migration-registry.mjs`, invoked at `nx build create-icore` (same trigger as `snapshot-templates.mjs`, before it runs `changeset version` which would otherwise delete the changeset files this script reads):
 
-1. Glob all `.changeset/*.md` files, parse frontmatter, collect any with a `migration` block. Runs strictly *before* `changeset version` (which bumps `package.json` and deletes consumed changeset files in one step) — the registry script needs the raw changeset files to still exist, so it cannot run after.
-2. For each: validate `id` uniqueness across the whole batch plus the existing `registry.json`; resolve `commitRange` via `git diff <commitRange> -- <affectedGlobs>` in the repo; if `kind: codemod`, verify `codemods/<id>.ts` exists.
-3. Compute the release version this batch bumps `@idevconn/create-icore` to *without* invoking `changeset version` yet: read the current `package.json` version, take the highest bump level (`major` > `minor` > `patch`) across all pending changesets (not just the ones with a `migration` block), apply standard semver bump. This mirrors `changeset version`'s own bump-selection rule, so the two stay in agreement.
+1. Glob all `.changeset/*.migration.yml` sibling files (each paired 1:1 with a `.changeset/<same-basename>.md`). Runs strictly *before* `changeset version` (which bumps `package.json` and deletes consumed `.md` changeset files in one step) — deleting the `.md` file does not delete its `.migration.yml` sibling (changesets tooling has no awareness of it), but the script still runs first for simplicity and to keep both files' lifecycle visually paired during development.
+2. For each: validate its paired `.md` changeset exists (a `.migration.yml` with no matching changeset is an authoring error); validate `id` uniqueness across the whole batch plus the existing `registry.json`; resolve `commitRange` via `git diff <commitRange> -- <affectedGlobs>` in the repo; if `kind: codemod`, verify `codemods/<id>.ts` exists.
+3. Compute the release version this batch bumps `@idevconn/create-icore` to *without* invoking `changeset version` yet: read the current `package.json` version, take the highest bump level (`major` > `minor` > `patch`) across **all** pending changesets in `.changeset/*.md` (not just the ones with a paired `.migration.yml`), apply standard semver bump. This mirrors `changeset version`'s own bump-selection rule, so the two stay in agreement.
 4. Merge new entries into `tools/create-icore/migrations/registry.json` (append, keyed by `id`, stamped with the version computed in step 3), sorted by version ascending.
 5. Only after this script completes does the release pipeline run `changeset version` (bumping `package.json` to the same version and deleting the now-consumed changeset files).
 
@@ -83,17 +84,20 @@ Codemods must be narrow and anchor-based (e.g. "replace this exact import specif
 - `affectedGlobs` matches zero changed files within `commitRange` → build fails (signals a wrong glob or wrong range, not a legitimately-empty diff — an entry with nothing to show is a mistake, not a valid state).
 - Duplicate `id` (within the batch, or colliding with an existing `registry.json` entry) → build fails.
 - `kind: codemod` with no matching file under `codemods/` → build fails.
+- `.migration.yml` with no paired `.changeset/<same-basename>.md` → build fails (orphaned metadata, almost certainly a rename/typo).
 
 ## Testing
 
-Unit tests for `build-migration-registry.mjs` against fixture changeset files + a fixture git repo (or mocked `git diff` invocations):
-- Valid `migration` block → correct entry shape appended to `registry.json`, correctly version-stamped.
+Unit tests for `build-migration-registry.mjs` against fixture `.changeset/*.md` + `.migration.yml` pairs + a fixture git repo (or mocked `git diff` invocations):
+- Valid `.migration.yml` paired with its changeset → correct entry shape appended to `registry.json`, correctly version-stamped.
 - `affectedGlobs` correctly scopes the diff (a change outside the glob list does not appear in the baked diff).
 - Unresolvable `commitRange` → build fails with a clear error naming the entry `id`.
 - Zero-file-match on `affectedGlobs` → build fails.
 - Duplicate `id` (within batch, and against pre-existing `registry.json`) → build fails.
 - `kind: codemod` missing its `codemods/<id>.ts` → build fails.
-- Changeset with no `migration` block → unaffected, no registry entry produced (existing changeset behavior preserved).
+- `.migration.yml` with no paired changeset → build fails.
+- Changeset with no paired `.migration.yml` → unaffected, no registry entry produced (existing changeset behavior preserved).
+- Regression guard: a changeset frontmatter is parsed with the real `@changesets/parse` (or an equivalent same-shape fixture) to confirm the build step never writes anything back into `.changeset/*.md` frontmatter — the whole point of the sibling-file design.
 
 Unit test for `writeBlueprintJson`: emitted `blueprint.json` includes `generatorVersion` matching the running package version.
 
@@ -101,4 +105,4 @@ Unit test for `writeBlueprintJson`: emitted `blueprint.json` includes `generator
 
 - The `migrate` CLI itself (execution loop, state file, codemod auto-apply, ai-prompt stop/resume) — sub-project 2, separate spec.
 - Backfilling real registry entries for past PRs (MUI 9.2, revoke(), HMAC, etc.) — explicitly deferred, not required to validate this pipeline.
-- Any change to the existing changeset-gate enforcement (`AGENTS.md` mandate stays as-is; `migration` block is additive/optional on top of it).
+- Any change to the existing changeset-gate enforcement (`AGENTS.md` mandate stays as-is; the `.migration.yml` sibling file is additive/optional on top of it, and never touches changeset frontmatter).
