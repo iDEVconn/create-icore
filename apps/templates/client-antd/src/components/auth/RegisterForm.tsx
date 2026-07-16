@@ -33,8 +33,8 @@ export function RegisterForm({ onSuccess, onSwitchLogin }: Props) {
   }
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space direction="vertical" size={4}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={4}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('auth.registerTitle')}
         </Typography.Title>

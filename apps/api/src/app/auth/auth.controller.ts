@@ -86,6 +86,20 @@ export class AuthController {
   }
 
   @Public()
+  @Post('logout')
+  @ApiOperation({ summary: 'Revoke a refresh token, ending that session' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['refreshToken'],
+      properties: { refreshToken: { type: 'string' } },
+    },
+  })
+  logout(@Body() body: { refreshToken: string }) {
+    return this.authClient.revoke(body.refreshToken);
+  }
+
+  @Public()
   @Post('magic-link')
   @ApiOperation({ summary: 'Send a passwordless sign-in link to the email' })
   @ApiBody({

@@ -5,3 +5,4 @@ export * from './jobs';
 export * from './strategies';
 export * from './transport';
 export * from './types';
+export * from './security/hmac';

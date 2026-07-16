@@ -142,10 +142,11 @@ export async function rewriteRootPackageJson(
     const deps = (pkg['dependencies'] ??= {}) as Record<string, string>;
     Object.assign(deps, MONGODB_DEPS);
   }
-  // @types/bcrypt and @types/jsonwebtoken are devDeps of auth-mongodb lib, but pnpm strict
-  // isolation does not hoist them to root node_modules — TypeScript can't find them during
-  // nx build which runs from root. Add to root devDependencies when auth=mongodb.
-  if (opts.authProvider === 'mongodb') {
+  // @types/bcrypt and @types/jsonwebtoken are devDeps of the postgres/mongodb
+  // auth-strategy libs, but pnpm strict isolation does not hoist them to root
+  // node_modules — TypeScript can't find them during nx build, which runs
+  // from root. Add to root devDependencies when either provider is chosen.
+  if (opts.authProvider === 'mongodb' || opts.authProvider === 'postgres') {
     const devDeps = (pkg['devDependencies'] ??= {}) as Record<string, string>;
     devDeps['@types/bcrypt'] = '^6.0.0';
     devDeps['@types/jsonwebtoken'] = '^9.0.10';
@@ -293,11 +294,23 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 
-export async function writeClientEnv(targetDir: string): Promise<void> {
+// authProvider values that implement startOAuth/sendMagicLink. postgres and
+// mongodb both throw not_implemented for either, so their generated client
+// must not surface the OAuth buttons or the magic-link toggle.
+const OAUTH_MAGIC_LINK_PROVIDERS: ReadonlySet<CreateIcoreOptions['authProvider']> = new Set([
+  'supabase',
+  'firebase',
+]);
+
+export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   const envExample = join(targetDir, 'apps/client/.env.example');
   try {
     const env = await readFile(envExample, 'utf8');
-    await writeFile(join(targetDir, 'apps/client/.env'), env);
+    const supported = OAUTH_MAGIC_LINK_PROVIDERS.has(opts.authProvider);
+    const next = env
+      .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${supported}`)
+      .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`);
+    await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {
     // .env.example may not exist in older snapshots
   }

@@ -8,6 +8,9 @@ import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '@/main';
 
+const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
+const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+
 interface Props {
   onSwitchRegister: () => void;
   onSwitchMagicLink: () => void;
@@ -57,30 +60,34 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
         </Typography>
       </Stack>
 
-      <Stack spacing={1}>
-        <Button
-          variant="outlined"
-          fullWidth
-          startIcon={<GoogleIcon />}
-          onClick={() => window.location.assign('/api/auth/oauth/google')}
-        >
-          {t('auth.continueWithGoogle')}
-        </Button>
-        <Button
-          variant="outlined"
-          fullWidth
-          startIcon={<GitHubIcon />}
-          onClick={() => window.location.assign('/api/auth/oauth/github')}
-        >
-          {t('auth.continueWithGithub')}
-        </Button>
-      </Stack>
+      {AUTH_HAS_OAUTH && (
+        <>
+          <Stack spacing={1}>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<GoogleIcon />}
+              onClick={() => window.location.assign('/api/auth/oauth/google')}
+            >
+              {t('auth.continueWithGoogle')}
+            </Button>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<GitHubIcon />}
+              onClick={() => window.location.assign('/api/auth/oauth/github')}
+            >
+              {t('auth.continueWithGithub')}
+            </Button>
+          </Stack>
 
-      <Divider>
-        <Typography variant="caption" color="text.secondary">
-          {t('auth.orContinueWith')}
-        </Typography>
-      </Divider>
+          <Divider>
+            <Typography variant="caption" color="text.secondary">
+              {t('auth.orContinueWith')}
+            </Typography>
+          </Divider>
+        </>
+      )}
 
       <Box component="form" onSubmit={handleSubmit} autoComplete="on">
         <TextField
@@ -123,18 +130,20 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
             {t('auth.switchToRegisterLink')}
           </Box>
         </Typography>
-        <Box
-          component="span"
-          onClick={onSwitchMagicLink}
-          sx={{
-            fontSize: 13,
-            color: 'primary.main',
-            cursor: 'pointer',
-            '&:hover': { textDecoration: 'underline' },
-          }}
-        >
-          {t('auth.withMagicLink')}
-        </Box>
+        {AUTH_HAS_MAGIC_LINK && (
+          <Box
+            component="span"
+            onClick={onSwitchMagicLink}
+            sx={{
+              fontSize: 13,
+              color: 'primary.main',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {t('auth.withMagicLink')}
+          </Box>
+        )}
       </Stack>
     </Stack>
   );

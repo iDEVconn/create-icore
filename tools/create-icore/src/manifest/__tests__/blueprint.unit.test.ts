@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtemp, readFile, mkdir, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { writeBlueprintJson, writeServiceBlueprints } from '../blueprint.js';
 import type { CreateIcoreOptions } from '../../lib/options.js';
 
@@ -31,6 +32,12 @@ describe('writeBlueprintJson', () => {
     const dir = await mkdtemp(join(tmpdir(), 'icore-bp-'));
     await writeBlueprintJson(dir, { ...opts, targetDir: dir });
     const bp = JSON.parse(await readFile(join(dir, 'blueprint.json'), 'utf8'));
+
+    const here = dirname(fileURLToPath(import.meta.url));
+    const ownPkg = JSON.parse(await readFile(join(here, '../../../package.json'), 'utf8')) as {
+      version: string;
+    };
+
     expect(bp).toEqual({
       schemaVersion: 1,
       projectName: 'my-app',
@@ -43,6 +50,7 @@ describe('writeBlueprintJson', () => {
       ui: 'antd',
       transport: 'nats',
       packageManager: 'pnpm',
+      generatorVersion: ownPkg.version,
     });
     // transient fields excluded
     expect(bp).not.toHaveProperty('targetDir');

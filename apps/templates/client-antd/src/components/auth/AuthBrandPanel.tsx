@@ -33,8 +33,8 @@ export function AuthBrandPanel() {
           pointerEvents: 'none',
         }}
       />
-      <Space direction="vertical" size={32} style={{ position: 'relative', zIndex: 1 }}>
-        <Space direction="vertical" size={4}>
+      <Space orientation="vertical" size={32} style={{ position: 'relative', zIndex: 1 }}>
+        <Space orientation="vertical" size={4}>
           <Typography.Title level={2} style={{ color: '#22c55e', margin: 0, fontSize: 28 }}>
             iCore
           </Typography.Title>
@@ -43,7 +43,7 @@ export function AuthBrandPanel() {
           </Typography.Text>
         </Space>
 
-        <Space direction="vertical" size={8}>
+        <Space orientation="vertical" size={8}>
           {FEATURES.map((f) => (
             <Space key={f} size={8} align="center">
               <CheckCircleOutlined style={{ color: '#22c55e', fontSize: 14 }} />

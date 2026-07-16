@@ -17,6 +17,7 @@ export interface MockHandle {
   users: Map<string, FakeUser>;
   tokensToUid: Map<string, string>;
   refreshToUid: Map<string, string>;
+  revokedUids: Set<string>;
   getOobCode(email: string): string;
   /**
    * Pre-register an OAuth code → email mapping. Mirrors what the real provider
@@ -31,6 +32,7 @@ export function createMockIdentityToolkit(): MockHandle {
   const users = new Map<string, FakeUser>();
   const tokensToUid = new Map<string, string>();
   const refreshToUid = new Map<string, string>();
+  const revokedUids = new Set<string>();
   const oobCodes = new Map<string, string>(); // oobCode → email
   const oobByEmail = new Map<string, string>(); // email → oobCode
   const oauthCodeToEmail = new Map<string, string>();
@@ -115,6 +117,7 @@ export function createMockIdentityToolkit(): MockHandle {
     async refresh(refreshToken) {
       const uid = refreshToUid.get(refreshToken);
       if (!uid) throw new Error('INVALID_REFRESH_TOKEN');
+      if (revokedUids.has(uid)) throw new Error('USER_DISABLED'); // matches real Firebase's error family
       refreshToUid.delete(refreshToken); // Firebase rotates
       const user = [...users.values()].find((u) => u.localId === uid);
       if (!user) throw new Error('USER_NOT_FOUND');
@@ -148,6 +151,7 @@ export function createMockIdentityToolkit(): MockHandle {
     users,
     tokensToUid,
     refreshToUid,
+    revokedUids,
     getOobCode(email: string): string {
       const code = oobByEmail.get(email);
       if (!code) throw new Error(`no oobCode issued for ${email}`);

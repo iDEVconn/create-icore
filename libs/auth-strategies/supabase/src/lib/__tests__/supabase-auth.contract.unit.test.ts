@@ -16,6 +16,8 @@ runAuthContract(
     return strategy;
   },
   {
+    // revoke() is fully implemented — see SupabaseAuthStrategy.revoke.
+    // Supabase revokes by scope:'local', so it's per-session, not user-wide.
     getMagicLinkToken: (strategy, email) => {
       const mock = mocks.get(strategy as SupabaseAuthStrategy);
       if (!mock) throw new Error('mock not registered for strategy');

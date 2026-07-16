@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateIcoreOptions } from '../lib/options.js';
+import { readSelfVersion } from '../lib/prompts.js';
 
 export interface BlueprintJson {
   schemaVersion: 1;
@@ -14,17 +15,21 @@ export interface BlueprintJson {
   ui: string;
   transport: string;
   packageManager: string;
+  generatorVersion: string;
 }
 
 /**
  * Record the scaffold selection at the project root. A provenance + audit-input
  * artifact ("what was this generated with?"). Transient fields (targetDir,
  * install, initGit) are excluded; no timestamp, so output is deterministic.
+ * `generatorVersion` anchors a future `create-icore migrate` command — a
+ * project missing this field (pre-existing scaffolds) is treated as version 0.
  */
 export async function writeBlueprintJson(
   targetDir: string,
   opts: CreateIcoreOptions,
 ): Promise<void> {
+  const generatorVersion = (await readSelfVersion()) ?? '0.0.0';
   const blueprint: BlueprintJson = {
     schemaVersion: 1,
     projectName: opts.projectName,
@@ -37,6 +42,7 @@ export async function writeBlueprintJson(
     ui: opts.ui,
     transport: opts.transport,
     packageManager: opts.packageManager,
+    generatorVersion,
   };
   await writeFile(join(targetDir, 'blueprint.json'), JSON.stringify(blueprint, null, 2) + '\n');
 }

@@ -1,8 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, mkdir, writeFile, readFile, access } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  readFile,
+  access,
+  writeFile as writeFileNode,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { writeProvider, cleanupUnusedAxis, type AxisWiring } from '../wire-provider.js';
+import {
+  writeProvider,
+  cleanupUnusedAxis,
+  mergeJsonDeps,
+  stripJsonKeys,
+  stripTsconfigKeys,
+  type AxisWiring,
+} from '../wire-provider.js';
 import type { Unit } from '../types.js';
 
 const SECTION: Record<string, Unit> = {
@@ -87,6 +101,29 @@ describe('writeProvider', () => {
     const bad: AxisWiring = { ...AXIS, section: { gamma: { libDirs: [], deps: {}, tsPaths: {} } } };
     await expect(writeProvider(dir, bad, 'gamma')).rejects.toThrow();
   });
+
+  it('merges the chosen provider workspace alias + raw deps into the microservice package.json', async () => {
+    const dir = await fixture();
+    // Simulate the real-world case: the static package.json template has
+    // NEITHER the workspace alias nor the raw SDK dep for 'beta' yet (unlike
+    // the fixture's default, which pre-seeds both — this mirrors how
+    // apps/microservices/auth/package.json has no @icore/auth-postgres entry
+    // in the actual generator templates today).
+    await writeFile(
+      join(dir, 'apps/microservices/x/package.json'),
+      JSON.stringify({ name: 'x', dependencies: { '@icore/x-alpha': '*', 'sdk-alpha': '^1.0.0' } }),
+    );
+
+    await writeProvider(dir, AXIS, 'beta');
+
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/microservices/x/package.json'), 'utf8'));
+    expect(pkg.dependencies).toEqual({
+      '@icore/x-alpha': '*',
+      'sdk-alpha': '^1.0.0',
+      '@icore/x-beta': '*',
+      'sdk-beta': '^2.0.0',
+    });
+  });
 });
 
 describe('cleanupUnusedAxis', () => {
@@ -118,5 +155,48 @@ describe('cleanupUnusedAxis', () => {
         join(dir, 'apps/microservices/x/src/app/__tests__/x.controller.alpha.unit.test.ts'),
       ),
     ).toBe(false);
+  });
+});
+
+describe('mergeJsonDeps — error narrowing', () => {
+  it('silently no-ops when the target file does not exist (ENOENT) — legitimate partial-fixture case', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-mergejsondeps-'));
+    const missingPath = join(dir, 'does/not/exist/package.json');
+    await expect(mergeJsonDeps(missingPath, { foo: '^1.0.0' })).resolves.toBeUndefined();
+  });
+
+  it('propagates a real error instead of swallowing it (malformed JSON)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-mergejsondeps-'));
+    const badPath = join(dir, 'package.json');
+    await writeFileNode(badPath, '{ not valid json');
+    await expect(mergeJsonDeps(badPath, { foo: '^1.0.0' })).rejects.toThrow();
+  });
+});
+
+describe('stripJsonKeys — error narrowing', () => {
+  it('silently no-ops when the target file does not exist (ENOENT)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-stripjsonkeys-'));
+    const missingPath = join(dir, 'does/not/exist/package.json');
+    await expect(stripJsonKeys(missingPath, () => true)).resolves.toBeUndefined();
+  });
+
+  it('propagates a real error instead of swallowing it (malformed JSON)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-stripjsonkeys-'));
+    const badPath = join(dir, 'package.json');
+    await writeFileNode(badPath, '{ not valid json');
+    await expect(stripJsonKeys(badPath, () => true)).rejects.toThrow();
+  });
+});
+
+describe('stripTsconfigKeys — error narrowing', () => {
+  it('silently no-ops when tsconfig.base.json does not exist (ENOENT)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-striptsconfig-'));
+    await expect(stripTsconfigKeys(dir, ['@icore/x'])).resolves.toBeUndefined();
+  });
+
+  it('propagates a real error instead of swallowing it (malformed JSON)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-striptsconfig-'));
+    await writeFileNode(join(dir, 'tsconfig.base.json'), '{ not valid json');
+    await expect(stripTsconfigKeys(dir, ['@icore/x'])).rejects.toThrow();
   });
 });

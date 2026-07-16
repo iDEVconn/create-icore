@@ -127,6 +127,10 @@ export class MongoDbAuthStrategy implements AuthStrategy {
     return this.createSession(user);
   }
 
+  async revoke(refreshToken: string): Promise<void> {
+    await this.sessionModel.deleteOne({ refreshToken }).exec();
+  }
+
   async setRole(uid: string, role: string): Promise<void> {
     await this.userModel.findOneAndUpdate({ id: uid }, { role }).exec();
   }
