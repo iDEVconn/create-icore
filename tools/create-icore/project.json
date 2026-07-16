@@ -11,8 +11,15 @@
         "command": "node tools/create-icore/scripts/snapshot-templates.mjs"
       }
     },
+    "build-migration-registry": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/create-icore/scripts/build-migration-registry.ts"
+      },
+      "outputs": ["{projectRoot}/migrations/registry.json"]
+    },
     "build": {
-      "dependsOn": ["snapshot-templates"],
+      "dependsOn": ["snapshot-templates", "build-migration-registry"],
       "executor": "nx:run-commands",
       "options": {
         "command": "tsup --config tools/create-icore/tsup.config.ts",
