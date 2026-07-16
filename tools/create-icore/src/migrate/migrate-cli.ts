@@ -28,8 +28,8 @@ function highestVersion(registry: RegistryFile): string {
   );
 }
 
-async function loadRegistry(): Promise<RegistryFile> {
-  const root = resolvePackageRoot();
+async function loadRegistry(packageRoot?: string): Promise<RegistryFile> {
+  const root = packageRoot ?? resolvePackageRoot();
   const raw = await readFile(join(root, 'migrations', 'registry.json'), 'utf8');
   return JSON.parse(raw) as RegistryFile;
 }
@@ -46,6 +46,7 @@ function printAiPromptInstructions(entry: RegistryEntry): void {
 export async function runMigrateCli(
   argv: string[],
   projectDir: string = process.cwd(),
+  packageRoot?: string,
 ): Promise<void> {
   const flags = parseMigrateFlags(argv);
 
@@ -60,9 +61,10 @@ export async function runMigrateCli(
     );
   }
 
-  const registry = await loadRegistry();
+  const registry = await loadRegistry(packageRoot);
   const currentVersion = blueprint.generatorVersion ?? '0.0.0';
-  const targetVersion = flags.to ?? highestVersion(registry);
+  const targetVersion =
+    flags.to === undefined || flags.to === 'latest' ? highestVersion(registry) : flags.to;
 
   const projectAxes: Record<string, string> = {
     authProvider: blueprint.authProvider,
@@ -76,7 +78,7 @@ export async function runMigrateCli(
   };
 
   const plan = computePlan(registry, currentVersion, targetVersion, projectAxes);
-  const deps = createMigrateDeps();
+  const deps = createMigrateDeps({ packageRoot });
   const result = await runMigrate(projectDir, plan, targetVersion, deps, printAiPromptInstructions);
 
   if (result === 'up-to-date') p.outro(kleur.green('Already up to date.'));
