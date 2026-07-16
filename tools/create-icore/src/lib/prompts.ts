@@ -24,13 +24,22 @@ function detectPackageManager(): PackageManager {
   return 'yarn';
 }
 
-async function readSelfVersion(): Promise<string | null> {
+export async function readSelfVersion(): Promise<string | null> {
   try {
-    // dist/cli.js → ../package.json (after tsup bundle)
     const here = dirname(fileURLToPath(import.meta.url));
-    const pkgRaw = await readFile(join(here, '..', 'package.json'), 'utf8');
-    const pkg = JSON.parse(pkgRaw) as { version?: string };
-    return pkg.version ?? null;
+    // Try bundled path first: dist/cli.js → ../package.json
+    // Fall back to source path: src/lib/prompts.ts → ../../package.json
+    const paths = [join(here, '..', 'package.json'), join(here, '..', '..', 'package.json')];
+    for (const path of paths) {
+      try {
+        const pkgRaw = await readFile(path, 'utf8');
+        const pkg = JSON.parse(pkgRaw) as { version?: string };
+        return pkg.version ?? null;
+      } catch {
+        // Try next path
+      }
+    }
+    return null;
   } catch {
     return null;
   }
