@@ -1,0 +1,8 @@
+Task 1: complete (commits 0f4a1ca..1c5b800, review clean — no issues)
+Task 2: complete (commits 1c5b800..73d13d1, review clean — regression guard mutation-tested for real, no issues)
+Task 3: complete (commits 73d13d1..362a00f, review clean — no issues, all constraints hand-traced and verified)
+Task 4: complete (commits 362a00f..abf2a2b, review clean — 2 Minor noted: duplicated git-exec wrapper across modules (existing convention), commit() has no guard for nothing-to-commit case relevant once a real no-op codemod exists (out of scope, zero real codemods shipped yet) — deferred to final review triage)
+Task 5: complete (commits abf2a2b..fd7c8c0, review clean — no issues, real end-to-end pause/resume proven with zero mocking)
+Task 6: complete (commits fd7c8c0..fd2d5b5, review clean — no issues; reviewer independently proved splitting:false gives zero shared chunks between codemod entries via a 2-fixture experiment)
+Task 7: complete (commits fd2d5b5..5f1c2ef, review clean — no issues; yarn.lock no-diff claim independently verified true via a real yarn install + lockfile format inspection)
+Task 8: complete (commits 5f1c2ef..eca0d37, review clean after 2 Important fixes — README's --to flag syntax and package name corrected to match actual shipped code; note: this task hit a serious incident — the first attempt committed to dev in the main checkout despite explicit warnings, cherry-picked cleanly onto this branch; the FIX dispatch then staged ~1000 phantom file deletions in the main checkout's index (never committed, files safe on disk/in HEAD, reset cleanly) plus left a stray uncommitted reversion in the worktree (discarded) — both fully recovered, dev and worktree confirmed clean before final review)
