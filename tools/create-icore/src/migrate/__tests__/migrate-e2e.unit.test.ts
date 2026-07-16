@@ -82,7 +82,9 @@ describe('migrate end-to-end (real git, pause + resume)', () => {
       expect(pausedEntry?.id).toBe('manual-fix');
       expect(await readFile(join(projectDir, 'bumped.txt'), 'utf8')).toBe('yes');
       expect(await gitLogSubjects(projectDir)).toContain('migrate: bump-a-value');
-      const blueprintAfterPause = JSON.parse(await readFile(join(projectDir, 'blueprint.json'), 'utf8'));
+      const blueprintAfterPause = JSON.parse(
+        await readFile(join(projectDir, 'blueprint.json'), 'utf8'),
+      );
       expect(blueprintAfterPause.generatorVersion).toBe('0.1.0'); // not bumped yet
 
       // Simulate the user applying the ai-prompt entry through their own agent.
