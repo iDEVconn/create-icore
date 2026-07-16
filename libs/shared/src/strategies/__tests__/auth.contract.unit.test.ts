@@ -26,6 +26,14 @@ export interface AuthContractHelpers {
    * the documented `not_implemented` rejection so the stub stays covered.
    */
   supportsRevoke?: boolean;
+  /**
+   * Set to `true` when revoke() invalidates ALL of a user's sessions rather
+   * than just the one tied to the revoked refresh token — e.g. Firebase's
+   * revokeRefreshTokens(uid) has no per-session primitive, only a uid-wide
+   * one. When true, the "does not affect other sessions" case is replaced
+   * with its logical opposite (revoke DOES affect other sessions).
+   */
+  revokeIsUserWide?: boolean;
 }
 
 export function runAuthContract(
@@ -87,12 +95,21 @@ export function runAuthContract(
         await expect(strategy.refresh(session.refreshToken)).rejects.toThrow();
       });
 
-      it('revoke does not affect other sessions for the same user', async () => {
-        const session = await strategy.signUp('revoke-b@x.com', 'pw12345!');
-        const other = await strategy.signIn('revoke-b@x.com', 'pw12345!');
-        await strategy.revoke(session.refreshToken);
-        await expect(strategy.refresh(other.refreshToken)).resolves.toBeTruthy();
-      });
+      if (helpers?.revokeIsUserWide) {
+        it('revoke invalidates ALL sessions for the same user (uid-wide revocation)', async () => {
+          const session = await strategy.signUp('revoke-c@x.com', 'pw12345!');
+          const other = await strategy.signIn('revoke-c@x.com', 'pw12345!');
+          await strategy.revoke(session.refreshToken);
+          await expect(strategy.refresh(other.refreshToken)).rejects.toThrow();
+        });
+      } else {
+        it('revoke does not affect other sessions for the same user', async () => {
+          const session = await strategy.signUp('revoke-b@x.com', 'pw12345!');
+          const other = await strategy.signIn('revoke-b@x.com', 'pw12345!');
+          await strategy.revoke(session.refreshToken);
+          await expect(strategy.refresh(other.refreshToken)).resolves.toBeTruthy();
+        });
+      }
 
       it('revoke is idempotent — revoking an unknown/already-revoked token does not throw', async () => {
         await expect(strategy.revoke('not-a-real-refresh-token')).resolves.toBeUndefined();

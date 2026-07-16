@@ -10,6 +10,7 @@ export interface FakeAdminAuth {
   getUser(
     uid: string,
   ): Promise<{ uid: string; email?: string; customClaims?: Record<string, unknown> }>;
+  revokeRefreshTokens(uid: string): Promise<void>;
 }
 
 export function createMockAdminAuth(opts: FakeAdminAuthOptions): FakeAdminAuth {
@@ -36,6 +37,9 @@ export function createMockAdminAuth(opts: FakeAdminAuthOptions): FakeAdminAuth {
         email: user.email,
         customClaims: role ? { role } : undefined,
       };
+    },
+    async revokeRefreshTokens(uid) {
+      opts.identityToolkit.revokedUids.add(uid);
     },
   };
 }

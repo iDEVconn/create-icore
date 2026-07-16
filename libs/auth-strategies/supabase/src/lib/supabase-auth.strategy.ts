@@ -44,12 +44,22 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     return this.toSession(data.session);
   }
 
-  async revoke(_refreshToken: string): Promise<void> {
-    // Supabase's admin.signOut() revokes by access-token JWT, not by refresh
-    // token, and this strategy doesn't retain a refresh-token → JWT mapping.
-    // Wiring this properly needs its own session-tracking design — tracked
-    // as a follow-up, not implemented here.
-    throw new Error('not_implemented');
+  /**
+   * Exchanges the refresh token for its session (rotating it — the token was
+   * going to die anyway), then signs the resulting access token out with
+   * scope 'local' so ONLY that one session ends, not every session the user
+   * has open elsewhere.
+   */
+  async revoke(refreshToken: string): Promise<void> {
+    try {
+      const { data, error } = await this.client.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+      if (error || !data.session) return; // already invalid/expired — idempotent
+      await this.client.auth.admin.signOut(data.session.access_token, 'local');
+    } catch {
+      // idempotent: revoking an unknown/already-dead token is not an error
+    }
   }
 
   async verifyToken(token: string): Promise<VerifiedToken> {
