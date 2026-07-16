@@ -71,5 +71,10 @@ export default defineConfig(() => ({
       },
     },
   },
-  test: commonTestConfig('client-antd', '../../../coverage/apps/templates/client-antd'),
+  test: {
+    ...commonTestConfig('client-antd', '../../../coverage/apps/templates/client-antd'),
+    // antd's responsive components (Space, Grid) call window.matchMedia, which
+    // jsdom doesn't implement — see src/test-setup.ts.
+    setupFiles: ['./src/test-setup.ts'],
+  },
 }));

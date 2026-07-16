@@ -34,7 +34,7 @@ export function MagicLinkForm({ onSwitchLogin }: Props) {
 
   if (sentEmail) {
     return (
-      <Space direction="vertical" size={0} style={{ width: '100%', textAlign: 'center' }}>
+      <Space orientation="vertical" size={0} style={{ width: '100%', textAlign: 'center' }}>
         <Result
           icon={<MailOutlined style={{ fontSize: 48, color: '#22c55e' }} />}
           title={t('auth.magicLinkSent')}
@@ -58,8 +58,8 @@ export function MagicLinkForm({ onSwitchLogin }: Props) {
   }
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space direction="vertical" size={4}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={4}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('auth.withMagicLink')}
         </Typography.Title>
