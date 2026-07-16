@@ -1,12 +1,14 @@
 ### Task 2: Migration entry schema + `.migration.yml` parser
 
 **Files:**
+
 - Create: `tools/create-icore/src/migrations/schema.ts`
 - Create: `tools/create-icore/src/migrations/__tests__/schema.unit.test.ts`
 - Modify: `tools/create-icore/package.json` (add `js-yaml` + `@types/js-yaml` devDependencies)
 - Modify: `yarn.lock` (regenerated)
 
 **Interfaces:**
+
 - Consumes: nothing from other tasks.
 - Produces: `MigrationKind = 'codemod' | 'ai-prompt'`, `MigrationEntry { id, kind, affectedAxes: string[], affectedGlobs: string[], commitRange, description }`, and `parseMigrationYaml(raw: string, sourcePath: string): MigrationEntry` — Task 3 imports this type and function.
 
@@ -60,7 +62,9 @@ describe('parseMigrationYaml', () => {
 
   it('throws when id is missing', () => {
     const yamlText = VALID_YAML.replace(/^id: .*$/m, '');
-    expect(() => parseMigrationYaml(yamlText, 'bad.yml')).toThrow(/"id" must be a non-empty string/);
+    expect(() => parseMigrationYaml(yamlText, 'bad.yml')).toThrow(
+      /"id" must be a non-empty string/,
+    );
   });
 
   it('throws when kind is invalid', () => {
@@ -212,4 +216,3 @@ git commit -m "feat(create-icore): add migration entry schema + .migration.yml p
 ```
 
 ---
-

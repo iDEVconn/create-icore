@@ -9,6 +9,7 @@ Task 5 successfully wires the migration registry build pipeline end-to-end. The 
 ### 1. Created `tools/create-icore/scripts/build-migration-registry.ts`
 
 Entrypoint script that orchestrates the registry build:
+
 - Imports `buildRegistry` from `../src/migrations/build-registry.js`
 - Imports `createGitDeps` from `../src/migrations/git-deps.js`
 - Resolves repo root and output path relative to script location
@@ -21,6 +22,7 @@ Entrypoint script that orchestrates the registry build:
 ### 2. Modified `tools/create-icore/project.json`
 
 Added new `build-migration-registry` target and updated `build` target:
+
 - `build-migration-registry`: `nx:run-commands` executor, runs `tsx tools/create-icore/scripts/build-migration-registry.ts`, declares output as `{projectRoot}/migrations/registry.json`
 - `build`: Updated `dependsOn` to include both `snapshot-templates` and `build-migration-registry`
 
@@ -40,6 +42,7 @@ NX   Successfully ran target build-migration-registry for project create-icore
 ```
 
 Registry file content verified:
+
 ```json
 {
   "entries": []
@@ -70,6 +73,7 @@ Zero linting errors.
 ## Deviations from Brief
 
 None. All steps completed exactly as specified:
+
 - ✓ Step 1: Entrypoint script created with exact code from brief
 - ✓ Step 2: `nx` target wired into `project.json` with exact schema from brief
 - ✓ Step 3: Target run verified, produces empty registry (0 entries) as expected

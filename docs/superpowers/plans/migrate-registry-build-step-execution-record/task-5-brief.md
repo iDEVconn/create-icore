@@ -1,10 +1,12 @@
 ### Task 5: Entrypoint script + `nx` target wiring
 
 **Files:**
+
 - Create: `tools/create-icore/scripts/build-migration-registry.ts`
 - Modify: `tools/create-icore/project.json`
 
 **Interfaces:**
+
 - Consumes: `buildRegistry` (Task 3, `../src/migrations/build-registry.js`), `createGitDeps` (Task 4, `../src/migrations/git-deps.js`).
 - Produces: `tools/create-icore/migrations/registry.json` (real, committed artifact) and an `nx` target other tooling/CI can depend on.
 
@@ -94,6 +96,7 @@ Expected: exits 0, prints `Wrote 0 migration entries to .../tools/create-icore/m
 
 Run: `cat tools/create-icore/migrations/registry.json`
 Expected:
+
 ```json
 {
   "entries": []

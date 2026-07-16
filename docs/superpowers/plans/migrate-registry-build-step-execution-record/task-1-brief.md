@@ -1,11 +1,13 @@
 ### Task 1: `generatorVersion` field in `blueprint.json`
 
 **Files:**
+
 - Modify: `tools/create-icore/src/lib/prompts.ts` (export the existing `readSelfVersion`)
 - Modify: `tools/create-icore/src/manifest/blueprint.ts`
 - Modify: `tools/create-icore/src/manifest/__tests__/blueprint.unit.test.ts`
 
 **Interfaces:**
+
 - Consumes: existing `readSelfVersion(): Promise<string | null>` (currently private to `prompts.ts:27`), existing `writeBlueprintJson(targetDir, opts)`.
 - Produces: `BlueprintJson.generatorVersion: string` — later tasks/plans (the `migrate` CLI, out of scope here) will read this field to know "what version is this project currently at."
 
@@ -142,4 +144,3 @@ git commit -m "feat(create-icore): record generatorVersion in blueprint.json"
 ```
 
 ---
-

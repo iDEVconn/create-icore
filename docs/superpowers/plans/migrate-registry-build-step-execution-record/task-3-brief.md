@@ -1,12 +1,14 @@
 ### Task 3: Registry builder core (`build-registry.ts`)
 
 **Files:**
+
 - Create: `tools/create-icore/src/migrations/build-registry.ts`
 - Create: `tools/create-icore/src/migrations/__tests__/build-registry.unit.test.ts`
 - Modify: `tools/create-icore/package.json` (add `semver` + `@types/semver` devDependencies)
 - Modify: `yarn.lock` (regenerated)
 
 **Interfaces:**
+
 - Consumes: `MigrationEntry`, `parseMigrationYaml` from Task 2 (`./schema.js`).
 - Produces: `RegistryEntry` (`MigrationEntry & { version: string; diff: string }`), `RegistryFile { entries: RegistryEntry[] }`, `ChangesetRelease { name: string; type: 'major'|'minor'|'patch'|'none' }`, `ChangesetPair { slug, changesetPath: string|null, migrationYamlPath: string|null, migrationYamlRaw: string|null, changesetReleases: ChangesetRelease[] }`, `BuildRegistryDeps` interface, and `buildRegistry(deps: BuildRegistryDeps): Promise<RegistryFile>` — Task 4's `git-deps.ts` implements `BuildRegistryDeps` against these exact shapes, and Task 5's script calls `buildRegistry`.
 
@@ -43,11 +45,7 @@ Create `tools/create-icore/src/migrations/__tests__/build-registry.unit.test.ts`
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import {
-  buildRegistry,
-  type BuildRegistryDeps,
-  type ChangesetPair,
-} from '../build-registry.js';
+import { buildRegistry, type BuildRegistryDeps, type ChangesetPair } from '../build-registry.js';
 
 function makeDeps(
   overrides: Partial<BuildRegistryDeps> & { pairs: ChangesetPair[] },
@@ -367,4 +365,3 @@ git commit -m "feat(create-icore): add registry builder core (buildRegistry)"
 ```
 
 ---
-

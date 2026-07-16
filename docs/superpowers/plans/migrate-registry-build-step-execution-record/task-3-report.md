@@ -7,19 +7,24 @@ Successfully implemented the registry builder core module (`buildRegistry`) with
 ## Changes Made
 
 ### 1. Updated `tools/create-icore/package.json`
+
 - Added `semver@^7.8.1` to devDependencies
 - Added `@types/semver@^7.7.1` to devDependencies
 - Kept existing `js-yaml` and `@types/js-yaml` entries (from Task 2)
 
 ### 2. Updated `tools/create-icore/eslint.config.mjs`
+
 - Added `'semver'` to `ignoredDependencies` allowlist (line 25)
 - This prevents false linting errors for build-tooling-only dependencies not bundled in the published package
 
 ### 3. Updated `yarn.lock`
+
 - Regenerated via `yarn install` to include semver and @types/semver with proper lockfile entries
 
 ### 4. Created `tools/create-icore/src/migrations/build-registry.ts`
+
 Implements the core orchestration module with:
+
 - **Exports**:
   - `RegistryEntry` interface (extends `MigrationEntry` with `version` and `diff`)
   - `RegistryFile` interface (contains array of `RegistryEntry`)
@@ -39,7 +44,9 @@ Implements the core orchestration module with:
   - Merges existing entries with new entries and sorts by version ascending
 
 ### 5. Created `tools/create-icore/src/migrations/__tests__/build-registry.unit.test.ts`
+
 Comprehensive test suite with 10 test cases covering:
+
 1. Basic codemod entry with patch bump (0.12.2 → 0.12.3)
 2. Minor bump propagation (0.12.2 → 0.13.0) when any changeset in batch requests minor
 3. Skipping changesets without migration siblings (no registry entries produced)
@@ -72,6 +79,7 @@ No errors, no warnings. The semver dependency is properly allowlisted.
 ## Deviations from Brief
 
 None. Implementation follows the brief exactly:
+
 - All interfaces match the specified names and shapes
 - All 10 test cases pass as specified
 - buildRegistry() logic matches the requirements
@@ -96,7 +104,7 @@ None. Implementation follows the brief exactly:
    - Skips non-migration changesets
    - Merges and sorts final entries
 
-6. **Dependencies**: 
+6. **Dependencies**:
    - Imports `parseMigrationYaml` and `MigrationEntry` from schema.ts (Task 2)
    - No circular dependencies
    - Only adds direct dependencies (semver)
@@ -104,6 +112,7 @@ None. Implementation follows the brief exactly:
 ## Test-Driven Development
 
 Followed TDD exactly:
+
 1. Added failing test (step 2) ✓
 2. Verified test fails with expected error (step 3) ✓
 3. Implemented buildRegistry.ts (step 4) ✓

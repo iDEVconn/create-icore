@@ -3,10 +3,12 @@
 ## Working directory / branch verification
 
 Confirmed at task start:
+
 ```
 pwd: /home/vladimir-tkach/Projects/22/.claude/worktrees/feature+migrate-registry-build-step
 git branch --show-current: feature/migrate-registry-build-step
 ```
+
 Correct worktree and branch. Proceeded.
 
 ## What changed

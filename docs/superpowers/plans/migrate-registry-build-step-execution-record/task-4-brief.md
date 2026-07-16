@@ -1,12 +1,14 @@
 ### Task 4: Real git/fs-backed `BuildRegistryDeps` (`git-deps.ts`)
 
 **Files:**
+
 - Create: `tools/create-icore/src/migrations/git-deps.ts`
 - Create: `tools/create-icore/src/migrations/__tests__/git-deps.unit.test.ts`
 - Modify: `tools/create-icore/package.json` (add `minimatch` + `@changesets/parse` devDependencies)
 - Modify: `yarn.lock` (regenerated)
 
 **Interfaces:**
+
 - Consumes: `BuildRegistryDeps`, `ChangesetPair`, `ChangesetRelease`, `RegistryFile` types from Task 3 (`./build-registry.js`).
 - Produces: `createGitDeps(repoRoot: string): Promise<BuildRegistryDeps>` — Task 5's script imports this.
 
@@ -116,7 +118,10 @@ describe('createGitDeps (real git + fs)', () => {
 
   it('resolves diffFiles/diffText against real git history, scoped by glob', async () => {
     const before = await gitOut(repoRoot, ['rev-parse', 'HEAD']);
-    await writeFile(join(repoRoot, 'apps/templates/client-mui/src/Icon.tsx'), 'export const Icon = 1;\n');
+    await writeFile(
+      join(repoRoot, 'apps/templates/client-mui/src/Icon.tsx'),
+      'export const Icon = 1;\n',
+    );
     await writeFile(join(repoRoot, 'README.md'), 'unrelated change\n');
     await git(repoRoot, ['add', '-A']);
     await git(repoRoot, ['commit', '-q', '-m', 'change icon + readme']);
@@ -315,4 +320,3 @@ git commit -m "feat(create-icore): add real git/fs-backed BuildRegistryDeps"
 ```
 
 ---
-
