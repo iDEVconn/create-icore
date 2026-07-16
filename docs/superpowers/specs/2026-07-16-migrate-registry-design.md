@@ -11,7 +11,7 @@ This spec covers only #1. It intentionally ships zero real registry entries — 
 
 ### Reference architecture (researched via `nx_docs`)
 
-Nx's `nx migrate` uses a `migrations.json` that maps target package versions to versioned migration generators, applied sequentially with per-step human accept/undo and a required clean git tree. This design borrows that shape (version-keyed entries, git-checkpointed, human-gated execution — deferred to sub-project 2) but diverges on *how entries get content*: instead of hand-written codemods for every change, entries are typed `codemod | ai-prompt`, and content is derived from real commit diffs rather than hand-authored per entry (see Decision Record below).
+Nx's `nx migrate` uses a `migrations.json` that maps target package versions to versioned migration generators, applied sequentially with per-step human accept/undo and a required clean git tree. This design borrows that shape (version-keyed entries, git-checkpointed, human-gated execution — deferred to sub-project 2) but diverges on _how entries get content_: instead of hand-written codemods for every change, entries are typed `codemod | ai-prompt`, and content is derived from real commit diffs rather than hand-authored per entry (see Decision Record below).
 
 ### Decision record (L99 deep-analysis, approved)
 
@@ -34,18 +34,19 @@ Instead: an **optional sibling file**, same basename as the changeset, `.migrati
 ```yaml
 # .changeset/mui-9-2-icon-rename.migration.yml
 id: mui-9-2-icon-rename
-kind: codemod          # or: ai-prompt
+kind: codemod # or: ai-prompt
 affectedAxes:
-  - "ui:mui"
+  - 'ui:mui'
 affectedGlobs:
-  - "apps/templates/client-mui/src/**/*.tsx"
-commitRange: "336161f..a1b2c3d"
-description: "Rename 3 icon imports for MUI v9 (un-suffixed Outline aliases removed)."
+  - 'apps/templates/client-mui/src/**/*.tsx'
+commitRange: '336161f..a1b2c3d'
+description: 'Rename 3 icon imports for MUI v9 (un-suffixed Outline aliases removed).'
 ```
 
 `description` is duplicated here (rather than reused from the changeset body) because the changeset summary is prose aimed at a changelog reader, while this field is the text the future CLI will show a user mid-migration — the two audiences don't always want the same wording, and decoupling them avoids the build script needing to scrape and reformat changeset markdown.
 
 Field semantics:
+
 - `id` — unique slug across the whole registry (build fails on collision).
 - `kind` — `codemod` or `ai-prompt`. Determines whether a matching file must exist under `tools/create-icore/migrations/codemods/`.
 - `affectedAxes` — list of `"<axisName>:<unitId>"` strings matching manifest `Unit` identity (e.g. `"authProvider:postgres"`, `"ui:mui"`). A future CLI consumer will only surface an entry when ALL listed axes match the target project's `blueprint.json` selections.
@@ -68,11 +69,11 @@ Codemods must be narrow and anchor-based (e.g. "replace this exact import specif
 
 ### 4. Build script
 
-`tools/create-icore/scripts/build-migration-registry.mjs`, invoked at `nx build create-icore` (same trigger as `snapshot-templates.mjs`, before it runs `changeset version` which would otherwise delete the changeset files this script reads):
+`tools/create-icore/scripts/build-migration-registry.ts` (run via `tsx`), invoked at `nx build create-icore` (same trigger as `snapshot-templates.mjs`, before it runs `changeset version` which would otherwise delete the changeset files this script reads):
 
-1. Glob all `.changeset/*.migration.yml` sibling files (each paired 1:1 with a `.changeset/<same-basename>.md`). Runs strictly *before* `changeset version` (which bumps `package.json` and deletes consumed `.md` changeset files in one step) — deleting the `.md` file does not delete its `.migration.yml` sibling (changesets tooling has no awareness of it), but the script still runs first for simplicity and to keep both files' lifecycle visually paired during development.
+1. Glob all `.changeset/*.migration.yml` sibling files (each paired 1:1 with a `.changeset/<same-basename>.md`). Runs strictly _before_ `changeset version` (which bumps `package.json` and deletes consumed `.md` changeset files in one step) — deleting the `.md` file does not delete its `.migration.yml` sibling (changesets tooling has no awareness of it), but the script still runs first for simplicity and to keep both files' lifecycle visually paired during development.
 2. For each: validate its paired `.md` changeset exists (a `.migration.yml` with no matching changeset is an authoring error); validate `id` uniqueness across the whole batch plus the existing `registry.json`; resolve `commitRange` via `git diff <commitRange> -- <affectedGlobs>` in the repo; if `kind: codemod`, verify `codemods/<id>.ts` exists.
-3. Compute the release version this batch bumps `@idevconn/create-icore` to *without* invoking `changeset version` yet: read the current `package.json` version, take the highest bump level (`major` > `minor` > `patch`) across **all** pending changesets in `.changeset/*.md` (not just the ones with a paired `.migration.yml`), apply standard semver bump. This mirrors `changeset version`'s own bump-selection rule, so the two stay in agreement.
+3. Compute the release version this batch bumps `@idevconn/create-icore` to _without_ invoking `changeset version` yet: read the current `package.json` version, take the highest bump level (`major` > `minor` > `patch`) across **all** pending changesets in `.changeset/*.md` (not just the ones with a paired `.migration.yml`), apply standard semver bump. This mirrors `changeset version`'s own bump-selection rule, so the two stay in agreement.
 4. Merge new entries into `tools/create-icore/migrations/registry.json` (append, keyed by `id`, stamped with the version computed in step 3), sorted by version ascending.
 5. Only after this script completes does the release pipeline run `changeset version` (bumping `package.json` to the same version and deleting the now-consumed changeset files).
 
@@ -88,7 +89,8 @@ Codemods must be narrow and anchor-based (e.g. "replace this exact import specif
 
 ## Testing
 
-Unit tests for `build-migration-registry.mjs` against fixture `.changeset/*.md` + `.migration.yml` pairs + a fixture git repo (or mocked `git diff` invocations):
+Unit tests for `build-migration-registry.ts` against fixture `.changeset/*.md` + `.migration.yml` pairs + a fixture git repo (or mocked `git diff` invocations):
+
 - Valid `.migration.yml` paired with its changeset → correct entry shape appended to `registry.json`, correctly version-stamped.
 - `affectedGlobs` correctly scopes the diff (a change outside the glob list does not appear in the baked diff).
 - Unresolvable `commitRange` → build fails with a clear error naming the entry `id`.
