@@ -95,6 +95,22 @@ Field names mirror the TypeScript `CreateIcoreOptions` type. Unknown fields are 
 
 Run `nx build create-icore` to build the library.
 
+## Migrating an existing project
+
+Projects scaffolded by an older `create-icore` version can absorb generator/template fixes shipped since, without regenerating from scratch:
+
+```bash
+cd my-existing-project
+npx @idevconn/create-icore migrate --to=latest   # or --to=0.15.0 for a specific version
+```
+
+`migrate` requires a clean git working tree and walks any pending migrations relevant to your project's chosen providers/UI (read from your generated `blueprint.json`) one at a time:
+
+- Mechanical fixes are applied and committed automatically (commit message `migrate: <id>`).
+- Fixes that need judgment print a description and the real diff from how `create-icore`'s own template changed, then pause — apply the equivalent change yourself (with your own coding assistant, adapting to any customization you've made), commit your work with a message containing exactly `migrate: <id>`, then re-run the same `migrate` command to continue. Re-running is always safe — already-applied migrations are detected from your git history and skipped.
+
+There is no separate resume flag needed (`--continue` is accepted for familiarity but does nothing extra); running the exact same command again always picks up where you left off.
+
 ## Running unit tests
 
 Run `nx test create-icore` to execute the unit tests via [Vitest](https://vitest.dev/).

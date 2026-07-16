@@ -55,7 +55,7 @@ libs/
 ├── auth-client/          # gateway → auth MS client (NestJS module)
 └── upload-client/        # gateway → upload MS client (NestJS module)
 tools/
-└── create-icore/         # npx CLI source
+└── create-icore/         # npx CLI source (scaffold new projects; `create-icore migrate` upgrades existing ones)
 ```
 
 Frontend never imports a provider SDK directly. All auth + storage traffic goes through `apps/api` → microservice → strategy.

@@ -7,6 +7,7 @@ import * as p from '@clack/prompts';
 import { collectOptions } from './lib/prompts.js';
 import { scaffold } from './lib/scaffold.js';
 import { pmRun } from './lib/options.js';
+import { runMigrateCli } from './migrate/migrate-cli.js';
 
 const [nodeMajor] = process.versions.node.split('.').map(Number);
 if (nodeMajor < 22) {
@@ -21,6 +22,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const templatesDir = resolve(here, '..', 'templates');
 
 async function main() {
+  if (process.argv[2] === 'migrate') {
+    await runMigrateCli(process.argv.slice(3));
+    return;
+  }
+
   if (!existsSync(templatesDir)) {
     p.log.error(`Templates directory missing: ${templatesDir}`);
     process.exit(1);
