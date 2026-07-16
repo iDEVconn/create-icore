@@ -3,6 +3,10 @@ import { dirname, join } from 'node:path';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function isEnoent(err: unknown): boolean {
+  return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
 async function stripDeps(pkgPath: string, names: string[]): Promise<void> {
   try {
     const raw = await readFile(pkgPath, 'utf8');
@@ -54,20 +58,27 @@ export async function removeAuthOnlyPaths(targetDir: string): Promise<void> {
 
 async function stripTsconfigPath(targetDir: string, alias: string): Promise<void> {
   const tsconfigPath = join(targetDir, 'tsconfig.base.json');
+  let src: string;
   try {
-    const src = await readFile(tsconfigPath, 'utf8');
-    const escaped = alias.replace(/[@/]/g, (c) => (c === '@' ? '@' : '\\/'));
-    const pretty = src.replace(new RegExp(`^\\s*"${escaped}": \\[[^\\]]*\\],?\\n`, 'm'), '');
-    if (pretty !== src) {
-      await writeFile(tsconfigPath, pretty);
-      return;
-    }
-    const parsed = JSON.parse(src) as { compilerOptions?: { paths?: Record<string, unknown> } };
-    if (parsed.compilerOptions?.paths) delete parsed.compilerOptions.paths[alias];
-    await writeFile(tsconfigPath, JSON.stringify(parsed));
-  } catch {
-    // ignore — tsconfig may not exist in test scaffolds
+    src = await readFile(tsconfigPath, 'utf8');
+  } catch (err) {
+    if (isEnoent(err)) return; // tsconfig may not exist in test scaffolds
+    throw err;
   }
+  const escaped = alias.replace(/[@/]/g, (c) => (c === '@' ? '@' : '\\/'));
+  let pretty = src.replace(new RegExp(`^\\s*"${escaped}": \\[[^\\]]*\\],?\\n`, 'm'), '');
+  if (pretty !== src) {
+    // Clean up any trailing comma left dangling when the removed entry was the
+    // last one in `paths` — its line had no trailing comma to strip along
+    // with it, so the *preceding* surviving entry's comma is now dangling
+    // before the closing brace, which is invalid JSON.
+    pretty = pretty.replace(/,(\s*[\]}])/g, '$1');
+    await writeFile(tsconfigPath, pretty);
+    return;
+  }
+  const parsed = JSON.parse(src) as { compilerOptions?: { paths?: Record<string, unknown> } };
+  if (parsed.compilerOptions?.paths) delete parsed.compilerOptions.paths[alias];
+  await writeFile(tsconfigPath, JSON.stringify(parsed));
 }
 
 export async function removeAuthTsconfigPaths(targetDir: string): Promise<void> {
