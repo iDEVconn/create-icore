@@ -35,15 +35,19 @@ export class AuthClientService {
   constructor(@Inject(AUTH_CLIENT) private readonly client: ClientProxy) {}
 
   /**
-   * Signs the payload with an HMAC (keyed by AUTH_TCP_SECRET) before sending it
-   * over TCP, so the microservice can reject requests from a process that
-   * reached the port but doesn't know the shared secret. No-op — identical to
-   * a plain client.send — when the secret isn't configured, so this is opt-in
+   * Signs the payload (plus a timestamp, for replay protection) with an HMAC
+   * keyed by AUTH_TCP_SECRET before sending it over TCP, so the microservice
+   * can reject requests from a process that reached the port but doesn't know
+   * the shared secret, and reject replays of a previously-captured request
+   * outside the guard's clock-skew tolerance window. No-op — identical to a
+   * plain client.send — when the secret isn't configured, so this is opt-in
    * and doesn't break existing setups.
    */
   private send<T>(pattern: string, payload: object): Observable<T> {
     const secret = process.env['AUTH_TCP_SECRET'];
-    const body = secret ? { ...payload, _sig: signHmac(payload, secret) } : payload;
+    if (!secret) return this.client.send<T>(pattern, payload);
+    const timestamped = { ...payload, _ts: Date.now() };
+    const body = { ...timestamped, _sig: signHmac(timestamped, secret) };
     return this.client.send<T>(pattern, body);
   }
 

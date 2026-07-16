@@ -73,19 +73,39 @@ describe('AuthClientService — TCP HMAC signing', () => {
     expect(send).toHaveBeenCalledWith('auth.setRole', { uid: 'u1', role: 'admin' });
   });
 
-  it('signs the payload with an HMAC when AUTH_TCP_SECRET is configured', async () => {
+  it('signs the payload with an HMAC and a timestamp when AUTH_TCP_SECRET is configured', async () => {
     process.env['AUTH_TCP_SECRET'] = 'test-secret';
     const send = vi.fn(() => of({ ok: true as const }));
     const client = { send } as unknown as ClientProxy;
     const service = new AuthClientService(client);
 
+    const before = Date.now();
     await service.setRole('u1', 'admin');
+    const after = Date.now();
 
     expect(send).toHaveBeenCalledWith(
       'auth.setRole',
-      expect.objectContaining({ uid: 'u1', role: 'admin', _sig: expect.any(String) }),
+      expect.objectContaining({
+        uid: 'u1',
+        role: 'admin',
+        _ts: expect.any(Number),
+        _sig: expect.any(String),
+      }),
     );
-    const sentPayload = send.mock.calls[0]?.[1] as { uid: string; role: string; _sig: string };
-    expect(verifyHmac({ uid: 'u1', role: 'admin' }, sentPayload._sig, 'test-secret')).toBe(true);
+    const sentPayload = send.mock.calls[0]?.[1] as {
+      uid: string;
+      role: string;
+      _ts: number;
+      _sig: string;
+    };
+    expect(sentPayload._ts).toBeGreaterThanOrEqual(before);
+    expect(sentPayload._ts).toBeLessThanOrEqual(after);
+    expect(
+      verifyHmac(
+        { uid: 'u1', role: 'admin', _ts: sentPayload._ts },
+        sentPayload._sig,
+        'test-secret',
+      ),
+    ).toBe(true);
   });
 });
