@@ -45,8 +45,8 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
   }
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space direction="vertical" size={4}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={4}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('auth.loginTitle')}
         </Typography.Title>
@@ -55,7 +55,7 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
 
       {AUTH_HAS_OAUTH && (
         <>
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Button
               block
               icon={<GoogleOutlined />}
@@ -107,7 +107,7 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
         </Form.Item>
       </Form>
 
-      <Space direction="vertical" size={4} style={{ width: '100%', textAlign: 'center' }}>
+      <Space orientation="vertical" size={4} style={{ width: '100%', textAlign: 'center' }}>
         <Typography.Text type="secondary" style={{ fontSize: 13 }}>
           {t('auth.switchToRegister')}{' '}
           <Typography.Link onClick={onSwitchRegister}>

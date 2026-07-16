@@ -1,32 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/main', () => ({ api: vi.fn() }));
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
 
 const noop = () => undefined;
 
+// window.matchMedia is polyfilled globally in src/test-setup.ts (antd's Space/Grid
+// responsive hooks call it, which jsdom doesn't implement).
 describe('LoginForm — provider capability gating', () => {
-  // antd's `Space`/`Grid` responsive hooks call `window.matchMedia`, which jsdom
-  // does not implement. Without this polyfill every test crashes during the
-  // effect phase with "window.matchMedia is not a function" before assertions
-  // ever run — unrelated to the OAuth/magic-link gating under test.
-  beforeAll(() => {
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    });
-  });
-
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();

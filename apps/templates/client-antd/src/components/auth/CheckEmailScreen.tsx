@@ -10,7 +10,7 @@ interface Props {
 export function CheckEmailScreen({ email, onBack }: Props) {
   const { t } = useTranslation();
   return (
-    <Space direction="vertical" size={0} style={{ width: '100%', textAlign: 'center' }}>
+    <Space orientation="vertical" size={0} style={{ width: '100%', textAlign: 'center' }}>
       <Result
         icon={<MailOutlined style={{ fontSize: 48, color: '#22c55e' }} />}
         title={t('auth.checkEmail')}
