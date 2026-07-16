@@ -101,7 +101,7 @@ Projects scaffolded by an older `create-icore` version can absorb generator/temp
 
 ```bash
 cd my-existing-project
-npx create-icore migrate --to latest   # or --to 0.15.0 for a specific version
+npx @idevconn/create-icore migrate --to=latest   # or --to=0.15.0 for a specific version
 ```
 
 `migrate` requires a clean git working tree and walks any pending migrations relevant to your project's chosen providers/UI (read from your generated `blueprint.json`) one at a time:
