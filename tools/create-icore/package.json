@@ -66,7 +66,9 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
+    "@types/semver": "^7.7.1",
     "js-yaml": "^4.1.1",
+    "semver": "^7.8.1",
     "tsup": "^8.5.1",
     "vitest": "^4.1.9"
   },
