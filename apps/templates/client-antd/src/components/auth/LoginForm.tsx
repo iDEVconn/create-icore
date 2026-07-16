@@ -5,6 +5,9 @@ import { useNavigate } from '@tanstack/react-router';
 import { useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '@/main';
 
+const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
+const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+
 interface FormValues {
   email: string;
   password: string;
@@ -50,28 +53,32 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
         <Typography.Text type="secondary">{t('auth.loginSubtitle')}</Typography.Text>
       </Space>
 
-      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-        <Button
-          block
-          icon={<GoogleOutlined />}
-          onClick={() => window.location.assign('/api/auth/oauth/google')}
-        >
-          {t('auth.continueWithGoogle')}
-        </Button>
-        <Button
-          block
-          icon={<GithubOutlined />}
-          onClick={() => window.location.assign('/api/auth/oauth/github')}
-        >
-          {t('auth.continueWithGithub')}
-        </Button>
-      </Space>
+      {AUTH_HAS_OAUTH && (
+        <>
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Button
+              block
+              icon={<GoogleOutlined />}
+              onClick={() => window.location.assign('/api/auth/oauth/google')}
+            >
+              {t('auth.continueWithGoogle')}
+            </Button>
+            <Button
+              block
+              icon={<GithubOutlined />}
+              onClick={() => window.location.assign('/api/auth/oauth/github')}
+            >
+              {t('auth.continueWithGithub')}
+            </Button>
+          </Space>
 
-      <Divider plain>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {t('auth.orContinueWith')}
-        </Typography.Text>
-      </Divider>
+          <Divider plain>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {t('auth.orContinueWith')}
+            </Typography.Text>
+          </Divider>
+        </>
+      )}
 
       <Form form={form} layout="vertical" onFinish={handleFinish} autoComplete="on">
         <Form.Item
@@ -107,9 +114,11 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
             {t('auth.switchToRegisterLink')}
           </Typography.Link>
         </Typography.Text>
-        <Typography.Link onClick={onSwitchMagicLink} style={{ fontSize: 13 }}>
-          {t('auth.withMagicLink')}
-        </Typography.Link>
+        {AUTH_HAS_MAGIC_LINK && (
+          <Typography.Link onClick={onSwitchMagicLink} style={{ fontSize: 13 }}>
+            {t('auth.withMagicLink')}
+          </Typography.Link>
+        )}
       </Space>
     </Space>
   );
