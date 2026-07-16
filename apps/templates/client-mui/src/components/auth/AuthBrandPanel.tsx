@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from '@mui/material';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 
 const FEATURES = [
   'Strategy-pattern auth & storage',
@@ -46,7 +46,7 @@ export function AuthBrandPanel() {
         <Stack spacing={1}>
           {FEATURES.map((f) => (
             <Stack key={f} direction="row" spacing={1} alignItems="center">
-              <CheckCircleOutlineIcon sx={{ color: '#22c55e', fontSize: 16 }} />
+              <CheckCircleOutlinedIcon sx={{ color: '#22c55e', fontSize: 16 }} />
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)' }}>
                 {f}
               </Typography>
