@@ -410,6 +410,15 @@ Edit `tools/create-icore/package.json`'s `devDependencies` to:
 Run: `yarn install`
 Expected: exits 0, `yarn.lock` updated to include `semver@^7.8.1` and `@types/semver@^7.7.1`.
 
+`semver` is imported by real source (`build-registry.ts`) but — like `js-yaml` in Task 2 — is build-tooling-only: `tools/create-icore/tsup.config.ts` never bundles `src/migrations/**` into the published package (only `src/cli.ts`, `src/manifest/audit.ts`, `src/index.ts` are entries), so this never ships to or runs for `create-icore` end-users. Add it to the same `ignoredDependencies` allowlist `tools/create-icore/eslint.config.mjs` already uses for `tsup`/`vitest`/`js-yaml`:
+
+```js
+ignoredDependencies: ['tsup', 'vitest', 'js-yaml', 'semver'],
+```
+
+Run: `yarn nx lint create-icore`
+Expected: 0 errors
+
 - [ ] **Step 2: Write the failing test**
 
 Create `tools/create-icore/src/migrations/__tests__/build-registry.unit.test.ts`:
@@ -772,6 +781,15 @@ Edit `tools/create-icore/package.json`'s `devDependencies` to:
 
 Run: `yarn install`
 Expected: exits 0, `yarn.lock` updated to include `minimatch@^10.2.5` and `@changesets/parse@^0.4.3`.
+
+`minimatch` and `@changesets/parse` are imported by real source (`git-deps.ts`) but are build-tooling-only for the same reason `js-yaml`/`semver` are (Tasks 2/3): `src/migrations/**` is never a `tsup` entry, so this code never ships to `create-icore` end-users. Add both to the same `ignoredDependencies` allowlist in `tools/create-icore/eslint.config.mjs`:
+
+```js
+ignoredDependencies: ['tsup', 'vitest', 'js-yaml', 'semver', 'minimatch', '@changesets/parse'],
+```
+
+Run: `yarn nx lint create-icore`
+Expected: 0 errors
 
 - [ ] **Step 2: Write the failing test**
 
