@@ -77,10 +77,6 @@ export function createMockPostgresAuth(): AuthStrategy {
       return buildSession(user);
     },
 
-    async revoke(refreshToken: string): Promise<void> {
-      sessions.delete(refreshToken);
-    },
-
     async setRole(uid: string, role: string): Promise<void> {
       const user = users.get(uid);
       if (user) user.role = role;
