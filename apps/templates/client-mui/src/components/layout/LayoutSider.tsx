@@ -1,6 +1,6 @@
 import { Drawer, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import NoteOutlinedIcon from '@mui/icons-material/NoteOutlined';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,7 @@ const DRAWER_WIDTH = 220;
 const ICONS: Record<NavItem['iconName'], ReactNode> = {
   dashboard: <DashboardOutlinedIcon />,
   notes: <NoteOutlinedIcon />,
-  profile: <PersonOutlineIcon />,
+  profile: <PersonOutlinedIcon />,
 };
 
 export function LayoutSider() {

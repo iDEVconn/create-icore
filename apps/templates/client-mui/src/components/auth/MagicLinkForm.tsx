@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import { SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNotify } from '@icore/template-shared';
@@ -38,7 +38,7 @@ export function MagicLinkForm({ onSwitchLogin }: Props) {
   if (sentEmail) {
     return (
       <Stack spacing={3} alignItems="center" textAlign="center">
-        <MailOutlineIcon sx={{ fontSize: 56, color: 'primary.main' }} />
+        <MailOutlinedIcon sx={{ fontSize: 56, color: 'primary.main' }} />
         <Stack spacing={1}>
           <Typography variant="h5" fontWeight={600}>
             {t('auth.magicLinkSent')}
