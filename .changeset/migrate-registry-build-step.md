@@ -1,0 +1,5 @@
+---
+'@idevconn/create-icore': patch
+---
+
+Add the data pipeline for a future `create-icore migrate` command (sub-project 1 of 2; the CLI itself is a separate, later piece of work). `blueprint.json` now records a `generatorVersion` field. Migration metadata for a future generator fix can be authored as an optional `.changeset/<slug>.migration.yml` sibling file (never inside the changeset's own frontmatter — `@changesets/parse` can't tolerate non-string frontmatter values). A new `nx build create-icore` step (`build-migration-registry`, alongside the existing `snapshot-templates` step) bakes any authored `.migration.yml` files into a versioned `tools/create-icore/migrations/registry.json`, computing the target version from the batch's pending changesets and validating each entry (duplicate id, orphaned migration file, zero-file glob match, missing codemod file — all release-blocking). No real migration entries are authored yet and no `migrate` CLI exists yet; this PR only ships the plumbing.
