@@ -24,8 +24,11 @@ async function stripTsconfigPath(targetDir: string, alias: string): Promise<void
     const src = await readFile(tsconfigPath, 'utf8');
     // Try pretty-printed regex first (preserves formatting for real tsconfig files)
     const escaped = alias.replace(/[@/]/g, (c) => (c === '@' ? '@' : '\\/'));
-    const pretty = src.replace(new RegExp(`^\\s*"${escaped}": \\[[^\\]]*\\],?\\n`, 'm'), '');
+    let pretty = src.replace(new RegExp(`^\\s*"${escaped}": \\[[^\\]]*\\],?\\n`, 'm'), '');
     if (pretty !== src) {
+      // Clean up any trailing commas left by removing a line (e.g., after removing
+      // a path entry, the previous entry's comma is now dangling before the closing brace)
+      pretty = pretty.replace(/,(\s*[\]}])/g, '$1');
       await writeFile(tsconfigPath, pretty);
       return;
     }

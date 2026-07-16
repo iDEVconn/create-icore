@@ -3,6 +3,10 @@ import { join } from 'node:path';
 import { mergeDeps } from './assemble.js';
 import type { Unit } from './types.js';
 
+function isEnoent(err: unknown): boolean {
+  return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
 /** Per-axis wiring config: which manifest section + where the generated files live. */
 export interface AxisWiring {
   /** MANIFEST.auth | MANIFEST.storage | MANIFEST.db (provider key → Unit). */
@@ -44,46 +48,53 @@ export async function writeProvider(
 
 /** Merges `deps` into a package.json's `dependencies`, creating the field if absent. */
 export async function mergeJsonDeps(path: string, deps: Record<string, string>): Promise<void> {
+  let raw: string;
   try {
-    const pkg = JSON.parse(await readFile(path, 'utf8')) as {
-      dependencies?: Record<string, string>;
-    };
-    pkg.dependencies = { ...(pkg.dependencies ?? {}), ...deps };
-    await writeFile(path, JSON.stringify(pkg, null, 2) + '\n');
-  } catch {
-    // pkg may be absent in partial fixtures
+    raw = await readFile(path, 'utf8');
+  } catch (err) {
+    if (isEnoent(err)) return; // pkg may be absent in partial fixtures
+    throw err;
   }
+  const pkg = JSON.parse(raw) as { dependencies?: Record<string, string> };
+  pkg.dependencies = { ...(pkg.dependencies ?? {}), ...deps };
+  await writeFile(path, JSON.stringify(pkg, null, 2) + '\n');
 }
 
 export async function stripJsonKeys(path: string, drop: (k: string) => boolean): Promise<void> {
+  let raw: string;
   try {
-    const pkg = JSON.parse(await readFile(path, 'utf8')) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-    };
-    for (const field of ['dependencies', 'devDependencies'] as const) {
-      const deps = pkg[field];
-      if (!deps) continue;
-      for (const k of Object.keys(deps)) if (drop(k)) delete deps[k];
-    }
-    await writeFile(path, JSON.stringify(pkg, null, 2) + '\n');
-  } catch {
-    // pkg may be absent in partial fixtures
+    raw = await readFile(path, 'utf8');
+  } catch (err) {
+    if (isEnoent(err)) return; // pkg may be absent in partial fixtures
+    throw err;
   }
+  const pkg = JSON.parse(raw) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  for (const field of ['dependencies', 'devDependencies'] as const) {
+    const deps = pkg[field];
+    if (!deps) continue;
+    for (const k of Object.keys(deps)) if (drop(k)) delete deps[k];
+  }
+  await writeFile(path, JSON.stringify(pkg, null, 2) + '\n');
 }
 
 export async function stripTsconfigKeys(targetDir: string, aliases: string[]): Promise<void> {
   const path = join(targetDir, 'tsconfig.base.json');
+  let raw: string;
   try {
-    const parsed = JSON.parse(await readFile(path, 'utf8')) as {
-      compilerOptions?: { paths?: Record<string, unknown> };
-    };
-    const paths = parsed.compilerOptions?.paths;
-    if (paths) for (const a of aliases) delete paths[a];
-    await writeFile(path, JSON.stringify(parsed, null, 2) + '\n');
-  } catch {
-    // tsconfig may be absent in partial fixtures
+    raw = await readFile(path, 'utf8');
+  } catch (err) {
+    if (isEnoent(err)) return; // tsconfig may be absent in partial fixtures
+    throw err;
   }
+  const parsed = JSON.parse(raw) as {
+    compilerOptions?: { paths?: Record<string, unknown> };
+  };
+  const paths = parsed.compilerOptions?.paths;
+  if (paths) for (const a of aliases) delete paths[a];
+  await writeFile(path, JSON.stringify(parsed, null, 2) + '\n');
 }
 
 /**
