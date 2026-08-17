@@ -22,7 +22,8 @@ async function fixture(): Promise<string> {
       '      "@icore/auth-client": ["libs/auth-client/src/index.ts"],\n' +
       '      "@icore/auth-supabase": ["libs/auth-strategies/supabase/src/index.ts"],\n' +
       '      "@icore/auth-firebase": ["libs/auth-strategies/firebase/src/index.ts"],\n' +
-      '      "@icore/auth-mongodb": ["libs/auth-strategies/mongodb/src/index.ts"]\n' +
+      '      "@icore/auth-mongodb": ["libs/auth-strategies/mongodb/src/index.ts"],\n' +
+      '      "@icore/auth-postgres": ["libs/auth-strategies/postgres/src/index.ts"]\n' +
       '    }\n' +
       '  }\n' +
       '}\n',

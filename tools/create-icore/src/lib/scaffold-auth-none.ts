@@ -87,6 +87,7 @@ export async function removeAuthTsconfigPaths(targetDir: string): Promise<void> 
     '@icore/auth-supabase',
     '@icore/auth-firebase',
     '@icore/auth-mongodb',
+    '@icore/auth-postgres',
   ]) {
     await stripTsconfigPath(targetDir, alias);
   }

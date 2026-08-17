@@ -1,4 +1,4 @@
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -165,5 +165,79 @@ export async function removeUploadStack(targetDir: string): Promise<void> {
     await writeFile(uploadComposePath, next);
   } catch {
     // ignore
+  }
+}
+
+/** Recursively collect every .ts/.tsx file under a dir (node_modules skipped). */
+async function collectSourceFiles(dir: string): Promise<string[]> {
+  const found: string[] = [];
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return found;
+  }
+  for (const e of entries) {
+    if (e.name === 'node_modules') continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      found.push(...(await collectSourceFiles(p)));
+    } else if (e.isFile() && /\.tsx?$/.test(e.name)) {
+      found.push(p);
+    }
+  }
+  return found;
+}
+
+/** True when any .ts/.tsx file under `srcDir` imports `dep` (or a `dep/...` subpath). */
+async function dirImportsDep(srcDir: string, dep: string): Promise<boolean> {
+  const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(
+    `from ['"]${escaped}(?:/[^'"]*)?['"]|require\\(['"]${escaped}(?:/[^'"]*)?['"]\\)`,
+  );
+  for (const f of await collectSourceFiles(srcDir)) {
+    try {
+      if (re.test(await readFile(f, 'utf8'))) return true;
+    } catch {
+      // ignore unreadable files
+    }
+  }
+  return false;
+}
+
+/**
+ * Drops express + @types/express from apps/api/package.json when no gateway
+ * source file imports express directly (happens when auth=none strips all
+ * feature controllers that typed request/response objects from express).
+ */
+export async function pruneApiExpressDep(targetDir: string): Promise<void> {
+  const apiSrc = join(targetDir, 'apps/api/src');
+  const files = await collectSourceFiles(apiSrc);
+  for (const f of files) {
+    try {
+      const src = await readFile(f, 'utf8');
+      if (/from ['"]express['"]/.test(src) || /require\(['"]express['"]\)/.test(src)) {
+        return;
+      }
+    } catch {
+      // ignore unreadable files
+    }
+  }
+  await stripDeps(join(targetDir, 'apps/api/package.json'), ['express', '@types/express']);
+}
+
+/**
+ * Drops @casl/ability, @casl/react, and @icore/shared from libs that no longer
+ * import them after auth=none strips the abilities modules.
+ */
+export async function pruneUnusedLibDeps(targetDir: string): Promise<void> {
+  const checks: { lib: string; dep: string }[] = [
+    { lib: 'libs/shared', dep: '@casl/ability' },
+    { lib: 'libs/template-shared', dep: '@casl/react' },
+    { lib: 'libs/template-shared', dep: '@icore/shared' },
+  ];
+  for (const { lib, dep } of checks) {
+    const used = await dirImportsDep(join(targetDir, lib, 'src'), dep);
+    if (!used) await stripDeps(join(targetDir, lib, 'package.json'), [dep]);
   }
 }
