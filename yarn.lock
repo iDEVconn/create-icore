@@ -2995,8 +2995,8 @@ __metadata:
   resolution: "@icore/auth-client@workspace:libs/auth-client"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
   languageName: unknown
@@ -3008,9 +3008,9 @@ __metadata:
   dependencies:
     "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     firebase-admin: "npm:^14.3.0"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3022,7 +3022,7 @@ __metadata:
   resolution: "@icore/auth-mongodb@workspace:libs/auth-strategies/mongodb"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
     "@types/bcrypt": "npm:^6.0.0"
@@ -3040,10 +3040,10 @@ __metadata:
   resolution: "@icore/auth-postgres@workspace:libs/auth-strategies/postgres"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/microservices": "npm:^11.2.2"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/microservices": "npm:^11.2.3"
+    "@nestjs/testing": "npm:^11.2.3"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/jsonwebtoken": "npm:^9.0.10"
     bcrypt: "npm:^6.0.0"
@@ -3059,9 +3059,9 @@ __metadata:
   resolution: "@icore/auth-supabase@workspace:libs/auth-strategies/supabase"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     "@supabase/supabase-js": "npm:^2.112.4"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3074,9 +3074,9 @@ __metadata:
   dependencies:
     "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     firebase-admin: "npm:^14.3.0"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3088,7 +3088,7 @@ __metadata:
   resolution: "@icore/db-mongodb@workspace:libs/db-strategies/mongodb"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
     mongodb-memory-server: "npm:^11.2.0"
@@ -3102,9 +3102,9 @@ __metadata:
   resolution: "@icore/db-postgres@workspace:libs/db-strategies/postgres"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     postgres: "npm:^3.4.9"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3116,9 +3116,9 @@ __metadata:
   resolution: "@icore/db-supabase@workspace:libs/db-strategies/supabase"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     "@supabase/supabase-js": "npm:^2.112.4"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3139,7 +3139,7 @@ __metadata:
   resolution: "@icore/jobs-client@workspace:libs/jobs-client"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     bullmq: "npm:^5.81.3"
     ioredis: "npm:^5.11.1"
@@ -3152,8 +3152,8 @@ __metadata:
   resolution: "@icore/notes-client@workspace:libs/notes-client"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
   languageName: unknown
@@ -3165,8 +3165,8 @@ __metadata:
   dependencies:
     "@icore/shared": "npm:*"
     "@idevconn/payment": "npm:^1.2.0"
-    "@nestjs/common": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
   languageName: unknown
@@ -3177,7 +3177,7 @@ __metadata:
   resolution: "@icore/shared@workspace:libs/shared"
   dependencies:
     "@casl/ability": "npm:^7.0.1"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/microservices": "npm:^11.2.3"
     tslib: "npm:^2.8.1"
   languageName: unknown
   linkType: soft
@@ -3187,9 +3187,9 @@ __metadata:
   resolution: "@icore/storage-cloudinary@workspace:libs/storage-strategies/cloudinary"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     cloudinary: "npm:^2.10.1"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3202,9 +3202,9 @@ __metadata:
   dependencies:
     "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     firebase-admin: "npm:^14.3.0"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3216,7 +3216,7 @@ __metadata:
   resolution: "@icore/storage-mongodb@workspace:libs/storage-strategies/mongodb"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
     mongodb-memory-server: "npm:^11.2.0"
@@ -3230,9 +3230,9 @@ __metadata:
   resolution: "@icore/storage-supabase@workspace:libs/storage-strategies/supabase"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     "@supabase/supabase-js": "npm:^2.112.4"
     tslib: "npm:^2.8.1"
     vitest: "npm:^4.1.11"
@@ -3262,8 +3262,8 @@ __metadata:
   resolution: "@icore/upload-client@workspace:libs/upload-client"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
   languageName: unknown
@@ -4468,9 +4468,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/common@npm:^11.2.2":
-  version: 11.2.2
-  resolution: "@nestjs/common@npm:11.2.2"
+"@nestjs/common@npm:^11.2.3":
+  version: 11.2.3
+  resolution: "@nestjs/common@npm:11.2.3"
   dependencies:
     file-type: "npm:21.3.4"
     iterare: "npm:1.2.1"
@@ -4487,7 +4487,7 @@ __metadata:
       optional: true
     class-validator:
       optional: true
-  checksum: 10c0/e9bd6a1e3951a53a0c1f137ae38975b96924b9662480f7fdeab706e860ce65800a49ad8032b944c42f432aee26de89706162f9cde9be74e0b8b6020b7964f9dc
+  checksum: 10c0/b8712fc715645ba541d437e9adb1f826c52714105c47dc735fafe787785129f2bbe5b852525299b2803e8e38eab0e3740a2fd88ddbefb36a7dadddf87b968936
   languageName: node
   linkType: hard
 
@@ -4505,9 +4505,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/core@npm:^11.2.2":
-  version: 11.2.2
-  resolution: "@nestjs/core@npm:11.2.2"
+"@nestjs/core@npm:^11.2.3":
+  version: 11.2.3
+  resolution: "@nestjs/core@npm:11.2.3"
   dependencies:
     fast-safe-stringify: "npm:2.1.1"
     iterare: "npm:1.2.1"
@@ -4528,7 +4528,7 @@ __metadata:
       optional: true
     "@nestjs/websockets":
       optional: true
-  checksum: 10c0/1805a9cf6d0bedbd1f7e06ea596351d897b97a1a02416030b48dc9c540f5cb61bef7fbbf617a46448d510eec5a07b1be6c828f6ef00cb9cc643c5a14ee2692a9
+  checksum: 10c0/6af518ef8867c292f8dde3ddcd202baefbaf61ea1dfbf3f5d375ce53459396b0f909b53eda0838355fb22c1c3002e62afc2f4b4006d3c6ebeaa0b89bda9556d6
   languageName: node
   linkType: hard
 
@@ -4549,9 +4549,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/microservices@npm:^11.2.2":
-  version: 11.2.2
-  resolution: "@nestjs/microservices@npm:11.2.2"
+"@nestjs/microservices@npm:^11.2.3":
+  version: 11.2.3
+  resolution: "@nestjs/microservices@npm:11.2.3"
   dependencies:
     iterare: "npm:1.2.1"
     tslib: "npm:2.8.1"
@@ -4588,7 +4588,7 @@ __metadata:
       optional: true
     nats:
       optional: true
-  checksum: 10c0/2e0e6cc3d31c4a015b61cf09d367bf4a435f941ed5008a01c7a75dbb165452f5ac1db055c81b54246ffa1883d4c0e7d756eec647914531c0f2ad2a147532ae7b
+  checksum: 10c0/93b9625ec82032fe76f388e9e8a3d8c67057020ec788ca6c8d8b0cdfce2eb0f399d52a3ac267f5c4bde6b433dea698e8a793f90f4a126c7593ab36ba0aa7f9b7
   languageName: node
   linkType: hard
 
@@ -4604,9 +4604,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/platform-express@npm:^11.2.2":
-  version: 11.2.2
-  resolution: "@nestjs/platform-express@npm:11.2.2"
+"@nestjs/platform-express@npm:^11.2.3":
+  version: 11.2.3
+  resolution: "@nestjs/platform-express@npm:11.2.3"
   dependencies:
     cors: "npm:2.8.6"
     express: "npm:5.2.1"
@@ -4616,7 +4616,7 @@ __metadata:
   peerDependencies:
     "@nestjs/common": ^11.0.0
     "@nestjs/core": ^11.0.0
-  checksum: 10c0/a3e2b1af7f58308cfc159382820a07c46d566fe46cff01f85be189bd6eb836cdd5b6c774fcbc3042d5b22dcd3c5edf779d82ef06f9fb3c823cbaffb9d0344d32
+  checksum: 10c0/a4c42544c54d11580a56d2567f0e5608f2529c1336893bc3031d6c12a4efaec3ab139a09039a64a59b5cb49adaf7175f89362a6c16043cc1afea825da67bde41
   languageName: node
   linkType: hard
 
@@ -4667,9 +4667,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/testing@npm:^11.2.2":
-  version: 11.2.2
-  resolution: "@nestjs/testing@npm:11.2.2"
+"@nestjs/testing@npm:^11.2.3":
+  version: 11.2.3
+  resolution: "@nestjs/testing@npm:11.2.3"
   dependencies:
     tslib: "npm:2.8.1"
   peerDependencies:
@@ -4682,7 +4682,7 @@ __metadata:
       optional: true
     "@nestjs/platform-express":
       optional: true
-  checksum: 10c0/db2347a9bd77eae60080a76f7ad7ec52646733fbeb14bcf893e8269c5178cc687ebf99e7018522bc73b7476bbaae8bff03450bbc1c5eda771fcaf03fe6364a6e
+  checksum: 10c0/e687f1bec4e3ee2c0ced6e2574fb54c68c36bb0eae6eec0cb77d0f7044292a8acd264c3e900d2ba7532c258558d278413785c527d370066e9617ff473eee89c7
   languageName: node
   linkType: hard
 
@@ -10655,10 +10655,10 @@ __metadata:
     "@icore/shared": "npm:*"
     "@icore/upload-client": "npm:*"
     "@idevconn/payment": "npm:^1.2.0"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
-    "@nestjs/platform-express": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
+    "@nestjs/platform-express": "npm:^11.2.3"
     "@nestjs/swagger": "npm:^11.4.7"
     "@nestjs/throttler": "npm:^6.5.0"
     "@types/express": "npm:^5.0.6"
@@ -10948,10 +10948,10 @@ __metadata:
     "@icore/auth-supabase": "npm:*"
     "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     "@supabase/supabase-js": "npm:^2.112.4"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
@@ -15836,15 +15836,15 @@ __metadata:
     "@eslint/js": "npm:^10.0.1"
     "@idevconn/api-client": "npm:^0.3.2"
     "@idevconn/use-draft": "npm:^0.2.2"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     "@nestjs/mongoose": "npm:^11.0.4"
-    "@nestjs/platform-express": "npm:^11.2.2"
+    "@nestjs/platform-express": "npm:^11.2.3"
     "@nestjs/schematics": "npm:^11.1.0"
     "@nestjs/swagger": "npm:^11.4.7"
-    "@nestjs/testing": "npm:^11.2.2"
+    "@nestjs/testing": "npm:^11.2.3"
     "@nestjs/throttler": "npm:^6.5.0"
     "@nx/devkit": "npm:23.1.1"
     "@nx/eslint": "npm:23.1.1"
@@ -17166,9 +17166,9 @@ __metadata:
   resolution: "jobs@workspace:apps/microservices/jobs"
   dependencies:
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
     bullmq: "npm:^5.81.3"
     ioredis: "npm:^5.11.1"
     reflect-metadata: "npm:^0.2.2"
@@ -19197,10 +19197,10 @@ __metadata:
     "@icore/db-supabase": "npm:*"
     "@icore/firebase-admin": "npm:*"
     "@icore/shared": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     "@supabase/supabase-js": "npm:^2.112.4"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
@@ -19997,10 +19997,10 @@ __metadata:
   dependencies:
     "@icore/shared": "npm:*"
     "@idevconn/payment": "npm:^1.2.0"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
@@ -24275,10 +24275,10 @@ __metadata:
     "@icore/storage-cloudinary": "npm:*"
     "@icore/storage-firebase": "npm:*"
     "@icore/storage-supabase": "npm:*"
-    "@nestjs/common": "npm:^11.2.2"
+    "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    "@nestjs/core": "npm:^11.2.2"
-    "@nestjs/microservices": "npm:^11.2.2"
+    "@nestjs/core": "npm:^11.2.3"
+    "@nestjs/microservices": "npm:^11.2.3"
     "@supabase/supabase-js": "npm:^2.112.4"
     cloudinary: "npm:^2.10.1"
     reflect-metadata: "npm:^0.2.2"
