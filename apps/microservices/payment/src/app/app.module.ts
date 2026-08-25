@@ -1,9 +1,15 @@
 import { join } from 'node:path';
 import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PaymentRegistry, PaypalStrategy, createPayment } from '@idevconn/payment';
+import {
+  PaymentRegistry,
+  PaypalStrategy,
+  createPayment,
+  type PaymentStrategy,
+} from '@idevconn/payment';
 import { missingEnv, formatEnvBanner } from '@icore/shared';
 import { PaymentController } from './payment.controller';
+import { FakePaymentStrategy } from './fake-payment.strategy';
 
 const ENV_PATH = 'apps/microservices/payment/.env';
 
@@ -32,31 +38,28 @@ const REQUIRED_ENV: Record<string, string[]> = {
         if (!keys) throw new Error(`Unsupported PAYMENT_PROVIDER: ${provider}`);
 
         const missing = missingEnv((k) => cfg.get<string>(k), keys);
-        if (missing.length > 0) {
-          const banner = formatEnvBanner({
-            service: 'payment MS',
-            provider,
-            missing,
-            envPath: ENV_PATH,
-            headline: `⚠  payment MS — ${provider} credentials missing (payments will fail)`,
-          });
-          // Prod: fail fast. Dev: warn + register an EMPTY strategy map so the
-          // MS boots (PaypalStrategy's constructor throws on blank creds, so we
-          // must not instantiate it) — payment endpoints fail until creds are set.
-          if (process.env.NODE_ENV === 'production') throw new Error(banner);
-          logger.warn(banner);
-          return createPayment({ strategies: {} });
-        }
 
-        return createPayment({
-          strategies: {
-            paypal: new PaypalStrategy({
-              clientId: cfg.getOrThrow<string>('PAYPAL_CLIENT_ID'),
-              secret: cfg.getOrThrow<string>('PAYPAL_CLIENT_SECRET'),
-              environment: cfg.get<'sandbox' | 'live'>('PAYPAL_ENVIRONMENT') ?? 'sandbox',
-            }),
-          },
-        });
+        const buildStrategy = (): PaymentStrategy => {
+          if (missing.length > 0) {
+            const banner = formatEnvBanner({
+              service: 'payment MS',
+              provider,
+              missing,
+              envPath: ENV_PATH,
+              headline: `⚠  payment MS — ${provider} credentials missing (payments will fail)`,
+            });
+            logger.warn(banner);
+            return new FakePaymentStrategy(provider);
+          }
+
+          return new PaypalStrategy({
+            clientId: cfg.getOrThrow<string>('PAYPAL_CLIENT_ID'),
+            secret: cfg.getOrThrow<string>('PAYPAL_CLIENT_SECRET'),
+            environment: cfg.get<'sandbox' | 'live'>('PAYPAL_ENVIRONMENT') ?? 'sandbox',
+          });
+        };
+
+        return createPayment({ strategies: { [provider]: buildStrategy() } });
       },
       inject: [ConfigService],
     },
