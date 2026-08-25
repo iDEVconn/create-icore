@@ -13,6 +13,7 @@
     "moduleResolution": "node16",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "target": "es2021"
+    "target": "es2021",
+    "ignoreDeprecations": "6.0"
   }
 }

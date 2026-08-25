@@ -20,8 +20,8 @@
     }
   },
   "dependencies": {
-    "@casl/ability": "^7.0.0",
-    "@nestjs/microservices": "^11.1.27",
+    "@casl/ability": "^7.0.1",
+    "@nestjs/microservices": "^11.2.3",
     "tslib": "^2.8.1"
   }
 }
