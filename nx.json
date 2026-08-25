@@ -123,5 +123,8 @@
         "linter": "eslint"
       }
     }
+  },
+  "migrate": {
+    "agentic": true
   }
 }

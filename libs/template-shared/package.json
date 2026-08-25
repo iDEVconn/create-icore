@@ -6,14 +6,14 @@
   "main": "./src/index.js",
   "types": "./src/index.ts",
   "dependencies": {
-    "@casl/react": "^7.0.0",
+    "@casl/react": "^7.0.1",
     "@icore/shared": "*",
-    "@idevconn/api-client": "^0.3.0",
-    "@idevconn/use-draft": "^0.2.0",
-    "i18next": "^26.3.2",
-    "react-i18next": "^17.0.8",
+    "@idevconn/api-client": "^0.3.2",
+    "@idevconn/use-draft": "^0.2.2",
+    "i18next": "^26.4.0",
+    "react-i18next": "^17.0.12",
     "tslib": "^2.8.1",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.15"
   },
   "peerDependencies": {
     "react": "^19.2.7",
