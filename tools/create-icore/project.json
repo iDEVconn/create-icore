@@ -32,6 +32,7 @@
       "outputs": ["{options.outputFile}"]
     },
     "test": {
+      "dependsOn": ["snapshot-templates"],
       "executor": "@nx/vitest:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
