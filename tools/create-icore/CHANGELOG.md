@@ -1,5 +1,23 @@
 # @idevconn/create-icore
 
+## 0.14.0
+
+### Minor Changes
+
+- 48139f8: Bump `bullmq` (^5.81.3 → ^6.2.1) and `@bull-board/api`/`@bull-board/express` (^7.2.1 → ^9.4.0). Checked against usage: no reliance on bullmq's removed repeat/legacy-repeatable APIs, `Queue#client`/`redisVersion`, `Worker#resume()`, debounce, or paused job-state filtering; `ioredis` is already an explicit dependency, not relying on bullmq's bundled one. bull-board's only breaking change (7→8, `dateFormats` shape) isn't used here.
+- be73d4f: Bump `@changesets/cli` (^2.31.1 → ^3.0.1), `@changesets/parse` (^0.4.3 → ^1.0.0), `ioredis` (^5.11.1 → ^6.0.0), `js-yaml` (^4.3.1 → ^5.4.0), `jsdom` (~29.1.1 → ~30.0.1), `prettier` (~3.8.5 → ~3.9.6), and `webpack-dev-server` (5.2.6 → 6.0.0).
+
+  Notes:
+  - `js-yaml` v5 dropped `@types/js-yaml` (types are now bundled) — removed from `tools/create-icore`'s devDependencies.
+  - `ioredis` v6 defaults to the RESP3 wire protocol; pinned `protocol: 2` in both IORedis connection sites (`apps/microservices/jobs/src/app/redis-connection.ts`, `libs/jobs-client/src/lib/jobs-client.service.ts`) since bullmq's Lua-script reply parsing is only verified against RESP2.
+  - `@changesets/cli` v3's `changeset tag` → `changeset git-tag` rename and the "exit 1 on no unreleased changesets" change don't affect our workflow — `.github/workflows/release.yml` never calls the CLI directly for those cases; `changesets/action@v1` orchestrates both. That action/CLI-v3 interaction is otherwise unverifiable outside a real push to `main`.
+  - `webpack-dev-server` v6 requires webpack `^5.101.0` (we're on `5.109.2`) and drops CLI flags/sockjs/`bypass`/`internalIP` — none used here.
+
+### Patch Changes
+
+- 30c9db4: Bump @nestjs/* dependencies from ^11.2.2 to ^11.2.3 (patch release) across the gateway, microservices, and generated scaffold templates.
+- c13711e: Payment MS no longer crash-loops in production when PayPal credentials are missing. The `PaymentRegistry` factory now always registers a strategy for the configured provider — a real one when creds are present, otherwise `FakePaymentStrategy`, which rejects payment calls with a 503 until creds are set.
+
 ## 0.13.0
 
 ### Minor Changes
