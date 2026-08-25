@@ -323,5 +323,6 @@ Admin queue dashboard: `http://localhost:3001/api/admin/queues` (front with reve
 - Plan-by-plan build sequence → [`docs/superpowers/plans/`](./superpowers/plans/)
 - Per-plan design notes (OAuth, payment, notes, docker-compose, BullMQ) → [`docs/superpowers/specs/`](./superpowers/specs/)
 - Local docker stack runbook → [`docs/runbooks/local-docker.md`](./runbooks/local-docker.md)
+- `create-icore migrate` migration authoring runbook → [`docs/runbooks/authoring-a-migration.md`](./runbooks/authoring-a-migration.md) (registry got its first real entry, `payment-never-crash-factory`, in PR #258)
 - Day-to-day agent rules → [`AGENTS.md`](../AGENTS.md)
 - Provider setup walk-throughs → [`AGENTS.md` § Provider-specific Setup](../AGENTS.md#provider-specific-setup)

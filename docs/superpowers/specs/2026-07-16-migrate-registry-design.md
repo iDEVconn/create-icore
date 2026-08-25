@@ -79,6 +79,8 @@ Codemods must be narrow and anchor-based (e.g. "replace this exact import specif
 
 `registry.json` is a committed, versioned artifact — NOT gitignored (unlike `templates/`), since it must accumulate across releases rather than being regenerated from current-HEAD state each time.
 
+**Lifecycle gap found while authoring the first real entry (2026-08-25, PR #258):** because `build-migration-registry` is a `dependsOn` of `build`, it reruns on _every_ `nx build create-icore` — not just the one release build this design assumed. If a `.migration.yml` sibling is left in place after its entry has already been baked into `registry.json`, the _next_ build (any PR touching `create-icore`, CI or local) fails with `Duplicate migration id "..."`, since the script re-reads the still-pending pair and finds the id already present. The fix: delete `.migration.yml` immediately after baking (its job is done — the entry is now permanent in `registry.json`), while keeping the paired `.changeset/*.md` until `changeset version` consumes it for the actual release bump. See [`docs/runbooks/authoring-a-migration.md`](../../runbooks/authoring-a-migration.md) for the full authoring sequence.
+
 ### Error handling (all release-blocking — the build step fails the `create-icore` build, not silently skips)
 
 - `commitRange` sha unresolvable in git history → build fails, names the bad entry.
