@@ -1648,35 +1648,42 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bull-board/api@npm:7.2.1, @bull-board/api@npm:^7.2.1":
-  version: 7.2.1
-  resolution: "@bull-board/api@npm:7.2.1"
+"@bull-board/api@npm:9.4.0, @bull-board/api@npm:^9.4.0":
+  version: 9.4.0
+  resolution: "@bull-board/api@npm:9.4.0"
   dependencies:
     redis-info: "npm:^3.1.0"
   peerDependencies:
-    "@bull-board/ui": 7.2.1
-  checksum: 10c0/b993f7284ff64e9b6bc71ea819c6dbf2401873fab1e8b5f8c14364c39a80c45954ad078ca205b6b1511e923415d635f3f4fda93df70fd214646a7a38e3123bb2
+    "@bull-board/ui": 9.4.0
+    bull: ^4.16.5
+    bullmq: ^5.79.2 || ^6.0.0
+  peerDependenciesMeta:
+    bull:
+      optional: true
+    bullmq:
+      optional: true
+  checksum: 10c0/31e6da2a170311882041900732aa24e0127f7ac01b1f299f167df819ebc4e3f53aa898ea87853f775fba83ed4ad34d243a6cfb85db7a99826709e6835c0628cb
   languageName: node
   linkType: hard
 
-"@bull-board/express@npm:^7.2.1":
-  version: 7.2.1
-  resolution: "@bull-board/express@npm:7.2.1"
+"@bull-board/express@npm:^9.4.0":
+  version: 9.4.0
+  resolution: "@bull-board/express@npm:9.4.0"
   dependencies:
-    "@bull-board/api": "npm:7.2.1"
-    "@bull-board/ui": "npm:7.2.1"
+    "@bull-board/api": "npm:9.4.0"
+    "@bull-board/ui": "npm:9.4.0"
     ejs: "npm:^6.0.1"
     express: "npm:^5.2.1"
-  checksum: 10c0/fda501e72b0334322bbde9afcba5b769402d10b00d2036d95df81ae8ff2acc0eed37b3b10e47de2b0032072a60ee89dbafaef44d522398c7d11a5981568adb85
+  checksum: 10c0/c3159b0f4d528c23d1cdda1690e9de76902aa982e104ce0ea1384c8343345704e6677a668a01b3bd16dff3f9fabd5ac59fa0530ba535b365cca417f8fe8733e4
   languageName: node
   linkType: hard
 
-"@bull-board/ui@npm:7.2.1":
-  version: 7.2.1
-  resolution: "@bull-board/ui@npm:7.2.1"
+"@bull-board/ui@npm:9.4.0":
+  version: 9.4.0
+  resolution: "@bull-board/ui@npm:9.4.0"
   dependencies:
-    "@bull-board/api": "npm:7.2.1"
-  checksum: 10c0/d6c3f8d50b0a3002460ca8bc08a9e26c1251db1db1d44ef2b195ec0391e2708fbbe3ab06d84bdff86be2ef57f605bff75913ea1e93f594136328c82f8dbc5cd1
+    "@bull-board/api": "npm:9.4.0"
+  checksum: 10c0/6da10ff853a23503d8a6c655f1e8556d94e503c49baca4ac8df69d09907de5b748c659bfa868321db6b3828a9e6fa2502929c16732bb792093441bbb6d865c84
   languageName: node
   linkType: hard
 
@@ -3141,7 +3148,7 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
-    bullmq: "npm:^5.81.3"
+    bullmq: "npm:^6.2.1"
     ioredis: "npm:^5.11.1"
     tslib: "npm:^2.8.1"
   languageName: unknown
@@ -10645,8 +10652,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "api@workspace:apps/api"
   dependencies:
-    "@bull-board/api": "npm:^7.2.1"
-    "@bull-board/express": "npm:^7.2.1"
+    "@bull-board/api": "npm:^9.4.0"
+    "@bull-board/express": "npm:^9.4.0"
     "@casl/ability": "npm:^7.0.1"
     "@icore/auth-client": "npm:*"
     "@icore/jobs-client": "npm:*"
@@ -11666,22 +11673,30 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bullmq@npm:^5.81.3":
-  version: 5.81.3
-  resolution: "bullmq@npm:5.81.3"
+"bullmq@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "bullmq@npm:6.2.1"
   dependencies:
-    cron-parser: "npm:4.9.0"
-    ioredis: "npm:5.11.1"
+    cron-parser: "npm:5.10.0"
     msgpackr: "npm:2.0.5"
     node-abort-controller: "npm:3.1.1"
     semver: "npm:7.8.5"
     tslib: "npm:2.8.1"
   peerDependencies:
+    bullmq-otel: ">=2.0.0"
+    ioredis: ">=5.0.0"
+    pg: ">=8.0.0"
     redis: ">=5.0.0"
   peerDependenciesMeta:
+    bullmq-otel:
+      optional: true
+    ioredis:
+      optional: true
+    pg:
+      optional: true
     redis:
       optional: true
-  checksum: 10c0/e28abf1f37191966d0204e8717040f99807749579ba34e6cd8ac4698f3daa0327be094e52fa52c6aab991f4cd4cdd338b6c950134ec083be166c19f82d96cde1
+  checksum: 10c0/eccf31e34dcd217f45abc81737d0a814abf9568db6f0869762c126b8a32532103febc80f62e226d25c1c19a8a9f5793987964ff50282e3c1aa548cc9cd0aa1e2
   languageName: node
   linkType: hard
 
@@ -12499,12 +12514,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cron-parser@npm:4.9.0":
-  version: 4.9.0
-  resolution: "cron-parser@npm:4.9.0"
+"cron-parser@npm:5.10.0":
+  version: 5.10.0
+  resolution: "cron-parser@npm:5.10.0"
   dependencies:
-    luxon: "npm:^3.2.1"
-  checksum: 10c0/348622bdcd1a15695b61fc33af8a60133e5913a85cf99f6344367579e7002896514ba3b0a9d6bb569b02667d6b06836722bf2295fcd101b3de378f71d37bed0b
+    luxon: "npm:^3.7.2"
+  checksum: 10c0/bf8ad9b121140aadc295eb5a0d0e67df44b237e397e95fa1ab5d9e87f2c9923c727ce3541989af56b8c666a929a51015bcd23d2e37ebda3bcaf3b9f0b555959c
   languageName: node
   linkType: hard
 
@@ -16067,7 +16082,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ioredis@npm:5.11.1, ioredis@npm:^5.11.1":
+"ioredis@npm:^5.11.1":
   version: 5.11.1
   resolution: "ioredis@npm:5.11.1"
   dependencies:
@@ -17169,7 +17184,7 @@ __metadata:
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.3"
-    bullmq: "npm:^5.81.3"
+    bullmq: "npm:^6.2.1"
     ioredis: "npm:^5.11.1"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
@@ -18183,7 +18198,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"luxon@npm:^3.2.1":
+"luxon@npm:^3.7.2":
   version: 3.7.2
   resolution: "luxon@npm:3.7.2"
   checksum: 10c0/ed8f0f637826c08c343a29dd478b00628be93bba6f068417b1d8896b61cb61c6deacbe1df1e057dbd9298334044afa150f9aaabbeb3181418ac8520acfdc2ae2

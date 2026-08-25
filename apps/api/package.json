@@ -7,8 +7,8 @@
     "@types/multer": "^2.2.0"
   },
   "dependencies": {
-    "@bull-board/api": "^7.2.1",
-    "@bull-board/express": "^7.2.1",
+    "@bull-board/api": "^9.4.0",
+    "@bull-board/express": "^9.4.0",
     "@casl/ability": "^7.0.1",
     "@icore/auth-client": "*",
     "@icore/jobs-client": "*",
