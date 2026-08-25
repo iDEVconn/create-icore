@@ -5,7 +5,8 @@
     "declaration": true,
     "lib": ["ES2022", "DOM"],
     "types": ["node", "react", "react-dom"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "rootDir": ".."
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": [

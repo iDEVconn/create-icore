@@ -206,6 +206,7 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 - `apps/api/src/app/payment` — gateway routes `POST /api/payment/orders`, `POST /api/payment/orders/:id/capture`, `GET /api/payment/providers`. All auth-guarded; `Idempotency-Key` HTTP header forwarded as `RequestOptions`.
 - **CLI** — new `--payment=paypal|none` flag (default `none`). When `paypal`, scaffold writes `PAYMENT_PROVIDER=paypal` + transport-matched URLs to the MS `.env`. When `none`, `removePaymentStack` deletes `apps/microservices/payment`, `libs/payment-client`, `apps/api/src/app/payment`, and strips `PaymentModule` from `app.module.ts`.
 - **Scope kept tight** — webhook signature verification + `getOrder` are out of scope because `@idevconn/payment` v1.2 doesn't expose them. Add when the package does.
+- **Never-crash factory** — the `PaymentRegistry` factory in `apps/microservices/payment/src/app/app.module.ts` no longer throws on boot when PayPal credentials are missing in production (that crash-loops the container on the VPS). It always registers a strategy for the configured provider: `PaypalStrategy` when creds are present, otherwise `FakePaymentStrategy` (`fake-payment.strategy.ts`) which rejects `createOrder`/`captureOrder` with a `PaymentError('PROVIDER_ERROR', 503, ...)` — the MS boots and only payment calls fail until creds are set. Kept as a local file (same pattern as `FakeAuthStrategy`/`FakeStorageStrategy`) rather than added to `@idevconn/payment` itself, since that's a separately published package — pushing it there would mean a release cycle per change instead of editing one scaffold file.
 
 ### Payment — usage
 
@@ -322,5 +323,6 @@ Admin queue dashboard: `http://localhost:3001/api/admin/queues` (front with reve
 - Plan-by-plan build sequence → [`docs/superpowers/plans/`](./superpowers/plans/)
 - Per-plan design notes (OAuth, payment, notes, docker-compose, BullMQ) → [`docs/superpowers/specs/`](./superpowers/specs/)
 - Local docker stack runbook → [`docs/runbooks/local-docker.md`](./runbooks/local-docker.md)
+- `create-icore migrate` migration authoring runbook → [`docs/runbooks/authoring-a-migration.md`](./runbooks/authoring-a-migration.md) (registry got its first real entry, `payment-never-crash-factory`, in PR #258)
 - Day-to-day agent rules → [`AGENTS.md`](../AGENTS.md)
 - Provider setup walk-throughs → [`AGENTS.md` § Provider-specific Setup](../AGENTS.md#provider-specific-setup)

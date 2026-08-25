@@ -32,8 +32,9 @@
       "outputs": ["{options.outputFile}"]
     },
     "test": {
+      "dependsOn": ["snapshot-templates"],
       "executor": "@nx/vitest:test",
-      "outputs": ["{options.reportsDirectory}"],
+      "outputs": ["{workspaceRoot}/coverage/tools/create-icore"],
       "options": {
         "reportsDirectory": "../../coverage/tools/create-icore"
       }

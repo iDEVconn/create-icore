@@ -19,6 +19,8 @@ import {
   removeFirebaseAdminLib,
   removeStrategiesLib,
   removeUploadStack,
+  pruneApiExpressDep,
+  pruneUnusedLibDeps,
 } from './scaffold-strip.js';
 import {
   applyAuthNoneVariants,
@@ -57,6 +59,8 @@ export {
   removeFirebaseAdminLib,
   removeStrategiesLib,
   removeUploadStack,
+  pruneApiExpressDep,
+  pruneUnusedLibDeps,
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
   patchGitignoreForPm,
@@ -232,6 +236,8 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
   // generated project audits clean (root keeps only chosen providers' SDKs).
   await pruneRootProviderDeps(opts.targetDir, opts);
+  await pruneApiExpressDep(opts.targetDir);
+  await pruneUnusedLibDeps(opts.targetDir);
 
   // Remove strategy interfaces + testing harness only when NO microservice
   // uses them. payment-client imports buildTransport from @icore/shared, so

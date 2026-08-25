@@ -6,7 +6,8 @@
     "types": ["node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "target": "es2021"
+    "target": "es2021",
+    "rootDir": ".."
   },
   "include": ["src/**/*.ts"],
   "exclude": [
