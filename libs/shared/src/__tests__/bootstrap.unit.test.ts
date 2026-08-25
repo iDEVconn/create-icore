@@ -58,12 +58,10 @@ describe('bootstrapMicroservice', () => {
     const exit = vi.spyOn(process, 'exit').mockImplementation(((): never => {
       throw new Error('__exit__');
     }) as never);
-    const createApp = vi.fn(
-      async (): Promise<FakeApp> => ({
-        listen: () => Promise.reject(new Error('EADDRINUSE')),
-        close: () => Promise.resolve(),
-      }),
-    );
+    const createApp = vi.fn(async (): Promise<FakeApp> => ({
+      listen: () => Promise.reject(new Error('EADDRINUSE')),
+      close: () => Promise.resolve(),
+    }));
 
     await expect(bootstrapMicroservice('AUTH', createApp, logger)).rejects.toThrow('__exit__');
     expect(exit).toHaveBeenCalledWith(1);
@@ -78,12 +76,10 @@ describe('bootstrapMicroservice', () => {
     const exit = vi.spyOn(process, 'exit').mockImplementation(((): never => {
       throw new Error('__exit__');
     }) as never);
-    const createApp = vi.fn(
-      async (): Promise<FakeApp> => ({
-        listen: () => Promise.reject(new Error('ECONNREFUSED')),
-        close: () => Promise.resolve(),
-      }),
-    );
+    const createApp = vi.fn(async (): Promise<FakeApp> => ({
+      listen: () => Promise.reject(new Error('ECONNREFUSED')),
+      close: () => Promise.resolve(),
+    }));
 
     await expect(bootstrapMicroservice('AUTH', createApp, logger)).rejects.toThrow('__exit__');
     expect(exit).toHaveBeenCalledWith(1);
