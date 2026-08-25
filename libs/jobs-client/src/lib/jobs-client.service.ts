@@ -14,6 +14,10 @@ export class JobsClientService implements OnModuleDestroy {
     this.connection = new IORedis(redisUrl, {
       maxRetriesPerRequest: null,
       retryStrategy: (times) => Math.min(times * 200, 5000),
+      // ioredis 6 defaults to RESP3; bullmq's Lua-script reply parsing is only
+      // verified against RESP2, so pin the old protocol until bullmq confirms
+      // RESP3 support.
+      protocol: 2,
     });
     // Without an 'error' handler ioredis throws an unhandled 'error' event and
     // crashes the host process when Redis is down. Log once, keep retrying.

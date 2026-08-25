@@ -13,6 +13,10 @@ export function createJobsRedis(url: string, logger: Logger): IORedis {
   const connection = new IORedis(url, {
     maxRetriesPerRequest: null,
     retryStrategy: (times) => Math.min(times * 200, 5000),
+    // ioredis 6 defaults to RESP3; bullmq's Lua-script reply parsing is only
+    // verified against RESP2, so pin the old protocol until bullmq confirms
+    // RESP3 support.
+    protocol: 2,
   });
 
   let warned = false;
