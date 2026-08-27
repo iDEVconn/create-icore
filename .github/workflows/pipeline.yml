@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        task: [lint, test, 'format:check']
+        task: [lint, test, 'format:check', 'route-integrity']
     steps:
       - uses: actions/checkout@v5
         with:
@@ -74,6 +74,8 @@ jobs:
         run: |
           if [ "${{ matrix.task }}" = "format:check" ]; then
             yarn format:check
+          elif [ "${{ matrix.task }}" = "route-integrity" ]; then
+            node tools/create-icore/scripts/check-route-integrity.mjs
           else
             yarn nx affected -t ${{ matrix.task }} --parallel
           fi
