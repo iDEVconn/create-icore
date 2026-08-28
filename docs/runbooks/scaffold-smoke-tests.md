@@ -91,3 +91,12 @@ node scripts/smoke-scaffold.mjs --auth=firebase --db=firebase --upload=firebase 
   (yarn node-modules linker) builds it fine — a yarn-vs-npm module-resolution
   gap (`moduleResolution: node10` not reading the package's `exports`/types).
   Tracked as a separate fix; Layer B is non-blocking until then.
+- **`TS5103: Invalid value for '--ignoreDeprecations'`** — the 2026-08-25 NX
+  migration bumped iCore's own `typescript` to `6.0.3` and added
+  `"ignoreDeprecations": "6.0"` to every tsconfig, including the ones the
+  blueprint engine copies into scaffolded projects. `_template-shell/package.json`
+  still pinned `typescript@^5.9.3`, which doesn't recognize `"6.0"` as a valid
+  `ignoreDeprecations` target — every `pm × combo` in the Layer B matrix failed
+  identically on `shared:build`. Fix: keep the scaffold's `typescript` dep in
+  lockstep with the root's whenever a future NX/TS migration bumps the root
+  version and touches `ignoreDeprecations`.
