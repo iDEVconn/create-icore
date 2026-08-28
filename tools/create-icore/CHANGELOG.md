@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.14.2
+
+### Patch Changes
+
+- 2df7587: Bump scaffolded projects' `typescript` dependency to `^6.0.3` — every generated tsconfig sets `ignoreDeprecations: "6.0"` (added by the Aug 25 NX migration), which TypeScript 5.9 rejects with `TS5103: Invalid value for '--ignoreDeprecations'`, failing `shared:build` in every pm × provider combo of the nightly scaffold smoke matrix.
+
 ## 0.14.1
 
 ### Patch Changes
