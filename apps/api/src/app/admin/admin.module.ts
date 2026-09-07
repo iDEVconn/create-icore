@@ -11,11 +11,14 @@ import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { JobsClientModule, JobsClientService } from '@icore/jobs-client';
 import { ICORE_QUEUES, type JobsMap } from '@icore/shared';
+import { AuthModule } from '../auth/auth.module';
+import { BullBoardAuthMiddleware } from './bull-board-auth.middleware';
 
 const BOARD_ROUTE = '/admin/queues';
 
 @Module({
-  imports: [JobsClientModule.forRoot()],
+  imports: [JobsClientModule.forRoot(), AuthModule],
+  providers: [BullBoardAuthMiddleware],
 })
 export class AdminModule implements NestModule, OnModuleInit {
   private readonly logger = new Logger(AdminModule.name);
@@ -35,12 +38,11 @@ export class AdminModule implements NestModule, OnModuleInit {
   }
 
   configure(consumer: MiddlewareConsumer): void {
-    // AuthGuard runs globally on every Nest route. To gate bull-board behind
-    // admin role, the simplest path is a small admin middleware that checks
-    // req.user.role — but req.user is populated by the AuthGuard which runs
-    // for Nest controllers, not raw middleware. So we leave bull-board public
-    // by default and document that consumers must front it with a reverse
-    // proxy (or wire a thin admin controller that forwards to express).
+    // AuthGuard runs globally on Nest controller routes but the bull-board
+    // router is mounted as raw Express middleware, so it never passes through
+    // the guard pipeline. BullBoardAuthMiddleware re-checks the bearer token
+    // and admin role directly, ahead of the board router.
+    consumer.apply(BullBoardAuthMiddleware).forRoutes(BOARD_ROUTE);
     consumer.apply(this.serverAdapter.getRouter()).forRoutes(BOARD_ROUTE);
   }
 }
