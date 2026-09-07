@@ -25,6 +25,25 @@ services:
       retries: 10
     networks: [icore]
 
+  # Only used when STORAGE_PROVIDER=minio (apps/microservices/upload/.env) —
+  # harmless idle container otherwise. S3 API port stays internal to the
+  # compose network; only the admin console is exposed to the host.
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-icore}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-change-me-minio}
+    ports:
+      - '127.0.0.1:9001:9001'
+    volumes:
+      - icore_minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      retries: 10
+    networks: [icore]
+
   auth:
     build:
       context: .
@@ -47,6 +66,10 @@ services:
     environment:
       UPLOAD_TRANSPORT: redis
       UPLOAD_REDIS_URL: redis://redis:6379
+      # Only read when STORAGE_PROVIDER=minio — in-network hostname/port
+      # instead of the host-facing defaults in .env.example.
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
     depends_on:
       redis:
         condition: service_healthy
@@ -116,3 +139,4 @@ networks:
 volumes:
   icore_postgres_data:
   icore_redis_data:
+  icore_minio_data:

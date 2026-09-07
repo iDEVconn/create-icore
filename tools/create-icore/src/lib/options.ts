@@ -1,7 +1,7 @@
 export type AuthBackend = 'supabase' | 'firebase' | 'mongodb' | 'postgres';
 export type AuthProvider = AuthBackend | 'none';
 export type DbProvider = 'supabase' | 'firebase' | 'mongodb' | 'postgres' | 'none';
-export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'mongodb' | 'none';
+export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'minio' | 'mongodb' | 'none';
 export type PaymentProvider = 'paypal' | 'none';
 export type JobsProvider = 'bullmq' | 'none';
 export type ExampleMode = 'notes' | 'none';

@@ -25,6 +25,7 @@ const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
   'supabase',
   'firebase',
   'cloudinary',
+  'minio',
   'mongodb',
   'none',
 ];
