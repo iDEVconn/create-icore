@@ -117,12 +117,15 @@ export function buildTransport(prefix: string): ClientOptions {
     case 'rmq':
       // amqp-connection-manager reconnects in the background; the initial
       // connect failure is caught by bootstrapMicroservice() and retried.
+      // durable: true survives a broker restart — both this client-side
+      // declare and the server's (same buildTransportMS call) must agree,
+      // since RabbitMQ rejects a redeclare with mismatched durability.
       return {
         transport: Transport.RMQ,
         options: {
           urls: required(`${prefix}_RMQ_URL`).split(','),
           queue: required(`${prefix}_RMQ_QUEUE`),
-          queueOptions: { durable: false },
+          queueOptions: { durable: true },
         },
       } as unknown as ClientOptions;
     case 'kafka':
