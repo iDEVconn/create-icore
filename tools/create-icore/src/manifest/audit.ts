@@ -45,6 +45,7 @@ interface Blueprint {
 const PROVIDER_SDKS: Record<string, string[]> = {
   supabase: ['@supabase/supabase-js'],
   cloudinary: ['cloudinary'],
+  minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin', '@icore/firebase-admin'],
 };

@@ -75,6 +75,7 @@ export async function stripGatewayTransport(targetDir: string, prefix: string): 
 const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
   supabase: ['@supabase/supabase-js'],
   cloudinary: ['cloudinary'],
+  minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin'],
 };

@@ -81,6 +81,16 @@ export const MANIFEST = {
         into: 'upload',
       },
     },
+    minio: {
+      libDirs: ['libs/storage-strategies/minio'],
+      deps: { minio: '^8.0.6' },
+      tsPaths: { '@icore/storage-minio': ['libs/storage-strategies/minio/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/storage-minio',
+        symbol: 'MinioStorageModule',
+        into: 'upload',
+      },
+    },
     mongodb: {
       libDirs: ['libs/storage-strategies/mongodb'],
       deps: { mongoose: '^9.6.3' },

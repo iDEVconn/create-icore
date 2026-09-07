@@ -203,6 +203,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'supabase', label: 'Supabase Storage' },
         { value: 'firebase', label: 'Firebase Cloud Storage' },
         { value: 'cloudinary', label: 'Cloudinary' },
+        { value: 'minio', label: 'MinIO (self-hosted, S3-compatible)' },
         { value: 'mongodb', label: 'MongoDB GridFS' },
         { value: 'none', label: 'None — skip the upload microservice' },
       ],
