@@ -1,4 +1,4 @@
-# Third-party infrastructure audit — P0/P1 fixes
+# Third-party infrastructure audit — P0/P1/P2 fixes
 
 ## Problem
 
@@ -40,10 +40,14 @@ out of scope here.
 - `Dockerfile.ms-payment` is not in `snapshot-templates.mjs`'s `PATHS_TO_COPY` — generated projects never receive it, unlike the other 4 Dockerfiles.
 - After scaffold, `apps/client/package.json`'s `name` field stays `client-shadcn`/`client-antd`/`client-mui` — only `project.json`'s name gets normalized to `client`. Cosmetic; Nx doesn't care.
 
-## P2 (backlog, not yet shipped as of this writing)
+## Solution — P2 (feature gaps, PR #284–286)
 
-- Own S3-compatible (MinIO) storage strategy — no self-hosted storage option existed, only SaaS-dependent ones (Supabase/Firebase/Cloudinary) plus MongoDB GridFS.
-- PWA epic for `client-shadcn` (manifest, service worker, `NetworkOnly` for `/api/*`).
-- Argon2id password hashing with lazy migration of existing bcrypt hashes.
+| #   | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                          | PR   | File(s)                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | ----------------------------------------------------------- |
+| 9   | No self-hosted storage option existed — only SaaS-dependent strategies (Supabase/Firebase/Cloudinary) plus MongoDB GridFS. Added `MinioStorageStrategy`, S3-compatible (works against MinIO, Backblaze B2, Cloudflare R2, Amazon S3 unchanged), wired into the upload MS factory, the CLI generator's storage choices, and `docker-compose.yml` (new `minio` service, opt-in via `STORAGE_PROVIDER=minio`). See `AGENTS.md` "MinIO / S3-compatible" section. | #284 | `libs/storage-strategies/minio/`                            |
+| 10  | `client-shadcn` was an SPA with no offline/install story. Added `vite-plugin-pwa`: manifest, service worker, `UpdatePrompt`/`OfflineBanner` components, `NetworkOnly` explicitly for `/api/*` (never cache auth/tokens/medical data). Placeholder icons — see `apps/templates/client-shadcn/README.md`. `client-antd`/`client-mui` intentionally out of scope for this PR.                                                                                   | #285 | `apps/templates/client-shadcn/`                             |
+| 11  | Postgres auth strategy hashed passwords with bcrypt; OWASP now recommends Argon2id. New passwords hash with argon2id; existing bcrypt hashes still verify and get lazily rewritten to argon2id right after a successful login — no forced reset, no downtime. See `AGENTS.md` "Password hashing" note.                                                                                                                                                       | #286 | `libs/auth-strategies/postgres/src/lib/password-hashing.ts` |
 
-Check `git log` / open PRs for current status — this section will go stale.
+Explicitly out of scope, not tracked as gaps: PWA for `client-antd`/`client-mui` (follow-up PR, not yet opened), and the external `@idevconn/api-client` package (not in this repo).
+
+Check `git log` / open PRs for current status if this section predates a later change.

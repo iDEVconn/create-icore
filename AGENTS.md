@@ -234,6 +234,27 @@ CLOUDINARY_API_SECRET=<secret>
 
 **Signed URLs:** Cloudinary signed delivery URLs are generated via `cloudinary.utils.private_download_url()`. The TTL is encoded in the URL itself; do not cache the URL longer than the chosen TTL.
 
+### MinIO / S3-compatible (storage only)
+
+**Env vars:**
+
+```
+STORAGE_PROVIDER=minio
+MINIO_ENDPOINT=<host>            # e.g. localhost, minio.internal, s3.amazonaws.com
+MINIO_PORT=9000                  # optional, default 9000
+MINIO_USE_SSL=false              # optional, default false — set true for anything but local dev
+MINIO_ACCESS_KEY=<key>
+MINIO_SECRET_KEY=<secret>
+MINIO_BUCKET=uploads
+```
+
+**Setup:**
+
+1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it.
+2. Create the bucket (`MINIO_BUCKET`) before first upload — the strategy does not auto-create it.
+3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the same MIME allowlist + ownership-prefix convention as the other storage strategies, in code — not relying on bucket policy.
+4. This is the only storage strategy with zero mandatory external SaaS dependency — pick it when "no vendor lock-in" matters more than managed convenience.
+
 ## Commands
 
 - `yarn install` — install all dependencies (root + workspaces)
