@@ -440,6 +440,10 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'libs/auth-client/src'), { recursive: true });
   await writeFile(join(tplDir, 'libs/auth-client/src/index.ts'), 'export {};');
 
+  // generated-project CI workflow stub (see SHELL_OVERRIDES in snapshot-templates.mjs)
+  await mkdir(join(tplDir, '.github/workflows'), { recursive: true });
+  await writeFile(join(tplDir, '.github/workflows/ci.yml'), 'name: CI\n');
+
   return tplDir;
 }
 
@@ -490,6 +494,11 @@ describe('scaffold (integration, dry-run)', () => {
     const apps = await readdir(join(outputDir, 'apps'));
     expect(apps).toContain('client');
     expect(apps).not.toContain('templates');
+
+    // .github/workflows carries through untouched — copyTree has no
+    // special-case for it, and it must not be silently dropped.
+    const ci = await readFile(join(outputDir, '.github/workflows/ci.yml'), 'utf8');
+    expect(ci).toContain('name: CI');
   });
 
   it('removes upload stack when upload=none', async () => {

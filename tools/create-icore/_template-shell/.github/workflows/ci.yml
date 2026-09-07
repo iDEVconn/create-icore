@@ -1,0 +1,45 @@
+name: CI
+
+# Minimal Nx affected pipeline for a project scaffolded by create-icore.
+# Runs the same checks on every PR and on every push to main/dev — it
+# does not deploy anything; wire up your own deploy job when you're ready.
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: |
+          if [ -f yarn.lock ]; then
+            corepack enable
+            yarn install --immutable
+          elif [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      - uses: nrwl/nx-set-shas@v5
+        with:
+          main-branch-name: main
+
+      - name: Affected lint, test, build
+        run: npx nx affected -t lint test build --parallel
