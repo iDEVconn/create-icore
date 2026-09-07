@@ -213,6 +213,8 @@ _icore_sessions (id, user_id, family_id, token_hash, revoked_at, expires_at)
 
 **Refresh token hardening (PR #277):** `_icore_sessions.token_hash` stores a SHA-256 hash of the refresh token, never the plaintext. `family_id` groups all tokens issued from one login; replaying a token that was already rotated out (`revoked_at` set) revokes the entire family, not just that row — this is reuse detection for a stolen refresh token. No formal migration exists for this strategy: an existing deployment on the old `refresh_token` column must add/rename columns manually before upgrading.
 
+**Password hashing:** new passwords (`signUp`, and any future change-password flow) hash with argon2id (`libs/auth-strategies/postgres/src/lib/password-hashing.ts`), OWASP's current recommendation. Existing bcrypt hashes (`$2a$`/`$2b$`/`$2y$` prefix) keep verifying — `signIn` detects the hash format and picks bcrypt or argon2id accordingly — and get lazily rewritten to argon2id in `_icore_users.password_hash` right after a successful bcrypt login. No forced password reset, no downtime, no separate migration job. Expect `_icore_users` to hold a mix of `$2b$...` and `$argon2id$...` hashes indefinitely on a live deployment; that's the intended steady state, not corruption.
+
 ### Cloudinary (storage only)
 
 **Env vars:**

@@ -1,5 +1,4 @@
 import postgres from 'postgres';
-import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { RpcException } from '@nestjs/microservices';
@@ -12,6 +11,7 @@ import type {
   VerifiedToken,
 } from '@icore/shared';
 import { decideRefresh, hashRefreshToken } from './refresh-token';
+import { hashPassword, isBcryptHash, verifyPassword } from './password-hashing';
 
 export interface PostgresAuthStrategyOptions {
   url: string;
@@ -95,8 +95,15 @@ export class PostgresAuthStrategy implements AuthStrategy {
     `;
     const user = rows[0];
     if (!user || !user.password_hash) throw new RpcException('invalid_credentials');
-    const ok = await bcrypt.compare(password, user.password_hash);
+    const ok = await verifyPassword(user.password_hash, password);
     if (!ok) throw new RpcException('invalid_credentials');
+    if (isBcryptHash(user.password_hash)) {
+      // Lazy migration: this login proved the plaintext password, so it's
+      // safe to replace the bcrypt hash with argon2id right now — no forced
+      // reset, no downtime, no separate migration job.
+      const upgraded = await hashPassword(password);
+      await this.sql`UPDATE _icore_users SET password_hash = ${upgraded} WHERE id = ${user.id}`;
+    }
     await this.sql`
       UPDATE _icore_users SET last_logged_in = now() WHERE id = ${user.id}
     `;
@@ -106,7 +113,7 @@ export class PostgresAuthStrategy implements AuthStrategy {
   async signUp(email: string, password: string): Promise<AuthSession> {
     await this.ensureTables();
     const id = randomUUID();
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await hashPassword(password);
     try {
       await this.sql`
         INSERT INTO _icore_users (id, email, password_hash) VALUES (${id}, ${email}, ${passwordHash})
