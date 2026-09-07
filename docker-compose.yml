@@ -101,6 +101,18 @@ services:
     networks: [icore]
     restart: unless-stopped
 
+  ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-ai
+    env_file: .env.docker
+    environment:
+      AI_TRANSPORT: tcp
+      AI_HOST: 0.0.0.0
+      AI_PORT: 4005
+    networks: [icore]
+    restart: unless-stopped
+
   gateway:
     build:
       context: .
@@ -116,6 +128,9 @@ services:
       PAYMENT_TRANSPORT: tcp
       PAYMENT_HOST: payment
       PAYMENT_PORT: 4003
+      AI_TRANSPORT: tcp
+      AI_HOST: ai
+      AI_PORT: 4005
     ports:
       - '3001:3001'
     depends_on:
@@ -128,6 +143,8 @@ services:
       jobs:
         condition: service_started
       payment:
+        condition: service_started
+      ai:
         condition: service_started
     networks: [icore]
     restart: unless-stopped

@@ -1,6 +1,6 @@
 # Local Docker stack
 
-`docker compose up` brings postgres + redis + auth MS + upload MS + jobs MS + payment MS + the gateway online with `transport=redis`. The client (Vite + your chosen template) runs outside compose for hot-reload — or use `Dockerfile.client` for a production-style container (see below).
+`docker compose up` brings postgres + redis + auth MS + upload MS + jobs MS + payment MS + ai-orchestrator MS + the gateway online with `transport=redis`. The client (Vite + your chosen template) runs outside compose for hot-reload — or use `Dockerfile.client` for a production-style container (see below).
 
 ## Steps
 
@@ -13,12 +13,13 @@
 ## Layout
 
 ```
-docker-compose.yml          ← orchestrates postgres, redis, auth, upload, jobs, payment, gateway
+docker-compose.yml          ← orchestrates postgres, redis, auth, upload, jobs, payment, ai, gateway
 Dockerfile.gateway          ← apps/api build → Node 24 alpine runtime
 Dockerfile.ms-auth          ← apps/microservices/auth
 Dockerfile.ms-upload        ← apps/microservices/upload
 Dockerfile.ms-jobs          ← apps/microservices/jobs
 Dockerfile.ms-payment       ← apps/microservices/payment (not yet copied into scaffolded projects — tracked gap)
+Dockerfile.ms-ai            ← apps/microservices/ai-orchestrator
 Dockerfile.client           ← apps/client production build → nginx:1.27-alpine static runtime (PR #282)
 nginx.client.conf           ← SPA fallback config for Dockerfile.client
 .env.docker.example         ← documented env template

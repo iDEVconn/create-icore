@@ -255,6 +255,26 @@ MINIO_BUCKET=uploads
 3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the same MIME allowlist + ownership-prefix convention as the other storage strategies, in code — not relying on bucket policy.
 4. This is the only storage strategy with zero mandatory external SaaS dependency — pick it when "no vendor lock-in" matters more than managed convenience.
 
+### AI Orchestrator (LLM routing, optional feature)
+
+`apps/microservices/ai-orchestrator` wraps `@idevconn/llm-router` — a provider-agnostic `LlmRegistry` + `Orchestrator`/`TaskRouter` (decompose → route → critique/retry → synthesize) — behind the same gateway↔MS RPC pattern as `payment`/`jobs`. `libs/ai-client` is the gateway-side client (`AiClientModule.forRoot()`); `apps/api/src/app/ai` exposes `POST /api/ai/{generate,orchestrate,rag/query}` + `GET /api/ai/providers`, guarded by the default `AuthGuard` and a named `ai-burst` throttle.
+
+**Env vars (`apps/microservices/ai-orchestrator/.env`):**
+
+```
+AI_TRANSPORT=tcp
+AI_PROVIDER=gemini            # platform default; BYOK (per-call apiKey) works regardless
+GEMINI_API_KEY=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+```
+
+**Setup:** all three platform keys are optional — `LlmRegistry`'s own env audit logs a warning per missing key and the registry falls back to BYOK-only for that provider, never crashes on boot. `withInstrumentation`/`withBudget` (llm-router) wrap every strategy: instrumentation always logs provider/model/tokens/latency; budget enforcement only activates when `AI_PRICING_JSON` (a JSON `PricingTable`) is set alongside `AI_MAX_COST_PER_CALL`/`AI_MAX_COST_TOTAL` — pricing is never hardcoded, since a stale baked-in table would silently mis-enforce a budget.
+
+**RAG (opt-in):** needs its own `AI_RAG_POSTGRES_URL` (Postgres + `pgvector` extension) and `OPENAI_API_KEY` (embeddings) — independent of whatever `dbProvider` the rest of the project uses, since RAG must not assume Postgres is the primary database. `RagService` runs the `CREATE EXTENSION`/`CREATE TABLE`/`CREATE INDEX` DDL itself on boot (mirrors `PostgresAuthStrategy.ensureTables()`) — `PgVectorStore` deliberately never runs DDL. Every retrieved chunk is sanitized via llm-router's `sanitizeUntrustedContent` before it reaches a prompt (retrieved content is a classic prompt-injection vector).
+
+**ESM/CJS interop:** `@idevconn/llm-router` ships ESM-only (`"type": "module"`), but this repo's microservices are strict CommonJS (see NestJS tsconfig note below). `apps/microservices/ai-orchestrator/src/app/*.ts` uses `require('@idevconn/llm-router')` (not `import`) for runtime values — Node 22.12+/24 supports synchronous `require()` of an ESM module natively, and `.nvmrc`/every Dockerfile pin Node 24. Type-only imports use `with { 'resolution-mode': 'import' }`. `apps/api`'s gateway code never imports `@idevconn/llm-router` directly — `libs/ai-client` re-exports plain DTOs instead, sidestepping the interop entirely on the gateway side.
+
 ## Commands
 
 - `yarn install` — install all dependencies (root + workspaces)
