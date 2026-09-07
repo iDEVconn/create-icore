@@ -10,6 +10,7 @@ import type {
   UploadProvider,
   PaymentProvider,
   JobsProvider,
+  AiProvider,
   ExampleMode,
   PackageManager,
   MsTransport,
@@ -104,6 +105,9 @@ export function parseFlags(argv: string[]): ParsedFlags {
         break;
       case 'jobs':
         out.jobs = v as JobsProvider;
+        break;
+      case 'ai':
+        out.ai = v as AiProvider;
         break;
       case 'example':
         out.example = v as ExampleMode;
@@ -234,6 +238,21 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as JobsProvider);
   if (p.isCancel(jobs)) throw new Error('cancelled');
 
+  const ai =
+    flags.ai ??
+    ((await p.select({
+      message: 'AI orchestrator (LLM routing via @idevconn/llm-router)',
+      options: [
+        { value: 'none', label: 'None — skip the AI orchestrator MS' },
+        {
+          value: 'llm-router',
+          label: 'llm-router (Gemini/Claude/ChatGPT registry + orchestrator + RAG)',
+        },
+      ],
+      initialValue: 'none' as AiProvider,
+    })) as AiProvider);
+  if (p.isCancel(ai)) throw new Error('cancelled');
+
   const example: ExampleMode =
     authProvider === 'none'
       ? 'none'
@@ -267,7 +286,8 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as 'shadcn' | 'antd' | 'mui');
   if (p.isCancel(ui)) throw new Error('cancelled');
 
-  const noMicroservices = authProvider === 'none' && upload === 'none' && payment === 'none';
+  const noMicroservices =
+    authProvider === 'none' && upload === 'none' && payment === 'none' && ai === 'none';
   const transport: MsTransport =
     flags.transport ??
     (noMicroservices
@@ -318,6 +338,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     upload,
     payment,
     jobs,
+    ai,
     example,
     ui,
     transport,

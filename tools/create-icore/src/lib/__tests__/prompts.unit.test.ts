@@ -56,6 +56,14 @@ describe('parseFlags', () => {
     expect(parseFlags(['my-app', '--jobs=none']).jobs).toBe('none');
   });
 
+  it('reads --ai=llm-router', () => {
+    expect(parseFlags(['my-app', '--ai=llm-router']).ai).toBe('llm-router');
+  });
+
+  it('reads --ai=none', () => {
+    expect(parseFlags(['my-app', '--ai=none']).ai).toBe('none');
+  });
+
   it('parses --example=none', () => {
     expect(parseFlags(['my-app', '--example=none']).example).toBe('none');
   });
@@ -108,6 +116,7 @@ describe('collectOptions cascade when authProvider=none', () => {
     '--upload=none',
     '--payment=none',
     '--jobs=none',
+    '--ai=none',
     '--ui=shadcn',
     '--transport=tcp',
     '--package-manager=yarn',
@@ -132,6 +141,7 @@ describe('collectOptions cascade when authProvider=none', () => {
       '--upload=none',
       '--payment=none',
       '--jobs=none',
+      '--ai=none',
       '--ui=shadcn',
       '--package-manager=yarn',
       '--no-git',

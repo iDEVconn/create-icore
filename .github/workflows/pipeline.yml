@@ -132,7 +132,7 @@ jobs:
       matrix:
         combo:
           - name: supabase-full
-            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --example=notes --transport=tcp
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --ai=llm-router --example=notes --transport=tcp
           - name: firebase-minimal
             flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis
           - name: cloudinary-nats
@@ -160,7 +160,7 @@ jobs:
         run: |
           node tools/create-icore/scripts/smoke-scaffold.mjs \
             ${{ matrix.combo.flags }} --mode=link \
-            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,api
+            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,ai-orchestrator,api
 
   docker-build:
     name: Docker build (${{ matrix.image }})
@@ -172,7 +172,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [gateway, ms-auth, ms-upload, ms-jobs, ms-payment]
+        image: [gateway, ms-auth, ms-upload, ms-jobs, ms-payment, ms-ai]
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4

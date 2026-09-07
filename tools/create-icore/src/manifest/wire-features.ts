@@ -10,7 +10,7 @@ const FEATURES_MODULE = 'apps/api/src/app/features.module.ts';
 const GATEWAY_SERVICES = 'apps/api/src/app/gateway-services.ts';
 const API_PKG = 'apps/api/package.json';
 
-type FeatureKey = 'notes' | 'payment' | 'jobs';
+type FeatureKey = 'notes' | 'payment' | 'jobs' | 'ai';
 
 const FEATURES = MANIFEST.feature as Record<FeatureKey, Unit>;
 
@@ -20,6 +20,7 @@ function selectedFeatures(opts: CreateIcoreOptions): FeatureKey[] {
   if (opts.example === 'notes') out.push('notes');
   if (opts.payment !== 'none') out.push('payment');
   if (opts.jobs !== 'none') out.push('jobs');
+  if (opts.ai !== 'none') out.push('ai');
   return out;
 }
 
@@ -71,6 +72,22 @@ async function stripJobsDockerCompose(targetDir: string): Promise<void> {
   }
 }
 
+async function stripAiDockerCompose(targetDir: string): Promise<void> {
+  const composePath = join(targetDir, 'docker-compose.yml');
+  try {
+    const compose = await readFile(composePath, 'utf8');
+    const next = compose
+      .replace(/\n {2}ai:[\s\S]+?(?=\n {2}\w+:|\nnetworks:)/m, '\n')
+      .replace(/\n {6}ai:\n {8}condition: service_started/g, '')
+      .replace(/\n {6}AI_TRANSPORT:[^\n]*/g, '')
+      .replace(/\n {6}AI_HOST:[^\n]*/g, '')
+      .replace(/\n {6}AI_PORT:[^\n]*/g, '');
+    await writeFile(composePath, next);
+  } catch {
+    // ignore
+  }
+}
+
 /** Remove every NOT-selected feature: its dirs, gateway deps + tsconfig aliases,
  *  its gateway .env transport block, and (jobs) its docker-compose service. The
  *  gateway app.module / main.ts are NOT touched — they consume the generated
@@ -80,7 +97,7 @@ export async function cleanupUnusedFeatures(
   opts: CreateIcoreOptions,
 ): Promise<void> {
   const chosen = new Set(selectedFeatures(opts));
-  for (const key of ['notes', 'payment', 'jobs'] as FeatureKey[]) {
+  for (const key of ['notes', 'payment', 'jobs', 'ai'] as FeatureKey[]) {
     if (chosen.has(key)) continue;
     const unit = FEATURES[key];
     for (const dir of unit.libDirs)
@@ -90,6 +107,7 @@ export async function cleanupUnusedFeatures(
     await stripTsconfigKeys(targetDir, Object.keys(unit.tsPaths));
     if (unit.gatewayService) await stripGatewayTransport(targetDir, unit.gatewayService.prefix);
     if (unit.dockerService === 'jobs') await stripJobsDockerCompose(targetDir);
+    if (unit.dockerService === 'ai') await stripAiDockerCompose(targetDir);
     if (key === 'jobs') {
       // jobs.ts in libs/shared is only used by BullMQ — dead when jobs=none
       try {
