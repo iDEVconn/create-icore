@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24-alpine AS builder
+WORKDIR /workspace
+RUN corepack enable
+# Copy everything before install — yarn workspaces need every workspace's
+# package.json to verify the lockfile is immutable.
+COPY . .
+RUN yarn install --immutable
+
+# Vite inlines VITE_-prefixed vars into the bundle at build time, not at
+# container start — there is no runtime .env for a static SPA. Values default
+# to apps/client/.env.example; override with --build-arg for a non-default
+# deployment (e.g. a client served from a different origin than the gateway).
+ARG VITE_API_URL=/api
+ARG VITE_AUTH_HAS_OAUTH=false
+ARG VITE_AUTH_HAS_MAGIC_LINK=false
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_AUTH_HAS_OAUTH=${VITE_AUTH_HAS_OAUTH}
+ENV VITE_AUTH_HAS_MAGIC_LINK=${VITE_AUTH_HAS_MAGIC_LINK}
+RUN yarn nx vite:build client
+
+FROM nginx:1.27-alpine AS runtime
+COPY --from=builder /workspace/dist/apps/client /usr/share/nginx/html
+COPY nginx.client.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
