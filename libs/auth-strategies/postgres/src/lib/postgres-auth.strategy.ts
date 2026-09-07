@@ -11,6 +11,7 @@ import type {
   OAuthStartResult,
   VerifiedToken,
 } from '@icore/shared';
+import { decideRefresh, hashRefreshToken } from './refresh-token';
 
 export interface PostgresAuthStrategyOptions {
   url: string;
@@ -64,7 +65,9 @@ export class PostgresAuthStrategy implements AuthStrategy {
       CREATE TABLE IF NOT EXISTS _icore_sessions (
         id             TEXT PRIMARY KEY,
         user_id        TEXT NOT NULL,
-        refresh_token  TEXT UNIQUE NOT NULL,
+        family_id      TEXT NOT NULL,
+        token_hash     TEXT UNIQUE NOT NULL,
+        revoked_at     TIMESTAMPTZ,
         expires_at     TIMESTAMPTZ NOT NULL
       )
     `;
@@ -124,31 +127,59 @@ export class PostgresAuthStrategy implements AuthStrategy {
 
   async refresh(refreshToken: string): Promise<AuthSession> {
     await this.ensureTables();
-    const sessions = await this.sql<{ id: string; user_id: string; expires_at: Date }[]>`
-      SELECT id, user_id, expires_at FROM _icore_sessions WHERE refresh_token = ${refreshToken}
+    const tokenHash = hashRefreshToken(refreshToken);
+    const sessions = await this.sql<
+      {
+        id: string;
+        user_id: string;
+        family_id: string;
+        revoked_at: Date | null;
+        expires_at: Date;
+      }[]
+    >`
+      SELECT id, user_id, family_id, revoked_at, expires_at FROM _icore_sessions WHERE token_hash = ${tokenHash}
     `;
     const session = sessions[0];
-    if (!session || session.expires_at < new Date()) {
-      if (session) {
-        await this.sql`DELETE FROM _icore_sessions WHERE id = ${session.id}`;
-      }
+    const decision = decideRefresh(
+      session ? { revokedAt: session.revoked_at, expiresAt: session.expires_at } : undefined,
+      new Date(),
+    );
+
+    if (decision.kind === 'reuse_detected') {
+      // The token was already rotated out — someone is replaying a stolen
+      // refresh token. Revoke the whole lineage, not just this row.
+      await this
+        .sql`DELETE FROM _icore_sessions WHERE family_id = ${(session as { family_id: string }).family_id}`;
       throw new RpcException('invalid_refresh_token');
     }
+    if (decision.kind === 'expired') {
+      await this.sql`DELETE FROM _icore_sessions WHERE id = ${(session as { id: string }).id}`;
+      throw new RpcException('invalid_refresh_token');
+    }
+    if (decision.kind === 'not_found') {
+      throw new RpcException('invalid_refresh_token');
+    }
+
+    const current = session as { id: string; user_id: string; family_id: string };
     const users = await this.sql<{ id: string; email: string; role: string | null }[]>`
-      SELECT id, email, role FROM _icore_users WHERE id = ${session.user_id}
+      SELECT id, email, role FROM _icore_users WHERE id = ${current.user_id}
     `;
     const user = users[0];
     if (!user) throw new RpcException('user_not_found');
-    await this.sql`DELETE FROM _icore_sessions WHERE id = ${session.id}`;
+    await this.sql`UPDATE _icore_sessions SET revoked_at = now() WHERE id = ${current.id}`;
     await this.sql`
       UPDATE _icore_users SET last_logged_in = now() WHERE id = ${user.id}
     `;
-    return this.createSession({ id: user.id, email: user.email, role: user.role ?? undefined });
+    return this.createSession(
+      { id: user.id, email: user.email, role: user.role ?? undefined },
+      current.family_id,
+    );
   }
 
   async revoke(refreshToken: string): Promise<void> {
     await this.ensureTables();
-    await this.sql`DELETE FROM _icore_sessions WHERE refresh_token = ${refreshToken}`;
+    const tokenHash = hashRefreshToken(refreshToken);
+    await this.sql`DELETE FROM _icore_sessions WHERE token_hash = ${tokenHash}`;
   }
 
   async setRole(uid: string, role: string): Promise<void> {
@@ -184,11 +215,14 @@ export class PostgresAuthStrategy implements AuthStrategy {
     throw new Error('not_implemented');
   }
 
-  private async createSession(user: {
-    id: string;
-    email: string;
-    role?: string;
-  }): Promise<AuthSession> {
+  private async createSession(
+    user: {
+      id: string;
+      email: string;
+      role?: string;
+    },
+    familyId?: string,
+  ): Promise<AuthSession> {
     const expiresIn = this.opts.jwtExpiresIn ?? '15m';
     const accessToken = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
@@ -196,11 +230,12 @@ export class PostgresAuthStrategy implements AuthStrategy {
       { expiresIn: expiresIn as jwt.SignOptions['expiresIn'] },
     );
     const refreshToken = randomUUID();
+    const tokenHash = hashRefreshToken(refreshToken);
     const refreshMs = parseDurationMs(this.opts.refreshExpiresIn ?? '7d');
     const expiresAt = new Date(Date.now() + refreshMs);
     await this.sql`
-      INSERT INTO _icore_sessions (id, user_id, refresh_token, expires_at)
-      VALUES (${randomUUID()}, ${user.id}, ${refreshToken}, ${expiresAt})
+      INSERT INTO _icore_sessions (id, user_id, family_id, token_hash, expires_at)
+      VALUES (${randomUUID()}, ${user.id}, ${familyId ?? randomUUID()}, ${tokenHash}, ${expiresAt})
     `;
     return {
       accessToken,
