@@ -14,6 +14,8 @@ import { I18nextProvider } from 'react-i18next';
 import { Toaster } from 'sonner';
 import { routeTree } from './routeTree.gen';
 import { wireShadcnNotifier } from './lib/notify';
+import { UpdatePrompt } from './components/pwa/UpdatePrompt';
+import { OfflineBanner } from './components/pwa/OfflineBanner';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -49,8 +51,10 @@ createRoot(document.getElementById('root')!).render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <AbilityProvider>
+          <OfflineBanner />
           <RouterProvider router={router} />
           <Toaster richColors />
+          <UpdatePrompt />
         </AbilityProvider>
       </QueryClientProvider>
     </I18nextProvider>
