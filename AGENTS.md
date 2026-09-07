@@ -206,10 +206,12 @@ JWT_REFRESH_EXPIRES_IN=7d # optional, default 7d
 
 ```sql
 _icore_users  (id, email, password_hash, role, last_logged_in, created_at)
-_icore_sessions (id, user_id, refresh_token, expires_at)
+_icore_sessions (id, user_id, family_id, token_hash, revoked_at, expires_at)
 ```
 
 **Note:** `POSTGRES_URL` must include credentials. For SSL, append `?sslmode=require` to the URL. Both `--auth=postgres` and `--db=postgres` use the same `POSTGRES_URL` — single instance covers both.
+
+**Refresh token hardening (PR #277):** `_icore_sessions.token_hash` stores a SHA-256 hash of the refresh token, never the plaintext. `family_id` groups all tokens issued from one login; replaying a token that was already rotated out (`revoked_at` set) revokes the entire family, not just that row — this is reuse detection for a stolen refresh token. No formal migration exists for this strategy: an existing deployment on the old `refresh_token` column must add/rename columns manually before upgrading.
 
 ### Cloudinary (storage only)
 
@@ -258,6 +260,14 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - Build artifacts (`dist/`, `.vite/`, `.nx/`) are gitignored — do not commit them.
 - `.env` files are gitignored. Each MS ships a `.env.example` committed alongside its `.env`.
 - The `.husky/pre-commit` hook runs lint-staged + `nx affected -t lint test` on every commit. Never bypass with `--no-verify` — fix the underlying issue.
+- Bull Board (`/api/admin/queues`) is gated by `BullBoardAuthMiddleware` (PR #275) — bearer token + `admin` role, checked ahead of the board's raw Express router since it never passes through the Nest `AuthGuard` pipeline.
+- Swagger (`/api/docs`) is disabled when `NODE_ENV=production` (`apps/api/src/should-enable-swagger.ts`, PR #276) — it was previously exposed unconditionally.
+- RabbitMQ queues declare `durable: true` (`libs/shared/src/transport.ts`, PR #278) — a broker restart no longer silently drops queued messages.
+- `docker-compose.yml`'s postgres/redis services have named volumes (`icore_postgres_data`, `icore_redis_data`) and postgres binds to `127.0.0.1:5432` instead of all interfaces (PR #279).
+- `.nvmrc` and every Dockerfile/CI workflow are aligned on Node 24 (PR #280) — don't introduce a Node 22 reference.
+- Generated projects now ship `.github/workflows/ci.yml` (a thin `nx affected -t lint test build` pipeline) via `tools/create-icore/_template-shell/.github/workflows/ci.yml` — previously scaffolded projects had zero CI/CD (PR #281).
+- `Dockerfile.client` + `nginx.client.conf` (PR #282) give the React client a production multi-stage build (`node:24-alpine` → `nginx:1.27-alpine`, SPA fallback) — the client had no Docker path before. Uses the real Nx target `vite:build`, not `build`.
+- See `docs/runbooks/third-party-infra-audit-fixes.md` for the full rationale behind the above (source: third-party iCore infrastructure audit, 2026-09-07).
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
