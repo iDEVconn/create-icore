@@ -6,7 +6,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-icore}
       POSTGRES_DB: ${POSTGRES_DB:-icore}
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - icore_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U icore']
       interval: 5s
@@ -15,6 +17,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    volumes:
+      - icore_redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -108,3 +112,7 @@ services:
 networks:
   icore:
     driver: bridge
+
+volumes:
+  icore_postgres_data:
+  icore_redis_data:
