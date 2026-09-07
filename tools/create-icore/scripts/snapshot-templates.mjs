@@ -38,8 +38,12 @@ const PATHS_TO_COPY = [
 
 // Files where the repo's own root version must NOT be copied verbatim,
 // because the generated project needs a different (PM-agnostic, or
-// otherwise scaffold-specific) version. Copied LAST so they win.
-const SHELL_OVERRIDES = ['package.json', '.husky/pre-commit'];
+// otherwise scaffold-specific) version — and files with no root
+// equivalent at all, authored only for generated projects (e.g. this
+// repo's own .github/workflows/pipeline.yml publishes the create-icore
+// package itself and runs scaffold smoke tests; a generated project needs
+// a much thinner CI). Copied LAST so they win.
+const SHELL_OVERRIDES = ['package.json', '.husky/pre-commit', '.github/workflows/ci.yml'];
 
 const IGNORE_REL = new Set([
   'node_modules',
