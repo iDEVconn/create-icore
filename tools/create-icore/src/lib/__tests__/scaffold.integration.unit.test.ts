@@ -282,7 +282,7 @@ async function makeFakeTemplates(): Promise<string> {
   );
 
   // ai-orchestrator MS stub + package.json
-  await mkdir(join(tplDir, 'apps/microservices/ai-orchestrator/src'), { recursive: true });
+  await mkdir(join(tplDir, 'apps/microservices/ai-orchestrator/src/app'), { recursive: true });
   await writeFile(join(tplDir, 'apps/microservices/ai-orchestrator/src/main.ts'), 'export {};');
   await writeFile(
     join(tplDir, 'apps/microservices/ai-orchestrator/package.json'),

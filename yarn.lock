@@ -3008,6 +3008,7 @@ __metadata:
   resolution: "@icore/ai-client@workspace:libs/ai-client"
   dependencies:
     "@icore/shared": "npm:*"
+    "@idevconn/ai-usage": "npm:^0.4.0"
     "@idevconn/llm-router": "npm:^0.10.0"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/microservices": "npm:^11.2.3"
@@ -3322,6 +3323,27 @@ __metadata:
       optional: false
   languageName: unknown
   linkType: soft
+
+"@idevconn/ai-usage@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@idevconn/ai-usage@npm:0.4.0"
+  peerDependencies:
+    "@nestjs/common": ">=10.0.0"
+    "@nestjs/swagger": ">=7.0.0"
+    "@tanstack/react-query": ">=5.0.0"
+    react: ">=18.0.0"
+  peerDependenciesMeta:
+    "@nestjs/common":
+      optional: true
+    "@nestjs/swagger":
+      optional: true
+    "@tanstack/react-query":
+      optional: true
+    react:
+      optional: true
+  checksum: 10c0/576b596b4c0f07bdf7d50b6f161094804e032ae2c9cca8863efd2e9dbc4655fa1722c169f6a46ea5af0f2e804e1f2ccec376129a78efc61837719b7fa9c99db9
+  languageName: node
+  linkType: hard
 
 "@idevconn/api-client@npm:^0.3.2":
   version: 0.3.2
@@ -10406,12 +10428,15 @@ __metadata:
     "@anthropic-ai/sdk": "npm:^0.40.0"
     "@google/generative-ai": "npm:^0.24.1"
     "@icore/ai-client": "npm:*"
+    "@icore/db-supabase": "npm:*"
     "@icore/shared": "npm:*"
+    "@idevconn/ai-usage": "npm:^0.4.0"
     "@idevconn/llm-router": "npm:^0.10.0"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.3"
     "@nestjs/microservices": "npm:^11.2.3"
+    "@supabase/supabase-js": "npm:^2.115.0"
     "@types/pg": "npm:^8.11.10"
     openai: "npm:^7.5.0"
     pg: "npm:^8.13.1"
@@ -10675,6 +10700,7 @@ __metadata:
     "@icore/payment-client": "npm:*"
     "@icore/shared": "npm:*"
     "@icore/upload-client": "npm:*"
+    "@idevconn/ai-usage": "npm:^0.4.0"
     "@idevconn/payment": "npm:^1.2.0"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
@@ -12069,6 +12095,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "client-shadcn@workspace:apps/templates/client-shadcn"
   dependencies:
+    "@idevconn/ai-usage": "npm:^0.4.0"
     "@radix-ui/react-dialog": "npm:^1.1.23"
     "@radix-ui/react-dropdown-menu": "npm:^2.1.24"
     "@radix-ui/react-label": "npm:^2.1.15"

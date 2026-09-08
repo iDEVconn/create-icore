@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@icore/shared": "*",
+    "@idevconn/ai-usage": "^0.4.0",
     "@idevconn/llm-router": "^0.10.0",
     "@nestjs/common": "^11.2.3",
     "@nestjs/microservices": "^11.2.3",

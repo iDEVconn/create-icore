@@ -6,12 +6,13 @@
 export interface NavItem {
   to: string;
   labelKey: string;
-  iconName: 'dashboard' | 'notes' | 'profile';
+  iconName: 'dashboard' | 'notes' | 'profile' | 'aiUsage';
   exact?: boolean;
 }
 
 export const NAV_CONFIG: NavItem[] = [
   { to: '/dashboard', labelKey: 'nav.dashboard', iconName: 'dashboard', exact: true },
   { to: '/notes', labelKey: 'nav.notes', iconName: 'notes' },
+  { to: '/admin/ai-usage', labelKey: 'nav.aiUsage', iconName: 'aiUsage' },
   { to: '/profile', labelKey: 'nav.profile', iconName: 'profile' },
 ];
