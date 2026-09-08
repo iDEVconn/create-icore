@@ -2,7 +2,14 @@ import { useTranslation } from 'react-i18next';
 import type { AiUsageTimeseriesPoint } from '@idevconn/ai-usage';
 import { formatCost, formatNumber, formatTokens } from '@idevconn/ai-usage/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface AiUsageTimeseriesTableProps {
   points: AiUsageTimeseriesPoint[] | undefined;
