@@ -1,18 +1,14 @@
--- Backs @idevconn/ai-usage's AiUsageDataSource for the ai-orchestrator MS
--- (apps/microservices/ai-orchestrator/src/app/ai-usage.service.ts).
--- One row per LLM call recorded via llm-router's onCall hook.
+-- Generic DBStrategy collection table (id/data), same shape every other
+-- Supabase-backed collection in this repo uses (see SupabaseDBStrategy) — NOT
+-- a bespoke schema. Backs AiUsageService's `ai_usage_records` collection
+-- (apps/microservices/ai-orchestrator/src/app/ai-usage.service.ts), written
+-- via ai-usage-db.provider.ts independent of the notes demo's own db axis.
 create table if not exists ai_usage_records (
-  id bigint generated always as identity primary key,
-  created_at timestamptz not null default now(),
-  provider text not null,
-  operation text not null,
-  input_tokens integer not null,
-  output_tokens integer not null,
-  success boolean not null,
-  user_id text not null,
-  key_source text not null,
-  cost_usd numeric
+  id text primary key,
+  data jsonb not null
 );
 
-create index if not exists ai_usage_records_created_at_idx on ai_usage_records (created_at);
-create index if not exists ai_usage_records_user_id_idx on ai_usage_records (user_id);
+create index if not exists ai_usage_records_timestamp_idx
+  on ai_usage_records ((data->>'timestamp'));
+create index if not exists ai_usage_records_user_id_idx
+  on ai_usage_records ((data->>'user_id'));

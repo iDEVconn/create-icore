@@ -208,6 +208,37 @@ export * from './lib/landing/LandingPage.js';
 export * from './lib/stores/theme.store.js';
 `;
 
+// ─── ai.module.ts auth=none variant (no CASL) ────────────────────────────────
+// `apps/api/src/app/abilities` is deleted above (AUTH_ONLY_PATHS), so the
+// default ai.module.ts's `CheckAbility('read', 'AiUsage')(AdminAiUsageController)`
+// wiring (an import from that now-absent directory) would break the build.
+// auth=none means no login at all, so — same as every other route in that
+// mode — the AI usage dashboard is simply left ungated instead of gated.
+// Only applied when the `ai` feature is chosen; harmless no-op write
+// otherwise, since cleanupUnusedFeatures deletes apps/api/src/app/ai/
+// entirely right after this runs when ai=none.
+
+const AI_MODULE_NO_AUTH_TS = `\
+import { Module } from '@nestjs/common';
+import { AiUsageModule } from '@idevconn/ai-usage/server';
+import { AiClientModule, AiClientService } from '@icore/ai-client';
+import { AiController } from './ai.controller';
+import { GatewayAiUsageDataSource } from './gateway-ai-usage-data-source';
+
+@Module({
+  imports: [
+    AiClientModule.forRoot(),
+    AiUsageModule.forRoot({
+      imports: [AiClientModule.forRoot()],
+      inject: [AiClientService],
+      useFactory: (ai: AiClientService) => new GatewayAiUsageDataSource(ai),
+    }),
+  ],
+  controllers: [AiController],
+})
+export class AiModule {}
+`;
+
 // ─── PageLayout auth=none variants (no CASL) ─────────────────────────────────
 
 const SHADCN_PAGE_LAYOUT_TSX = `\
@@ -826,6 +857,7 @@ export function LayoutHeader() {
 const COMMON_VARIANTS: Record<string, string> = {
   'apps/api/src/main.ts': GATEWAY_MAIN_TS,
   'apps/api/src/app/app.module.ts': GATEWAY_APP_MODULE_TS,
+  'apps/api/src/app/ai/ai.module.ts': AI_MODULE_NO_AUTH_TS,
   'libs/shared/src/client.ts': SHARED_CLIENT_TS,
   'libs/shared/src/index.ts': SHARED_INDEX_TS,
   'libs/template-shared/src/index.ts': TEMPLATE_SHARED_INDEX_TS,

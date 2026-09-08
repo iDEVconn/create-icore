@@ -10428,6 +10428,7 @@ __metadata:
     "@anthropic-ai/sdk": "npm:^0.40.0"
     "@google/generative-ai": "npm:^0.24.1"
     "@icore/ai-client": "npm:*"
+    "@icore/db-supabase": "npm:*"
     "@icore/shared": "npm:*"
     "@idevconn/ai-usage": "npm:^0.4.0"
     "@idevconn/llm-router": "npm:^0.10.0"

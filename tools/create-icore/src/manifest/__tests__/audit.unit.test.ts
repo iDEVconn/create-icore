@@ -149,61 +149,6 @@ describe('auditProject blueprint-derived forbidden deps', () => {
     );
   });
 
-  it('does not flag @supabase/supabase-js in ai-orchestrator even when no axis chose supabase', async () => {
-    const dir = await scaffold({
-      'blueprint.json': JSON.stringify({
-        schemaVersion: 1,
-        projectName: 'x',
-        authProvider: 'mongodb',
-        dbProvider: 'mongodb',
-        upload: 'minio',
-        payment: 'none',
-        jobs: 'none',
-        example: 'notes',
-        ui: 'shadcn',
-        transport: 'tcp',
-        packageManager: 'npm',
-      }),
-      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
-      'package.json': JSON.stringify({ dependencies: {} }),
-      'apps/microservices/ai-orchestrator/package.json': JSON.stringify({
-        dependencies: { '@supabase/supabase-js': '^2', mongoose: '^9', minio: '^8' },
-      }),
-    });
-    const v = await auditProject(dir);
-    expect(v.some((x) => x.detail.includes('@supabase/supabase-js'))).toBe(false);
-  });
-
-  it('still flags @supabase/supabase-js elsewhere when no axis chose supabase', async () => {
-    const dir = await scaffold({
-      'blueprint.json': JSON.stringify({
-        schemaVersion: 1,
-        projectName: 'x',
-        authProvider: 'mongodb',
-        dbProvider: 'mongodb',
-        upload: 'minio',
-        payment: 'none',
-        jobs: 'none',
-        example: 'notes',
-        ui: 'shadcn',
-        transport: 'tcp',
-        packageManager: 'npm',
-      }),
-      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
-      'package.json': JSON.stringify({ dependencies: {} }),
-      'apps/microservices/auth/package.json': JSON.stringify({
-        dependencies: { '@supabase/supabase-js': '^2', mongoose: '^9' },
-      }),
-    });
-    const v = await auditProject(dir);
-    expect(v).toContainEqual(
-      expect.objectContaining({
-        kind: 'forbidden-dep',
-        detail: expect.stringContaining('@supabase/supabase-js'),
-      }),
-    );
-  });
-
   it('passes when every present dep matches the chosen providers', async () => {
     const dir = await scaffold({
       'blueprint.json': JSON.stringify({

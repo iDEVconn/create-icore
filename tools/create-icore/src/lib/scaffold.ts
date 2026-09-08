@@ -35,6 +35,7 @@ import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprin
 import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
 import { cleanupUnusedDb, writeDbProvider } from '../manifest/wire-db.js';
+import { cleanupUnusedAiUsageDb, writeAiUsageDbProvider } from '../manifest/wire-ai-usage-db.js';
 import {
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
@@ -235,6 +236,15 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await cleanupUnusedDb(opts.targetDir, opts.dbProvider);
   if (opts.dbProvider !== 'none' && opts.example !== 'none') {
     await writeDbProvider(opts.targetDir, opts.dbProvider);
+  }
+  // AI usage tracking's DBStrategy wiring is independent of the notes demo's
+  // db axis above — the `ai` feature can be chosen with example=none. Always
+  // written (never gated on dbProvider) so ai-orchestrator's app.module.ts
+  // can unconditionally import it; writeAiUsageDbProvider itself falls back
+  // to a FakeDBStrategy-backed NullDbModule when dbProvider=none.
+  if (opts.ai !== 'none') {
+    await cleanupUnusedAiUsageDb(opts.targetDir, opts.dbProvider);
+    await writeAiUsageDbProvider(opts.targetDir, opts.dbProvider);
   }
   // Prune the raw SDK of any UNCHOSEN provider from the root package.json so the
   // generated project audits clean (root keeps only chosen providers' SDKs).

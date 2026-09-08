@@ -5,6 +5,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
     "@google/generative-ai": "^0.24.1",
+    "@icore/db-supabase": "*",
     "@icore/shared": "*",
     "@idevconn/ai-usage": "^0.4.0",
     "@idevconn/llm-router": "^0.10.0",

@@ -9,6 +9,7 @@ import { AiController } from './ai.controller';
 import { RagService } from './rag.service';
 import { AiUsageService } from './ai-usage.service';
 import { aiUsageContext } from './ai-usage.context';
+import { AiUsageDbProviderModule } from './ai-usage-db.provider';
 
 // @idevconn/llm-router is ESM-only ("type": "module") but NestJS
 // microservices in this repo are strict CommonJS (AGENTS.md — module/
@@ -142,6 +143,7 @@ function instrumentAndBudget(
       isGlobal: true,
       envFilePath: ENV_PATHS,
     }),
+    AiUsageDbProviderModule,
   ],
   controllers: [AiController],
   providers: [

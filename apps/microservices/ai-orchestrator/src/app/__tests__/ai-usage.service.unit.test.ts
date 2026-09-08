@@ -1,32 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { ConfigService } from '@nestjs/config';
+import { describe, expect, it, beforeEach } from 'vitest';
+import { FakeDBStrategy } from '@icore/shared';
 import type { AiUsageRecord } from '@idevconn/ai-usage';
-
-let rows: Array<Record<string, unknown>> = [];
-const insertMock = vi.fn().mockResolvedValue({ error: null });
-const fromMock = vi.fn().mockImplementation(() => ({
-  insert: insertMock,
-  select: vi.fn().mockReturnThis(),
-  gte: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  then: (resolve: (v: { data: unknown; error: null }) => unknown) =>
-    resolve({ data: rows, error: null }),
-}));
-
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: vi.fn().mockImplementation(() => ({ from: fromMock })),
-}));
-
 import { AiUsageService } from '../ai-usage.service';
-
-function configService(values: Record<string, string | undefined>): ConfigService {
-  return { get: (key: string) => values[key] } as unknown as ConfigService;
-}
-
-const CONFIGURED_ENV = {
-  SUPABASE_URL: 'https://ref.supabase.co',
-  SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
-};
 
 function record(overrides: Partial<AiUsageRecord> = {}): AiUsageRecord {
   return {
@@ -43,74 +18,43 @@ function record(overrides: Partial<AiUsageRecord> = {}): AiUsageRecord {
 }
 
 describe('AiUsageService', () => {
+  let db: FakeDBStrategy;
+  let service: AiUsageService;
+
   beforeEach(() => {
-    rows = [];
-    insertMock.mockClear();
-    fromMock.mockClear();
+    db = new FakeDBStrategy();
+    service = new AiUsageService(db);
   });
 
-  it('is not configured when SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY are missing', async () => {
-    const service = new AiUsageService(configService({}));
-    await service.onModuleInit();
-    expect(service.isConfigured()).toBe(false);
-    await expect(service.getSummary('7d')).rejects.toThrow(/not configured/);
+  it('record() writes through the injected DBStrategy — agnostic of which one it is', async () => {
+    await service.record(record());
+    const rows = await db.list('ai_usage_records');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].data).toMatchObject({ provider: 'gemini', user_id: 'user-1' });
   });
 
-  it('record() is a no-op (never throws) when not configured', async () => {
-    const service = new AiUsageService(configService({}));
-    await service.onModuleInit();
-    await expect(service.record(record())).resolves.toBeUndefined();
-    expect(insertMock).not.toHaveBeenCalled();
+  it('record() never throws even if the DBStrategy write fails', async () => {
+    const failing = { set: () => Promise.reject(new Error('boom')) } as unknown as FakeDBStrategy;
+    const failingService = new AiUsageService(failing);
+    await expect(failingService.record(record())).resolves.toBeUndefined();
   });
 
-  it('record() inserts a row when configured', async () => {
-    const service = new AiUsageService(configService(CONFIGURED_ENV));
-    await service.onModuleInit();
-
-    await service.record(record({ cost_usd: 0.002 }));
-
-    expect(fromMock).toHaveBeenCalledWith('ai_usage_records');
-    expect(insertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: 'gemini',
-        operation: 'generate',
-        input_tokens: 10,
-        output_tokens: 20,
-        success: true,
-        user_id: 'user-1',
-        key_source: 'platform',
-        cost_usd: 0.002,
-      }),
+  it('getSummary() aggregates records by provider/operation/key_source/user', async () => {
+    await service.record(
+      record({ provider: 'gemini', operation: 'generate', cost_usd: 0.01, user_id: 'user-1' }),
     );
-  });
-
-  it('getSummary() aggregates rows by provider/operation/key_source/user', async () => {
-    rows = [
-      {
-        provider: 'gemini',
-        operation: 'generate',
-        input_tokens: 10,
-        output_tokens: 20,
-        success: true,
-        user_id: 'user-1',
-        key_source: 'platform',
-        cost_usd: 0.01,
-        created_at: '2026-09-08T00:00:00.000Z',
-      },
-      {
+    await service.record(
+      record({
         provider: 'claude',
         operation: 'orchestrate',
+        success: false,
+        key_source: 'byok',
+        user_id: 'user-2',
         input_tokens: 5,
         output_tokens: 15,
-        success: false,
-        user_id: 'user-2',
-        key_source: 'byok',
-        cost_usd: null,
-        created_at: '2026-09-08T01:00:00.000Z',
-      },
-    ];
-    const service = new AiUsageService(configService(CONFIGURED_ENV));
-    await service.onModuleInit();
+        cost_usd: undefined,
+      }),
+    );
 
     const summary = await service.getSummary('7d');
 
@@ -124,33 +68,29 @@ describe('AiUsageService', () => {
     expect(summary.total_cost_usd).toBe(0.01);
   });
 
-  it('getTimeseries() buckets rows by day', async () => {
-    rows = [
-      {
-        provider: 'gemini',
-        operation: 'generate',
-        input_tokens: 10,
-        output_tokens: 20,
-        success: true,
-        user_id: 'user-1',
-        key_source: 'platform',
-        cost_usd: null,
-        created_at: '2026-09-08T00:00:00.000Z',
-      },
-      {
-        provider: 'gemini',
-        operation: 'generate',
-        input_tokens: 1,
-        output_tokens: 2,
-        success: true,
-        user_id: 'user-1',
-        key_source: 'platform',
-        cost_usd: null,
-        created_at: '2026-09-08T12:00:00.000Z',
-      },
-    ];
-    const service = new AiUsageService(configService(CONFIGURED_ENV));
-    await service.onModuleInit();
+  it('getSummary() filters by userId', async () => {
+    await service.record(record({ user_id: 'user-1' }));
+    await service.record(record({ user_id: 'user-2' }));
+
+    const summary = await service.getSummary('7d', 'user-1');
+
+    expect(summary.total_calls).toBe(1);
+    expect(summary.by_user).toEqual([expect.objectContaining({ user_id: 'user-1' })]);
+  });
+
+  it('getSummary() excludes records outside the requested range', async () => {
+    const old = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
+    await service.record(record({ timestamp: old }));
+    await service.record(record({ timestamp: new Date().toISOString() }));
+
+    const summary = await service.getSummary('30d');
+
+    expect(summary.total_calls).toBe(1);
+  });
+
+  it('getTimeseries() buckets records by day', async () => {
+    await service.record(record({ timestamp: '2026-09-08T00:00:00.000Z' }));
+    await service.record(record({ timestamp: '2026-09-08T12:00:00.000Z' }));
 
     const timeseries = await service.getTimeseries('7d');
 
