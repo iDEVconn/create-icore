@@ -105,6 +105,24 @@
         "${workspaceFolder}/apps/microservices/jobs/dist/**/*.(m|c|)js",
         "!**/node_modules/**"
       ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug ai-orchestrator with Nx",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["nx", "serve", "ai-orchestrator"],
+      "env": {
+        "NODE_OPTIONS": "--inspect=9235"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/apps/microservices/ai-orchestrator/dist/**/*.(m|c|)js",
+        "!**/node_modules/**"
+      ]
     }
   ]
 }

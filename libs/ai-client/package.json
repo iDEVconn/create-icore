@@ -1,0 +1,16 @@
+{
+  "name": "@icore/ai-client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@icore/shared": "*",
+    "@idevconn/llm-router": "^0.10.0",
+    "@nestjs/common": "^11.2.3",
+    "@nestjs/microservices": "^11.2.3",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.8.1"
+  }
+}

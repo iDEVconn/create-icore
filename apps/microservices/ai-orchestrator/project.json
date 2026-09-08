@@ -1,0 +1,52 @@
+{
+  "name": "ai-orchestrator",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/microservices/ai-orchestrator/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "prune-lockfile": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "executor": "@nx/js:prune-lockfile",
+      "outputs": [
+        "{workspaceRoot}/dist/apps/microservices/ai-orchestrator/package.json",
+        "{workspaceRoot}/dist/apps/microservices/ai-orchestrator/yarn.lock"
+      ],
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "copy-workspace-modules": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": ["{workspaceRoot}/dist/apps/microservices/ai-orchestrator/workspace_modules"],
+      "executor": "@nx/js:copy-workspace-modules",
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "prune": {
+      "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+      "executor": "nx:noop"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "ai-orchestrator:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "ai-orchestrator:build:development"
+        },
+        "production": {
+          "buildTarget": "ai-orchestrator:build:production"
+        }
+      }
+    }
+  }
+}

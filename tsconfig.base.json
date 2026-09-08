@@ -37,7 +37,8 @@
       "@icore/storage-mongodb": ["./libs/storage-strategies/mongodb/src/index.ts"],
       "@icore/auth-mongodb": ["./libs/auth-strategies/mongodb/src/index.ts"],
       "@icore/auth-postgres": ["./libs/auth-strategies/postgres/src/index.ts"],
-      "@icore/storage-minio": ["./libs/storage-strategies/minio/src/index.ts"]
+      "@icore/storage-minio": ["./libs/storage-strategies/minio/src/index.ts"],
+      "@icore/ai-client": ["./libs/ai-client/src/index.ts"]
     },
     "noUncheckedSideEffectImports": false,
     "types": ["*"],

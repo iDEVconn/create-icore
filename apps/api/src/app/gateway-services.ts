@@ -4,4 +4,5 @@ export const GATEWAY_SERVICES = [
   { name: 'upload', prefix: 'UPLOAD' },
   { name: 'notes', prefix: 'NOTES' },
   { name: 'payment', prefix: 'PAYMENT' },
+  { name: 'ai', prefix: 'AI' },
 ];
