@@ -6,7 +6,7 @@
     "@anthropic-ai/sdk": "^0.40.0",
     "@google/generative-ai": "^0.24.1",
     "@icore/shared": "*",
-    "@idevconn/llm-router": "^0.9.0",
+    "@idevconn/llm-router": "^0.10.0",
     "@nestjs/common": "^11.2.3",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.2.3",

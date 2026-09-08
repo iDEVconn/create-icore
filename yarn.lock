@@ -3008,7 +3008,7 @@ __metadata:
   resolution: "@icore/ai-client@workspace:libs/ai-client"
   dependencies:
     "@icore/shared": "npm:*"
-    "@idevconn/llm-router": "npm:^0.9.0"
+    "@idevconn/llm-router": "npm:^0.10.0"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/microservices": "npm:^11.2.3"
     rxjs: "npm:^7.8.2"
@@ -3348,9 +3348,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@idevconn/llm-router@npm:^0.9.0":
-  version: 0.9.0
-  resolution: "@idevconn/llm-router@npm:0.9.0"
+"@idevconn/llm-router@npm:^0.10.0":
+  version: 0.10.0
+  resolution: "@idevconn/llm-router@npm:0.10.0"
   peerDependencies:
     "@anthropic-ai/sdk": ">=0.40.0"
     "@google/genai": ">=1.0.0"
@@ -3368,7 +3368,7 @@ __metadata:
       optional: true
     pg:
       optional: true
-  checksum: 10c0/fc2198810a5fc7a3afece95aec6b7653741e9ca043b35a385c9afea2176e5f21d45335eb9298a7e9c7ce122d50292ab8bbf438ef6148c178cf7ccd6e09d62801
+  checksum: 10c0/5a7261c3709bff5de1f4d25d9b05f971e332b7a9c8917c8d70127fed290615d1157bfc57ba280b7476f157a84498c27352badfb01b3dda41418bd3988b17181b
   languageName: node
   linkType: hard
 
@@ -10407,7 +10407,7 @@ __metadata:
     "@google/generative-ai": "npm:^0.24.1"
     "@icore/ai-client": "npm:*"
     "@icore/shared": "npm:*"
-    "@idevconn/llm-router": "npm:^0.9.0"
+    "@idevconn/llm-router": "npm:^0.10.0"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.3"
