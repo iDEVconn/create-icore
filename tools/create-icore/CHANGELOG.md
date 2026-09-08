@@ -1,5 +1,17 @@
 # @idevconn/create-icore
 
+## 0.16.0
+
+### Minor Changes
+
+- 0b0aacc: Add `@idevconn/ai-usage`-backed AI usage tracking: the ai-orchestrator MS records every LLM call through the same `DBStrategy` contract every other feature uses (supabase/firestore/mongodb/postgres, or an in-memory `FakeDBStrategy` when `DB_PROVIDER=none`) — not a Supabase-specific client — via its own `ai-usage-db.provider.ts`, wired independently of the notes demo's db axis so it works even with `example=none`. Exposes `ai.usage.summary`/`ai.usage.timeseries` message patterns; the gateway mounts `AiUsageModule` at `/api/admin/ai-usage/*`, guarded by `@CheckAbility('read', 'AiUsage')` (left ungated when `authProvider=none`, since there's no login at all in that mode). client-shadcn gets an admin-only `/admin/ai-usage` dashboard (stat cards, provider/operation/key-source/user breakdown tables, daily usage table). client-mui/client-antd parity and by-user email enrichment (needs a new `auth.getUser` RPC) are follow-ups, not included here.
+
+### Patch Changes
+
+- 0a29dc0: CI: bump `changesets/action` from the floating `v1` tag to a pinned `v2.1.2` commit in `.github/workflows/release.yml`. `v1` only supports `@changesets/cli` v2 (per the action's own README); this repo bumped `@changesets/cli` to `^3.0.1` in the same release that first regressed (0.14.0), and `v1`'s tag-push path silently stopped pushing git tags/GitHub Releases for every release since (0.14.0 through 0.15.0 all published to npm correctly, but got no tag or release — recovered manually). `v2` also defaults to pushing via the GitHub API instead of a local git push, the more likely actual fix. Renamed the action's `publish`/`version` inputs to `publish-script`/`version-script` and `outputs.hasChangesets` to `outputs.has-changesets` to match v2's renamed API.
+- 6c6dbd2: Bump `@idevconn/llm-router` to `^0.12.1` (patch, published minutes after `0.12.0`) — fixes a real bug in `GeminiStrategy.generate()`: `maxTokens` was silently ignored, never wired into Gemini's `generationConfig.maxOutputTokens`. Gemini is this repo's default `AI_PROVIDER`, so `ai.generate`/`ai.orchestrate` calls against it were not honoring the caller's token cap before this fix. No type/API surface change — runtime-only diff (`dist/gemini.js`).
+- ee065d1: Bump `@idevconn/llm-router` to `^0.12.0` (from `^0.10.0`) — additive-only release (multi-turn `messages` support alongside `prompt`, new `withRetry`/`withCircuitBreaker`/`withRateLimit` strategy wrappers, corrected dual ESM/CJS `exports` typing). No breaking changes to the `LlmRegistry`/`Orchestrator`/`TaskRouter`/provider-strategy surface this repo uses. Fixed one real fallout: `FakeLlmStrategy.generate()` assumed `opts.prompt` was always a string — it's optional now that `messages` is a valid alternative — so it falls back to the last message's content.
+
 ## 0.15.0
 
 ### Minor Changes
