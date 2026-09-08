@@ -72,9 +72,10 @@ describe('buildTransport', () => {
     process.env.AUTH_RMQ_QUEUE = 'auth_queue';
     const opts = buildTransport('AUTH');
     expect(opts.transport).toBe(Transport.RMQ);
-    const o = opts.options as { urls: string[]; queue: string };
+    const o = opts.options as { urls: string[]; queue: string; queueOptions: { durable: boolean } };
     expect(o.urls).toEqual(['amqp://localhost:5672']);
     expect(o.queue).toBe('auth_queue');
+    expect(o.queueOptions.durable).toBe(true);
   });
 
   it('selects Kafka when ${PREFIX}_TRANSPORT=kafka (brokers + derived ids)', () => {

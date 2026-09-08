@@ -206,10 +206,14 @@ JWT_REFRESH_EXPIRES_IN=7d # optional, default 7d
 
 ```sql
 _icore_users  (id, email, password_hash, role, last_logged_in, created_at)
-_icore_sessions (id, user_id, refresh_token, expires_at)
+_icore_sessions (id, user_id, family_id, token_hash, revoked_at, expires_at)
 ```
 
 **Note:** `POSTGRES_URL` must include credentials. For SSL, append `?sslmode=require` to the URL. Both `--auth=postgres` and `--db=postgres` use the same `POSTGRES_URL` — single instance covers both.
+
+**Refresh token hardening (PR #277):** `_icore_sessions.token_hash` stores a SHA-256 hash of the refresh token, never the plaintext. `family_id` groups all tokens issued from one login; replaying a token that was already rotated out (`revoked_at` set) revokes the entire family, not just that row — this is reuse detection for a stolen refresh token. No formal migration exists for this strategy: an existing deployment on the old `refresh_token` column must add/rename columns manually before upgrading.
+
+**Password hashing:** new passwords (`signUp`, and any future change-password flow) hash with argon2id (`libs/auth-strategies/postgres/src/lib/password-hashing.ts`), OWASP's current recommendation. Existing bcrypt hashes (`$2a$`/`$2b$`/`$2y$` prefix) keep verifying — `signIn` detects the hash format and picks bcrypt or argon2id accordingly — and get lazily rewritten to argon2id in `_icore_users.password_hash` right after a successful bcrypt login. No forced password reset, no downtime, no separate migration job. Expect `_icore_users` to hold a mix of `$2b$...` and `$argon2id$...` hashes indefinitely on a live deployment; that's the intended steady state, not corruption.
 
 ### Cloudinary (storage only)
 
@@ -229,6 +233,47 @@ CLOUDINARY_API_SECRET=<secret>
 3. The `CloudinaryStorageStrategy` calls `cloudinary.config({...})` on first upload; no global init is required.
 
 **Signed URLs:** Cloudinary signed delivery URLs are generated via `cloudinary.utils.private_download_url()`. The TTL is encoded in the URL itself; do not cache the URL longer than the chosen TTL.
+
+### MinIO / S3-compatible (storage only)
+
+**Env vars:**
+
+```
+STORAGE_PROVIDER=minio
+MINIO_ENDPOINT=<host>            # e.g. localhost, minio.internal, s3.amazonaws.com
+MINIO_PORT=9000                  # optional, default 9000
+MINIO_USE_SSL=false              # optional, default false — set true for anything but local dev
+MINIO_ACCESS_KEY=<key>
+MINIO_SECRET_KEY=<secret>
+MINIO_BUCKET=uploads
+```
+
+**Setup:**
+
+1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it.
+2. Create the bucket (`MINIO_BUCKET`) before first upload — the strategy does not auto-create it.
+3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the same MIME allowlist + ownership-prefix convention as the other storage strategies, in code — not relying on bucket policy.
+4. This is the only storage strategy with zero mandatory external SaaS dependency — pick it when "no vendor lock-in" matters more than managed convenience.
+
+### AI Orchestrator (LLM routing, optional feature)
+
+`apps/microservices/ai-orchestrator` wraps `@idevconn/llm-router` — a provider-agnostic `LlmRegistry` + `Orchestrator`/`TaskRouter` (decompose → route → critique/retry → synthesize) — behind the same gateway↔MS RPC pattern as `payment`/`jobs`. `libs/ai-client` is the gateway-side client (`AiClientModule.forRoot()`); `apps/api/src/app/ai` exposes `POST /api/ai/{generate,orchestrate,rag/query}` + `GET /api/ai/providers`, guarded by the default `AuthGuard` and a named `ai-burst` throttle.
+
+**Env vars (`apps/microservices/ai-orchestrator/.env`):**
+
+```
+AI_TRANSPORT=tcp
+AI_PROVIDER=gemini            # platform default; BYOK (per-call apiKey) works regardless
+GEMINI_API_KEY=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+```
+
+**Setup:** all three platform keys are optional — `LlmRegistry`'s own env audit logs a warning per missing key and the registry falls back to BYOK-only for that provider, never crashes on boot. `withInstrumentation`/`withBudget` (llm-router) wrap every strategy: instrumentation always logs provider/model/tokens/latency; budget enforcement only activates when `AI_PRICING_JSON` (a JSON `PricingTable`) is set alongside `AI_MAX_COST_PER_CALL`/`AI_MAX_COST_TOTAL` — pricing is never hardcoded, since a stale baked-in table would silently mis-enforce a budget.
+
+**RAG (opt-in):** needs its own `AI_RAG_POSTGRES_URL` (Postgres + `pgvector` extension) and `OPENAI_API_KEY` (embeddings) — independent of whatever `dbProvider` the rest of the project uses, since RAG must not assume Postgres is the primary database. `RagService` runs the `CREATE EXTENSION`/`CREATE TABLE`/`CREATE INDEX` DDL itself on boot (mirrors `PostgresAuthStrategy.ensureTables()`) — `PgVectorStore` deliberately never runs DDL. Every retrieved chunk is sanitized via llm-router's `sanitizeUntrustedContent` before it reaches a prompt (retrieved content is a classic prompt-injection vector).
+
+**ESM/CJS interop:** `@idevconn/llm-router` ships ESM-only (`"type": "module"`), but this repo's microservices are strict CommonJS (see NestJS tsconfig note below). `apps/microservices/ai-orchestrator/src/app/*.ts` uses `require('@idevconn/llm-router')` (not `import`) for runtime values — Node 22.12+/24 supports synchronous `require()` of an ESM module natively, and `.nvmrc`/every Dockerfile pin Node 24. Type-only imports use `with { 'resolution-mode': 'import' }`. `apps/api`'s gateway code never imports `@idevconn/llm-router` directly — `libs/ai-client` re-exports plain DTOs instead, sidestepping the interop entirely on the gateway side.
 
 ## Commands
 
@@ -258,6 +303,14 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - Build artifacts (`dist/`, `.vite/`, `.nx/`) are gitignored — do not commit them.
 - `.env` files are gitignored. Each MS ships a `.env.example` committed alongside its `.env`.
 - The `.husky/pre-commit` hook runs lint-staged + `nx affected -t lint test` on every commit. Never bypass with `--no-verify` — fix the underlying issue.
+- Bull Board (`/api/admin/queues`) is gated by `BullBoardAuthMiddleware` (PR #275) — bearer token + `admin` role, checked ahead of the board's raw Express router since it never passes through the Nest `AuthGuard` pipeline.
+- Swagger (`/api/docs`) is disabled when `NODE_ENV=production` (`apps/api/src/should-enable-swagger.ts`, PR #276) — it was previously exposed unconditionally.
+- RabbitMQ queues declare `durable: true` (`libs/shared/src/transport.ts`, PR #278) — a broker restart no longer silently drops queued messages.
+- `docker-compose.yml`'s postgres/redis services have named volumes (`icore_postgres_data`, `icore_redis_data`) and postgres binds to `127.0.0.1:5432` instead of all interfaces (PR #279).
+- `.nvmrc` and every Dockerfile/CI workflow are aligned on Node 24 (PR #280) — don't introduce a Node 22 reference.
+- Generated projects now ship `.github/workflows/ci.yml` (a thin `nx affected -t lint test build` pipeline) via `tools/create-icore/_template-shell/.github/workflows/ci.yml` — previously scaffolded projects had zero CI/CD (PR #281).
+- `Dockerfile.client` + `nginx.client.conf` (PR #282) give the React client a production multi-stage build (`node:24-alpine` → `nginx:1.27-alpine`, SPA fallback) — the client had no Docker path before. Uses the real Nx target `vite:build`, not `build`.
+- See `docs/runbooks/third-party-infra-audit-fixes.md` for the full rationale behind the above (source: third-party iCore infrastructure audit, 2026-09-07).
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

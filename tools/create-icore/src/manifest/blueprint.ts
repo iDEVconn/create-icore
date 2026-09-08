@@ -11,6 +11,7 @@ export interface BlueprintJson {
   upload: string;
   payment: string;
   jobs: string;
+  ai: string;
   example: string;
   ui: string;
   transport: string;
@@ -38,6 +39,7 @@ export async function writeBlueprintJson(
     upload: opts.upload,
     payment: opts.payment,
     jobs: opts.jobs,
+    ai: opts.ai,
     example: opts.example,
     ui: opts.ui,
     transport: opts.transport,
@@ -106,10 +108,20 @@ export async function writeServiceBlueprints(
     });
   }
 
+  if (opts.ai !== 'none') {
+    await writeJson(targetDir, 'apps/microservices/ai-orchestrator', {
+      schemaVersion: 1,
+      service: 'ai-orchestrator',
+      aiProvider: opts.ai,
+      transport: t,
+    });
+  }
+
   const features: string[] = [];
   if (opts.example !== 'none') features.push('notes');
   if (opts.payment !== 'none') features.push('payment');
   if (opts.jobs !== 'none') features.push('jobs');
+  if (opts.ai !== 'none') features.push('ai');
   await writeJson(targetDir, 'apps/api', {
     schemaVersion: 1,
     service: 'api',

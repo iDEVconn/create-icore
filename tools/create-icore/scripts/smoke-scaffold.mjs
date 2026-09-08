@@ -84,6 +84,7 @@ const opts = {
   upload: args.upload ?? 'cloudinary',
   payment: args.payment ?? 'none',
   jobs: args.jobs ?? 'none',
+  ai: args.ai ?? 'none',
   example: args.example ?? 'notes',
   ui: args.ui ?? 'shadcn',
   transport: args.transport ?? 'tcp',
@@ -117,6 +118,7 @@ const TSCONFIG = {
   notes: 'apps/microservices/notes/tsconfig.app.json',
   payment: 'apps/microservices/payment/tsconfig.app.json',
   jobs: 'apps/microservices/jobs/tsconfig.app.json',
+  'ai-orchestrator': 'apps/microservices/ai-orchestrator/tsconfig.app.json',
   api: 'apps/api/tsconfig.app.json',
   'template-shared': 'libs/template-shared/tsconfig.lib.json',
   client: 'apps/client/tsconfig.app.json',
@@ -191,7 +193,7 @@ async function main() {
   opts.targetDir = join(dir, opts.projectName);
   await mkdir(opts.targetDir, { recursive: true });
 
-  const combo = `auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} transport=${opts.transport} pm=${pm} mode=${mode} run=${doRun}`;
+  const combo = `auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} transport=${opts.transport} pm=${pm} mode=${mode} run=${doRun}`;
   console.log(`\n=== smoke: ${combo} ===`);
 
   await scaffold(opts, templatesDir);

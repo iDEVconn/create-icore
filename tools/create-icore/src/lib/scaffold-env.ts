@@ -75,6 +75,7 @@ export async function stripGatewayTransport(targetDir: string, prefix: string): 
 const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
   supabase: ['@supabase/supabase-js'],
   cloudinary: ['cloudinary'],
+  minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin'],
 };
@@ -181,6 +182,7 @@ export async function rewriteRootPackageJson(
     opts.upload === 'none' &&
     opts.payment === 'none' &&
     opts.jobs === 'none' &&
+    opts.ai === 'none' &&
     opts.example === 'none';
   const ws = (pkg as { workspaces?: string[] }).workspaces;
   if (ws) {
@@ -263,8 +265,9 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
     .replace(/^AUTH_TRANSPORT=.*$/m, `AUTH_TRANSPORT=${opts.transport}`)
     .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`)
     .replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`)
-    .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`);
-  for (const prefix of ['AUTH', 'UPLOAD', 'NOTES', 'PAYMENT']) {
+    .replace(/^PAYMENT_TRANSPORT=.*$/m, `PAYMENT_TRANSPORT=${opts.transport}`)
+    .replace(/^AI_TRANSPORT=.*$/m, `AI_TRANSPORT=${opts.transport}`);
+  for (const prefix of ['AUTH', 'UPLOAD', 'NOTES', 'PAYMENT', 'AI']) {
     next = uncommentTransportEnv(next, prefix, opts.transport);
   }
   if (opts.authProvider === 'none') {
@@ -328,5 +331,18 @@ export async function writePaymentEnv(targetDir: string, opts: CreateIcoreOption
     await writeFile(join(targetDir, 'apps/microservices/payment/.env'), next);
   } catch {
     // payment MS not present in template — older snapshots predate Plan 9
+  }
+}
+
+export async function writeAiEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+  if (opts.ai === 'none') return;
+  const envExample = join(targetDir, 'apps/microservices/ai-orchestrator/.env.example');
+  try {
+    const env = await readFile(envExample, 'utf8');
+    let next = env.replace(/^AI_TRANSPORT=.*$/m, `AI_TRANSPORT=${opts.transport}`);
+    next = uncommentTransportEnv(next, 'AI', opts.transport);
+    await writeFile(join(targetDir, 'apps/microservices/ai-orchestrator/.env'), next);
+  } catch {
+    // ai-orchestrator MS not present in template — older snapshots predate this feature
   }
 }

@@ -1,0 +1,24 @@
+{
+  "name": "ai-orchestrator",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "@google/generative-ai": "^0.24.1",
+    "@icore/shared": "*",
+    "@idevconn/llm-router": "^0.10.0",
+    "@nestjs/common": "^11.2.3",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.2.3",
+    "@nestjs/microservices": "^11.2.3",
+    "openai": "^7.5.0",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@icore/ai-client": "*",
+    "@types/pg": "^8.11.10"
+  }
+}

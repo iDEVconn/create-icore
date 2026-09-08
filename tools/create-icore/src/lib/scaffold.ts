@@ -14,6 +14,7 @@ import {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
+  writeAiEnv,
 } from './scaffold-env.js';
 import {
   removeFirebaseAdminLib,
@@ -52,6 +53,7 @@ export {
   writeRootEnv,
   writeClientEnv,
   writePaymentEnv,
+  writeAiEnv,
   applyAuthNoneVariants,
   removeAuthOnlyPaths,
   removeAuthTsconfigPaths,
@@ -190,6 +192,7 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await writeUploadEnv(opts.targetDir, opts);
   await writeNotesEnv(opts.targetDir, opts);
   await writePaymentEnv(opts.targetDir, opts);
+  await writeAiEnv(opts.targetDir, opts);
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
@@ -240,13 +243,15 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await pruneUnusedLibDeps(opts.targetDir);
 
   // Remove strategy interfaces + testing harness only when NO microservice
-  // uses them. payment-client imports buildTransport from @icore/shared, so
-  // transport.ts (bundled with strategies) must stay when payment is active.
+  // uses them. payment-client and ai-client both import buildTransport from
+  // @icore/shared, so transport.ts (bundled with strategies) must stay when
+  // either is active.
   if (
     opts.authProvider === 'none' &&
     opts.upload === 'none' &&
     opts.dbProvider === 'none' &&
-    opts.payment === 'none'
+    opts.payment === 'none' &&
+    opts.ai === 'none'
   ) {
     await removeStrategiesLib(opts.targetDir);
   }

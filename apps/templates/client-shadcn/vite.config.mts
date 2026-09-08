@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
@@ -64,6 +65,57 @@ export default defineConfig(() => ({
     }),
     react(),
     tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: null,
+      manifest: {
+        name: 'iCore App',
+        short_name: 'iCore',
+        description: 'Replace with your product name and description before shipping.',
+        theme_color: '#4f46e5',
+        background_color: '#0a0a0a',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: '/pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        // Every response that could carry auth state, session tokens, or
+        // per-user medical/business data must never be served from cache —
+        // NetworkOnly means "route through the service worker but always
+        // hit the network", so a stale/offline API response cannot leak
+        // across users or outlive a logout.
+        runtimeCaching: [
+          {
+            urlPattern: /^\/api\//,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: ({ request }) =>
+              ['style', 'script', 'worker', 'font'].includes(request.destination),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'static-resources' },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
+        navigateFallbackDenylist: [/^\/api\//],
+      },
+    }),
     nxViteTsPaths(),
     nxCopyAssetsPlugin(['*.md']),
     noServerModulesPlugin(),

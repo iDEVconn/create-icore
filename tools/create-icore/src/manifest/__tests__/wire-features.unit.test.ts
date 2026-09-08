@@ -13,6 +13,7 @@ const base: CreateIcoreOptions = {
   upload: 'supabase',
   payment: 'paypal',
   jobs: 'bullmq',
+  ai: 'none',
   example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
@@ -28,6 +29,10 @@ async function fixture(): Promise<string> {
   await writeFile(join(dir, 'apps/microservices/payment/x'), 'x');
   await mkdir(join(dir, 'libs/payment-client'), { recursive: true });
   await writeFile(join(dir, 'libs/payment-client/x'), 'x');
+  await mkdir(join(dir, 'apps/microservices/ai-orchestrator'), { recursive: true });
+  await writeFile(join(dir, 'apps/microservices/ai-orchestrator/x'), 'x');
+  await mkdir(join(dir, 'libs/ai-client'), { recursive: true });
+  await writeFile(join(dir, 'libs/ai-client/x'), 'x');
   await writeFile(
     join(dir, 'apps/api/package.json'),
     JSON.stringify({
@@ -36,7 +41,9 @@ async function fixture(): Promise<string> {
         '@icore/notes-client': '*',
         '@icore/payment-client': '*',
         '@icore/jobs-client': '*',
+        '@icore/ai-client': '*',
         '@idevconn/payment': '^1.2.0',
+        '@idevconn/llm-router': '^0.9.0',
         '@casl/ability': '^7.0.0',
         '@bull-board/api': '^7.1.5',
         '@bull-board/express': '^7.1.5',
@@ -51,6 +58,7 @@ async function fixture(): Promise<string> {
           '@icore/notes-client': ['libs/notes-client/src/index.ts'],
           '@icore/payment-client': ['libs/payment-client/src/index.ts'],
           '@icore/jobs-client': ['libs/jobs-client/src/index.ts'],
+          '@icore/ai-client': ['libs/ai-client/src/index.ts'],
         },
       },
     }),
@@ -127,6 +135,16 @@ describe('writeFeaturesWiring', () => {
     const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
     expect(gs).toContain("name: 'auth'");
   });
+
+  it('wires AiModule + ai gateway service when ai=llm-router', async () => {
+    const dir = await fixture();
+    await writeFeaturesWiring(dir, { ...base, targetDir: dir, ai: 'llm-router' });
+    const fm = await readFile(join(dir, 'apps/api/src/app/features.module.ts'), 'utf8');
+    expect(fm).toContain("import { AiModule } from './ai/ai.module';");
+    expect(fm).toMatch(/imports:\s*\[NotesModule, PaymentModule, AdminModule, AiModule\]/);
+    const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
+    expect(gs).toContain("{ name: 'ai', prefix: 'AI' }");
+  });
 });
 
 describe('cleanupUnusedFeatures', () => {
@@ -170,5 +188,21 @@ describe('cleanupUnusedFeatures', () => {
     const env = await readFile(join(dir, 'apps/api/.env'), 'utf8');
     expect(env).not.toMatch(/^PAYMENT_/m);
     expect(env).toContain('AUTH_TRANSPORT=tcp'); // untouched
+  });
+
+  it('removes ai-orchestrator + ai-client + their deps/tsPath when ai=none', async () => {
+    const dir = await fixture();
+    await cleanupUnusedFeatures(dir, { ...base, targetDir: dir });
+
+    expect(await exists(join(dir, 'apps/microservices/ai-orchestrator'))).toBe(false);
+    expect(await exists(join(dir, 'libs/ai-client'))).toBe(false);
+
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/api/package.json'), 'utf8'));
+    expect(pkg.dependencies).not.toHaveProperty('@icore/ai-client');
+    expect(pkg.dependencies).not.toHaveProperty('@idevconn/llm-router');
+    expect(pkg.dependencies['@icore/payment-client']).toBe('*'); // payment kept (base has it active)
+
+    const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
+    expect(ts.compilerOptions.paths).not.toHaveProperty('@icore/ai-client');
   });
 });

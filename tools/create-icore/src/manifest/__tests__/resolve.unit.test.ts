@@ -10,6 +10,7 @@ const base: CreateIcoreOptions = {
   upload: 'supabase',
   payment: 'none',
   jobs: 'none',
+  ai: 'none',
   example: 'none',
   ui: 'shadcn',
   transport: 'tcp',
@@ -36,5 +37,16 @@ describe('resolveUnits', () => {
   it('any firebase axis pulls in the shared firebase-admin unit exactly once', () => {
     const libs = resolveUnits({ ...base, dbProvider: 'firebase' }).flatMap((u) => u.libDirs);
     expect(libs.filter((l) => l === 'libs/firebase-admin')).toHaveLength(1);
+  });
+
+  it('ai=llm-router contributes the ai-orchestrator unit', () => {
+    const libs = resolveUnits({ ...base, ai: 'llm-router' }).flatMap((u) => u.libDirs);
+    expect(libs).toContain('apps/microservices/ai-orchestrator');
+    expect(libs).toContain('libs/ai-client');
+  });
+
+  it('ai=none contributes no ai unit', () => {
+    const libs = resolveUnits(base).flatMap((u) => u.libDirs);
+    expect(libs).not.toContain('apps/microservices/ai-orchestrator');
   });
 });

@@ -81,6 +81,16 @@ export const MANIFEST = {
         into: 'upload',
       },
     },
+    minio: {
+      libDirs: ['libs/storage-strategies/minio'],
+      deps: { minio: '^8.0.6' },
+      tsPaths: { '@icore/storage-minio': ['libs/storage-strategies/minio/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/storage-minio',
+        symbol: 'MinioStorageModule',
+        into: 'upload',
+      },
+    },
     mongodb: {
       libDirs: ['libs/storage-strategies/mongodb'],
       deps: { mongoose: '^9.6.3' },
@@ -167,6 +177,20 @@ export const MANIFEST = {
       tsPaths: { '@icore/jobs-client': ['libs/jobs-client/src/index.ts'] },
       gatewayModule: { importFrom: './admin/admin.module', symbol: 'AdminModule' },
       dockerService: 'jobs',
+    },
+    ai: {
+      libDirs: [
+        'apps/microservices/ai-orchestrator',
+        'apps/microservices/ai-orchestrator-e2e',
+        'libs/ai-client',
+        'apps/api/src/app/ai',
+        'Dockerfile.ms-ai',
+      ],
+      deps: { '@icore/ai-client': '*', '@idevconn/llm-router': '^0.9.0' },
+      tsPaths: { '@icore/ai-client': ['libs/ai-client/src/index.ts'] },
+      gatewayModule: { importFrom: './ai/ai.module', symbol: 'AiModule' },
+      gatewayService: { name: 'ai', prefix: 'AI' },
+      dockerService: 'ai',
     },
   },
   ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY },

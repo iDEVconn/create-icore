@@ -29,7 +29,7 @@ export interface Unit {
   /** A plain NestJS module the gateway app.module imports (no forRoot). */
   gatewayModule?: { importFrom: string; symbol: string };
   /** Name of a docker-compose service block this feature owns. */
-  dockerService?: 'jobs';
+  dockerService?: 'jobs' | 'ai';
   /** App-level (not lib) test files that belong to this unit and must be removed
    *  when the unit is NOT selected (they import the unit's now-absent lib). */
   appTests?: string[];
@@ -41,7 +41,7 @@ export interface Manifest {
   auth: Record<AuthProvider, Unit>;
   storage: Record<StorageProvider, Unit>;
   db: Record<DbProvider, Unit>;
-  feature: { notes: Unit; payment: Unit; jobs: Unit };
+  feature: { notes: Unit; payment: Unit; jobs: Unit; ai: Unit };
   ui: Record<UiLibrary, Unit>;
   transport: Record<MsTransport, Unit>;
   /** Shared units pulled in by a cross-axis rule (not a direct user choice). */

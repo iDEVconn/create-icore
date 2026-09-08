@@ -6,7 +6,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-icore}
       POSTGRES_DB: ${POSTGRES_DB:-icore}
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - icore_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U icore']
       interval: 5s
@@ -15,8 +17,29 @@ services:
 
   redis:
     image: redis:7-alpine
+    volumes:
+      - icore_redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+    networks: [icore]
+
+  # Only used when STORAGE_PROVIDER=minio (apps/microservices/upload/.env) —
+  # harmless idle container otherwise. S3 API port stays internal to the
+  # compose network; only the admin console is exposed to the host.
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-icore}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-change-me-minio}
+    ports:
+      - '127.0.0.1:9001:9001'
+    volumes:
+      - icore_minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
       retries: 10
     networks: [icore]
@@ -43,6 +66,10 @@ services:
     environment:
       UPLOAD_TRANSPORT: redis
       UPLOAD_REDIS_URL: redis://redis:6379
+      # Only read when STORAGE_PROVIDER=minio — in-network hostname/port
+      # instead of the host-facing defaults in .env.example.
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
     depends_on:
       redis:
         condition: service_healthy
@@ -74,6 +101,18 @@ services:
     networks: [icore]
     restart: unless-stopped
 
+  ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.ms-ai
+    env_file: .env.docker
+    environment:
+      AI_TRANSPORT: tcp
+      AI_HOST: 0.0.0.0
+      AI_PORT: 4005
+    networks: [icore]
+    restart: unless-stopped
+
   gateway:
     build:
       context: .
@@ -89,6 +128,9 @@ services:
       PAYMENT_TRANSPORT: tcp
       PAYMENT_HOST: payment
       PAYMENT_PORT: 4003
+      AI_TRANSPORT: tcp
+      AI_HOST: ai
+      AI_PORT: 4005
     ports:
       - '3001:3001'
     depends_on:
@@ -102,9 +144,16 @@ services:
         condition: service_started
       payment:
         condition: service_started
+      ai:
+        condition: service_started
     networks: [icore]
     restart: unless-stopped
 
 networks:
   icore:
     driver: bridge
+
+volumes:
+  icore_postgres_data:
+  icore_redis_data:
+  icore_minio_data:

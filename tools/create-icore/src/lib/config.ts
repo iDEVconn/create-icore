@@ -5,6 +5,7 @@ import type {
   UploadProvider,
   PaymentProvider,
   JobsProvider,
+  AiProvider,
   ExampleMode,
   UiLibrary,
   MsTransport,
@@ -25,11 +26,13 @@ const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
   'supabase',
   'firebase',
   'cloudinary',
+  'minio',
   'mongodb',
   'none',
 ];
 const PAYMENT_PROVIDERS: readonly PaymentProvider[] = ['paypal', 'none'];
 const JOBS_PROVIDERS: readonly JobsProvider[] = ['bullmq', 'none'];
+const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
 const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
 const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
 const MS_TRANSPORTS: readonly MsTransport[] = ['tcp', 'redis', 'nats', 'mqtt', 'rmq', 'kafka'];
@@ -74,6 +77,7 @@ export function validateConfig(raw: unknown): Partial<CreateIcoreOptions> {
   if ('upload' in obj) result.upload = assertEnum('upload', obj['upload'], UPLOAD_PROVIDERS);
   if ('payment' in obj) result.payment = assertEnum('payment', obj['payment'], PAYMENT_PROVIDERS);
   if ('jobs' in obj) result.jobs = assertEnum('jobs', obj['jobs'], JOBS_PROVIDERS);
+  if ('ai' in obj) result.ai = assertEnum('ai', obj['ai'], AI_PROVIDERS);
   if ('example' in obj) result.example = assertEnum('example', obj['example'], EXAMPLE_MODES);
   if ('ui' in obj) result.ui = assertEnum('ui', obj['ui'], UI_LIBRARIES);
   if ('transport' in obj)

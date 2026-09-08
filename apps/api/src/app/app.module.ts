@@ -14,7 +14,10 @@ import { FeaturesModule } from './features.module';
       isGlobal: true,
       envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],
     }),
-    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),
+    ThrottlerModule.forRoot([
+      { name: 'auth-burst', ttl: seconds(60), limit: 10 },
+      { name: 'ai-burst', ttl: seconds(60), limit: 10 },
+    ]),
     AuthModule,
     AbilitiesModule,
     ProfileModule,

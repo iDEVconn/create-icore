@@ -140,6 +140,7 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
   if (opts.payment !== 'none') activeMSes.push(`payment (port 4003)`);
   if (opts.example !== 'none') activeMSes.push(`notes (port 4004)`);
   if (opts.jobs !== 'none') activeMSes.push(`jobs (standalone)`);
+  if (opts.ai !== 'none') activeMSes.push(`ai-orchestrator (port 4005)`);
 
   const usesSupabase =
     opts.authProvider === 'supabase' ||
@@ -215,6 +216,7 @@ Apache-2.0
 | Upload     | ${opts.upload} |
 | Payment    | ${opts.payment} |
 | Jobs       | ${opts.jobs} |
+| AI         | ${opts.ai} |
 | UI         | ${opts.ui} |
 | Transport  | ${opts.transport} |
 | PM         | ${pm} |

@@ -28,6 +28,7 @@ const baseOpts: CreateIcoreOptions = {
   upload: 'cloudinary',
   payment: 'none',
   jobs: 'none',
+  ai: 'none',
   example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
