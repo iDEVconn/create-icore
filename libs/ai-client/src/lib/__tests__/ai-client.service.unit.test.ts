@@ -49,4 +49,26 @@ describe('AiClientService', () => {
     expect(client.send).toHaveBeenCalledWith('ai.providers', {});
     expect(providers).toEqual(['gemini', 'claude']);
   });
+
+  it('sends ai.usage.summary with the range and userId', async () => {
+    const client = fakeClient({ total_calls: 3 });
+    const service = new AiClientService(client as unknown as ClientProxy);
+
+    const summary = await service.getUsageSummary('7d', 'user-1');
+
+    expect(client.send).toHaveBeenCalledWith('ai.usage.summary', { range: '7d', userId: 'user-1' });
+    expect(summary.total_calls).toBe(3);
+  });
+
+  it('sends ai.usage.timeseries with the range and no userId', async () => {
+    const client = fakeClient({ points: [] });
+    const service = new AiClientService(client as unknown as ClientProxy);
+
+    await service.getUsageTimeseries('30d');
+
+    expect(client.send).toHaveBeenCalledWith('ai.usage.timeseries', {
+      range: '30d',
+      userId: undefined,
+    });
+  });
 });

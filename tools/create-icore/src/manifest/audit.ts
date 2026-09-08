@@ -1,5 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 export interface Violation {
   kind: 'import-of-absent-lib' | 'forbidden-dep';
@@ -48,6 +48,20 @@ const PROVIDER_SDKS: Record<string, string[]> = {
   minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin', '@icore/firebase-admin'],
+};
+
+/**
+ * Deps that are legitimately unrelated to the auth/db/upload provider
+ * blueprint, so `forbiddenFromBlueprint` must not flag them there. Same
+ * rationale as RAG's `AI_RAG_POSTGRES_URL` not assuming `dbProvider=postgres`
+ * (AGENTS.md) — `apps/microservices/ai-orchestrator`'s AI-usage tracking
+ * (`@idevconn/ai-usage`) needs its own Supabase project independent of
+ * whichever provider the rest of the app chose for auth/db/storage.
+ */
+const AXIS_INDEPENDENT_DEP_EXEMPTIONS: Record<string, string[]> = {
+  [['apps', 'microservices', 'ai-orchestrator', 'package.json'].join(sep)]: [
+    '@supabase/supabase-js',
+  ],
 };
 
 async function readBlueprint(dir: string): Promise<Blueprint | null> {
@@ -145,8 +159,9 @@ export async function auditProject(
   if (forbidden.size > 0) {
     for (const pkgPath of await allPackageJsons(dir)) {
       const deps = await depKeys(pkgPath);
+      const exempt = new Set(AXIS_INDEPENDENT_DEP_EXEMPTIONS[relative(dir, pkgPath)] ?? []);
       for (const f of forbidden) {
-        if (deps.has(f)) {
+        if (deps.has(f) && !exempt.has(f)) {
           violations.push({
             kind: 'forbidden-dep',
             detail: `${pkgPath} keeps forbidden dep ${f}`,

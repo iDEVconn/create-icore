@@ -1,12 +1,16 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle, seconds } from '@nestjs/throttler';
+import type { Request } from 'express';
+import type { VerifiedToken } from '@icore/shared';
 import {
   AiClientService,
   type GenerateInput,
   type OrchestrateInput,
   type RagQueryInput,
 } from '@icore/ai-client';
+
+type AuthedRequest = Request & { user?: VerifiedToken };
 
 @ApiBearerAuth()
 @ApiTags('ai')
@@ -30,8 +34,8 @@ export class AiController {
       },
     },
   })
-  generate(@Body() body: GenerateInput) {
-    return this.ai.generate(body);
+  generate(@Req() req: AuthedRequest, @Body() body: GenerateInput) {
+    return this.ai.generate({ ...body, userId: req.user?.uid });
   }
 
   @Post('orchestrate')
@@ -49,8 +53,8 @@ export class AiController {
       },
     },
   })
-  orchestrate(@Body() body: OrchestrateInput) {
-    return this.ai.orchestrate(body);
+  orchestrate(@Req() req: AuthedRequest, @Body() body: OrchestrateInput) {
+    return this.ai.orchestrate({ ...body, userId: req.user?.uid });
   }
 
   @Post('rag/query')

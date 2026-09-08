@@ -3,6 +3,7 @@ import { LlmRegistry, type Orchestrator } from '@idevconn/llm-router';
 import { FakeLlmStrategy } from '@icore/ai-client';
 import { AiController } from '../ai.controller';
 import type { RagService } from '../rag.service';
+import type { AiUsageService } from '../ai-usage.service';
 
 // A real Orchestrator.run() decomposes the task via an LLM call first —
 // FakeLlmStrategy just echoes text back, which isn't parseable JSON, so
@@ -15,12 +16,17 @@ function fixture() {
   const registry = new LlmRegistry({ strategies: [fake], platform: 'fake' });
   const orchestrator = { run: vi.fn() } as unknown as Orchestrator;
   const rag = { retrieve: vi.fn() } as unknown as RagService;
+  const aiUsage = {
+    getSummary: vi.fn(),
+    getTimeseries: vi.fn(),
+  } as unknown as AiUsageService;
   return {
     fake,
     registry,
     orchestrator,
     rag,
-    controller: new AiController(registry, orchestrator, rag),
+    aiUsage,
+    controller: new AiController(registry, orchestrator, rag, aiUsage),
   };
 }
 
@@ -85,5 +91,31 @@ describe('AiController', () => {
   it('listProviders returns the registry contents', () => {
     const { controller } = fixture();
     expect(controller.listProviders()).toEqual(['fake']);
+  });
+
+  it('usageSummary forwards the parsed range and userId to AiUsageService', async () => {
+    const { controller, aiUsage } = fixture();
+    (aiUsage.getSummary as ReturnType<typeof vi.fn>).mockResolvedValue({ total_calls: 0 });
+    await controller.usageSummary({ range: '30d', userId: 'user-1' });
+    expect(aiUsage.getSummary).toHaveBeenCalledWith('30d', 'user-1');
+  });
+
+  it('usageSummary defaults a missing range to 7d', async () => {
+    const { controller, aiUsage } = fixture();
+    (aiUsage.getSummary as ReturnType<typeof vi.fn>).mockResolvedValue({ total_calls: 0 });
+    await controller.usageSummary({});
+    expect(aiUsage.getSummary).toHaveBeenCalledWith('7d', undefined);
+  });
+
+  it('usageSummary rejects an unrecognized range', () => {
+    const { controller } = fixture();
+    expect(() => controller.usageSummary({ range: 'bogus' })).toThrow(/Invalid range/);
+  });
+
+  it('usageTimeseries forwards the parsed range and userId to AiUsageService', async () => {
+    const { controller, aiUsage } = fixture();
+    (aiUsage.getTimeseries as ReturnType<typeof vi.fn>).mockResolvedValue({ points: [] });
+    await controller.usageTimeseries({ range: '24h' });
+    expect(aiUsage.getTimeseries).toHaveBeenCalledWith('24h', undefined);
   });
 });

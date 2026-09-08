@@ -17,6 +17,7 @@
     "@icore/payment-client": "*",
     "@icore/shared": "*",
     "@icore/upload-client": "*",
+    "@idevconn/ai-usage": "^0.4.0",
     "@idevconn/payment": "^1.2.0",
     "@nestjs/common": "^11.2.3",
     "@nestjs/config": "^4.0.4",

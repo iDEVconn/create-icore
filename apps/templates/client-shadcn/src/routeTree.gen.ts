@@ -16,6 +16,7 @@ import { Route as DashboardDashboardRouteImport } from './routes/_dashboard/dash
 import { Route as DashboardNotesRouteImport } from './routes/_dashboard/notes'
 import { Route as DashboardProfileRouteImport } from './routes/_dashboard/profile'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as DashboardAdminAiUsageRouteImport } from './routes/_dashboard/admin.ai-usage'
 import { Route as AuthOauthCallbackRouteImport } from './routes/auth.oauth.callback'
 
 const IndexRoute = IndexRouteImport.update({
@@ -52,6 +53,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardAdminAiUsageRoute = DashboardAdminAiUsageRouteImport.update({
+  id: '/admin/ai-usage',
+  path: '/admin/ai-usage',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const AuthOauthCallbackRoute = AuthOauthCallbackRouteImport.update({
   id: '/auth/oauth/callback',
   path: '/auth/oauth/callback',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/notes': typeof DashboardNotesRoute
   '/profile': typeof DashboardProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/admin/ai-usage': typeof DashboardAdminAiUsageRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/notes': typeof DashboardNotesRoute
   '/profile': typeof DashboardProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/admin/ai-usage': typeof DashboardAdminAiUsageRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
 }
 export interface FileRoutesById {
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/_dashboard/notes': typeof DashboardNotesRoute
   '/_dashboard/profile': typeof DashboardProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/_dashboard/admin/ai-usage': typeof DashboardAdminAiUsageRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
 }
 export interface FileRouteTypes {
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/profile'
     | '/auth/callback'
+    | '/admin/ai-usage'
     | '/auth/oauth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/profile'
     | '/auth/callback'
+    | '/admin/ai-usage'
     | '/auth/oauth/callback'
   id:
     | '__root__'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/_dashboard/notes'
     | '/_dashboard/profile'
     | '/auth/callback'
+    | '/_dashboard/admin/ai-usage'
     | '/auth/oauth/callback'
   fileRoutesById: FileRoutesById
 }
@@ -177,6 +189,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_dashboard/admin/ai-usage': {
+      id: '/_dashboard/admin/ai-usage'
+      path: '/admin/ai-usage'
+      fullPath: '/admin/ai-usage'
+      preLoaderRoute: typeof DashboardAdminAiUsageRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/auth/oauth/callback': {
       id: '/auth/oauth/callback'
       path: '/auth/oauth/callback'
@@ -191,12 +210,14 @@ interface DashboardRouteChildren {
   DashboardDashboardRoute: typeof DashboardDashboardRoute
   DashboardNotesRoute: typeof DashboardNotesRoute
   DashboardProfileRoute: typeof DashboardProfileRoute
+  DashboardAdminAiUsageRoute: typeof DashboardAdminAiUsageRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardDashboardRoute: DashboardDashboardRoute,
   DashboardNotesRoute: DashboardNotesRoute,
   DashboardProfileRoute: DashboardProfileRoute,
+  DashboardAdminAiUsageRoute: DashboardAdminAiUsageRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
