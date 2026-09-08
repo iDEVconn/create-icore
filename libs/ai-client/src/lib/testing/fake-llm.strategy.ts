@@ -21,10 +21,14 @@ export class FakeLlmStrategy implements LlmStrategy {
   }
 
   async generate(opts: LlmGenerateOptions): Promise<LlmResponse> {
+    // llm-router 0.11+: `prompt` is optional, `messages` is the multi-turn
+    // alternative — exactly one is set on any real call. Echo whichever the
+    // caller used (last turn's content for `messages`).
+    const text = opts.prompt ?? opts.messages?.at(-1)?.content ?? '';
     return {
-      text: `echo: ${opts.prompt}`,
+      text: `echo: ${text}`,
       model: opts.model ?? this.defaultModel,
-      usage: { inputTokens: opts.prompt.length, outputTokens: opts.prompt.length },
+      usage: { inputTokens: text.length, outputTokens: text.length },
       truncated: false,
     };
   }

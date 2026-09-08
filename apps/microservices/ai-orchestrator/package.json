@@ -8,7 +8,7 @@
     "@icore/db-supabase": "*",
     "@icore/shared": "*",
     "@idevconn/ai-usage": "^0.4.0",
-    "@idevconn/llm-router": "^0.10.0",
+    "@idevconn/llm-router": "^0.12.0",
     "@nestjs/common": "^11.2.3",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.2.3",
