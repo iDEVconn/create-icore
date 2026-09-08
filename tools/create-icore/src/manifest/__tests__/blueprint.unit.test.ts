@@ -19,6 +19,7 @@ const opts: CreateIcoreOptions = {
   upload: 'cloudinary',
   payment: 'paypal',
   jobs: 'bullmq',
+  ai: 'llm-router',
   example: 'notes',
   ui: 'antd',
   transport: 'nats',
@@ -46,6 +47,7 @@ describe('writeBlueprintJson', () => {
       upload: 'cloudinary',
       payment: 'paypal',
       jobs: 'bullmq',
+      ai: 'llm-router',
       example: 'notes',
       ui: 'antd',
       transport: 'nats',
@@ -78,6 +80,7 @@ describe('writeServiceBlueprints', () => {
       'apps/microservices/notes',
       'apps/microservices/payment',
       'apps/microservices/jobs',
+      'apps/microservices/ai-orchestrator',
       'apps/api',
       'apps/client',
     ]) {
@@ -97,6 +100,7 @@ describe('writeServiceBlueprints', () => {
       upload: 'cloudinary',
       payment: 'paypal',
       jobs: 'bullmq',
+      ai: 'llm-router',
       example: 'notes',
       ui: 'shadcn',
       transport: 'nats',
@@ -134,10 +138,16 @@ describe('writeServiceBlueprints', () => {
       service: 'jobs',
       jobsProvider: 'bullmq',
     });
+    expect(await read('apps/microservices/ai-orchestrator')).toEqual({
+      schemaVersion: 1,
+      service: 'ai-orchestrator',
+      aiProvider: 'llm-router',
+      transport: 'nats',
+    });
     expect(await read('apps/api')).toEqual({
       schemaVersion: 1,
       service: 'api',
-      features: ['notes', 'payment', 'jobs'],
+      features: ['notes', 'payment', 'jobs', 'ai'],
       transport: 'nats',
     });
     expect(await read('apps/client')).toEqual({
@@ -158,6 +168,7 @@ describe('writeServiceBlueprints', () => {
       upload: 'none',
       payment: 'none',
       jobs: 'none',
+      ai: 'none',
     });
     // auth blueprint should NOT exist (authProvider=none skips it)
     expect(await exists(join(dir, 'apps/microservices/auth/blueprint.json'))).toBe(false);
@@ -175,6 +186,7 @@ describe('writeServiceBlueprints', () => {
       upload: 'none',
       payment: 'none',
       jobs: 'none',
+      ai: 'none',
       example: 'none',
     });
     // optional ones: no blueprint.json (their dirs would be removed in real scaffolds)
@@ -182,6 +194,9 @@ describe('writeServiceBlueprints', () => {
     expect(await exists(join(dir, 'apps/microservices/notes/blueprint.json'))).toBe(false);
     expect(await exists(join(dir, 'apps/microservices/payment/blueprint.json'))).toBe(false);
     expect(await exists(join(dir, 'apps/microservices/jobs/blueprint.json'))).toBe(false);
+    expect(await exists(join(dir, 'apps/microservices/ai-orchestrator/blueprint.json'))).toBe(
+      false,
+    );
     // always-present
     expect(await exists(join(dir, 'apps/microservices/auth/blueprint.json'))).toBe(true);
     expect(await exists(join(dir, 'apps/api/blueprint.json'))).toBe(true);

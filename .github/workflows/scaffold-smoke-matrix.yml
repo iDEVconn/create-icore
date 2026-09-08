@@ -34,7 +34,7 @@ jobs:
         # tcp (no broker) + redis are lower-risk and covered by Layer A / history.
         combo:
           - name: supabase-full-mqtt-shadcn
-            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --example=notes --transport=mqtt --ui=shadcn
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --ai=llm-router --example=notes --transport=mqtt --ui=shadcn
           - name: firebase-minimal-rmq-antd
             flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=rmq --ui=antd
           - name: cloudinary-nats-mui
@@ -57,5 +57,5 @@ jobs:
           node tools/create-icore/scripts/smoke-scaffold.mjs \
             ${{ matrix.combo.flags }} \
             --pm=${{ matrix.pm }} --mode=install --run --run-seconds=25 \
-            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,api,client \
-            --services=api,auth,upload,notes,jobs,payment
+            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,ai-orchestrator,api,client \
+            --services=api,auth,upload,notes,jobs,payment,ai-orchestrator

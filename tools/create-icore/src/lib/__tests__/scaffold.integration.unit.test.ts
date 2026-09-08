@@ -155,6 +155,8 @@ async function makeFakeTemplates(): Promise<string> {
           '@bull-board/express': '^7',
           '@icore/payment-client': '*',
           '@idevconn/payment': '^1.2.0',
+          '@icore/ai-client': '*',
+          '@idevconn/llm-router': '^0.9.0',
         },
       },
       null,
@@ -278,6 +280,44 @@ async function makeFakeTemplates(): Promise<string> {
     join(tplDir, 'apps/api/src/app/payment/payment.controller.ts'),
     "import type { PaymentClientService } from '@icore/payment-client';",
   );
+
+  // ai-orchestrator MS stub + package.json
+  await mkdir(join(tplDir, 'apps/microservices/ai-orchestrator/src'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/microservices/ai-orchestrator/src/main.ts'), 'export {};');
+  await writeFile(
+    join(tplDir, 'apps/microservices/ai-orchestrator/package.json'),
+    JSON.stringify(
+      {
+        name: 'ai-orchestrator',
+        version: '0.0.1',
+        private: true,
+        dependencies: { '@idevconn/llm-router': '^0.9.0' },
+      },
+      null,
+      2,
+    ),
+  );
+
+  // ai-client lib stub + package.json (cleanupUnusedFeatures deletes this)
+  await mkdir(join(tplDir, 'libs/ai-client/src'), { recursive: true });
+  await writeFile(join(tplDir, 'libs/ai-client/src/index.ts'), 'export {};');
+  await writeFile(
+    join(tplDir, 'libs/ai-client/package.json'),
+    JSON.stringify(
+      {
+        name: '@icore/ai-client',
+        version: '0.0.1',
+        private: true,
+        dependencies: { '@idevconn/llm-router': '^0.9.0' },
+      },
+      null,
+      2,
+    ),
+  );
+
+  // ai gateway module stub (cleanupUnusedFeatures deletes apps/api/src/app/ai)
+  await mkdir(join(tplDir, 'apps/api/src/app/ai'), { recursive: true });
+  await writeFile(join(tplDir, 'apps/api/src/app/ai/ai.module.ts'), 'export class AiModule {}');
 
   // shadcn template: notes route + query stubs
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/routes/_dashboard'), {
@@ -465,6 +505,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'cloudinary',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'shadcn',
         transport: 'redis',
@@ -512,6 +553,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'none',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'shadcn',
         transport: 'tcp',
@@ -553,6 +595,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'antd',
         transport: 'tcp',
@@ -584,6 +627,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'cloudinary',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'mui',
         transport: 'tcp',
@@ -615,6 +659,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'none',
         ui: 'shadcn',
         transport: 'tcp',
@@ -664,6 +709,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'shadcn',
         transport: 'tcp',
@@ -732,6 +778,7 @@ describe('scaffold (integration, dry-run)', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'none',
         ui: 'shadcn',
         transport: 'tcp',
@@ -767,6 +814,12 @@ describe('scaffold (integration, dry-run)', () => {
     ).rejects.toThrow();
     await expect(access(join(outputDir, 'libs/payment-client/package.json'))).rejects.toThrow();
 
+    // ai-orchestrator removed — @idevconn/llm-router no longer owned by any workspace package.json
+    await expect(
+      access(join(outputDir, 'apps/microservices/ai-orchestrator/package.json')),
+    ).rejects.toThrow();
+    await expect(access(join(outputDir, 'libs/ai-client/package.json'))).rejects.toThrow();
+
     // Scan all remaining package.json files to confirm no orphaned deps leak through
     const forbidden = [
       'antd',
@@ -776,6 +829,8 @@ describe('scaffold (integration, dry-run)', () => {
       'bullmq',
       'ioredis',
       '@idevconn/payment',
+      '@idevconn/llm-router',
+      '@icore/ai-client',
       // Orphaned @icore workspace aliases that must not survive an auth=supabase
       // generation — the libs they point at are deleted, so a stray dep breaks install.
       '@icore/auth-firebase',
@@ -812,6 +867,7 @@ describe('scaffold with authProvider=none', () => {
         upload: 'none',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'none',
         ui: 'shadcn',
         transport: 'tcp',
@@ -895,6 +951,7 @@ describe('scaffold with authProvider=none + payment=paypal', () => {
         upload: 'none',
         payment: 'paypal',
         jobs: 'none',
+        ai: 'none',
         example: 'none',
         ui: 'shadcn',
         transport: 'tcp',
@@ -919,6 +976,54 @@ describe('scaffold with authProvider=none + payment=paypal', () => {
   });
 });
 
+describe('scaffold with authProvider=none + ai=llm-router', () => {
+  let outDir: string;
+  let tplDir: string;
+
+  beforeAll(async () => {
+    tplDir = await makeFakeTemplates();
+    outDir = await mkdtemp(join(tmpdir(), 'icore-no-auth-ai-'));
+    await scaffold(
+      {
+        projectName: 'no-auth-ai-app',
+        targetDir: outDir,
+        authProvider: 'none',
+        dbProvider: 'none',
+        upload: 'none',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'llm-router',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'tcp',
+        packageManager: 'yarn',
+        initGit: false,
+        install: false,
+      },
+      tplDir,
+    );
+  });
+
+  it('keeps ./transport export in libs/shared/src/index.ts (ai-client needs buildTransport)', async () => {
+    // removeStrategiesLib must NOT run when ai=llm-router — ai-client
+    // imports buildTransport from @icore/shared, so transport.ts must stay.
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).toContain("'./transport'");
+  });
+
+  it('keeps the ai-orchestrator MS and ai-client lib', async () => {
+    await expect(
+      access(join(outDir, 'apps/microservices/ai-orchestrator/package.json')),
+    ).resolves.toBeUndefined();
+    await expect(access(join(outDir, 'libs/ai-client/package.json'))).resolves.toBeUndefined();
+  });
+
+  it('wires AiModule into features.module.ts', async () => {
+    const fm = await readFile(join(outDir, 'apps/api/src/app/features.module.ts'), 'utf8');
+    expect(fm).toContain("import { AiModule } from './ai/ai.module';");
+  });
+});
+
 describe('scaffold — pm-specific file generation', () => {
   let templatesDir: string;
 
@@ -937,6 +1042,7 @@ describe('scaffold — pm-specific file generation', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'shadcn',
         transport: 'tcp',
@@ -961,6 +1067,7 @@ describe('scaffold — pm-specific file generation', () => {
         upload: 'supabase',
         payment: 'none',
         jobs: 'none',
+        ai: 'none',
         example: 'notes',
         ui: 'shadcn',
         transport: 'tcp',

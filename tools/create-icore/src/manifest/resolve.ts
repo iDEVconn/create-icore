@@ -15,6 +15,7 @@ export function resolveUnits(opts: CreateIcoreOptions): Unit[] {
   if (opts.upload !== 'none') units.push(MANIFEST.storage[opts.upload]);
   if (opts.payment !== 'none') units.push(MANIFEST.feature.payment);
   if (opts.jobs !== 'none') units.push(MANIFEST.feature.jobs);
+  if (opts.ai !== 'none') units.push(MANIFEST.feature.ai);
   if (opts.example === 'notes') units.push(MANIFEST.feature.notes);
 
   const firebaseUsed =

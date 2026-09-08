@@ -13,6 +13,7 @@ const base: CreateIcoreOptions = {
   upload: 'supabase',
   payment: 'none',
   jobs: 'none',
+  ai: 'none',
   example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
