@@ -1,7 +1,11 @@
 import { Controller, Inject } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import type { LlmResponse } from '@idevconn/llm-router' with { 'resolution-mode': 'import' };
+import type { AiUsageRange, AiUsageSummary, AiUsageTimeseries } from '@idevconn/ai-usage';
+import { parseAiUsageRange } from '@idevconn/ai-usage';
 import { RagService } from './rag.service';
+import { AiUsageService } from './ai-usage.service';
+import { aiUsageContext, type AiUsageCallContext } from './ai-usage.context';
 
 // See app.module.ts for why this is require(), not import — llm-router is
 // ESM-only, this MS is strict CommonJS.
@@ -17,6 +21,8 @@ interface GeneratePayload {
   model?: string;
   maxTokens?: number;
   apiKey?: string;
+  /** Set by the gateway from the authenticated request — used only to tag usage rows. */
+  userId?: string;
 }
 
 interface OrchestratePayload {
@@ -28,12 +34,19 @@ interface OrchestratePayload {
   metaProvider?: string;
   maxConcurrency?: number;
   maxSubtasks?: number;
+  /** Set by the gateway from the authenticated request — used only to tag usage rows. */
+  userId?: string;
 }
 
 interface RagQueryPayload {
   query: string;
   topK?: number;
   filter?: Record<string, unknown>;
+}
+
+interface UsageQueryPayload {
+  range?: string;
+  userId?: string;
 }
 
 @Controller()
@@ -48,6 +61,7 @@ export class AiController {
     @Inject(LlmRegistry) private readonly registry: InstanceType<typeof LlmRegistry>,
     @Inject(Orchestrator) private readonly orchestrator: InstanceType<typeof Orchestrator>,
     private readonly rag: RagService,
+    private readonly aiUsage: AiUsageService,
   ) {}
 
   @MessagePattern('ai.generate')
@@ -55,26 +69,30 @@ export class AiController {
     const strategy = payload.provider
       ? this.registry.get(payload.provider)
       : this.registry.getPlatform();
-    return strategy.generate({
-      prompt: payload.prompt,
-      systemPrompt: payload.systemPrompt,
-      model: payload.model,
-      maxTokens: payload.maxTokens,
-      apiKey: payload.apiKey,
-    });
+    return aiUsageContext.run(this.usageContext('generate', payload), () =>
+      strategy.generate({
+        prompt: payload.prompt,
+        systemPrompt: payload.systemPrompt,
+        model: payload.model,
+        maxTokens: payload.maxTokens,
+        apiKey: payload.apiKey,
+      }),
+    );
   }
 
   @MessagePattern('ai.orchestrate')
   async orchestrate(@Payload() payload: OrchestratePayload) {
-    const result = await this.orchestrator.run(payload.task, {
-      apiKeys: payload.apiKeys,
-      maxRounds: payload.maxRounds,
-      critique: payload.critique,
-      synthesize: payload.synthesize,
-      metaProvider: payload.metaProvider,
-      maxConcurrency: payload.maxConcurrency,
-      maxSubtasks: payload.maxSubtasks,
-    });
+    const result = await aiUsageContext.run(this.usageContext('orchestrate', payload), () =>
+      this.orchestrator.run(payload.task, {
+        apiKeys: payload.apiKeys,
+        maxRounds: payload.maxRounds,
+        critique: payload.critique,
+        synthesize: payload.synthesize,
+        metaProvider: payload.metaProvider,
+        maxConcurrency: payload.maxConcurrency,
+        maxSubtasks: payload.maxSubtasks,
+      }),
+    );
 
     return {
       subtasks: result.subtasks.map((s) => ({
@@ -100,5 +118,31 @@ export class AiController {
   @MessagePattern('ai.providers')
   listProviders(): string[] {
     return this.registry.listProviderNames() as string[];
+  }
+
+  @MessagePattern('ai.usage.summary')
+  usageSummary(@Payload() payload: UsageQueryPayload): Promise<AiUsageSummary> {
+    return this.aiUsage.getSummary(this.parseRange(payload.range), payload.userId);
+  }
+
+  @MessagePattern('ai.usage.timeseries')
+  usageTimeseries(@Payload() payload: UsageQueryPayload): Promise<AiUsageTimeseries> {
+    return this.aiUsage.getTimeseries(this.parseRange(payload.range), payload.userId);
+  }
+
+  private parseRange(raw: string | undefined): AiUsageRange {
+    return parseAiUsageRange(raw, '7d');
+  }
+
+  private usageContext(
+    operation: string,
+    payload: { userId?: string; apiKey?: string; apiKeys?: Record<string, string> },
+  ): AiUsageCallContext {
+    const hasByok = Boolean(payload.apiKey) || Object.keys(payload.apiKeys ?? {}).length > 0;
+    return {
+      operation,
+      userId: payload.userId ?? 'unknown',
+      keySource: hasByok ? 'byok' : 'platform',
+    };
   }
 }

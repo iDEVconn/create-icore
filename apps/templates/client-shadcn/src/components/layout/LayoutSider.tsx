@@ -1,18 +1,33 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, LayoutDashboard, StickyNote, User } from 'lucide-react';
+import {
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  StickyNote,
+  User,
+} from 'lucide-react';
+import { useAuthStore } from '@icore/template-shared';
 import { NAV_CONFIG, type NavItem } from '@/nav.config';
 
 const ICONS: Record<NavItem['iconName'], typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
   notes: StickyNote,
   profile: User,
+  aiUsage: BarChart3,
 };
 
 export function LayoutSider() {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
+  // The route itself is CASL-gated (PageLayout action="read" subject="AiUsage")
+  // and would 403 a non-admin — filtered out of the nav so it's not shown as a
+  // dead end. No generic per-item ability config exists yet; this is the one
+  // admin-only nav entry so a targeted check is simpler than building that.
+  const admin = useAuthStore((s) => s.user?.role === 'admin');
+  const items = NAV_CONFIG.filter((item) => item.iconName !== 'aiUsage' || admin);
 
   return (
     <aside
@@ -21,7 +36,7 @@ export function LayoutSider() {
       }`}
     >
       <nav className="flex flex-col gap-0.5 p-2 flex-1 pt-3">
-        {NAV_CONFIG.map(({ to, iconName, labelKey, exact }) => {
+        {items.map(({ to, iconName, labelKey, exact }) => {
           const Icon = ICONS[iconName];
           return (
             <Link

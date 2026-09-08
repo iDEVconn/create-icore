@@ -3008,7 +3008,8 @@ __metadata:
   resolution: "@icore/ai-client@workspace:libs/ai-client"
   dependencies:
     "@icore/shared": "npm:*"
-    "@idevconn/llm-router": "npm:^0.10.0"
+    "@idevconn/ai-usage": "npm:^0.4.0"
+    "@idevconn/llm-router": "npm:^0.12.1"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/microservices": "npm:^11.2.3"
     rxjs: "npm:^7.8.2"
@@ -3323,6 +3324,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@idevconn/ai-usage@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@idevconn/ai-usage@npm:0.4.0"
+  peerDependencies:
+    "@nestjs/common": ">=10.0.0"
+    "@nestjs/swagger": ">=7.0.0"
+    "@tanstack/react-query": ">=5.0.0"
+    react: ">=18.0.0"
+  peerDependenciesMeta:
+    "@nestjs/common":
+      optional: true
+    "@nestjs/swagger":
+      optional: true
+    "@tanstack/react-query":
+      optional: true
+    react:
+      optional: true
+  checksum: 10c0/576b596b4c0f07bdf7d50b6f161094804e032ae2c9cca8863efd2e9dbc4655fa1722c169f6a46ea5af0f2e804e1f2ccec376129a78efc61837719b7fa9c99db9
+  languageName: node
+  linkType: hard
+
 "@idevconn/api-client@npm:^0.3.2":
   version: 0.3.2
   resolution: "@idevconn/api-client@npm:0.3.2"
@@ -3348,9 +3370,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@idevconn/llm-router@npm:^0.10.0":
-  version: 0.10.0
-  resolution: "@idevconn/llm-router@npm:0.10.0"
+"@idevconn/llm-router@npm:^0.12.1":
+  version: 0.12.1
+  resolution: "@idevconn/llm-router@npm:0.12.1"
   peerDependencies:
     "@anthropic-ai/sdk": ">=0.40.0"
     "@google/genai": ">=1.0.0"
@@ -3368,7 +3390,7 @@ __metadata:
       optional: true
     pg:
       optional: true
-  checksum: 10c0/5a7261c3709bff5de1f4d25d9b05f971e332b7a9c8917c8d70127fed290615d1157bfc57ba280b7476f157a84498c27352badfb01b3dda41418bd3988b17181b
+  checksum: 10c0/db0e4ac7d5364daeaba3b09ebe912bc8130c0351c04d6a1a3314df28f3c3c3f7969adb80bbefd8e167895346b0f684a80552dceb2bb30a71f8c0938adaa83c18
   languageName: node
   linkType: hard
 
@@ -10406,12 +10428,15 @@ __metadata:
     "@anthropic-ai/sdk": "npm:^0.40.0"
     "@google/generative-ai": "npm:^0.24.1"
     "@icore/ai-client": "npm:*"
+    "@icore/db-supabase": "npm:*"
     "@icore/shared": "npm:*"
-    "@idevconn/llm-router": "npm:^0.10.0"
+    "@idevconn/ai-usage": "npm:^0.4.0"
+    "@idevconn/llm-router": "npm:^0.12.1"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.3"
     "@nestjs/microservices": "npm:^11.2.3"
+    "@supabase/supabase-js": "npm:^2.115.0"
     "@types/pg": "npm:^8.11.10"
     openai: "npm:^7.5.0"
     pg: "npm:^8.13.1"
@@ -10675,6 +10700,7 @@ __metadata:
     "@icore/payment-client": "npm:*"
     "@icore/shared": "npm:*"
     "@icore/upload-client": "npm:*"
+    "@idevconn/ai-usage": "npm:^0.4.0"
     "@idevconn/payment": "npm:^1.2.0"
     "@nestjs/common": "npm:^11.2.3"
     "@nestjs/config": "npm:^4.0.4"
@@ -12069,6 +12095,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "client-shadcn@workspace:apps/templates/client-shadcn"
   dependencies:
+    "@idevconn/ai-usage": "npm:^0.4.0"
     "@radix-ui/react-dialog": "npm:^1.1.23"
     "@radix-ui/react-dropdown-menu": "npm:^2.1.24"
     "@radix-ui/react-label": "npm:^2.1.15"

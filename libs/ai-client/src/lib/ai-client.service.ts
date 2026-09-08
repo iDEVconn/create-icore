@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import type { LlmResponse } from '@idevconn/llm-router' with { 'resolution-mode': 'import' };
+import type { AiUsageRange, AiUsageSummary, AiUsageTimeseries } from '@idevconn/ai-usage';
 import { AI_CLIENT } from './ai-client.tokens';
 
 export interface GenerateInput {
@@ -11,6 +12,8 @@ export interface GenerateInput {
   model?: string;
   maxTokens?: number;
   apiKey?: string;
+  /** Set by the gateway from the authenticated request — used only to tag usage rows. */
+  userId?: string;
 }
 
 export interface OrchestrateInput {
@@ -22,6 +25,8 @@ export interface OrchestrateInput {
   metaProvider?: string;
   maxConcurrency?: number;
   maxSubtasks?: number;
+  /** Set by the gateway from the authenticated request — used only to tag usage rows. */
+  userId?: string;
 }
 
 export interface OrchestrateSubtaskResult {
@@ -76,5 +81,15 @@ export class AiClientService {
 
   listProviders(): Promise<string[]> {
     return firstValueFrom(this.client.send<string[]>('ai.providers', {}));
+  }
+
+  getUsageSummary(range: AiUsageRange, userId?: string): Promise<AiUsageSummary> {
+    return firstValueFrom(this.client.send<AiUsageSummary>('ai.usage.summary', { range, userId }));
+  }
+
+  getUsageTimeseries(range: AiUsageRange, userId?: string): Promise<AiUsageTimeseries> {
+    return firstValueFrom(
+      this.client.send<AiUsageTimeseries>('ai.usage.timeseries', { range, userId }),
+    );
   }
 }

@@ -10,4 +10,5 @@ export interface NoteSubject {
   ownerId: string;
 }
 
-export type AbilitySubject = InferSubjects<NoteSubject> | 'all' | 'User' | 'Profile' | 'Note';
+export type AbilitySubject =
+  InferSubjects<NoteSubject> | 'all' | 'User' | 'Profile' | 'Note' | 'AiUsage';

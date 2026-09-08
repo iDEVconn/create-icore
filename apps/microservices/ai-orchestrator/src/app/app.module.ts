@@ -4,8 +4,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import type { LlmStrategy, PricingTable } from '@idevconn/llm-router' with {
   'resolution-mode': 'import',
 };
+import type { AiUsageRecord } from '@idevconn/ai-usage';
 import { AiController } from './ai.controller';
 import { RagService } from './rag.service';
+import { AiUsageService } from './ai-usage.service';
+import { aiUsageContext } from './ai-usage.context';
+import { AiUsageDbProviderModule } from './ai-usage-db.provider';
 
 // @idevconn/llm-router is ESM-only ("type": "module") but NestJS
 // microservices in this repo are strict CommonJS (AGENTS.md — module/
@@ -30,7 +34,7 @@ const { ChatGptStrategy } = require('@idevconn/llm-router/chatgpt') as typeof im
   '@idevconn/llm-router/chatgpt',
   { with: { 'resolution-mode': 'import' } }
 );
-const { LlmRegistry, Orchestrator, withBudget, withInstrumentation } = llmRouter;
+const { LlmRegistry, Orchestrator, withBudget, withInstrumentation, calculateCost } = llmRouter;
 
 const ENV_PATHS = [
   join(process.cwd(), 'apps/microservices/ai-orchestrator/.env'),
@@ -61,26 +65,59 @@ function readPricingTable(cfg: ConfigService, logger: Logger): PricingTable | un
   }
 }
 
+/**
+ * The `AiUsageCallContext` (operation/userId/keySource) is request-scoped —
+ * `AiController` opens it per `@MessagePattern` handler via
+ * `aiUsageContext.run()` — while this wrapper is built once per strategy at
+ * module init and shared across every request. Reading
+ * `aiUsageContext.getStore()` inside `onCall` is what ties a usage row back
+ * to the call that produced it; a call made outside any context (there
+ * shouldn't be one — every handler that touches an LLM strategy opens a
+ * context) is tagged 'unknown' rather than dropped, so a future missed spot
+ * is visible in the dashboard instead of silently losing data.
+ */
 function instrumentAndBudget(
   strategy: LlmStrategy,
   cfg: ConfigService,
   logger: Logger,
+  aiUsage: AiUsageService,
 ): LlmStrategy {
+  const pricing = readPricingTable(cfg, logger);
+
   let wrapped = withInstrumentation(strategy, {
     onCall: (event) => {
       if (event.error) {
         logger.warn(
           `${event.provider}/${event.model} failed after ${event.latencyMs}ms: ${event.error}`,
         );
-        return;
+      } else {
+        logger.log(
+          `${event.provider}/${event.model} — ${event.usage.inputTokens}in/${event.usage.outputTokens}out tokens, ${event.latencyMs}ms${event.truncated ? ' (truncated)' : ''}`,
+        );
       }
-      logger.log(
-        `${event.provider}/${event.model} — ${event.usage.inputTokens}in/${event.usage.outputTokens}out tokens, ${event.latencyMs}ms${event.truncated ? ' (truncated)' : ''}`,
-      );
+
+      const ctx = aiUsageContext.getStore();
+      const record: AiUsageRecord = {
+        timestamp: event.timestamp,
+        provider: event.provider,
+        operation: ctx?.operation ?? 'unknown',
+        input_tokens: event.usage.inputTokens,
+        output_tokens: event.usage.outputTokens,
+        success: !event.error,
+        user_id: ctx?.userId ?? 'unknown',
+        key_source: ctx?.keySource ?? 'platform',
+        cost_usd: pricing
+          ? calculateCost(event.usage, event.provider, event.model, pricing)
+          : undefined,
+      };
+      aiUsage.record(record).catch((err: unknown) => {
+        logger.warn(
+          `Failed to record AI usage: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
     },
   });
 
-  const pricing = readPricingTable(cfg, logger);
   const maxCostPerCall = cfg.get<string>('AI_MAX_COST_PER_CALL');
   const maxCostTotal = cfg.get<string>('AI_MAX_COST_TOTAL');
   if (pricing && (maxCostPerCall || maxCostTotal)) {
@@ -106,12 +143,14 @@ function instrumentAndBudget(
       isGlobal: true,
       envFilePath: ENV_PATHS,
     }),
+    AiUsageDbProviderModule,
   ],
   controllers: [AiController],
   providers: [
+    AiUsageService,
     {
       provide: LlmRegistry,
-      useFactory: (cfg: ConfigService) => {
+      useFactory: (cfg: ConfigService, aiUsage: AiUsageService) => {
         const logger = new Logger('LlmRegistry');
         const platform = (cfg.get<string>('AI_PROVIDER') ?? 'gemini').trim();
 
@@ -120,16 +159,19 @@ function instrumentAndBudget(
             new GeminiStrategy({ apiKey: cfg.get<string>('GEMINI_API_KEY') }),
             cfg,
             logger,
+            aiUsage,
           ),
           instrumentAndBudget(
             new ClaudeStrategy({ apiKey: cfg.get<string>('ANTHROPIC_API_KEY') }),
             cfg,
             logger,
+            aiUsage,
           ),
           instrumentAndBudget(
             new ChatGptStrategy({ apiKey: cfg.get<string>('OPENAI_API_KEY') }),
             cfg,
             logger,
+            aiUsage,
           ),
         ];
 
@@ -141,7 +183,7 @@ function instrumentAndBudget(
           logger,
         });
       },
-      inject: [ConfigService],
+      inject: [ConfigService, AiUsageService],
     },
     {
       provide: Orchestrator,
