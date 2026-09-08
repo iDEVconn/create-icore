@@ -186,7 +186,7 @@ export const MANIFEST = {
         'apps/api/src/app/ai',
         'Dockerfile.ms-ai',
       ],
-      deps: { '@icore/ai-client': '*', '@idevconn/llm-router': '^0.12.0' },
+      deps: { '@icore/ai-client': '*', '@idevconn/llm-router': '^0.12.1' },
       tsPaths: { '@icore/ai-client': ['libs/ai-client/src/index.ts'] },
       gatewayModule: { importFrom: './ai/ai.module', symbol: 'AiModule' },
       gatewayService: { name: 'ai', prefix: 'AI' },
