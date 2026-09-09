@@ -1,5 +1,6 @@
 import { readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { AiProvider } from './options.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -224,6 +225,17 @@ export async function pruneApiExpressDep(targetDir: string): Promise<void> {
     }
   }
   await stripDeps(join(targetDir, 'apps/api/package.json'), ['express', '@types/express']);
+}
+
+/**
+ * Drops @idevconn/ai-usage from apps/api/package.json when ai=none — the
+ * gateway's ai.module.ts wiring is only generated when the ai feature is
+ * chosen, so the dependency is otherwise unused and trips
+ * @nx/dependency-checks.
+ */
+export async function pruneUnusedAiUsageApiDep(targetDir: string, ai: AiProvider): Promise<void> {
+  if (ai !== 'none') return;
+  await stripDeps(join(targetDir, 'apps/api/package.json'), ['@idevconn/ai-usage']);
 }
 
 /**
