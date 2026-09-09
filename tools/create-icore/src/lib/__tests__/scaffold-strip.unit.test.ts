@@ -6,6 +6,7 @@ import {
   removeFirebaseAdminLib,
   pruneApiExpressDep,
   pruneUnusedLibDeps,
+  pruneUnusedAiUsageApiDep,
 } from '../scaffold-strip.js';
 
 describe('removeFirebaseAdminLib', () => {
@@ -87,6 +88,40 @@ describe('pruneApiExpressDep', () => {
   it('no-ops silently when apps/api/src does not exist', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'icore-prune-express-nodir-'));
     await expect(pruneApiExpressDep(dir)).resolves.not.toThrow();
+  });
+});
+
+describe('pruneUnusedAiUsageApiDep', () => {
+  it('strips @idevconn/ai-usage from apps/api/package.json when ai=none', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-prune-ai-usage-'));
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/package.json'),
+      JSON.stringify({ dependencies: { '@idevconn/ai-usage': '^0.4.0' } }, null, 2),
+    );
+
+    await pruneUnusedAiUsageApiDep(dir, 'none');
+
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['@idevconn/ai-usage']).toBeUndefined();
+  });
+
+  it('keeps @idevconn/ai-usage when ai is not none', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-prune-ai-usage-keep-'));
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/package.json'),
+      JSON.stringify({ dependencies: { '@idevconn/ai-usage': '^0.4.0' } }, null, 2),
+    );
+
+    await pruneUnusedAiUsageApiDep(dir, 'llm-router');
+
+    const pkg = JSON.parse(await readFile(join(dir, 'apps/api/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(pkg.dependencies?.['@idevconn/ai-usage']).toBe('^0.4.0');
   });
 });
 

@@ -100,3 +100,26 @@ node scripts/smoke-scaffold.mjs --auth=firebase --db=firebase --upload=firebase 
   identically on `shared:build`. Fix: keep the scaffold's `typescript` dep in
   lockstep with the root's whenever a future NX/TS migration bumps the root
   version and touches `ignoreDeprecations`.
+- **`ai-orchestrator` boot crash on any `ai=llm-router` combo** — Layer B
+  failed with `Error: Could not find apps/microservices/ai-orchestrator/dist/main.js`
+  on every `ai=llm-router` matrix cell. `apps/microservices/ai-orchestrator/project.json`
+  had no explicit `build` target (unlike `auth`/`upload`/`notes`/`payment`/`jobs`,
+  which all declare one via `nx:run-commands` + `webpack-cli build`) — it relied
+  on `@nx/webpack/plugin` inference instead. The explicit `serve` target
+  (`@nx/js:node`) then resolved the wrong dist path for its `buildTarget`,
+  looking for `apps/microservices/ai-orchestrator/dist/main.js` instead of the
+  real `dist/apps/microservices/ai-orchestrator/main.js`. Fix: give
+  `ai-orchestrator` the same explicit `build` target shape as its siblings.
+  Reproduce: `node scripts/smoke-scaffold.mjs --ai=llm-router --payment=paypal
+--jobs=bullmq --transport=mqtt --mode=install --run
+--projects=shared,auth,upload,notes,payment,jobs,ai-orchestrator,api,template-shared
+--services=api,auth,upload,notes,payment,jobs,ai-orchestrator`.
+- **`api:lint` fails `@nx/dependency-checks` on `ai=none`** — every `ai=none`
+  matrix cell failed lint with `The "@idevconn/ai-usage" package is not used
+by "api" project`. `templates/apps/api/package.json` lists
+  `@idevconn/ai-usage` unconditionally, but the gateway's `ai.module.ts`
+  wiring that imports it is only generated when `ai !== 'none'` — no prune
+  step dropped the now-unused dependency. Fix: `pruneUnusedAiUsageApiDep`
+  (`scaffold-strip.ts`), called from `scaffold.ts` alongside
+  `pruneApiExpressDep`/`pruneUnusedLibDeps`, strips `@idevconn/ai-usage` from
+  `apps/api/package.json` when `ai === 'none'`.

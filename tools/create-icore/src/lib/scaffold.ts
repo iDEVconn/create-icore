@@ -22,6 +22,7 @@ import {
   removeUploadStack,
   pruneApiExpressDep,
   pruneUnusedLibDeps,
+  pruneUnusedAiUsageApiDep,
 } from './scaffold-strip.js';
 import {
   applyAuthNoneVariants,
@@ -64,6 +65,7 @@ export {
   removeUploadStack,
   pruneApiExpressDep,
   pruneUnusedLibDeps,
+  pruneUnusedAiUsageApiDep,
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
   patchGitignoreForPm,
@@ -251,6 +253,7 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   await pruneRootProviderDeps(opts.targetDir, opts);
   await pruneApiExpressDep(opts.targetDir);
   await pruneUnusedLibDeps(opts.targetDir);
+  await pruneUnusedAiUsageApiDep(opts.targetDir, opts.ai);
 
   // Remove strategy interfaces + testing harness only when NO microservice
   // uses them. payment-client and ai-client both import buildTransport from
