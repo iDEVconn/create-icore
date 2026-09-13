@@ -316,6 +316,7 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - `Dockerfile.client` + `nginx.client.conf` (PR #282) give the React client a production multi-stage build (`node:24-alpine` → `nginx:1.27-alpine`, SPA fallback) — the client had no Docker path before. Uses the real Nx target `vite:build`, not `build`.
 - See `docs/runbooks/third-party-infra-audit-fixes.md` for the full rationale behind the above (source: third-party iCore infrastructure audit, 2026-09-07).
 - `create-icore`'s post-scaffold package-manager install (`tools/create-icore/src/lib/scaffold.ts`'s `runInstall`) checks the install's exit status — a failed install (e.g. npm's `EALLOWSCRIPTS` on project-scoped installs, caused by a global `allow-scripts` npm config that's only valid at user scope) now prints a warning + manual `cd <dir> && <pm> install` fallback instead of the normal "Project scaffolded / Done" success block.
+- `MongoDbDBStrategy.getModel()` (`libs/db-strategies/mongodb/src/lib/mongodb-db.strategy.ts`) casts the model through `Model<unknown>` before caching it — mongoose >=9.10.0 tightened `Model`'s generic variance, and the `^9.9.5` dependency range means every fresh scaffold install (npm/pnpm/yarn) resolves to whatever's newest, so an unqualified assignment there breaks the `db=mongodb` build regardless of package manager.
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
