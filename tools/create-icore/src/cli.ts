@@ -41,7 +41,19 @@ async function main() {
 
   const spinner = p.spinner();
   spinner.start('Scaffolding project');
-  await scaffold(opts, templatesDir);
+  const { installOk } = await scaffold(opts, templatesDir);
+
+  if (opts.install && !installOk) {
+    spinner.stop('Project scaffolded — dependency install failed');
+    p.log.warn(
+      `${opts.packageManager} install exited with an error — see the log above for the reason.`,
+    );
+    p.log.info(`Fix it and install manually:`);
+    p.log.info(`  cd ${opts.projectName}`);
+    p.log.info(`  ${opts.packageManager} install`);
+    return;
+  }
+
   spinner.stop('Project scaffolded');
 
   p.outro(kleur.green('Done.'));

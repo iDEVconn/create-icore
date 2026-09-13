@@ -315,6 +315,7 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - Generated projects now ship `.github/workflows/ci.yml` (a thin `nx affected -t lint test build` pipeline) via `tools/create-icore/_template-shell/.github/workflows/ci.yml` — previously scaffolded projects had zero CI/CD (PR #281).
 - `Dockerfile.client` + `nginx.client.conf` (PR #282) give the React client a production multi-stage build (`node:24-alpine` → `nginx:1.27-alpine`, SPA fallback) — the client had no Docker path before. Uses the real Nx target `vite:build`, not `build`.
 - See `docs/runbooks/third-party-infra-audit-fixes.md` for the full rationale behind the above (source: third-party iCore infrastructure audit, 2026-09-07).
+- `create-icore`'s post-scaffold package-manager install (`tools/create-icore/src/lib/scaffold.ts`'s `runInstall`) checks the install's exit status — a failed install (e.g. npm's `EALLOWSCRIPTS` on project-scoped installs, caused by a global `allow-scripts` npm config that's only valid at user scope) now prints a warning + manual `cd <dir> && <pm> install` fallback instead of the normal "Project scaffolded / Done" success block.
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

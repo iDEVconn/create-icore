@@ -172,20 +172,23 @@ function resolveYarnBin(cwd: string): string {
   return join(cwd, '.yarn', 'releases', 'yarn-4.5.0.cjs');
 }
 
-function runInstall(cwd: string, pm: string): void {
-  if (pm === 'yarn') {
-    // Run the pinned yarn binary directly via node to avoid corepack PnP
-    // resolution failures when the CLI is invoked from `yarn create` (dlx),
-    // which runs inside a PnP context where corepack cannot resolve itself.
-    spawnSync('node', [resolveYarnBin(cwd), 'install'], { cwd, stdio: 'inherit' });
-  } else if (pm === 'npm') {
-    spawnSync('npm', ['install'], { cwd, stdio: 'inherit' });
-  } else {
-    spawnSync('pnpm', ['install'], { cwd, stdio: 'inherit' });
-  }
+function runInstall(cwd: string, pm: string): boolean {
+  const result =
+    pm === 'yarn'
+      ? // Run the pinned yarn binary directly via node to avoid corepack PnP
+        // resolution failures when the CLI is invoked from `yarn create` (dlx),
+        // which runs inside a PnP context where corepack cannot resolve itself.
+        spawnSync('node', [resolveYarnBin(cwd), 'install'], { cwd, stdio: 'inherit' })
+      : pm === 'npm'
+        ? spawnSync('npm', ['install'], { cwd, stdio: 'inherit' })
+        : spawnSync('pnpm', ['install'], { cwd, stdio: 'inherit' });
+  return !result.error && result.status === 0;
 }
 
-export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string): Promise<void> {
+export async function scaffold(
+  rawOpts: CreateIcoreOptions,
+  templatesDir: string,
+): Promise<{ installOk: boolean }> {
   const { warnings, corrected: opts } = validateOptions(rawOpts);
   for (const w of warnings) process.stderr.write(`Warning: ${w}\n`);
 
@@ -305,6 +308,7 @@ export async function scaffold(rawOpts: CreateIcoreOptions, templatesDir: string
   }
   await patchGitignoreForPm(opts.targetDir, opts.packageManager);
   await writeAiFiles(opts.targetDir, opts);
-  if (opts.install) runInstall(opts.targetDir, opts.packageManager);
+  const installOk = opts.install ? runInstall(opts.targetDir, opts.packageManager) : true;
   if (opts.initGit) gitInit(opts.targetDir, opts.projectName);
+  return { installOk };
 }
