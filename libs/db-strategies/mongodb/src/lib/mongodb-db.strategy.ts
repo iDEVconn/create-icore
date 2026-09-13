@@ -20,7 +20,7 @@ export class MongoDbDBStrategy implements DBStrategy {
         { strict: false, timestamps: true },
       );
       const model = this.opts.connection.model(collection, schema);
-      this.models.set(collection, model);
+      this.models.set(collection, model as unknown as Model<unknown>);
       return model;
     }
     return this.models.get(collection) as Model<{ id: string; data: unknown }>;
