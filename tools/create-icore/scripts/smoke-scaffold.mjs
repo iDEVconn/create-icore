@@ -305,7 +305,7 @@ async function main() {
       const res = await bootCheck(nxBin, present, opts.targetDir, join(dir, 'serve.log'));
       if (!res.ok) {
         console.error(`\n✗ smoke FAILED (${combo}) — ${res.reason}`);
-        console.error(`--- serve log tail ---\n${res.log.split('\n').slice(-40).join('\n')}`);
+        console.error(`--- serve log tail ---\n${res.log.split('\n').slice(-200).join('\n')}`);
         console.error(`inspect: ${opts.targetDir}`);
         process.exit(1);
       }
