@@ -7,8 +7,8 @@
     "@types/multer": "^2.2.0"
   },
   "dependencies": {
-    "@bull-board/api": "^9.8.0",
-    "@bull-board/express": "^9.8.0",
+    "@bull-board/api": "^9.10.1",
+    "@bull-board/express": "^9.10.1",
     "@casl/ability": "^7.0.1",
     "@icore/ai-client": "*",
     "@icore/auth-client": "*",
@@ -19,12 +19,12 @@
     "@icore/upload-client": "*",
     "@idevconn/ai-usage": "^0.4.0",
     "@idevconn/payment": "^1.2.0",
-    "@nestjs/common": "^11.2.3",
+    "@nestjs/common": "^11.2.5",
     "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.2.3",
-    "@nestjs/platform-express": "^11.2.3",
+    "@nestjs/core": "^11.2.5",
+    "@nestjs/platform-express": "^11.2.5",
     "@nestjs/swagger": "^11.4.7",
-    "@nestjs/throttler": "^6.5.0",
+    "@nestjs/throttler": "^6.7.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1"
   }

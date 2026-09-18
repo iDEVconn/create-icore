@@ -4,6 +4,6 @@
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
-    "antd": "^6.6.3"
+    "antd": "^6.6.4"
   }
 }
