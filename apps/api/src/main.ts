@@ -15,6 +15,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
   app.use(cookieParser());
+  app.enableCors({
+    origin: process.env['CLIENT_ORIGIN'] ?? 'http://localhost:4200',
+    credentials: true,
+  });
 
   if (shouldEnableSwagger(process.env.NODE_ENV)) {
     const swaggerConfig = new DocumentBuilder()

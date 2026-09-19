@@ -9,8 +9,18 @@ function makeConfig(env: Record<string, string | undefined>): ConfigService {
 
 function makeAuthClient(): AuthClientService {
   return {
-    signup: vi.fn(),
-    login: vi.fn(),
+    signup: vi.fn().mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresIn: 3600,
+      user: { id: 'u1', email: 'a@x.com' },
+    }),
+    login: vi.fn().mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresIn: 3600,
+      user: { id: 'u1', email: 'a@x.com' },
+    }),
     refresh: vi.fn(),
     sendMagicLink: vi.fn().mockResolvedValue(undefined),
     verifyMagicLink: vi.fn().mockResolvedValue({
@@ -84,12 +94,43 @@ describe('AuthController (gateway) — magic-link', () => {
     );
   });
 
-  it('verifyMagicLink forwards the token + returns the session', async () => {
+  it('verifyMagicLink forwards the token, sets auth cookies, and returns accessToken+user only', async () => {
     const client = makeAuthClient();
     const controller = new AuthController(client, makeConfig({}));
-    const session = await controller.verifyMagicLink({ token: 'tok' });
+    const res = makeRes();
+    const session = await controller.verifyMagicLink(
+      { token: 'tok' },
+      res as unknown as import('express').Response,
+    );
     expect(client.verifyMagicLink).toHaveBeenCalledWith('tok');
-    expect(session.user.email).toBe('a@x.com');
+    expect(session).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
+    expect(res.cookies['icore_rt']).toBe('rt');
+    expect(res.cookies['icore_csrf']).toBeTruthy();
+  });
+
+  it('login sets auth cookies and returns accessToken+user only', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const res = makeRes();
+    const session = await controller.login(
+      { email: 'a@x.com', password: 'pw' },
+      res as unknown as import('express').Response,
+    );
+    expect(session).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
+    expect(res.cookies['icore_rt']).toBe('rt');
+    expect(res.cookies['icore_csrf']).toBeTruthy();
+  });
+
+  it('register sets auth cookies and returns accessToken+user only', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const res = makeRes();
+    const session = await controller.register(
+      { email: 'a@x.com', password: 'password123' },
+      res as unknown as import('express').Response,
+    );
+    expect(session).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
+    expect(res.cookies['icore_rt']).toBe('rt');
   });
 });
 

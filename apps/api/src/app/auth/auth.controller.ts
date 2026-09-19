@@ -14,6 +14,7 @@ import { Throttle, seconds } from '@nestjs/throttler';
 import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthClientService } from '@icore/auth-client';
+import { setAuthCookies, generateCsrfToken } from '@icore/shared';
 import type { OAuthProvider } from '@icore/shared';
 import { Public } from './public.decorator';
 
@@ -50,8 +51,14 @@ export class AuthController {
       },
     },
   })
-  register(@Body() body: { email: string; password: string }) {
-    return this.authClient.signup(body.email, body.password);
+  async register(
+    @Body() body: { email: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authClient.signup(body.email, body.password);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()
@@ -67,8 +74,14 @@ export class AuthController {
       },
     },
   })
-  login(@Body() body: { email: string; password: string }) {
-    return this.authClient.login(body.email, body.password);
+  async login(
+    @Body() body: { email: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authClient.login(body.email, body.password);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()
@@ -125,8 +138,14 @@ export class AuthController {
       properties: { token: { type: 'string' } },
     },
   })
-  verifyMagicLink(@Body() body: { token: string }) {
-    return this.authClient.verifyMagicLink(body.token);
+  async verifyMagicLink(
+    @Body() body: { token: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authClient.verifyMagicLink(body.token);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()
@@ -173,5 +192,9 @@ export class AuthController {
       email: session.user.email,
     });
     return res.redirect(`${origin}/auth/oauth/callback#${fragment.toString()}`);
+  }
+
+  private isProd(): boolean {
+    return this.cfg.get<string>('NODE_ENV') === 'production';
   }
 }
