@@ -3276,6 +3276,11 @@ __metadata:
     "@nestjs/microservices": "npm:^11.2.5"
     "@types/express": "npm:^5.0.6"
     tslib: "npm:^2.8.1"
+  peerDependencies:
+    express: ^5.0.0
+  peerDependenciesMeta:
+    express:
+      optional: true
   languageName: unknown
   linkType: soft
 
