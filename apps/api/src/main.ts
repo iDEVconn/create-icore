@@ -14,6 +14,12 @@ const DEFAULT_PORT = 3001;
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
+  // Single reverse proxy/load balancer in front of the gateway in production —
+  // trust exactly one hop's X-Forwarded-For so express-rate-limit/@nestjs/throttler
+  // key on the real client IP instead of the proxy's. `false` in dev (no proxy
+  // there), since blindly trusting an untrusted hop count opens an IP-spoofing
+  // rate-limit bypass.
+  app.set('trust proxy', process.env['NODE_ENV'] === 'production' ? 1 : false);
   app.use(cookieParser());
   app.enableCors({
     origin: process.env['CLIENT_ORIGIN'] ?? 'http://localhost:4200',
