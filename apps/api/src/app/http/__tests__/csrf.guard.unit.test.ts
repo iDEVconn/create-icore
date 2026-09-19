@@ -50,4 +50,35 @@ describe('CsrfGuard', () => {
       ),
     ).toBe(true);
   });
+
+  it('rejects the admin revoke-user route with no CSRF cookie/header', () => {
+    expect(() =>
+      guard.canActivate(ctxFor('POST', '/api/auth/admin/revoke-user/some-uid', {}, {})),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('allows the admin revoke-user route with a matching CSRF cookie/header pair', () => {
+    expect(
+      guard.canActivate(
+        ctxFor(
+          'POST',
+          '/api/auth/admin/revoke-user/some-uid',
+          { icore_csrf: 'same' },
+          { 'x-csrf-token': 'same' },
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('allows the oauth start route without a CSRF token', () => {
+    expect(guard.canActivate(ctxFor('POST', '/api/auth/oauth/google', {}, {}))).toBe(true);
+  });
+
+  it('allows the oauth callback route without a CSRF token', () => {
+    expect(guard.canActivate(ctxFor('POST', '/api/auth/oauth/google/callback', {}, {}))).toBe(true);
+  });
+
+  it('allows the magic-link verify route without a CSRF token', () => {
+    expect(guard.canActivate(ctxFor('POST', '/api/auth/magic-link/verify', {}, {}))).toBe(true);
+  });
 });
