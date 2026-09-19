@@ -1,8 +1,9 @@
-import { createApiClient } from '@idevconn/api-client';
+import { createApiClient, type ApiClient } from '@idevconn/api-client';
+import { readCsrfCookie } from './csrf.js';
 import { useAuthStore } from '../stores/auth.store.js';
 
-export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => void }) {
-  return createApiClient({
+export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => void }): ApiClient {
+  const client = createApiClient({
     baseUrl: opts.baseUrl,
     credentials: 'include',
     // No access token, no client-driven refresh at all under the BFF model
@@ -24,6 +25,25 @@ export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => v
       opts.onUnauthorized?.();
     },
   });
+
+  // @idevconn/api-client's `getRefreshHeaders` config option only merges
+  // headers into the library's own internal refresh request -- a route
+  // (`/auth/refresh`) that no longer exists at all under the BFF model
+  // (Task 5 deleted it). CsrfGuard (Task 6) protects every mutating route
+  // globally now, not just refresh, so the CSRF double-submit header must
+  // go out on every real request this app makes. The library exposes no
+  // per-request header hook, so we wrap the client it returns and attach
+  // the header here instead. Safe methods (GET/HEAD/OPTIONS) don't need it
+  // -- CsrfGuard already skips those -- but sending it anyway is harmless.
+  return function icoreApiWithCsrf<T = unknown>(
+    path: string,
+    options: RequestInit = {},
+  ): Promise<T> {
+    const csrf = readCsrfCookie();
+    const headers = new Headers(options.headers);
+    if (csrf) headers.set('X-CSRF-Token', csrf);
+    return client<T>(path, { ...options, headers });
+  };
 }
 
 export { ApiError } from '@idevconn/api-client';
