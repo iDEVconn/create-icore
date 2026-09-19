@@ -39,7 +39,6 @@ function CallbackPage() {
     }
     api<{
       accessToken: string;
-      refreshToken: string;
       user: { id: string; email: string; role?: string };
     }>('/auth/magic-link/verify', {
       method: 'POST',
