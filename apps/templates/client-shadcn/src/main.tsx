@@ -16,6 +16,7 @@ import { routeTree } from './routeTree.gen';
 import { wireShadcnNotifier } from './lib/notify';
 import { UpdatePrompt } from './components/pwa/UpdatePrompt';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
+import { AuthBootstrap } from './app/auth-bootstrap';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -52,8 +53,10 @@ createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <AbilityProvider>
           <OfflineBanner />
-          <RouterProvider router={router} />
-          <Toaster richColors />
+          <AuthBootstrap>
+            <RouterProvider router={router} />
+            <Toaster richColors />
+          </AuthBootstrap>
           <UpdatePrompt />
         </AbilityProvider>
       </QueryClientProvider>
