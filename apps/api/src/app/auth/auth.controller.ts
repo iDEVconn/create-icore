@@ -101,7 +101,11 @@ export class AuthController {
     const session = await this.authClient.refresh(refreshToken);
     const csrfToken = generateCsrfToken();
     setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
-    return { accessToken: session.accessToken, user: session.user };
+    // 'refreshToken' is a sentinel, NOT a real token — the real token never
+    // leaves the httpOnly cookie. @idevconn/api-client's doRefresh() hard-requires
+    // a string refreshTokenField in the response body to accept the refresh as
+    // successful (see create-api.ts's matching refreshTokenField: 'refreshToken').
+    return { accessToken: session.accessToken, refreshToken: 'cookie', user: session.user };
   }
 
   @Public()
@@ -110,7 +114,13 @@ export class AuthController {
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = readRefreshToken(req);
     if (refreshToken) {
-      await this.authClient.revoke(refreshToken);
+      try {
+        await this.authClient.revoke(refreshToken);
+      } catch {
+        // Best-effort revoke: an MS/transport failure must not prevent the
+        // cookie clear below — otherwise the client thinks it logged out
+        // (its own try/catch swallows this) while the refresh cookie survives.
+      }
     }
     clearAuthCookies(res, { isProd: this.isProd() });
     return { ok: true };

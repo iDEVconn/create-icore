@@ -13,10 +13,14 @@ export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => v
       const csrf = readCsrfCookie();
       return csrf ? { 'X-CSRF-Token': csrf } : {};
     },
-    // Response body is now {accessToken, user} only — no refreshToken field
-    // (Task 4/5/7 drop it everywhere) — refreshRequestField/refreshTokenField
-    // no longer apply.
+    // Response body is {accessToken, refreshToken: 'cookie', user} — the
+    // gateway's refresh() returns a 'cookie' sentinel for refreshToken (the
+    // real token never leaves the httpOnly cookie). @idevconn/api-client's
+    // internal doRefresh() hard-requires a string refreshTokenField in the
+    // response body to treat a refresh as successful, so this field must be
+    // present even though its value is never read as a real token.
     accessTokenField: 'accessToken',
+    refreshTokenField: 'refreshToken',
     onTokenRefreshed: ({ accessToken }) => setAccessToken(accessToken),
     onUnauthorized: () => {
       setAccessToken(null);

@@ -179,7 +179,14 @@ describe('AuthController (gateway) — refresh', () => {
     const res = makeRes();
     const result = await controller.refresh(req, res as unknown as import('express').Response);
     expect(client.refresh).toHaveBeenCalledWith('rt-1');
-    expect(result).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
+    // refreshToken: 'cookie' is a sentinel, NOT a real token — @idevconn/api-client's
+    // doRefresh() hard-requires a string refreshTokenField in the response body
+    // to treat the refresh as successful.
+    expect(result).toEqual({
+      accessToken: 'at',
+      refreshToken: 'cookie',
+      user: { id: 'u1', email: 'a@x.com' },
+    });
     expect(res.cookies['icore_rt']).toBe('rt');
     expect(res.cookies['icore_csrf']).toBeTruthy();
   });
@@ -207,6 +214,19 @@ describe('AuthController (gateway) — logout', () => {
       controller.logout(req, res as unknown as import('express').Response),
     ).resolves.toEqual({ ok: true });
     expect(client.revoke).not.toHaveBeenCalled();
+  });
+
+  it('still clears cookies and returns ok when revoke rejects (MS/transport failure)', async () => {
+    const client = makeAuthClient();
+    (client.revoke as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('transport down'));
+    const controller = new AuthController(client, makeConfig({}));
+    const req = { cookies: { icore_rt: 'rt-1' } } as unknown as import('express').Request;
+    const res = makeRes();
+    await expect(
+      controller.logout(req, res as unknown as import('express').Response),
+    ).resolves.toEqual({ ok: true });
+    expect(client.revoke).toHaveBeenCalledWith('rt-1');
+    expect(res.cookieCleared).toBe(true);
   });
 });
 
