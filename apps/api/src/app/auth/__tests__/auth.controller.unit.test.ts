@@ -307,6 +307,28 @@ describe('AuthController — logout', () => {
   });
 });
 
+describe('AuthController — admin revoke-user', () => {
+  let sessionStore: FakeSessionStore;
+
+  beforeEach(() => {
+    sessionStore = new FakeSessionStore();
+  });
+
+  it('admin revoke-user kills every session for that uid', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const s1 = await sessionStore.create({
+      uid: 'target',
+      email: 't@b.com',
+      providerAccessToken: 'at1',
+      providerRefreshToken: 'rt1',
+      providerAccessTokenExpiresAt: Date.now() + 3600_000,
+    });
+    await controller.revokeUser('target');
+    expect(await sessionStore.get(s1.sessionId)).toBeNull();
+  });
+});
+
 describe('AuthController — OAuth', () => {
   let sessionStore: FakeSessionStore;
 

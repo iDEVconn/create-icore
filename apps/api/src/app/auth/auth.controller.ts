@@ -27,6 +27,7 @@ import {
   type VerifiedToken,
 } from '@icore/shared';
 import { Public } from './public.decorator';
+import { CheckAbility } from '../abilities/check-ability.decorator';
 import { SESSION_STORE } from '../session/session-store.provider';
 
 const OAUTH_PROVIDERS: ReadonlySet<OAuthProvider> = new Set(['google', 'github']);
@@ -123,6 +124,14 @@ export class AuthController {
     }
     clearSessionCookie(res, this.isProd());
     res.clearCookie(CSRF_COOKIE, { path: '/', secure: this.isProd() });
+    return { ok: true };
+  }
+
+  @Post('admin/revoke-user/:uid')
+  @CheckAbility('manage', 'User')
+  @ApiOperation({ summary: 'Immediately kill every active session for a user (admin only)' })
+  async revokeUser(@Param('uid') uid: string) {
+    await this.sessionStore.deleteAllForUser(uid);
     return { ok: true };
   }
 
