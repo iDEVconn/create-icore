@@ -188,10 +188,11 @@ export class AuthController {
     }
     const session = await this.authClient.completeOAuth(provider, code, state);
     res.clearCookie('oauth_state');
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
     const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
     const fragment = new URLSearchParams({
       accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
       userId: session.user.id,
       email: session.user.email,
     });

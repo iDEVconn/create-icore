@@ -240,7 +240,7 @@ describe('AuthController (gateway) — OAuth', () => {
     ).rejects.toThrow();
   });
 
-  it('oauthCallback exchanges + redirects to the client with a fragment', async () => {
+  it('oauthCallback exchanges, sets auth cookies, and redirects with accessToken only in the fragment', async () => {
     const client = makeAuthClient();
     const controller = new AuthController(client, makeConfig({ CLIENT_ORIGIN: 'http://client' }));
     const res = makeRes();
@@ -254,9 +254,10 @@ describe('AuthController (gateway) — OAuth', () => {
     );
     expect(client.completeOAuth).toHaveBeenCalledWith('google', 'code-xyz', 'abc');
     expect(res.cookieCleared).toBe(true);
+    expect(res.cookies['icore_rt']).toBe('rt');
     expect(res.redirectedTo).toContain('http://client/auth/oauth/callback#');
     expect(res.redirectedTo).toContain('accessToken=at');
-    expect(res.redirectedTo).toContain('refreshToken=rt');
+    expect(res.redirectedTo).not.toContain('refreshToken=');
   });
 
   it('oauthStart rejects unknown providers', async () => {
