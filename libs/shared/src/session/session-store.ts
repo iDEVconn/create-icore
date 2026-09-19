@@ -10,10 +10,7 @@ export interface SessionRecord {
   lastRefreshedAt: number;
 }
 
-export type NewSessionRecord = Omit<
-  SessionRecord,
-  'sessionId' | 'createdAt' | 'lastRefreshedAt'
->;
+export type NewSessionRecord = Omit<SessionRecord, 'sessionId' | 'createdAt' | 'lastRefreshedAt'>;
 
 export interface SessionStore {
   create(record: NewSessionRecord): Promise<SessionRecord>;

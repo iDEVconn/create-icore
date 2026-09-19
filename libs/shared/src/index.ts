@@ -9,4 +9,3 @@ export * from './security/hmac';
 export * from './http/auth-cookies';
 export * from './session/session-store';
 export * from './session/fakes/fake-session-store';
-export * from './session/__tests__/session-store.contract';
