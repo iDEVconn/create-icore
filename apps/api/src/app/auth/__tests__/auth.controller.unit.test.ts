@@ -143,7 +143,7 @@ describe('AuthController (gateway) — magic-link', () => {
 });
 
 describe('AuthController (gateway) — session/adopt', () => {
-  it('verifies the access token, sets both cookies, and returns accessToken+user', async () => {
+  it('verifies the access token, cross-checks it against a real refresh(), and adopts the ROTATED pair', async () => {
     const client = makeAuthClient();
     const controller = new AuthController(client, makeConfig({}));
     const res = makeRes();
@@ -152,11 +152,15 @@ describe('AuthController (gateway) — session/adopt', () => {
       res as unknown as import('express').Response,
     );
     expect(client.verify).toHaveBeenCalledWith('supabase-at');
+    expect(client.refresh).toHaveBeenCalledWith('supabase-rt');
+    // Response/cookie use refresh()'s ROTATED tokens ('at'/'rt' per
+    // makeAuthClient's mock), never the client-supplied body values --
+    // Supabase already rotated body.refreshToken out from underneath us.
     expect(result).toEqual({
-      accessToken: 'supabase-at',
+      accessToken: 'at',
       user: { id: 'u1', email: 'a@x.com', role: 'user' },
     });
-    expect(res.cookies['icore_rt']).toBe('supabase-rt');
+    expect(res.cookies['icore_rt']).toBe('rt');
     expect(res.cookies['icore_csrf']).toBeTruthy();
   });
 
@@ -168,6 +172,48 @@ describe('AuthController (gateway) — session/adopt', () => {
     await expect(
       controller.adoptSession(
         { accessToken: 'garbage', refreshToken: 'rt' },
+        res as unknown as import('express').Response,
+      ),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(res.cookies['icore_rt']).toBeUndefined();
+    expect(res.cookies['icore_csrf']).toBeUndefined();
+  });
+
+  it('rejects with 401 and sets no cookies when the refresh token fails validation', async () => {
+    const client = makeAuthClient();
+    (client.refresh as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('invalid_refresh_token'),
+    );
+    const controller = new AuthController(client, makeConfig({}));
+    const res = makeRes();
+    await expect(
+      controller.adoptSession(
+        { accessToken: 'supabase-at', refreshToken: 'garbage' },
+        res as unknown as import('express').Response,
+      ),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(res.cookies['icore_rt']).toBeUndefined();
+    expect(res.cookies['icore_csrf']).toBeUndefined();
+  });
+
+  it('rejects with 401 when the access token and refresh token belong to different users (token substitution)', async () => {
+    const client = makeAuthClient();
+    (client.verify as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      uid: 'attacker-uid',
+      email: 'attacker@x.com',
+      role: 'user',
+    });
+    (client.refresh as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      accessToken: 'victim-at',
+      refreshToken: 'victim-rt-rotated',
+      expiresIn: 3600,
+      user: { id: 'victim-uid', email: 'victim@x.com' },
+    });
+    const controller = new AuthController(client, makeConfig({}));
+    const res = makeRes();
+    await expect(
+      controller.adoptSession(
+        { accessToken: 'attacker-own-valid-at', refreshToken: 'stolen-victim-rt' },
         res as unknown as import('express').Response,
       ),
     ).rejects.toThrow(UnauthorizedException);

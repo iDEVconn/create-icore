@@ -187,20 +187,43 @@ export class AuthController {
     @Body() body: { accessToken: string; refreshToken: string },
     @Res({ passthrough: true }) res: Response,
   ) {
+    // Never trust that body.accessToken and body.refreshToken are actually a
+    // matching pair -- a client could submit their OWN valid access token
+    // alongside a stolen refresh token belonging to someone else, and if we
+    // blindly cookied the stolen refresh token we'd hand them a path to that
+    // victim's account on the next silent refresh (token substitution /
+    // session fixation). Validate both independently, then require the
+    // identity refresh() actually resolves to match the identity verify()
+    // claims -- only a genuinely paired token pair can satisfy that.
     let verified: VerifiedToken;
     try {
       verified = await this.authClient.verify(body.accessToken);
     } catch {
       throw new UnauthorizedException('invalid_token');
     }
+    let refreshed;
+    try {
+      refreshed = await this.authClient.refresh(body.refreshToken);
+    } catch {
+      throw new UnauthorizedException('invalid_token');
+    }
+    if (refreshed.user.id !== verified.uid) {
+      throw new UnauthorizedException('invalid_token');
+    }
     const csrfToken = generateCsrfToken();
+    // Use the freshly-rotated pair from refresh() for the cookie/response --
+    // never re-persist the client-supplied refreshToken itself (Supabase
+    // already rotated it out from underneath us the moment refresh()
+    // succeeded above, and it's best practice to never hand a
+    // just-received-over-the-wire token pair straight to a persistent
+    // httpOnly cookie unrotated).
     setAuthCookies(res, {
-      refreshToken: body.refreshToken,
+      refreshToken: refreshed.refreshToken,
       csrfToken,
       isProd: this.isProd(),
     });
     return {
-      accessToken: body.accessToken,
+      accessToken: refreshed.accessToken,
       user: { id: verified.uid, email: verified.email, role: verified.role },
     };
   }
