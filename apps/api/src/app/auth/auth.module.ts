@@ -5,6 +5,7 @@ import { AuthClientModule } from '@icore/auth-client';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { SessionModule } from '../session/session.module';
+import { CsrfGuard } from '../http/csrf.guard';
 
 @Module({
   imports: [AuthClientModule.forRoot(), SessionModule],
@@ -12,6 +13,7 @@ import { SessionModule } from '../session/session.module';
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
   ],
   exports: [AuthClientModule],
 })
