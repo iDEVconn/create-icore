@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Logger,
   Param,
   Post,
   Query,
@@ -40,6 +41,8 @@ function assertProvider(value: string): OAuthProvider {
 @Controller('auth')
 @Throttle({ 'auth-burst': { limit: 10, ttl: seconds(60) } })
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authClient: AuthClientService,
     private readonly cfg: ConfigService,
@@ -116,10 +119,12 @@ export class AuthController {
     if (refreshToken) {
       try {
         await this.authClient.revoke(refreshToken);
-      } catch {
+      } catch (err) {
         // Best-effort revoke: an MS/transport failure must not prevent the
         // cookie clear below — otherwise the client thinks it logged out
         // (its own try/catch swallows this) while the refresh cookie survives.
+        // Logged so ops has visibility into a revoke that silently failed.
+        this.logger.warn('logout: revoke failed, cookies still cleared', err);
       }
     }
     clearAuthCookies(res, { isProd: this.isProd() });
