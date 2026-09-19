@@ -155,3 +155,35 @@ None. Both `api` and `shared` test suites, lints, and builds are green; the bran
 `feature/bff-session-auth` as expected; only the 4 in-scope files were staged and committed
 (`docs/live-testing-supabase-accounts.md`, pre-existing untracked from before this task, was left
 alone).
+
+---
+
+## Fix round 1 — icore_csrf missing maxAge (Important finding from task review)
+
+**Finding:** In `startSession` and `startSessionRedirect`, `res.cookie(CSRF_COOKIE, csrfToken, {...})`
+was set without a `maxAge`, making it a browser-session-only cookie, while `icore_sid` (via
+`setSessionCookie` in `libs/shared/src/http/session-cookie.ts`) persists 30 days
+(`SESSION_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000`). A user who closed and reopened their
+browser would keep a valid `icore_sid` but lose `icore_csrf`, so every CSRF-protected mutating
+request would fail once Task 6's global `CsrfGuard` lands, despite an otherwise-valid session —
+with no route that refreshes just the CSRF cookie short of a fresh login.
+
+**Fix applied:** Added `maxAge: 30 * 24 * 60 * 60 * 1000` to both `res.cookie(CSRF_COOKIE, ...)`
+calls (in `startSession` and `startSessionRedirect`), each with a short comment noting it must
+match `icore_sid`'s lifetime. Checked first whether `SESSION_COOKIE_MAX_AGE_MS` is exported from
+`session-cookie.ts` — it is a private (non-exported) const — so per the reviewer's guidance I used
+the literal with a comment rather than adding a new export just for this one-line fix (avoiding
+scope creep).
+
+**Verification:**
+- `npx prettier --write` / `--check apps/api/src/app/auth/auth.controller.ts` → clean (no diff
+  from `--write`, `--check` passes).
+- `yarn nx test api --testPathPattern=auth.controller` → 9 test files, **58/58 tests pass**
+  (18 in `auth.controller.unit.test.ts`).
+- `yarn nx lint api` → clean, 0 errors.
+
+**Commit:** `45c6f58` — `fix(auth): give icore_csrf cookie the same 30-day maxAge as icore_sid`
+
+**Deferred (per coordinator instruction, not fixed in this round):** 3 Minor findings — duplicated
+`CSRF_COOKIE` magic string, near-duplicate `startSession`/`startSessionRedirect` helpers, no error
+handling around `sessionStore.get`/`delete` in `logout` — left for the ledger.
