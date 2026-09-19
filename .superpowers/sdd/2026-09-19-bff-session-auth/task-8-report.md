@@ -75,3 +75,53 @@ Commit: `c7fab13` — `feat(client): drop the in-memory access token, cookie-onl
 1. **Brief's Step 1 code doesn't compile as-is against the installed `@idevconn/api-client`** — `onTokenRefreshed` is a required config field in this version's `ApiClientConfig`, but the brief's snippet omits it. I added a documented no-op to satisfy the type (see above). This is a real gap between the brief and the actual library surface, not a scope question — worth flagging to whoever owns the plan in case other tasks/templates hit the same wall.
 2. **`create-api.ts`'s new shape drops all CSRF header wiring** (previously `getRefreshHeaders` sent `X-CSRF-Token` on the refresh call). Per `apps/api/src/app/http/csrf.guard.ts`, mutating requests to non-public auth routes (e.g. `/api/auth/admin/revoke-user/:uid`) still require `verifyCsrf(req)` to pass, which needs an `X-CSRF-Token` header. Neither the brief's Step 1 code nor my implementation sends this header on ordinary API calls. This may be intentional (out of this task's stated scope, and the brief was explicit about the code to write) or may be a real follow-up gap — I did not investigate further since it wasn't listed in this task's scope and the brief gave exact code to implement. Flagging for whoever reviews this against Task 6/7's CSRF work.
 3. Every 401 will now cause `@idevconn/api-client`'s internal refresh attempt to hit the (deleted) `/auth/refresh` route once before falling through to `onUnauthorized` — a harmless but slightly wasteful extra failed network call per 401. This is an accepted consequence of the brief's "satisfy the library's shape with a sentinel" approach, not something I introduced or was asked to fix.
+
+## Fix-round: concern #3 confirmed critical, fixed
+
+The coordinator investigated concern #3 and confirmed it as a severe, application-breaking gap (not a minor note): `@idevconn/api-client`'s `getRefreshHeaders` only ever attaches to the library's own internal refresh request, which targets `/auth/refresh` — a route Task 5 deleted entirely. `CsrfGuard` (Task 6, already merged) protects every mutating route globally now, not just refresh. With no CSRF header on any real request, every mutating call from `client-shadcn` (notes, payment, storage, ai, admin revoke-user, etc.) would be rejected with `403 csrf_mismatch` post-login. This was a defect carried from the plan itself, not an implementation mistake, but it blocks the app entirely and needed fixing this round.
+
+### Fix implemented
+
+**`libs/template-shared/src/lib/api/create-api.ts`** — `createIcoreApi` now wraps the `ApiClient` function `createApiClient(...)` returns. The wrapper reads `readCsrfCookie()` (already existed, from `./csrf.js`) on every call and sets `X-CSRF-Token` on the request's `Headers` (via `new Headers(options.headers)`, so caller-supplied headers are preserved) before delegating to the real client. Implemented as a named generic function (`function icoreApiWithCsrf<T = unknown>(path, options): Promise<T>`) matching `ApiClient`'s exact generic signature — no type assertion/cast needed, it type-checks directly against the library's exported `ApiClient` type. `createIcoreApi`'s return type is now explicitly annotated `: ApiClient`.
+
+When no `icore_csrf` cookie is present, no `X-CSRF-Token` header is sent at all (not an empty-string header) — matches `readCsrfCookie()`'s existing null-safe contract and `CsrfGuard`'s expectation (safe methods don't need it; for a request that does need it and has no cookie, the guard's `verifyCsrf` will correctly reject it, same as today).
+
+Kept the `onTokenRefreshed` no-op workaround from the first pass unchanged, per the coordinator's confirmation that it's a correct, necessary fix (required by `ApiClientConfig`'s shape, vestigial under this model).
+
+### Test added
+
+Extended `libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts` (no separate file needed — it already existed) with a new `describe('CSRF header attachment on every request (not just refresh)')` block, 3 tests, using the same `document.cookie` mocking pattern as `csrf.unit.test.ts`:
+- Attaches `X-CSRF-Token: csrf-abc` to a request's headers when `icore_csrf=csrf-abc` is present, verified by inspecting what the wrapped function forwards to the (now directly-referenceable) mocked inner `createApiClient()` return value.
+- Sends no `X-CSRF-Token` header at all when the cookie is absent.
+- Preserves caller-supplied headers (e.g. `Content-Type`) alongside the injected CSRF header.
+
+Restructured the mock at the top of the file to expose a shared `innerClient = vi.fn()` (previously `createApiClient: vi.fn(() => vi.fn())` created a fresh untracked mock per call, making it impossible to assert on what the wrapped function forwarded) — reset in `afterEach` alongside the CSRF cookie cleanup.
+
+### Sanity-check: login → create-a-note flow
+
+Confirmed coherent: `readCsrfCookie()` reads `icore_csrf`, which `AuthController`'s `startSession` sets on login with a 30-day maxAge (per an earlier task's fix, referenced by the coordinator). By the time any mutating call happens post-login (e.g. creating a note), the `icore_csrf` cookie is present in `document.cookie`, so `createIcoreApi`'s wrapper attaches `X-CSRF-Token` on that request, and `CsrfGuard`'s `verifyCsrf(req)` on the gateway side will find a match. I did not re-run a live browser session for this (same reasoning as the original report — requires a live backend); this is a static code-path confirmation.
+
+### Verification (all green)
+
+- `yarn nx run template-shared:test` — 2 test files, **8 tests** (was 5; +3 new CSRF tests), all pass.
+- `yarn nx run template-shared:build` — compiles cleanly.
+- `yarn nx run template-shared:lint` — 0 errors.
+- `yarn nx run client-shadcn:typecheck` (`tsc --noEmit`) — clean; the wrapper's generic signature matches `ApiClient` exactly, no cast needed.
+- `yarn nx run client-shadcn:vite:build` — builds successfully.
+- `yarn nx run client-shadcn:test` — 7 test files, 21 tests, all still pass (unaffected — they use `@/main`'s `api`, which is `createIcoreApi(...)`'s output; behavior is unchanged from their perspective except the extra header, which none of them assert against).
+- `npx prettier --check` on both touched files — clean.
+- `git status --porcelain tools/create-icore/templates` — no drift.
+- `git status --porcelain` before staging — confirmed no antd/mui files touched.
+
+### Files changed (this round)
+
+```
+M  libs/template-shared/src/lib/api/create-api.ts
+M  libs/template-shared/src/lib/api/__tests__/create-api.unit.test.ts
+```
+
+Commit: `433c017` — `fix(client): attach X-CSRF-Token to every request, not just api-client's internal refresh call`
+
+### Remaining concerns
+
+None new. The `onTokenRefreshed` no-op and the extra out-of-brief files touched (both raised in the original report) were explicitly confirmed fine by the coordinator, no action needed.
