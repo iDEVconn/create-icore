@@ -6,3 +6,4 @@ export * from './strategies';
 export * from './transport';
 export * from './types';
 export * from './security/hmac';
+export * from './http/auth-cookies';
