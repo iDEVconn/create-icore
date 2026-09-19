@@ -97,3 +97,84 @@ scope per the brief and the "don't turn Step 5 into an unplanned rewrite" escala
   guidance rather than silently expanding scope.
 - No other concerns. `yarn nx test api`, `yarn nx lint api`, and `yarn nx build api` are all green;
   `npx prettier --check` is clean on all three touched files.
+
+---
+
+## Fix round 1 — CSRF hole on the Task 7 admin revoke-user route (blanket auth-prefix bypass)
+
+**Finding (surfaced by the coordinator after this task's initial review, from a later task):**
+Task 7 added `POST /auth/admin/revoke-user/:uid` — an authenticated, cookie-driven, mutating admin
+route. `CsrfGuard`'s original `if (req.path.startsWith('/api/auth/')) return true;` blanket bypass
+exempted this route (and any future `/api/auth/*` route) from CSRF protection entirely: a
+malicious page could trigger a cross-site `POST` to it using only an ambient `icore_sid` cookie,
+no CSRF token required. Not a fault of this task at the time (the admin route didn't exist yet
+when Task 6 was written/reviewed), but a live, real CSRF hole once Task 7 landed on top of it.
+
+**Fix applied to `apps/api/src/app/http/csrf.guard.ts`:** Replaced the blanket prefix bypass with
+an explicit allowlist, structured as:
+- `PUBLIC_AUTH_EXACT_PATHS` (a `Set`): `/api/auth/login`, `/api/auth/register`,
+  `/api/auth/logout`, `/api/auth/session/adopt` — routes that either issue the CSRF cookie itself
+  (login/register/session-adopt) or where forging has no security consequence beyond availability
+  (logout).
+- `PUBLIC_AUTH_PATH_PREFIXES` (an array): `/api/auth/magic-link` (covers both the request route
+  and its `/verify` sibling) and `/api/auth/oauth/` (covers both `/:provider` and
+  `/:provider/callback`).
+- `isPublicAuthPath(path)` checks the exact-match set first, then the prefix array.
+
+`canActivate` now calls `isPublicAuthPath(req.path)` instead of the old blanket
+`startsWith('/api/auth/')`. `/api/auth/admin/revoke-user/:uid` matches neither the exact set nor
+either prefix, so it now falls through to the normal `verifyCsrf(req)` check like any other
+mutating route. `GET /api/auth/session` was already safe via the `SAFE_METHODS` bypass and
+doesn't need — and doesn't get — an entry in either list (confirmed it doesn't accidentally match
+the `/api/auth/session/adopt` exact-match entry, since exact-match requires full equality, not a
+prefix).
+
+**Tests added to `csrf.guard.unit.test.ts`:**
+- `rejects the admin revoke-user route with no CSRF cookie/header` — `POST
+  /api/auth/admin/revoke-user/some-uid` with no token now throws `ForbiddenException` (the whole
+  point of the fix).
+- `allows the admin revoke-user route with a matching CSRF cookie/header pair` — same route
+  succeeds once a valid token is supplied, proving it's now treated like any other mutating route
+  rather than silently blocked forever.
+- `allows the oauth start route without a CSRF token` — `POST /api/auth/oauth/google`.
+- `allows the oauth callback route without a CSRF token` — `POST
+  /api/auth/oauth/google/callback`.
+- `allows the magic-link verify route without a CSRF token` — `POST
+  /api/auth/magic-link/verify`.
+- (Existing `allows auth routes without a CSRF token` test for `POST /api/auth/login` continues
+  to pass unchanged, confirming no regression on the original bypass routes.)
+
+Used `POST` (not the routes' real `GET` method, for the two oauth routes) deliberately for the
+oauth test cases, to isolate and actually exercise the path-prefix-matching branch of the guard
+rather than trivially passing via the `SAFE_METHODS` bypass — the real oauth routes are `GET`, so
+in production they'd already bypass via `SAFE_METHODS` regardless of the allowlist, but the test
+needs a mutating method to prove the path-matching logic itself is correct.
+
+**Verification:**
+- `yarn nx test api --testPathPattern=csrf.guard --skip-nx-cache` → whole `api` suite runs (as
+  before, the pattern flag doesn't filter under this nx/vitest setup): **10 test files, 70 tests,
+  all PASS** (up from 64 — 6 new tests added: 5 new + 1 pre-existing renamed/kept; `auth.controller
+  .unit.test.ts` also grew from 18→19 tests independently, from Task 7's own admin-route test,
+  unrelated to this fix).
+- `yarn nx test api --skip-nx-cache` (explicit full-suite re-run) → same, **10 test files, 70
+  tests, all PASS**.
+- `yarn nx lint api` → clean, 0 errors.
+- `yarn nx build api` → webpack compiled successfully.
+- `npx prettier --write` then `--check` on both touched files → clean (prettier collapsed one
+  test's multi-line `expect(...).toBe(true)` onto a single line — cosmetic only).
+- Confirmed no template drift: `git status --short -- tools/create-icore/templates` → empty.
+
+**Files changed (this fix round):**
+- `apps/api/src/app/http/csrf.guard.ts`
+- `apps/api/src/app/http/__tests__/csrf.guard.unit.test.ts`
+
+**Commit:** `a818bcf` — `fix(api): narrow CsrfGuard's auth-route bypass to an explicit allowlist,
+closing a CSRF hole on the admin revoke-user route`
+
+**Concerns:** None new. The pre-existing coverage-gap concern from the initial task report (no
+end-to-end guard-pipeline test anywhere in this repo) still stands and is unchanged by this fix —
+the new admin-route tests are unit tests against the guard class directly, same pattern as the
+rest of the file, not a full-pipeline test. Any future auth route added under `/api/auth/*` will,
+by design, now require a CSRF token unless explicitly added to the allowlist — this is the
+intended fail-closed behavior the fix establishes, and is worth calling out to whoever reviews
+future auth routes so they don't reflexively "fix" a CSRF rejection by re-widening the bypass.
