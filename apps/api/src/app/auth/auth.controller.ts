@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  Logger,
   Param,
   Post,
   Query,
@@ -14,6 +16,13 @@ import { Throttle, seconds } from '@nestjs/throttler';
 import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthClientService } from '@icore/auth-client';
+import {
+  setAuthCookies,
+  generateCsrfToken,
+  readRefreshToken,
+  verifyCsrf,
+  clearAuthCookies,
+} from '@icore/shared';
 import type { OAuthProvider } from '@icore/shared';
 import { Public } from './public.decorator';
 
@@ -32,6 +41,8 @@ function assertProvider(value: string): OAuthProvider {
 @Controller('auth')
 @Throttle({ 'auth-burst': { limit: 10, ttl: seconds(60) } })
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authClient: AuthClientService,
     private readonly cfg: ConfigService,
@@ -50,8 +61,14 @@ export class AuthController {
       },
     },
   })
-  register(@Body() body: { email: string; password: string }) {
-    return this.authClient.signup(body.email, body.password);
+  async register(
+    @Body() body: { email: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authClient.signup(body.email, body.password);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()
@@ -67,36 +84,51 @@ export class AuthController {
       },
     },
   })
-  login(@Body() body: { email: string; password: string }) {
-    return this.authClient.login(body.email, body.password);
+  async login(
+    @Body() body: { email: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authClient.login(body.email, body.password);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()
   @Post('refresh')
-  @ApiOperation({ summary: 'Exchange a refresh token for a fresh access token' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['refreshToken'],
-      properties: { refreshToken: { type: 'string' } },
-    },
-  })
-  refresh(@Body() body: { refreshToken: string }) {
-    return this.authClient.refresh(body.refreshToken);
+  @ApiOperation({ summary: 'Exchange the httpOnly refresh cookie for a fresh access token' })
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = readRefreshToken(req);
+    if (!refreshToken) throw new UnauthorizedException('invalid_refresh_token');
+    if (!verifyCsrf(req)) throw new ForbiddenException('csrf_mismatch');
+    const session = await this.authClient.refresh(refreshToken);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    // 'refreshToken' is a sentinel, NOT a real token — the real token never
+    // leaves the httpOnly cookie. @idevconn/api-client's doRefresh() hard-requires
+    // a string refreshTokenField in the response body to accept the refresh as
+    // successful (see create-api.ts's matching refreshTokenField: 'refreshToken').
+    return { accessToken: session.accessToken, refreshToken: 'cookie', user: session.user };
   }
 
   @Public()
   @Post('logout')
-  @ApiOperation({ summary: 'Revoke a refresh token, ending that session' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['refreshToken'],
-      properties: { refreshToken: { type: 'string' } },
-    },
-  })
-  logout(@Body() body: { refreshToken: string }) {
-    return this.authClient.revoke(body.refreshToken);
+  @ApiOperation({ summary: 'Revoke the refresh cookie, ending that session' })
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = readRefreshToken(req);
+    if (refreshToken) {
+      try {
+        await this.authClient.revoke(refreshToken);
+      } catch (err) {
+        // Best-effort revoke: an MS/transport failure must not prevent the
+        // cookie clear below — otherwise the client thinks it logged out
+        // (its own try/catch swallows this) while the refresh cookie survives.
+        // Logged so ops has visibility into a revoke that silently failed.
+        this.logger.warn('logout: revoke failed, cookies still cleared', err);
+      }
+    }
+    clearAuthCookies(res, { isProd: this.isProd() });
+    return { ok: true };
   }
 
   @Public()
@@ -125,8 +157,14 @@ export class AuthController {
       properties: { token: { type: 'string' } },
     },
   })
-  verifyMagicLink(@Body() body: { token: string }) {
-    return this.authClient.verifyMagicLink(body.token);
+  async verifyMagicLink(
+    @Body() body: { token: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authClient.verifyMagicLink(body.token);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()
@@ -165,13 +203,18 @@ export class AuthController {
     }
     const session = await this.authClient.completeOAuth(provider, code, state);
     res.clearCookie('oauth_state');
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
     const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
     const fragment = new URLSearchParams({
       accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
       userId: session.user.id,
       email: session.user.email,
     });
     return res.redirect(`${origin}/auth/oauth/callback#${fragment.toString()}`);
+  }
+
+  private isProd(): boolean {
+    return this.cfg.get<string>('NODE_ENV') === 'production';
   }
 }

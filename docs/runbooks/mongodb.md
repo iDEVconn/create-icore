@@ -68,3 +68,25 @@ To verify the setup:
 2. Run unit tests: `nx test db-mongodb`, `nx test storage-mongodb`, `nx test auth-mongodb`
 3. Try to register a user via the client or API.
 4. Upload a file and verify it appears in the `fs.files` and `fs.chunks` collections in MongoDB.
+
+## Test runner gotcha: these 3 projects run on Vitest, not Jest
+
+`auth-mongodb`, `storage-mongodb`, and `db-mongodb` use `vitest.config.mts`
+(matching every other strategy lib in this repo), not `jest.config.cts`. They
+used to run on Jest, but `mongoose.connect()` against a `mongodb-memory-server`
+instance hung for 30s+ and then failed with
+`MongooseServerSelectionError: Missing required sub-document 'driver'` on
+every single run under Jest — 100% reproducible, confirmed unrelated to the
+MongoDB server binary version or the driver's own module resolution.
+
+Root cause: Jest's `testEnvironment: 'node'` wraps test globals in an
+isolated `vm.Context`, which is a documented incompatibility class for
+native-driver internals (the MongoDB driver's BSON/handshake code hit it
+here). The identical `mongoose.connect()` call against the identical
+`mongodb-memory-server` instance works instantly (~150ms) under Vitest and
+plain Node — only Jest's VM-context environment triggers the failure.
+
+If you ever see this exact error while touching these three libs, it's not
+your connection string or a MongoDB server compatibility problem — check
+that the project is still on `vitest.config.mts` and hasn't regressed back
+to a Jest config.

@@ -8,10 +8,10 @@
   "dependencies": {
     "@casl/react": "^7.0.1",
     "@icore/shared": "*",
-    "@idevconn/api-client": "^0.3.2",
-    "@idevconn/use-draft": "^0.2.2",
+    "@idevconn/api-client": "^0.3.3",
+    "@idevconn/use-draft": "^0.2.3",
     "i18next": "^26.4.2",
-    "react-i18next": "^17.0.13",
+    "react-i18next": "^17.0.14",
     "tslib": "^2.8.1",
     "zustand": "^5.0.15"
   },

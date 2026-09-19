@@ -9,8 +9,8 @@
     "@icore/shared": "*",
     "@idevconn/ai-usage": "^0.4.0",
     "@idevconn/llm-router": "^0.12.1",
-    "@nestjs/common": "^11.2.3",
-    "@nestjs/microservices": "^11.2.3",
+    "@nestjs/common": "^11.2.5",
+    "@nestjs/microservices": "^11.2.5",
     "rxjs": "^7.8.2",
     "tslib": "^2.8.1"
   }

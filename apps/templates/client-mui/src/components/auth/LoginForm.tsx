@@ -5,7 +5,7 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import { SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
-import { useAuthStore, useNotify } from '@icore/template-shared';
+import { setAccessToken, useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '@/main';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
@@ -20,7 +20,7 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const notify = useNotify();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setUser = useAuthStore((s) => s.setUser);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,7 +39,8 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      setAuth(session);
+      setAccessToken(session.accessToken);
+      setUser(session.user);
       notify.success(t('auth.login'));
       await navigate({ to: '/dashboard' });
     } catch (err) {

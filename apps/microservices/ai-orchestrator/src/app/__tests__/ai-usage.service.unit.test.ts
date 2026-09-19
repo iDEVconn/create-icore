@@ -5,7 +5,7 @@ import { AiUsageService } from '../ai-usage.service';
 
 function record(overrides: Partial<AiUsageRecord> = {}): AiUsageRecord {
   return {
-    timestamp: '2026-09-08T00:00:00.000Z',
+    timestamp: new Date().toISOString(),
     provider: 'gemini',
     operation: 'generate',
     input_tokens: 10,
@@ -89,12 +89,14 @@ describe('AiUsageService', () => {
   });
 
   it('getTimeseries() buckets records by day', async () => {
-    await service.record(record({ timestamp: '2026-09-08T00:00:00.000Z' }));
-    await service.record(record({ timestamp: '2026-09-08T12:00:00.000Z' }));
+    const today = new Date();
+    const todayDateStr = today.toISOString().slice(0, 10);
+    await service.record(record({ timestamp: `${todayDateStr}T00:00:00.000Z` }));
+    await service.record(record({ timestamp: `${todayDateStr}T12:00:00.000Z` }));
 
     const timeseries = await service.getTimeseries('7d');
 
     expect(timeseries.points).toHaveLength(1);
-    expect(timeseries.points[0]).toMatchObject({ date: '2026-09-08', calls: 2 });
+    expect(timeseries.points[0]).toMatchObject({ date: todayDateStr, calls: 2 });
   });
 });

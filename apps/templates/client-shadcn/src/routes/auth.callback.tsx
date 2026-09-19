@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuthStore, useNotify } from '@icore/template-shared';
+import { setAccessToken, useAuthStore, useNotify } from '@icore/template-shared';
 import { Loader2 } from 'lucide-react';
 import { api } from '@/main';
 
@@ -26,7 +26,7 @@ function CallbackPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const notify = useNotify();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setUser = useAuthStore((s) => s.setUser);
   const [status, setStatus] = useState<Status>('verifying');
 
   useEffect(() => {
@@ -39,7 +39,6 @@ function CallbackPage() {
     }
     api<{
       accessToken: string;
-      refreshToken: string;
       user: { id: string; email: string; role?: string };
     }>('/auth/magic-link/verify', {
       method: 'POST',
@@ -47,7 +46,8 @@ function CallbackPage() {
       body: JSON.stringify({ token }),
     })
       .then((session) => {
-        setAuth(session);
+        setAccessToken(session.accessToken);
+        setUser(session.user);
         setStatus('done');
         void navigate({ to: '/dashboard' });
       })
