@@ -1,12 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
-import {
-  useAuthStore,
-  setStoredLocale,
-  setAccessToken,
-  type IcoreLocale,
-} from '@icore/template-shared';
+import { useAuthStore, setStoredLocale, type IcoreLocale } from '@icore/template-shared';
 import { api } from '../../main';
 import { Button } from '../ui/button';
 import { ThemeToggle } from '../ThemeToggle';
@@ -35,7 +30,6 @@ export function LayoutHeader() {
       // Best-effort: clear local state and navigate regardless — an already-
       // expired/invalid session shouldn't block the user from reaching /login.
     }
-    setAccessToken(null);
     logout();
     void navigate({ to: '/login' });
   }

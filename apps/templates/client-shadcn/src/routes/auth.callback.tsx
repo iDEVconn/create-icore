@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setAccessToken, useAuthStore, useNotify } from '@icore/template-shared';
+import { useAuthStore, useNotify } from '@icore/template-shared';
 import { Loader2 } from 'lucide-react';
 import { api } from '@/main';
 
@@ -69,29 +69,26 @@ function CallbackPage() {
         // adopt it server-side so the gateway can re-host it as an httpOnly
         // cookie and this session survives a reload, same as every other
         // sign-in method.
-        let accessToken = hashSession.accessToken;
         let user: { id: string; email: string; role?: string } = hashSession.user;
         try {
-          const session = await api<{
-            accessToken: string;
-            user: { id: string; email: string; role?: string };
-          }>('/auth/session/adopt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              accessToken: hashSession.accessToken,
-              refreshToken: hashSession.refreshToken,
-            }),
-          });
-          accessToken = session.accessToken;
+          const session = await api<{ user: { id: string; email: string; role?: string } }>(
+            '/auth/session/adopt',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                accessToken: hashSession.accessToken,
+                refreshToken: hashSession.refreshToken,
+              }),
+            },
+          );
           user = session.user;
         } catch {
           // Cookie adoption failed -- fall back to the unverified client-side
-          // session rather than stranding the user; the access token really
-          // is valid Supabase-issued, but the reload-persistence property is
-          // lost on this path (degraded, not insecure).
+          // session (decoded straight from the URL-fragment JWT) rather than
+          // stranding the user; degraded (no reload-persistence), not
+          // insecure.
         }
-        setAccessToken(accessToken);
         setUser(user);
         setStatus('done');
         void navigate({ to: '/dashboard' });
@@ -106,16 +103,12 @@ function CallbackPage() {
       notify.error(t('auth.callbackMissingToken'));
       return;
     }
-    api<{
-      accessToken: string;
-      user: { id: string; email: string; role?: string };
-    }>('/auth/magic-link/verify', {
+    api<{ user: { id: string; email: string; role?: string } }>('/auth/magic-link/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     })
       .then((session) => {
-        setAccessToken(session.accessToken);
         setUser(session.user);
         setStatus('done');
         void navigate({ to: '/dashboard' });

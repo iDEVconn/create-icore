@@ -1,29 +1,25 @@
 import { createApiClient } from '@idevconn/api-client';
-import { getAccessToken, setAccessToken } from './access-token.js';
-import { readCsrfCookie } from './csrf.js';
 import { useAuthStore } from '../stores/auth.store.js';
 
 export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => void }) {
   return createApiClient({
     baseUrl: opts.baseUrl,
     credentials: 'include',
-    getAccessToken: () => getAccessToken(),
-    getRefreshToken: () => 'cookie', // real token lives only in the httpOnly cookie; this is just a truthy guard
-    getRefreshHeaders: (): Record<string, string> => {
-      const csrf = readCsrfCookie();
-      return csrf ? { 'X-CSRF-Token': csrf } : {};
-    },
-    // Response body is {accessToken, refreshToken: 'cookie', user} — the
-    // gateway's refresh() returns a 'cookie' sentinel for refreshToken (the
-    // real token never leaves the httpOnly cookie). @idevconn/api-client's
-    // internal doRefresh() hard-requires a string refreshTokenField in the
-    // response body to treat a refresh as successful, so this field must be
-    // present even though its value is never read as a real token.
-    accessTokenField: 'accessToken',
-    refreshTokenField: 'refreshToken',
-    onTokenRefreshed: ({ accessToken }) => setAccessToken(accessToken),
+    // No access token, no client-driven refresh at all under the BFF model
+    // -- the session cookie is the only credential, and AuthGuard refreshes
+    // the provider token pair server-side, invisibly. api-client still
+    // needs SOME truthy getAccessToken/getRefreshToken to not short-circuit
+    // requests as unauthenticated; the session cookie is what actually
+    // authenticates, these are just satisfying the client library's shape.
+    getAccessToken: () => 'cookie',
+    getRefreshToken: () => 'cookie',
+    // Required by ApiClientConfig's shape, but under the BFF model the
+    // internal refresh cycle never meaningfully succeeds (the client no
+    // longer has a real /auth/refresh route to hit) -- a failed refresh
+    // always falls through to onUnauthorized below, so this never fires.
+    // eslint-disable-next-line @typescript-eslint/no-empty-function -- required by ApiClientConfig, intentionally a no-op (see comment above)
+    onTokenRefreshed: () => {},
     onUnauthorized: () => {
-      setAccessToken(null);
       useAuthStore.getState().logout();
       opts.onUnauthorized?.();
     },
