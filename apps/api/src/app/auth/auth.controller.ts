@@ -246,6 +246,11 @@ export class AuthController {
       path: '/',
       secure: this.isProd(),
       sameSite: this.isProd() ? 'none' : 'lax',
+      // Must match icore_sid's lifetime (SESSION_COOKIE_MAX_AGE_MS in
+      // session-cookie.ts) -- otherwise a returning user with a still-valid
+      // session cookie loses the CSRF cookie on browser restart and every
+      // CSRF-protected mutating request fails despite a valid session.
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
     return { user: { id: session.user.id, email: session.user.email, role } };
   }
@@ -268,6 +273,11 @@ export class AuthController {
       path: '/',
       secure: this.isProd(),
       sameSite: this.isProd() ? 'none' : 'lax',
+      // Must match icore_sid's lifetime (SESSION_COOKIE_MAX_AGE_MS in
+      // session-cookie.ts) -- otherwise a returning user with a still-valid
+      // session cookie loses the CSRF cookie on browser restart and every
+      // CSRF-protected mutating request fails despite a valid session.
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
     const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
     return res.redirect(`${origin}/dashboard`);
