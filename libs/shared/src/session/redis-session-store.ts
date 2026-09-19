@@ -71,13 +71,21 @@ export class RedisSessionStore implements SessionStore {
       .exec();
   }
 
-  async deleteAllForUser(uid: string): Promise<void> {
+  async deleteAllForUser(uid: string): Promise<SessionRecord[]> {
     const ids = await this.redis.smembers(USER_SESSIONS_KEY(uid));
-    if (ids.length === 0) return;
+    if (ids.length === 0) return [];
+    // Read the full records before deleting -- callers (e.g. admin
+    // revoke-user) need the provider refresh token to revoke it upstream,
+    // and it's gone once the key is deleted. This read step is necessarily
+    // sequential/non-atomic (it's just gets, not writes), but the delete
+    // batch below still runs as a single atomic multi/exec.
+    const records = await Promise.all(ids.map((id) => this.get(id)));
+    const deleted = records.filter((record): record is SessionRecord => record !== null);
     const multi = this.redis.multi();
     for (const id of ids) multi.del(SESSION_KEY(id));
     multi.del(USER_SESSIONS_KEY(uid));
     await multi.exec();
+    return deleted;
   }
 
   // Advisory SET-NX-PX lock. Single-Redis deployment (this scaffold's

@@ -326,6 +326,23 @@ describe('AuthController — admin revoke-user', () => {
     });
     await controller.revokeUser('target');
     expect(await sessionStore.get(s1.sessionId)).toBeNull();
+    expect(client.revoke).toHaveBeenCalledWith('rt1');
+  });
+
+  it('still returns { ok: true } when the provider revoke rejects for one of the killed sessions', async () => {
+    const client = makeAuthClient();
+    (client.revoke as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('transport down'));
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const s1 = await sessionStore.create({
+      uid: 'target',
+      email: 't@b.com',
+      providerAccessToken: 'at1',
+      providerRefreshToken: 'rt1',
+      providerAccessTokenExpiresAt: Date.now() + 3600_000,
+    });
+    await expect(controller.revokeUser('target')).resolves.toEqual({ ok: true });
+    expect(await sessionStore.get(s1.sessionId)).toBeNull();
+    expect(client.revoke).toHaveBeenCalledWith('rt1');
   });
 });
 

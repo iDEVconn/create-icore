@@ -30,10 +30,15 @@ export class FakeSessionStore implements SessionStore {
     this.sessions.delete(sessionId);
   }
 
-  async deleteAllForUser(uid: string): Promise<void> {
+  async deleteAllForUser(uid: string): Promise<SessionRecord[]> {
+    const deleted: SessionRecord[] = [];
     for (const [id, record] of this.sessions) {
-      if (record.uid === uid) this.sessions.delete(id);
+      if (record.uid === uid) {
+        deleted.push(record);
+        this.sessions.delete(id);
+      }
     }
+    return deleted;
   }
 
   // In-process single-flight: real distributed correctness is Redis's job

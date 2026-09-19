@@ -131,7 +131,17 @@ export class AuthController {
   @CheckAbility('manage', 'User')
   @ApiOperation({ summary: 'Immediately kill every active session for a user (admin only)' })
   async revokeUser(@Param('uid') uid: string) {
-    await this.sessionStore.deleteAllForUser(uid);
+    const records = await this.sessionStore.deleteAllForUser(uid);
+    await Promise.allSettled(
+      records.map((record) =>
+        this.authClient.revoke(record.providerRefreshToken).catch((err) => {
+          this.logger.warn(
+            `revokeUser: provider revoke failed for session ${record.sessionId}`,
+            err,
+          );
+        }),
+      ),
+    );
     return { ok: true };
   }
 

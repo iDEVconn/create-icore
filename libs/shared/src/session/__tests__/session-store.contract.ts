@@ -74,10 +74,14 @@ export function runSessionStoreContract(name: string, factory: () => SessionStor
         providerRefreshToken: 'rt3',
         providerAccessTokenExpiresAt: 1,
       });
-      await store.deleteAllForUser('u1');
+      const deleted = await store.deleteAllForUser('u1');
       expect(await store.get(s1.sessionId)).toBeNull();
       expect(await store.get(s2.sessionId)).toBeNull();
       expect(await store.get(other.sessionId)).not.toBeNull();
+      expect(deleted).toHaveLength(2);
+      expect(deleted.map((r) => r.sessionId).sort()).toEqual([s1.sessionId, s2.sessionId].sort());
+      expect(deleted.every((r) => r.uid === 'u1')).toBe(true);
+      expect(deleted.some((r) => r.sessionId === other.sessionId)).toBe(false);
     });
 
     it('withRefreshLock() serializes concurrent callers for the same sessionId', async () => {
