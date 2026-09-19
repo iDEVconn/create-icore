@@ -27,15 +27,16 @@ export function setAuthCookies(
   res: Response,
   opts: { refreshToken: string; csrfToken: string; isProd: boolean },
 ): void {
+  // Storing the refresh token in an httpOnly, Secure (in prod), SameSite-scoped
+  // cookie IS the fix this module exists for -- it replaces the localStorage
+  // storage this repo used before. The cookie is never readable by client JS
+  // (httpOnly) and only ever sent over TLS in prod (secure: true below); there
+  // is nothing further to encrypt client-side without moving key management
+  // server-side for no security benefit over the browser's own httpOnly
+  // cookie jar protection.
   res.cookie(
     REFRESH_COOKIE,
-    // codeql[js/clear-text-storage-of-sensitive-data]: this IS the fix -- an
-    // httpOnly, Secure (in prod), SameSite-scoped cookie is the OWASP-recommended
-    // place for a refresh token, replacing the localStorage storage this repo used
-    // before. The cookie is never readable by client JS (httpOnly) and only ever
-    // sent over TLS in prod (secure: true below); there is nothing further to
-    // encrypt client-side without moving key management server-side for no
-    // security benefit over the browser's own httpOnly cookie jar protection.
+    // codeql[js/clear-text-storage-of-sensitive-data]: see comment above -- httpOnly+Secure+SameSite cookie is the intended, OWASP-recommended protection, not clear-text storage.
     opts.refreshToken,
     cookieOptions(opts.isProd, true, REFRESH_COOKIE_PATH),
   );
