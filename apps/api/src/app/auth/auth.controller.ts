@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -14,7 +15,7 @@ import { Throttle, seconds } from '@nestjs/throttler';
 import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthClientService } from '@icore/auth-client';
-import { setAuthCookies, generateCsrfToken } from '@icore/shared';
+import { setAuthCookies, generateCsrfToken, readRefreshToken, verifyCsrf } from '@icore/shared';
 import type { OAuthProvider } from '@icore/shared';
 import { Public } from './public.decorator';
 
@@ -86,16 +87,15 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  @ApiOperation({ summary: 'Exchange a refresh token for a fresh access token' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['refreshToken'],
-      properties: { refreshToken: { type: 'string' } },
-    },
-  })
-  refresh(@Body() body: { refreshToken: string }) {
-    return this.authClient.refresh(body.refreshToken);
+  @ApiOperation({ summary: 'Exchange the httpOnly refresh cookie for a fresh access token' })
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = readRefreshToken(req);
+    if (!refreshToken) throw new UnauthorizedException('invalid_refresh_token');
+    if (!verifyCsrf(req)) throw new ForbiddenException('csrf_mismatch');
+    const session = await this.authClient.refresh(refreshToken);
+    const csrfToken = generateCsrfToken();
+    setAuthCookies(res, { refreshToken: session.refreshToken, csrfToken, isProd: this.isProd() });
+    return { accessToken: session.accessToken, user: session.user };
   }
 
   @Public()

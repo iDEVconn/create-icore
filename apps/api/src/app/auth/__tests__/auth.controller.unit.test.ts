@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { AuthClientService } from '@icore/auth-client';
 import { AuthController } from '../auth.controller';
 
@@ -21,7 +22,12 @@ function makeAuthClient(): AuthClientService {
       expiresIn: 3600,
       user: { id: 'u1', email: 'a@x.com' },
     }),
-    refresh: vi.fn(),
+    refresh: vi.fn().mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresIn: 3600,
+      user: { id: 'u1', email: 'a@x.com' },
+    }),
     sendMagicLink: vi.fn().mockResolvedValue(undefined),
     verifyMagicLink: vi.fn().mockResolvedValue({
       accessToken: 'at',
@@ -131,6 +137,50 @@ describe('AuthController (gateway) — magic-link', () => {
     );
     expect(session).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
     expect(res.cookies['icore_rt']).toBe('rt');
+  });
+});
+
+describe('AuthController (gateway) — refresh', () => {
+  it('rejects when the CSRF header does not match the CSRF cookie', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const req = {
+      cookies: { icore_rt: 'rt-1', icore_csrf: 'csrf-1' },
+      headers: { 'x-csrf-token': 'wrong' },
+    } as unknown as import('express').Request;
+    const res = makeRes();
+    await expect(
+      controller.refresh(req, res as unknown as import('express').Response),
+    ).rejects.toThrow(ForbiddenException);
+    expect(client.refresh).not.toHaveBeenCalled();
+  });
+
+  it('rejects when there is no refresh cookie', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const req = {
+      cookies: {},
+      headers: {},
+    } as unknown as import('express').Request;
+    const res = makeRes();
+    await expect(
+      controller.refresh(req, res as unknown as import('express').Response),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('on success, calls refresh with the cookie token and re-issues both cookies', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const req = {
+      cookies: { icore_rt: 'rt-1', icore_csrf: 'csrf-1' },
+      headers: { 'x-csrf-token': 'csrf-1' },
+    } as unknown as import('express').Request;
+    const res = makeRes();
+    const result = await controller.refresh(req, res as unknown as import('express').Response);
+    expect(client.refresh).toHaveBeenCalledWith('rt-1');
+    expect(result).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
+    expect(res.cookies['icore_rt']).toBe('rt');
+    expect(res.cookies['icore_csrf']).toBeTruthy();
   });
 });
 
