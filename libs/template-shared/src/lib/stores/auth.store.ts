@@ -8,22 +8,22 @@ export interface AuthUser {
 }
 
 export interface AuthState {
-  accessToken: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
-  setAuth: (a: { accessToken: string; refreshToken: string; user: AuthUser }) => void;
+  setUser: (user: AuthUser) => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      accessToken: null,
-      refreshToken: null,
       user: null,
-      setAuth: ({ accessToken, refreshToken, user }) => set({ accessToken, refreshToken, user }),
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+      setUser: (user) => set({ user }),
+      logout: () => set({ user: null }),
     }),
     { name: 'icore-auth' },
   ),
 );
+
+export function useIsAdmin(): boolean {
+  return useAuthStore((s) => s.user?.role === 'admin') ?? false;
+}

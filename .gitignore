@@ -43,3 +43,7 @@ ruvector.db
 .playwright-mcp/
 
 .nx/migrate-runs
+
+# superpowers SDD scratch workspace (briefs/reports/ledger copied into
+# docs/superpowers/plans/<branch-slug>-execution-record/ before merge)
+.superpowers/
