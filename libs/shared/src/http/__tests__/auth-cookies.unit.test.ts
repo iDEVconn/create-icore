@@ -13,7 +13,7 @@ function makeRes(): Response {
 }
 
 describe('setAuthCookies', () => {
-  it('sets icore_rt as httpOnly and icore_csrf as readable, both scoped to /api/auth', () => {
+  it('sets icore_rt as httpOnly scoped to /api/auth and icore_csrf as readable scoped to /', () => {
     const res = makeRes();
     setAuthCookies(res, { refreshToken: 'rt-1', csrfToken: 'csrf-1', isProd: false });
 
@@ -25,7 +25,7 @@ describe('setAuthCookies', () => {
     expect(res.cookie).toHaveBeenCalledWith(
       'icore_csrf',
       'csrf-1',
-      expect.objectContaining({ httpOnly: false, path: '/api/auth' }),
+      expect.objectContaining({ httpOnly: false, path: '/' }),
     );
   });
 
@@ -63,7 +63,7 @@ describe('clearAuthCookies', () => {
     );
     expect(res.clearCookie).toHaveBeenCalledWith(
       'icore_csrf',
-      expect.objectContaining({ path: '/api/auth' }),
+      expect.objectContaining({ path: '/' }),
     );
   });
 });
