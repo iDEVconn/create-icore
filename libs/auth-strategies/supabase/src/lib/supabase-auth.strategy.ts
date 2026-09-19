@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { RpcException } from '@nestjs/microservices';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AuthSession,
@@ -39,7 +40,7 @@ export class SupabaseAuthStrategy implements AuthStrategy {
   async refresh(refreshToken: string): Promise<AuthSession> {
     const { data, error } = await this.client.auth.refreshSession({ refresh_token: refreshToken });
     if (error || !data.session) {
-      throw new Error(error?.message ?? 'invalid_refresh_token');
+      throw new RpcException('invalid_refresh_token');
     }
     return this.toSession(data.session);
   }

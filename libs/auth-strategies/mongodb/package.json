@@ -13,6 +13,7 @@
     "@icore/shared": "*",
     "@nestjs/common": "^11.2.5",
     "@nestjs/config": "^4.0.4",
+    "@nestjs/microservices": "^11.2.5",
     "@nestjs/mongoose": "^11.0.4",
     "bcrypt": "^6.0.0",
     "jsonwebtoken": "^9.0.3",

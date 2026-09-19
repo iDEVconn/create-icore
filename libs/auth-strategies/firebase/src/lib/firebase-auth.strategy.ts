@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { RpcException } from '@nestjs/microservices';
 import type {
   AuthSession,
   AuthStrategy,
@@ -78,7 +79,12 @@ export class FirebaseAuthStrategy implements AuthStrategy {
   }
 
   async refresh(refreshToken: string): Promise<AuthSession> {
-    const res = await this.identityToolkit.refresh(refreshToken);
+    let res;
+    try {
+      res = await this.identityToolkit.refresh(refreshToken);
+    } catch {
+      throw new RpcException('invalid_refresh_token');
+    }
     // Firebase doesn't return email on the refresh endpoint; backfill via verifyIdToken
     const verified = await this.adminAuth.verifyIdToken(res.id_token);
     return {
