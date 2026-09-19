@@ -4,9 +4,10 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthClientModule } from '@icore/auth-client';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { SessionModule } from '../session/session.module';
 
 @Module({
-  imports: [AuthClientModule.forRoot()],
+  imports: [AuthClientModule.forRoot(), SessionModule],
   controllers: [AuthController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

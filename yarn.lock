@@ -10733,6 +10733,7 @@ __metadata:
     "@types/multer": "npm:^2.2.0"
     cookie-parser: "npm:^1.4.7"
     express: "npm:^5.2.1"
+    ioredis: "npm:^6.0.0"
   languageName: unknown
   linkType: soft
 
