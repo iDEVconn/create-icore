@@ -13,6 +13,18 @@ const LOCK_POLL_MS = 50;
 // stopped working anyway, instead of living forever as dead weight.
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+// Atomic lock release: verify ownership before deletion in a single Redis op.
+// Prevents TOCTOU race where lock expires between GET and DEL, allowing
+// a different caller to acquire it while we still hold a stale delete.
+// See: https://redis.io/docs/latest/develop/use/patterns/distributed-locks/
+const RELEASE_LOCK_LUA = `
+  if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+  else
+    return 0
+  end
+`;
+
 export class RedisSessionStore implements SessionStore {
   constructor(private readonly redis: IORedis) {}
 
@@ -85,8 +97,9 @@ export class RedisSessionStore implements SessionStore {
       // see that result, not redundantly refresh again.
       return await fn();
     } finally {
-      const current = await this.redis.get(key);
-      if (current === token) await this.redis.del(key);
+      // Atomic release: verify ownership and delete in a single Lua op to avoid
+      // TOCTOU bug where lock expires between GET and DEL.
+      await this.redis.eval(RELEASE_LOCK_LUA, 1, key, token);
     }
   }
 }

@@ -3275,6 +3275,7 @@ __metadata:
     "@casl/ability": "npm:^7.0.1"
     "@nestjs/microservices": "npm:^11.2.5"
     "@types/express": "npm:^5.0.6"
+    ioredis: "npm:^6.0.0"
     tslib: "npm:^2.8.1"
   peerDependencies:
     express: ^5.0.0
