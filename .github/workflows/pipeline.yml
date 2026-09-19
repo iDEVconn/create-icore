@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        task: [lint, test, 'format:check', 'route-integrity']
+        task: [lint, test, typecheck, 'format:check', 'route-integrity']
     steps:
       - uses: actions/checkout@v5
         with:

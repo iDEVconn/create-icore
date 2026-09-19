@@ -29,5 +29,10 @@
   },
   "peerDependencies": {
     "express": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
   }
 }
