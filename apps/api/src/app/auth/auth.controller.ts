@@ -15,7 +15,13 @@ import { Throttle, seconds } from '@nestjs/throttler';
 import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthClientService } from '@icore/auth-client';
-import { setAuthCookies, generateCsrfToken, readRefreshToken, verifyCsrf } from '@icore/shared';
+import {
+  setAuthCookies,
+  generateCsrfToken,
+  readRefreshToken,
+  verifyCsrf,
+  clearAuthCookies,
+} from '@icore/shared';
 import type { OAuthProvider } from '@icore/shared';
 import { Public } from './public.decorator';
 
@@ -100,16 +106,14 @@ export class AuthController {
 
   @Public()
   @Post('logout')
-  @ApiOperation({ summary: 'Revoke a refresh token, ending that session' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['refreshToken'],
-      properties: { refreshToken: { type: 'string' } },
-    },
-  })
-  logout(@Body() body: { refreshToken: string }) {
-    return this.authClient.revoke(body.refreshToken);
+  @ApiOperation({ summary: 'Revoke the refresh cookie, ending that session' })
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = readRefreshToken(req);
+    if (refreshToken) {
+      await this.authClient.revoke(refreshToken);
+    }
+    clearAuthCookies(res, { isProd: this.isProd() });
+    return { ok: true };
   }
 
   @Public()

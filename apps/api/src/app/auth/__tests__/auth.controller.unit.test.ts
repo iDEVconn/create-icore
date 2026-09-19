@@ -28,6 +28,7 @@ function makeAuthClient(): AuthClientService {
       expiresIn: 3600,
       user: { id: 'u1', email: 'a@x.com' },
     }),
+    revoke: vi.fn().mockResolvedValue(undefined),
     sendMagicLink: vi.fn().mockResolvedValue(undefined),
     verifyMagicLink: vi.fn().mockResolvedValue({
       accessToken: 'at',
@@ -181,6 +182,31 @@ describe('AuthController (gateway) — refresh', () => {
     expect(result).toEqual({ accessToken: 'at', user: { id: 'u1', email: 'a@x.com' } });
     expect(res.cookies['icore_rt']).toBe('rt');
     expect(res.cookies['icore_csrf']).toBeTruthy();
+  });
+});
+
+describe('AuthController (gateway) — logout', () => {
+  it('revokes the session using the refresh cookie and clears both cookies', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const req = {
+      cookies: { icore_rt: 'rt-1' },
+    } as unknown as import('express').Request;
+    const res = makeRes();
+    await controller.logout(req, res as unknown as import('express').Response);
+    expect(client.revoke).toHaveBeenCalledWith('rt-1');
+    expect(res.cookieCleared).toBe(true);
+  });
+
+  it('is idempotent when there is no refresh cookie', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}));
+    const req = { cookies: {} } as unknown as import('express').Request;
+    const res = makeRes();
+    await expect(
+      controller.logout(req, res as unknown as import('express').Response),
+    ).resolves.toEqual({ ok: true });
+    expect(client.revoke).not.toHaveBeenCalled();
   });
 });
 
