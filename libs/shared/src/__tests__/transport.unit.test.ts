@@ -84,12 +84,17 @@ describe('buildTransport', () => {
     const opts = buildTransport('AUTH');
     expect(opts.transport).toBe(Transport.KAFKA);
     const o = opts.options as {
-      client: { brokers: string[]; clientId: string };
+      client: { brokers: string[]; clientId: string; retry: { retries: number } };
       consumer: { groupId: string };
     };
     expect(o.client.brokers).toEqual(['localhost:9092', 'localhost:9093']);
     expect(o.client.clientId).toBe('auth-client'); // derived from prefix
     expect(o.consumer.groupId).toBe('auth-consumer');
+    // kafkajs's own default (retries: 5) exhausts after ~10s and rejects the
+    // connect promise, crashing the process on a down broker -- infinite
+    // retries is what keeps this transport idling-and-reconnecting instead,
+    // matching every other broker transport's boot-resilience behavior.
+    expect(o.client.retry.retries).toBe(Number.POSITIVE_INFINITY);
   });
 
   it('throws when a broker var is missing (rmq needs queue)', () => {
