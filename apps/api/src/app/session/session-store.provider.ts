@@ -16,7 +16,19 @@ export const sessionStoreProvider: Provider = {
       );
     }
     const logger = new Logger('SessionStore');
-    const redis = new IORedis(url, { maxRetriesPerRequest: null });
+    // Request-path client, NOT a background worker: it must fail fast so a
+    // Redis outage becomes AuthGuard's designed 503 instead of an HTTP
+    // request that hangs until the client gives up.
+    //   - maxRetriesPerRequest: 3 — bounded, unlike BullMQ's `null`
+    //     (infinite), which is correct for a job worker and wrong here.
+    //   - enableOfflineQueue: false — reject immediately while
+    //     disconnected rather than queueing commands for a comeback that
+    //     may never happen.
+    const redis = new IORedis(url, {
+      maxRetriesPerRequest: 3,
+      enableOfflineQueue: false,
+      connectTimeout: 5_000,
+    });
     redis.on('error', (err: Error) => logger.warn(`Redis error: ${err.message}`));
     return new RedisSessionStore(redis);
   },

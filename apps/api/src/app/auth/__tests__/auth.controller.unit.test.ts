@@ -120,7 +120,7 @@ describe('AuthController — magic-link', () => {
     const res = mockRes();
     const result = await controller.verifyMagicLink({ token: 'tok' }, res);
     expect(client.verifyMagicLink).toHaveBeenCalledWith('tok');
-    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: undefined } });
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
     expect((result as unknown as { accessToken?: string }).accessToken).toBeUndefined();
     expect(res.cookies['icore_sid']).toBeTruthy();
     expect(res.cookies['icore_csrf']).toBeTruthy();
@@ -131,7 +131,7 @@ describe('AuthController — magic-link', () => {
     const controller = new AuthController(client, makeConfig({}), sessionStore);
     const res = mockRes();
     const result = await controller.login({ email: 'a@x.com', password: 'pw' }, res);
-    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: undefined } });
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
     expect((result as unknown as { accessToken?: string }).accessToken).toBeUndefined();
     expect(res.cookie).toHaveBeenCalledWith(
       'icore_sid',
@@ -146,8 +146,91 @@ describe('AuthController — magic-link', () => {
     const controller = new AuthController(client, makeConfig({}), sessionStore);
     const res = mockRes();
     const result = await controller.register({ email: 'a@x.com', password: 'password123' }, res);
-    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: undefined } });
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
     expect(res.cookies['icore_sid']).toBeTruthy();
+  });
+});
+
+// Regression guard for the branch's most load-bearing bug: SessionRecord.role
+// was never populated on any normal login path, so AuthGuard put
+// `role: undefined` on req.user and AbilityFactory treated every admin as a
+// plain user -- silently disabling every @CheckAbility gate, including this
+// branch's own POST /auth/admin/revoke-user/:uid.
+describe('AuthController — role resolution onto the session record', () => {
+  let sessionStore: FakeSessionStore;
+
+  beforeEach(() => {
+    sessionStore = new FakeSessionStore();
+  });
+
+  async function storedRecord(res: ReturnType<typeof mockRes>) {
+    const sessionId = res.cookies['icore_sid'] as string;
+    expect(sessionId).toBeTruthy();
+    const record = await sessionStore.get(sessionId);
+    expect(record).not.toBeNull();
+    return record as NonNullable<typeof record>;
+  }
+
+  it.each([
+    [
+      'login',
+      (c: AuthController, res: Response) => c.login({ email: 'a@x.com', password: 'p' }, res),
+    ],
+    [
+      'register',
+      (c: AuthController, res: Response) => c.register({ email: 'a@x.com', password: 'p' }, res),
+    ],
+    [
+      'magic-link verify',
+      (c: AuthController, res: Response) => c.verifyMagicLink({ token: 't' }, res),
+    ],
+  ])('%s persists the admin role onto the session record', async (_name, call) => {
+    const client = makeAuthClient();
+    (client.verify as ReturnType<typeof vi.fn>).mockResolvedValue({
+      uid: 'u1',
+      email: 'a@x.com',
+      role: 'admin',
+    });
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const res = mockRes();
+    await call(controller, res);
+    // verify() is called with the access token the provider just issued --
+    // the only way to learn the role, since AuthSession carries no role.
+    expect(client.verify).toHaveBeenCalledWith('at');
+    expect((await storedRecord(res)).role).toBe('admin');
+  });
+
+  it('oauthCallback persists the admin role onto the session record too', async () => {
+    const client = makeAuthClient();
+    (client.verify as ReturnType<typeof vi.fn>).mockResolvedValue({
+      uid: 'u1',
+      email: 'a@x.com',
+      role: 'admin',
+    });
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const res = mockRes();
+    const req = { cookies: { oauth_state: 'abc' } } as unknown as Request;
+    await controller.oauthCallback('google', 'code-xyz', 'abc', req, res);
+    expect((await storedRecord(res)).role).toBe('admin');
+  });
+
+  it('a user with no role claim gets an undefined role (fails closed, no fabricated role)', async () => {
+    const client = makeAuthClient();
+    (client.verify as ReturnType<typeof vi.fn>).mockResolvedValue({ uid: 'u1', email: 'a@x.com' });
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const res = mockRes();
+    await controller.login({ email: 'a@x.com', password: 'p' }, res);
+    expect((await storedRecord(res)).role).toBeUndefined();
+  });
+
+  it('still logs the user in when role resolution fails (verify blip must not 500 a good login)', async () => {
+    const client = makeAuthClient();
+    (client.verify as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('auth MS down'));
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const res = mockRes();
+    const result = await controller.login({ email: 'a@x.com', password: 'p' }, res);
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: undefined } });
+    expect((await storedRecord(res)).role).toBeUndefined();
   });
 });
 
@@ -304,6 +387,20 @@ describe('AuthController — logout', () => {
     expect(client.revoke).toHaveBeenCalledWith('rt1');
     expect(await sessionStore.get(record.sessionId)).toBeNull();
     expect(res.clearedCookies).toContain('icore_sid');
+  });
+
+  it('still clears both cookies when the session store itself is down (Redis blip must not 500 a logout)', async () => {
+    const client = makeAuthClient();
+    const brokenStore = {
+      get: vi.fn().mockRejectedValue(new Error('Connection is closed')),
+      delete: vi.fn().mockRejectedValue(new Error('Connection is closed')),
+    } as unknown as FakeSessionStore;
+    const controller = new AuthController(client, makeConfig({}), brokenStore);
+    const req = { cookies: { icore_sid: 'sid-1' } } as unknown as Request;
+    const res = mockRes();
+    await expect(controller.logout(req, res)).resolves.toEqual({ ok: true });
+    expect(res.clearedCookies).toContain('icore_sid');
+    expect(res.clearedCookies).toContain('icore_csrf');
   });
 });
 

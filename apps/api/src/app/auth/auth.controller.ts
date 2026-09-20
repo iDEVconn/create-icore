@@ -23,10 +23,12 @@ import {
   clearSessionCookie,
   type AuthSession,
   type OAuthProvider,
+  type SessionRecord,
   type SessionStore,
   type VerifiedToken,
 } from '@icore/shared';
 import { Public } from './public.decorator';
+import { SkipCsrf } from '../http/skip-csrf.decorator';
 import { CheckAbility } from '../abilities/check-ability.decorator';
 import { SESSION_STORE } from '../session/session-store.provider';
 
@@ -53,6 +55,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @SkipCsrf()
   @Post('register')
   @ApiOperation({ summary: 'Create a new user and start a server-side session' })
   @ApiBody({
@@ -70,10 +73,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const session = await this.authClient.signup(body.email, body.password);
-    return this.startSession(session, res);
+    return this.startSession(session, res, await this.resolveRole(session.accessToken));
   }
 
   @Public()
+  @SkipCsrf()
   @Post('login')
   @ApiOperation({ summary: 'Exchange email + password for a server-side session' })
   @ApiBody({
@@ -88,7 +92,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const session = await this.authClient.login(body.email, body.password);
-    return this.startSession(session, res);
+    return this.startSession(session, res, await this.resolveRole(session.accessToken));
   }
 
   @Get('session')
@@ -102,18 +106,34 @@ export class AuthController {
   }
 
   @Public()
+  // Unlike login/register/adopt (which cannot present a CSRF token yet
+  // because they are the routes that ISSUE it), logout does already have
+  // the cookies -- it is exempt deliberately: a forged logout is a minor
+  // availability nuisance, not a compromise, and exempting it avoids a
+  // chicken-and-egg dead end for a client that still holds a session
+  // cookie but lost its CSRF cookie.
+  @SkipCsrf()
   @Post('logout')
   @ApiOperation({ summary: 'End the server-side session and clear cookies' })
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const sessionId = readSessionId(req);
     if (sessionId) {
-      const record = await this.sessionStore.get(sessionId);
-      // Delete the session record FIRST -- the moment this call returns,
-      // the session is provably dead server-side even if the provider
-      // revoke below fails. (Same ordering rationale as the old
-      // clearCookies-after-best-effort-revoke logout, just applied to the
-      // store instead of the cookie.)
-      await this.sessionStore.delete(sessionId);
+      let record: SessionRecord | null = null;
+      try {
+        record = await this.sessionStore.get(sessionId);
+        // Delete the session record FIRST -- the moment this call returns,
+        // the session is provably dead server-side even if the provider
+        // revoke below fails. (Same ordering rationale as the old
+        // clearCookies-after-best-effort-revoke logout, just applied to the
+        // store instead of the cookie.)
+        await this.sessionStore.delete(sessionId);
+      } catch (err) {
+        // Best-effort, exactly like the provider revoke below: a Redis blip
+        // must not 500 the user out of a logout. The cookies are still
+        // cleared, so the browser is logged out either way, and any record
+        // that survived here dies on its own 30-day TTL.
+        this.logger.warn('logout: session store unavailable, clearing cookies anyway', err);
+      }
       if (record) {
         try {
           await this.authClient.revoke(record.providerRefreshToken);
@@ -146,6 +166,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipCsrf()
   @Post('magic-link')
   @ApiOperation({ summary: 'Send a passwordless sign-in link to the email' })
   @ApiBody({
@@ -161,6 +182,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipCsrf()
   @Post('magic-link/verify')
   @ApiOperation({ summary: 'Exchange a magic-link token for a server-side session' })
   @ApiBody({
@@ -171,10 +193,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const session = await this.authClient.verifyMagicLink(body.token);
-    return this.startSession(session, res);
+    return this.startSession(session, res, await this.resolveRole(session.accessToken));
   }
 
   @Public()
+  @SkipCsrf()
   @Post('session/adopt')
   @ApiOperation({
     summary:
@@ -211,6 +234,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipCsrf()
   @Get('oauth/:provider')
   @ApiOperation({ summary: 'Start an OAuth flow — redirects to the provider' })
   @ApiParam({ name: 'provider', enum: ['google', 'github'] })
@@ -231,6 +255,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipCsrf()
   @Get('oauth/:provider/callback')
   @ApiOperation({ summary: 'Provider redirected back — exchange code for a server-side session' })
   @ApiParam({ name: 'provider', enum: ['google', 'github'] })
@@ -247,7 +272,38 @@ export class AuthController {
       throw new UnauthorizedException('oauth_state_mismatch');
     const session = await this.authClient.completeOAuth(provider, code, state);
     res.clearCookie('oauth_state');
-    await this.startSessionRedirect(session, res);
+    await this.startSessionRedirect(session, res, await this.resolveRole(session.accessToken));
+  }
+
+  /**
+   * Resolves the provider's role claim for a freshly-issued access token.
+   *
+   * Before the BFF migration, `AuthGuard` called `authClient.verify(token)` on
+   * EVERY request and read `VerifiedToken.role` straight off the result. That
+   * call is gone from the hot path now (identity comes from the session
+   * record), so the role has to be resolved explicitly at session-creation
+   * time instead — otherwise `SessionRecord.role` stays `undefined` forever
+   * and every `@CheckAbility` gate silently treats real admins as plain users.
+   *
+   * `AuthSession` (what login/signup/refresh return) carries no role field, so
+   * one extra `auth.verify` RPC per session creation is the cheapest way to
+   * get it without changing the `AuthStrategy` contract and all four concrete
+   * strategies. It is once per login, not once per request — strictly fewer
+   * verify() calls than the pre-BFF model made.
+   *
+   * Best-effort by design: the credentials were just accepted, so a verify()
+   * blip must not turn a successful login into a 500. Degrading to
+   * `undefined` fails CLOSED (no role => no admin ability), it never grants
+   * anything.
+   */
+  private async resolveRole(accessToken: string): Promise<string | undefined> {
+    try {
+      const verified = await this.authClient.verify(accessToken);
+      return verified.role;
+    } catch (err) {
+      this.logger.warn('role resolution failed — session starts with no role', err);
+      return undefined;
+    }
   }
 
   private async startSession(session: AuthSession, res: Response, role?: string) {
@@ -278,10 +334,11 @@ export class AuthController {
   // cookies then bounces the browser back to the SPA -- no tokens in the
   // URL fragment at all now (unlike the pre-BFF version), since there is
   // nothing left for client JS to read.
-  private async startSessionRedirect(session: AuthSession, res: Response) {
+  private async startSessionRedirect(session: AuthSession, res: Response, role?: string) {
     const record = await this.sessionStore.create({
       uid: session.user.id,
       email: session.user.email,
+      role,
       providerAccessToken: session.accessToken,
       providerRefreshToken: session.refreshToken,
       providerAccessTokenExpiresAt: Date.now() + session.expiresIn * 1000,

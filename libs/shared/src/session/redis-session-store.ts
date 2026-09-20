@@ -6,6 +6,13 @@ const USER_SESSIONS_KEY = (uid: string) => `user-sessions:${uid}`;
 const LOCK_KEY = (id: string) => `session-lock:${id}`;
 const LOCK_TTL_MS = 10_000;
 const LOCK_POLL_MS = 50;
+// Upper bound on how long a caller waits to ACQUIRE the refresh lock. Redis
+// expires the lock itself after LOCK_TTL_MS, so no legitimate holder can keep
+// it longer than that -- waiting past a small multiple of the TTL means
+// something is wedged (a stalled Redis, a pathological pile-up), and the
+// caller is better off failing fast into the gateway's 503 path than hanging
+// a request forever, which is what the original `while (true)` did.
+const LOCK_MAX_WAIT_MS = LOCK_TTL_MS * 2;
 // Sessions never auto-expire from Redis on their own -- the provider refresh
 // token is the real expiry authority (30 days, matching the old icore_rt
 // cookie's maxAge). Setting the same TTL here means a Redis-side idle
@@ -25,8 +32,22 @@ const RELEASE_LOCK_LUA = `
   end
 `;
 
+export interface RedisSessionStoreOptions {
+  /** Max time to wait for the refresh lock before giving up. Defaults to
+   *  twice the lock's own TTL; overridable so tests can assert the bound
+   *  without waiting 20 seconds. */
+  lockMaxWaitMs?: number;
+}
+
 export class RedisSessionStore implements SessionStore {
-  constructor(private readonly redis: IORedis) {}
+  private readonly lockMaxWaitMs: number;
+
+  constructor(
+    private readonly redis: IORedis,
+    options: RedisSessionStoreOptions = {},
+  ) {
+    this.lockMaxWaitMs = options.lockMaxWaitMs ?? LOCK_MAX_WAIT_MS;
+  }
 
   async create(record: NewSessionRecord): Promise<SessionRecord> {
     const now = Date.now();
@@ -94,9 +115,13 @@ export class RedisSessionStore implements SessionStore {
   async withRefreshLock<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
     const key = LOCK_KEY(sessionId);
     const token = globalThis.crypto.randomUUID();
-    while (true) {
+    const deadline = Date.now() + this.lockMaxWaitMs;
+    for (;;) {
       const acquired = await this.redis.set(key, token, 'PX', LOCK_TTL_MS, 'NX');
       if (acquired === 'OK') break;
+      if (Date.now() >= deadline) {
+        throw new Error(`session_refresh_lock_timeout: ${sessionId}`);
+      }
       await new Promise((r) => setTimeout(r, LOCK_POLL_MS));
     }
     try {
