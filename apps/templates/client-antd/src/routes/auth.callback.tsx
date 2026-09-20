@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Spin, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setAccessToken, useAuthStore, useNotify } from '@icore/template-shared';
+import { useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '../main';
 
 type Status = 'verifying' | 'done' | 'error';
@@ -38,8 +38,6 @@ function CallbackPage() {
       return;
     }
     api<{
-      accessToken: string;
-      refreshToken: string;
       user: { id: string; email: string; role?: string };
     }>('/auth/magic-link/verify', {
       method: 'POST',
@@ -47,7 +45,6 @@ function CallbackPage() {
       body: JSON.stringify({ token }),
     })
       .then((session) => {
-        setAccessToken(session.accessToken);
         setUser(session.user);
         setStatus('done');
         void navigate({ to: '/dashboard' });

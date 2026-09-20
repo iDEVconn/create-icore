@@ -1,123 +1,103 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const innerClient = vi.fn();
 
 vi.mock('@idevconn/api-client', async () => {
   const actual =
     await vi.importActual<typeof import('@idevconn/api-client')>('@idevconn/api-client');
-  return { ...actual, createApiClient: vi.fn(() => vi.fn()) };
+  return { ...actual, createApiClient: vi.fn(() => innerClient) };
 });
 
 import { createApiClient } from '@idevconn/api-client';
 import { createIcoreApi } from '../create-api';
 
+function clearCsrfCookie() {
+  document.cookie = 'icore_csrf=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+}
+
 describe('createIcoreApi', () => {
-  it('overrides the access token field name to match the gateway camelCase AuthSession contract', () => {
-    createIcoreApi({ baseUrl: '/api' });
-
-    expect(createApiClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        accessTokenField: 'accessToken',
-      }),
-    );
-  });
-
-  it('sends credentials and a CSRF refresh header, sourced from the in-memory token + cookie', () => {
-    createIcoreApi({ baseUrl: '/api' });
-
-    expect(createApiClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        credentials: 'include',
-        getAccessToken: expect.any(Function),
-        getRefreshToken: expect.any(Function),
-        getRefreshHeaders: expect.any(Function),
-      }),
-    );
-  });
-
-  it('declares refreshTokenField so the real library accepts the gateway response shape', () => {
-    createIcoreApi({ baseUrl: '/api' });
-
-    expect(createApiClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        refreshTokenField: 'refreshToken',
-      }),
-    );
-  });
-});
-
-// Regression for C1: the mocked createApiClient above proves config *shape* only —
-// it cannot catch a contract mismatch with the real library's internal doRefresh(),
-// which hard-requires a string refreshTokenField in the refresh response body.
-// This suite exercises the REAL @idevconn/api-client against a mocked fetch.
-describe('createIcoreApi — real @idevconn/api-client 401 -> refresh -> retry cycle', () => {
-  function mockResponse(status: number, body: unknown) {
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => body,
-    };
-  }
-
-  beforeEach(() => {
-    document.cookie = 'icore_csrf=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-  });
-
   afterEach(() => {
-    document.cookie = 'icore_csrf=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    vi.unstubAllGlobals();
-    vi.doMock('@idevconn/api-client', async () => {
-      const actual =
-        await vi.importActual<typeof import('@idevconn/api-client')>('@idevconn/api-client');
-      return { ...actual, createApiClient: vi.fn(() => vi.fn()) };
-    });
+    clearCsrfCookie();
+    innerClient.mockReset();
   });
 
-  it('refreshes using the real library and updates the in-memory access token on {accessToken, refreshToken: "cookie", user}', async () => {
-    vi.resetModules();
-    vi.doUnmock('@idevconn/api-client');
-    document.cookie = 'icore_csrf=csrf-abc';
+  it('sends credentials so the session cookie rides along on every request', () => {
+    createIcoreApi({ baseUrl: '/api' });
 
-    const { createIcoreApi: realCreateIcoreApi } = await import('../create-api');
-    const { setAccessToken, getAccessToken } = await import('../access-token');
+    expect(createApiClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: '/api',
+        credentials: 'include',
+      }),
+    );
+  });
 
-    setAccessToken('expired-token');
+  it('provides truthy getAccessToken/getRefreshToken so api-client never short-circuits as unauthenticated — the cookie, not these, is what actually authenticates', () => {
+    createIcoreApi({ baseUrl: '/api' });
 
-    const fetchMock = vi
-      .fn()
-      // 1) original request — 401 with the (now expired) access token attached
-      .mockResolvedValueOnce(mockResponse(401, null))
-      // 2) POST /auth/refresh — gateway's real response shape post-fix
-      .mockResolvedValueOnce(
-        mockResponse(200, {
-          accessToken: 'new-token',
-          refreshToken: 'cookie',
-          user: { id: 'u1', email: 'a@x.com' },
-        }),
-      )
-      // 3) retried original request with the new access token
-      .mockResolvedValueOnce(mockResponse(200, { ok: true }));
-    vi.stubGlobal('fetch', fetchMock);
+    const config = vi.mocked(createApiClient).mock.calls[0]?.[0];
+    expect(config?.getAccessToken()).toBe('cookie');
+    expect(config?.getRefreshToken()).toBe('cookie');
+  });
 
-    const api = realCreateIcoreApi({ baseUrl: 'http://localhost/api' });
-    const result = await api('/notes');
+  it('logs out and invokes the caller-supplied onUnauthorized hook on 401', () => {
+    const onUnauthorized = vi.fn();
+    createIcoreApi({ baseUrl: '/api', onUnauthorized });
 
-    expect(result).toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const config = vi.mocked(createApiClient).mock.calls[0]?.[0];
+    config?.onUnauthorized();
 
-    // The refresh call carried the CSRF header and the sentinel refresh token.
-    const refreshCall = fetchMock.mock.calls[1];
-    expect(refreshCall[0]).toBe('http://localhost/api/auth/refresh');
-    const refreshInit = refreshCall[1] as RequestInit;
-    expect((refreshInit.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-abc');
-    expect(refreshInit.body).toBe(JSON.stringify({ refresh_token: 'cookie' }));
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
 
-    // The retried request used the freshly refreshed access token.
-    const retryCall = fetchMock.mock.calls[2];
-    const retryHeaders = retryCall[1].headers as Headers;
-    expect(retryHeaders.get('Authorization')).toBe('Bearer new-token');
+  // Regression: @idevconn/api-client's `getRefreshHeaders` only merges
+  // headers into its own internal refresh call (a route that no longer
+  // exists under the BFF model). CsrfGuard protects every mutating route
+  // now, so the returned api function must attach X-CSRF-Token itself on
+  // every real request it forwards to the underlying client.
+  describe('CSRF header attachment on every request (not just refresh)', () => {
+    it('attaches X-CSRF-Token when the icore_csrf cookie is present', async () => {
+      document.cookie = 'icore_csrf=csrf-abc';
+      innerClient.mockResolvedValueOnce({ ok: true });
 
-    // onTokenRefreshed actually fired with the access token (observable via the
-    // in-memory access-token store it writes through to).
-    expect(getAccessToken()).toBe('new-token');
+      const api = createIcoreApi({ baseUrl: '/api' });
+      await api('/notes', { method: 'POST', body: '{}' });
+
+      expect(innerClient).toHaveBeenCalledTimes(1);
+      const [path, options] = innerClient.mock.calls[0] as [string, RequestInit];
+      expect(path).toBe('/notes');
+      expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-abc');
+      // Original request options are preserved alongside the added header.
+      expect(options.method).toBe('POST');
+      expect(options.body).toBe('{}');
+    });
+
+    it('sends no X-CSRF-Token header when the cookie is absent', async () => {
+      clearCsrfCookie();
+      innerClient.mockResolvedValueOnce({ ok: true });
+
+      const api = createIcoreApi({ baseUrl: '/api' });
+      await api('/notes', { method: 'GET' });
+
+      const [, options] = innerClient.mock.calls[0] as [string, RequestInit];
+      expect(new Headers(options.headers).has('X-CSRF-Token')).toBe(false);
+    });
+
+    it('preserves caller-supplied headers alongside the injected CSRF header', async () => {
+      document.cookie = 'icore_csrf=csrf-xyz';
+      innerClient.mockResolvedValueOnce({ ok: true });
+
+      const api = createIcoreApi({ baseUrl: '/api' });
+      await api('/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const [, options] = innerClient.mock.calls[0] as [string, RequestInit];
+      const headers = new Headers(options.headers);
+      expect(headers.get('Content-Type')).toBe('application/json');
+      expect(headers.get('X-CSRF-Token')).toBe('csrf-xyz');
+    });
   });
 });

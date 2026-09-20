@@ -305,13 +305,24 @@ const OAUTH_MAGIC_LINK_PROVIDERS: ReadonlySet<CreateIcoreOptions['authProvider']
   'firebase',
 ]);
 
+// UI templates with no session-bootstrap component (client-shadcn's
+// AuthBootstrap has no antd/mui equivalent). After the BFF migration an OAuth
+// round-trip lands the browser on /dashboard with only cookies set and
+// nothing that reads them back, so the route guard bounces a genuinely
+// logged-in user straight to /login. Shipping a default-ON button for a flow
+// that cannot work is worse than shipping no button, so OAuth stays off for
+// these until parity is built. Magic-link is unaffected — those templates do
+// have a working callback route.
+const OAUTH_UNSUPPORTED_UI: ReadonlySet<CreateIcoreOptions['ui']> = new Set(['antd', 'mui']);
+
 export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
   const envExample = join(targetDir, 'apps/client/.env.example');
   try {
     const env = await readFile(envExample, 'utf8');
     const supported = OAUTH_MAGIC_LINK_PROVIDERS.has(opts.authProvider);
+    const oauth = supported && !OAUTH_UNSUPPORTED_UI.has(opts.ui);
     const next = env
-      .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${supported}`)
+      .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${oauth}`)
       .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`);
     await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { RpcException } from '@nestjs/microservices';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AuthSession,
@@ -11,6 +12,36 @@ import type {
 
 export interface SupabaseAuthStrategyOptions {
   client: SupabaseClient;
+}
+
+/**
+ * supabase-js reports a genuinely rejected refresh token and a transient
+ * infrastructure failure through the SAME `error` channel, so `refresh()` has
+ * to tell them apart before it can normalize anything to
+ * `invalid_refresh_token` — that message makes `AuthGuard` DELETE the session
+ * and force a re-login, which must never happen because GoTrue was briefly
+ * unreachable.
+ *
+ * Genuine rejection = a 4xx `AuthApiError` from GoTrue itself (an expired /
+ * unknown / already-rotated refresh token is a 400). Everything else —
+ * `AuthRetryableFetchError` (network, DNS, 5xx), 408/429 back-pressure, or an
+ * error shape we don't recognise — is treated as transient so it propagates
+ * as a plain Error and lands on the guard's 503 path with the session intact.
+ * Unknown shapes deliberately default to "transient": the cost is a stale
+ * record living out its Redis TTL, versus logging a valid user out.
+ */
+function isGenuineTokenRejection(
+  error: {
+    name?: string;
+    status?: number | null;
+  } | null,
+): boolean {
+  if (!error) return false;
+  if (error.name === 'AuthRetryableFetchError') return false;
+  const status = error.status;
+  if (typeof status !== 'number') return false;
+  if (status === 408 || status === 429) return false;
+  return status >= 400 && status < 500;
 }
 
 export class SupabaseAuthStrategy implements AuthStrategy {
@@ -38,9 +69,14 @@ export class SupabaseAuthStrategy implements AuthStrategy {
 
   async refresh(refreshToken: string): Promise<AuthSession> {
     const { data, error } = await this.client.auth.refreshSession({ refresh_token: refreshToken });
-    if (error || !data.session) {
-      throw new Error(error?.message ?? 'invalid_refresh_token');
+    if (error) {
+      if (isGenuineTokenRejection(error)) throw new RpcException('invalid_refresh_token');
+      // Transient: rethrow as a plain Error so NestJS's RPC filter scrubs it
+      // to a generic failure, which AuthGuard maps to 503 WITHOUT deleting
+      // the session (see isGenuineTokenRejection above).
+      throw new Error(error.message ?? 'supabase_refresh_failed');
     }
+    if (!data.session) throw new RpcException('invalid_refresh_token');
     return this.toSession(data.session);
   }
 

@@ -2,6 +2,7 @@ import { Connection, Model, Schema } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
+import { RpcException } from '@nestjs/microservices';
 import {
   AuthStrategy,
   AuthSession,
@@ -117,7 +118,7 @@ export class MongoDbAuthStrategy implements AuthStrategy {
     const session = await this.sessionModel.findOne({ refreshToken }).exec();
     if (!session || session.expiresAt < new Date()) {
       if (session) await this.sessionModel.deleteOne({ _id: session._id });
-      throw new Error('invalid_refresh_token');
+      throw new RpcException('invalid_refresh_token');
     }
 
     const user = await this.userModel.findOne({ id: session.userId }).exec();
