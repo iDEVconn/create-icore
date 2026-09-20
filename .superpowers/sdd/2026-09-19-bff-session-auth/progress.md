@@ -676,3 +676,96 @@ Known, still unfixed (pre-existing, out of scope, surfaced not hidden):
 `AuthModule` import (an improvement) but introduced a `SessionModule`
 dependency there, so such a project would also need `SESSION_REDIS_URL`. No CI
 combo covers this pairing.
+
+## Final whole-branch review (opus, 3e9afb3..ca7a868)
+
+Verdict: NOT ready to merge. 3 Critical, 7 Important findings. Full report
+is exceptionally thorough -- see the dispatch/fix-round entries below for
+the consolidated findings list. Key catches:
+- C1: CI red -- redis-session-store.contract.integration.test.ts has no
+  Redis service in pipeline.yml's check job.
+- C2: SEVERE -- SessionRecord.role never populated on login/register/
+  magic-link/OAuth (only session/adopt passes role). Every CASL admin
+  gate silently dead, including this branch's OWN new admin revoke-user
+  route. 3 existing unit tests assert the bug (role: undefined) as
+  correct -- a green suite hid this.
+- C3: both tracked docker-compose.yml copies (repo root +
+  tools/create-icore/templates/) missing SESSION_REDIS_URL on the
+  gateway service -- container fails to boot.
+- I4: Task 9's fix over-corrected -- Supabase/Firebase now misclassify
+  TRANSIENT failures (network/5xx) as invalid_refresh_token, force
+  -killing sessions on a provider blip (inverts the spec's own 401-vs-503
+  intent, in the destructive direction, for the default provider).
+- I5: BullBoardAuthMiddleware still requires Authorization: Bearer --
+  unreachable under BFF (bypasses the Nest guard pipeline by design, so
+  the AuthGuard rewrite never touched it).
+- I6: AuthBootstrap regression -- dropped the pre-existing
+  readCsrfCookie()===null short-circuit, so every anonymous page load
+  now makes a doomed network round-trip through the shared 10-req/60s
+  auth-burst throttle.
+- I7: antd/mui ship an OAuth button broken AND enabled by default
+  (scaffold-env.ts sets VITE_AUTH_HAS_OAUTH=true regardless of template).
+- I8: CSRF exemption is a hardcoded path allowlist, not the @Public()
+  reflector convention -- a future webhook route will silently 403.
+  Also confirmed the magic-link prefix boundary bug flagged earlier.
+- I9: Redis client has no bounded retry/offline-queue setting -- a Redis
+  outage hangs requests indefinitely instead of the designed 503.
+- I10: logout's sessionStore calls have no error handling (elevated from
+  ledger's "minor" -- reviewer says fix now, cheap and security-adjacent).
+
+Ledger triage: reviewer re-affirmed most "follow-up" rulings as correct
+(T3 redis protocol pin, T5 dedup, T9 live-verification gap, T10 no-e2e
+gap), confirmed the AbilityGuard false-positive dismissal was correct via
+independent verification, but elevated T5's logout error-handling and
+T8b's antd/mui OAuth-parked item to must-fix-now (I10, I7) with sharper
+reasoning than the original ledger entries had.
+
+Dispatched ONE consolidated fix wave for all 3 Critical + 7 Important
+findings (commits ec4df1a..574b6b6), per SDD process (no second fix wave
+after this).
+
+## Final review fix wave (5 commits ca7a868..574b6b6) — re-review verdict
+
+Re-reviewed by opus: ALL 10 findings (3 Critical + 7 Important) genuinely
+ADDRESSED, verified against actual code (not just report claims) --
+independently re-ran api/shared/auth-supabase/auth-firebase test suites,
+counts matched exactly (89/90/25/24, all green). No new Critical/Important
+breakage. Two findings (I5 bull-board Origin-check, I9 AuthGuard 503
+mapping) were fixed beyond their literal text; both extensions verified
+sound, not scope creep.
+
+Ruling: park all residual findings below (none load-bearing, none block
+merge per the re-reviewer's own verdict):
+
+- Minor: bull-board's Origin-vs-Host CSRF substitute has an undocumented
+  proxy caveat (a proxy that rewrites Host but not Origin would 403 board
+  *actions* only, fail-safe). Add one sentence to the runbook. Deferred,
+  not blocking.
+- Minor: new csrf.guard.unit.test.ts imports auth.controller, adding one
+  more file to the pre-existing (not introduced by this branch) auth=none
+  scaffold breakage. Deferred with the auth=none finding below.
+- Minor: Supabase's isGenuineTokenRejection classifies ANY non-408/429 4xx
+  (incl. a misconfigured SUPABASE_ANON_KEY's 401) as genuine rejection --
+  strictly better than pre-fix (which force-logged-out on EVERYTHING), not
+  perfect. Noted, not actionable without a code-based allowlist that would
+  need real Supabase error shapes to build correctly (same live-credential
+  gap as Task 9's own parked limitation).
+- Out-of-scope, corrected scope: `auth=none` scaffolds are typecheck
+  -broken for EVERY feature combo (not just auth=none+jobs=bullmq as the
+  fix-wave implementer's own report described) -- root cause is
+  `scaffold-auth-none.ts`'s SHARED_INDEX_TS omitting `./http/*`/
+  `./session/*`/`./security/hmac` while AUTH_ONLY_PATHS doesn't delete
+  `apps/api/src/app/session`/`apps/api/src/app/http`, both of which import
+  those symbols. Verified pre-existing (byte-identical at ca7a868, traces
+  to d400bd0, predates this branch) and uncovered by any CI combo
+  (pipeline.yml's matrix has zero auth=none entries) -- not a regression
+  this branch introduced, genuinely orthogonal to all 10 findings. Ruling:
+  do not fix in this round -- flagging for the user as a real, separate,
+  pre-existing bug requiring its own investigation (not a quick fix; the
+  actual fix needs deciding whether SHARED_INDEX_TS should keep those
+  exports for auth=none, or whether AUTH_ONLY_PATHS should also strip
+  apps/api/src/app/session + apps/api/src/app/http, a real design choice
+  neither the original nor the final review scoped in).
+
+Verdict: READY TO MERGE per re-reviewer. Pushed commits to update PR
+#329 (ca7a868..574b6b6). CI re-triggered, not waited on indefinitely.
