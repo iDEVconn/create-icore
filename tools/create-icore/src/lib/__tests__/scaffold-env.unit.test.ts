@@ -78,31 +78,21 @@ describe('writeClientEnv', () => {
     expect(env).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=true$/m);
   });
 
-  // antd/mui have no session-bootstrap component, so a completed OAuth
-  // redirect lands on /dashboard with nobody reading the fresh cookies and
-  // the route guard bounces the user back to /login. Shipping that button
-  // enabled by default is worse than not shipping it.
-  it.each(['antd', 'mui'] as const)(
-    'forces VITE_AUTH_HAS_OAUTH=false for %s even on an OAuth-capable provider',
+  // antd/mui now ship an AuthBootstrap component (parity with client-shadcn)
+  // that resolves the session cookie on mount, so a completed OAuth redirect
+  // to /dashboard is picked up correctly and OAuth follows the same
+  // auth-provider capability rule as every other UI template.
+  it.each(['antd', 'mui', 'shadcn'] as const)(
+    'sets VITE_AUTH_HAS_OAUTH=true for %s on an OAuth-capable provider (AuthBootstrap makes the redirect flow work)',
     async (ui) => {
       const dir = await fixture();
       await writeClientEnv(dir, { ...baseOpts, authProvider: 'supabase', ui });
       const env = await readFile(join(dir, 'apps/client/.env'), 'utf8');
       expect(countAssignments(env, 'VITE_AUTH_HAS_OAUTH')).toBe(1);
-      expect(env).toMatch(/^VITE_AUTH_HAS_OAUTH=false$/m);
-      // Magic-link still works on those templates (auth.callback.tsx exists),
-      // so it must NOT be switched off along with OAuth.
+      expect(env).toMatch(/^VITE_AUTH_HAS_OAUTH=true$/m);
       expect(env).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=true$/m);
     },
   );
-
-  it('leaves VITE_AUTH_HAS_OAUTH=true for shadcn (AuthBootstrap makes the redirect flow work)', async () => {
-    const dir = await fixture();
-    await writeClientEnv(dir, { ...baseOpts, authProvider: 'supabase', ui: 'shadcn' });
-    const env = await readFile(join(dir, 'apps/client/.env'), 'utf8');
-    expect(env).toMatch(/^VITE_AUTH_HAS_OAUTH=true$/m);
-    expect(env).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=true$/m);
-  });
 
   it('keeps OAuth off for antd on a provider that does not implement it either', async () => {
     const dir = await fixture();

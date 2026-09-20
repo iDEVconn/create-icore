@@ -13,6 +13,7 @@ import {
   useThemeStore,
 } from '@icore/template-shared';
 import { routeTree } from './routeTree.gen';
+import { AuthBootstrap } from './app/auth-bootstrap';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -42,7 +43,9 @@ function Root() {
       <AntApp>
         <QueryClientProvider client={queryClient}>
           <AbilityProvider>
-            <RouterProvider router={router} />
+            <AuthBootstrap>
+              <RouterProvider router={router} />
+            </AuthBootstrap>
           </AbilityProvider>
         </QueryClientProvider>
       </AntApp>

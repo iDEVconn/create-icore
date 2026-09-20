@@ -14,6 +14,7 @@ import {
 } from '@icore/template-shared';
 import { routeTree } from './routeTree.gen';
 import { wireMuiNotifier } from './lib/notify';
+import { AuthBootstrap } from './app/auth-bootstrap';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -47,7 +48,9 @@ function Root() {
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
         <AbilityProvider>
-          <RouterProvider router={router} />
+          <AuthBootstrap>
+            <RouterProvider router={router} />
+          </AuthBootstrap>
         </AbilityProvider>
       </QueryClientProvider>
     </ThemeProvider>
