@@ -64,6 +64,24 @@ jobs:
       fail-fast: false
       matrix:
         task: [lint, test, 'format:check', 'route-integrity']
+    # The `test` matrix leg runs libs/shared's RedisSessionStore contract
+    # (src/session/__tests__/redis-session-store.contract.integration.test.ts),
+    # which needs a REAL Redis -- distributed-lock behaviour cannot be faked.
+    # It connects to REDIS_TEST_URL, defaulting to redis://localhost:6379,
+    # which this service container publishes on the runner host. `services:`
+    # is per-job (not per-matrix-leg), so the container also starts for the
+    # lint/format/route-integrity legs -- a few seconds of idle container,
+    # cheaper than splitting the matrix into a separate job.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v5
         with:

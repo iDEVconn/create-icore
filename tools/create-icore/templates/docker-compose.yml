@@ -125,6 +125,11 @@ services:
       UPLOAD_TRANSPORT: redis
       UPLOAD_REDIS_URL: redis://redis:6379
       JOBS_REDIS_URL: redis://redis:6379
+      # BFF session store — separate concern from the transport URLs above
+      # (see docs/runbooks/bff-session-auth-migration.md). The gateway
+      # refuses to boot without it: sessionStoreProvider throws on purpose
+      # rather than silently falling back to memory.
+      SESSION_REDIS_URL: redis://redis:6379
       PAYMENT_TRANSPORT: tcp
       PAYMENT_HOST: payment
       PAYMENT_PORT: 4003
