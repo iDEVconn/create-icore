@@ -303,11 +303,12 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 ## Important
 
 - `@Public()` decorator exempts routes from `AuthGuard` (login, register, refresh, webhooks).
+- `@Public()` does NOT exempt a route from `CsrfGuard` — add `@SkipCsrf()` (`apps/api/src/app/http/skip-csrf.decorator.ts`) too if the route is genuinely CSRF-exempt (it issues the CSRF cookie itself, or it's a provider webhook with no browser cookie jar). They are separate metadata keys on purpose: making a route public must never silently drop CSRF protection.
 - `@CheckAbility(action, subject)` enforces CASL rules on admin endpoints — server is the source of truth, the client `<Can>` is UX only.
 - Build artifacts (`dist/`, `.vite/`, `.nx/`) are gitignored — do not commit them.
 - `.env` files are gitignored. Each MS ships a `.env.example` committed alongside its `.env`.
 - The `.husky/pre-commit` hook runs lint-staged + `nx affected -t lint test` on every commit. Never bypass with `--no-verify` — fix the underlying issue.
-- Bull Board (`/api/admin/queues`) is gated by `BullBoardAuthMiddleware` (PR #275) — bearer token + `admin` role, checked ahead of the board's raw Express router since it never passes through the Nest `AuthGuard` pipeline.
+- Bull Board (`/api/admin/queues`) is gated by `BullBoardAuthMiddleware` (PR #275, reworked for BFF) — it resolves the `icore_sid` session cookie against `SESSION_STORE` and requires `record.role === 'admin'`, checked ahead of the board's raw Express router since it never passes through the Nest `AuthGuard` pipeline. There is no Bearer token to send any more. Because that router also bypasses the global `CsrfGuard`, the middleware additionally rejects cross-origin mutating requests (`Origin` ≠ `Host`) — bull-board's bundled UI cannot send `X-CSRF-Token`.
 - Swagger (`/api/docs`) is disabled when `NODE_ENV=production` (`apps/api/src/should-enable-swagger.ts`, PR #276) — it was previously exposed unconditionally.
 - RabbitMQ queues declare `durable: true` (`libs/shared/src/transport.ts`, PR #278) — a broker restart no longer silently drops queued messages.
 - `docker-compose.yml`'s postgres/redis services have named volumes (`icore_postgres_data`, `icore_redis_data`) and postgres binds to `127.0.0.1:5432` instead of all interfaces (PR #279).

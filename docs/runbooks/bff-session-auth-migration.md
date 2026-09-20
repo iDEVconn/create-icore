@@ -37,6 +37,41 @@ silently log out every logged-in user, so the factory fails fast instead.
 Add `SESSION_REDIS_URL=redis://localhost:6379` (or your managed Redis URL)
 to every gateway `.env`/deployment config before deploying this branch.
 
+## Where the role comes from now
+
+Pre-BFF, `AuthGuard` called `auth.verify` on EVERY request and read the
+provider's role claim off the response. That call is gone from the hot
+path, so the role is resolved once, at session-creation time, and stored
+on the `SessionRecord`: `AuthController` calls
+`authClient.verify(session.accessToken)` after login / register /
+magic-link / OAuth-callback and passes the result into
+`sessionStore.create(...)`. `AuthGuard` re-resolves it on each server-side
+token refresh, so a role revoked at the provider takes effect within one
+access-token lifetime instead of surviving the session's full 30 days.
+
+Both lookups are best-effort — a `verify()` failure never fails the
+request, it just leaves the role as it was (`undefined` on a fresh login).
+That direction fails CLOSED: no role means no `@CheckAbility` gate passes,
+never the reverse. Net RPC cost is one `auth.verify` per login plus one
+per refresh — strictly fewer than the pre-BFF one-per-request.
+
+Everything CASL depends on this: `@CheckAbility('manage', 'User')` on
+`POST /auth/admin/revoke-user/:uid`, `AdminAiUsageController`, and
+`BullBoardAuthMiddleware`'s `record.role === 'admin'` check all read the
+role off the session record.
+
+## Redis failure behaviour
+
+The gateway's session Redis client is a REQUEST-path client, not a
+background worker: `maxRetriesPerRequest: 3`, `enableOfflineQueue: false`,
+`connectTimeout: 5s` (`apps/api/src/app/session/session-store.provider.ts`).
+A Redis outage therefore rejects promptly and `AuthGuard` answers
+`503 session_store_unavailable`, instead of queueing commands and hanging
+the request. `RedisSessionStore.withRefreshLock` likewise gives up after
+`2 × LOCK_TTL_MS` rather than polling forever. Sessions are never deleted
+on an infrastructure failure — only an explicit `invalid_refresh_token`
+rejection from the provider does that.
+
 ## Forced re-login on deploy
 
 Every session is invalidated the moment this deploys. Sessions issued
@@ -74,6 +109,15 @@ glossing over it:
    on those templates until parity is built, or build the bootstrap
    parity — and that decision was explicitly not made as part of this
    work.
+   **Update (final review fix wave):** the button is now hidden by default
+   for these two templates — `writeClientEnv`
+   (`tools/create-icore/src/lib/scaffold-env.ts`) forces
+   `VITE_AUTH_HAS_OAUTH=false` for `--client=antd|mui` regardless of the
+   auth provider, so a fresh scaffold no longer ships a visibly broken
+   "Continue with Google/GitHub" button. Magic-link is untouched (it works
+   on those templates). The underlying parity gap is unchanged: building an
+   antd/mui equivalent of `AuthBootstrap` and flipping the flag back on is
+   still a follow-up.
 2. **Live burst-concurrency verification was not performed against real
    provider backends.** The refresh-error-normalization fix (each
    `AuthStrategy.refresh()` now throws a consistent `RpcException` shape)

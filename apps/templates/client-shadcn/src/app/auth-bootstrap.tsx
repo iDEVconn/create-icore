@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useAuthStore, type AuthUser } from '@icore/template-shared';
+import { readCsrfCookie, useAuthStore, type AuthUser } from '@icore/template-shared';
 import { Loader2 } from 'lucide-react';
 import { api } from '@/main';
 
@@ -9,6 +9,18 @@ export function AuthBootstrap({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+
+    // The (non-httpOnly) CSRF cookie is set alongside icore_sid on every
+    // login/register/adopt and has the same 30-day lifetime — a free,
+    // zero-network signal that this browser plausibly has a session. Without
+    // it, skip the doomed GET /auth/session: it would block every anonymous
+    // page load behind a full-screen spinner and burn a slot in the shared
+    // auth-burst throttle (10 req/60s across register+login+session).
+    if (readCsrfCookie() === null) {
+      useAuthStore.getState().logout();
+      setBooted(true);
+      return;
+    }
 
     void (async () => {
       try {

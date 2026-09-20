@@ -11,3 +11,13 @@ token pair server-side under a distributed lock. CSRF protection is now a
 global guard covering every mutating route, not just `/auth/refresh`.
 Requires a new `SESSION_REDIS_URL` env var on the gateway. Breaking change:
 every existing session is invalidated on deploy (forced re-login).
+
+The role claim is resolved at session-creation time (and re-resolved on
+every server-side refresh) and stored on the session record, so CASL
+`@CheckAbility` gates, the admin revoke-user route and Bull Board keep
+working without a per-request `auth.verify`. Bull Board now authenticates
+from the session cookie instead of an `Authorization: Bearer` header, CSRF
+exemptions are declared with a `@SkipCsrf()` decorator instead of a
+hardcoded path allowlist, and `--client=antd|mui` scaffolds ship with
+`VITE_AUTH_HAS_OAUTH=false` until those templates get a session-bootstrap
+equivalent.
