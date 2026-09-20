@@ -25,6 +25,33 @@ interface PendingState {
   callbackUrl: string;
 }
 
+/**
+ * Identity Toolkit's `securetoken.googleapis.com/v1/token` error codes that
+ * mean the refresh token itself is dead. `HttpIdentityToolkitClient` surfaces
+ * them verbatim as the thrown Error's message (see identity-toolkit.client.ts
+ * — it rethrows `payload.error.message`).
+ */
+const IDENTITY_TOOLKIT_REJECTION_CODES = [
+  'INVALID_REFRESH_TOKEN',
+  'MISSING_REFRESH_TOKEN',
+  'TOKEN_EXPIRED',
+  'USER_DISABLED',
+  'USER_NOT_FOUND',
+  'INVALID_GRANT_TYPE',
+] as const;
+
+/**
+ * Only a known rejection code may be normalized to `invalid_refresh_token` —
+ * that message makes `AuthGuard` DELETE the session and force a re-login.
+ * A DNS failure, a socket timeout or a `firebase_refresh_failed_503` must NOT
+ * take a valid session down with it; those propagate unchanged so the guard
+ * answers 503 and keeps the session.
+ */
+function isIdentityToolkitRejection(err: unknown): boolean {
+  const message = (err instanceof Error ? err.message : String(err)).toUpperCase();
+  return IDENTITY_TOOLKIT_REJECTION_CODES.some((code) => message.includes(code));
+}
+
 export interface FirebaseAdminAuthLike {
   verifyIdToken(idToken: string): Promise<{ uid: string; email?: string; role?: string }>;
   setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
@@ -82,8 +109,9 @@ export class FirebaseAuthStrategy implements AuthStrategy {
     let res;
     try {
       res = await this.identityToolkit.refresh(refreshToken);
-    } catch {
-      throw new RpcException('invalid_refresh_token');
+    } catch (err) {
+      if (isIdentityToolkitRejection(err)) throw new RpcException('invalid_refresh_token');
+      throw err;
     }
     // Firebase doesn't return email on the refresh endpoint; backfill via verifyIdToken
     const verified = await this.adminAuth.verifyIdToken(res.id_token);
