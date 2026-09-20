@@ -98,26 +98,25 @@ own TTL.
 Being explicit about what this work does **not** cover, rather than
 glossing over it:
 
-1. **`client-antd` / `client-mui` OAuth login remains non-functional.**
-   Both templates' OAuth buttons (`LoginForm.tsx`) still redirect to
-   `/api/auth/oauth/{google,github}` and land on an
-   `auth.oauth.callback` route, but neither template has a
+1. **`client-antd` / `client-mui` OAuth login — RESOLVED (see GitHub issue
+   #330).** Both templates' OAuth buttons (`LoginForm.tsx`) redirect to
+   `/api/auth/oauth/{google,github}` and land on `/dashboard` with only
+   cookies set (no token in the URL). This previously bounced the user
+   straight back to `/login` because neither template had a
    session-bootstrap mechanism analogous to `client-shadcn`'s
-   `AuthBootstrap` (`GET /auth/session` on mount). This is a pre-existing
-   infrastructure gap in those two templates, not something introduced or
-   fixed here. A real product decision is needed — hide the OAuth buttons
-   on those templates until parity is built, or build the bootstrap
-   parity — and that decision was explicitly not made as part of this
-   work.
-   **Update (final review fix wave):** the button is now hidden by default
-   for these two templates — `writeClientEnv`
-   (`tools/create-icore/src/lib/scaffold-env.ts`) forces
-   `VITE_AUTH_HAS_OAUTH=false` for `--client=antd|mui` regardless of the
-   auth provider, so a fresh scaffold no longer ships a visibly broken
-   "Continue with Google/GitHub" button. Magic-link is untouched (it works
-   on those templates). The underlying parity gap is unchanged: building an
-   antd/mui equivalent of `AuthBootstrap` and flipping the flag back on is
-   still a follow-up.
+   `AuthBootstrap` (`GET /auth/session` on mount).
+   **Update:** both templates now ship their own `AuthBootstrap`
+   (`apps/templates/client-antd/src/app/auth-bootstrap.tsx`,
+   `apps/templates/client-mui/src/app/auth-bootstrap.tsx` — same logic as
+   `client-shadcn`'s, with an antd `Spin` / MUI `CircularProgress` loading
+   state respectively), wired into each template's `main.tsx` around
+   `<RouterProvider>`. `writeClientEnv`
+   (`tools/create-icore/src/lib/scaffold-env.ts`) no longer forces
+   `VITE_AUTH_HAS_OAUTH=false` for `--client=antd|mui` — the flag now
+   follows the auth-provider capability rule alone, same as
+   `client-shadcn`. The parity gap is closed; a fresh scaffold on an
+   OAuth-capable provider ships a working "Continue with Google/GitHub"
+   button on every UI template.
 2. **Live burst-concurrency verification was not performed against real
    provider backends.** The refresh-error-normalization fix (each
    `AuthStrategy.refresh()` now throws a consistent `RpcException` shape)
