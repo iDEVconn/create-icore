@@ -245,6 +245,13 @@ export class AuthController {
       provider,
       `${origin}/api/auth/oauth/${provider}/callback`,
     );
+    // Storing the OAuth anti-CSRF state nonce in an httpOnly, Secure (in
+    // prod), SameSite cookie IS the correct, OWASP-recommended way to hold
+    // this short-lived (10 min) value between the redirect-out and the
+    // provider's callback -- it is never readable by client JS and never
+    // sent over plain HTTP in prod. There is no server-side store to move it
+    // to that would improve on the browser's own httpOnly cookie jar here.
+    // codeql[js/clear-text-storage-of-sensitive-data]: see comment above -- httpOnly+Secure+SameSite cookie is the intended protection, not clear-text storage.
     res.cookie('oauth_state', state, {
       httpOnly: true,
       secure: this.isProd(),
