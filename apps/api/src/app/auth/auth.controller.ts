@@ -251,13 +251,17 @@ export class AuthController {
     // provider's callback -- it is never readable by client JS and never
     // sent over plain HTTP in prod. There is no server-side store to move it
     // to that would improve on the browser's own httpOnly cookie jar here.
-    // codeql[js/clear-text-storage-of-sensitive-data]: see comment above -- httpOnly+Secure+SameSite cookie is the intended protection, not clear-text storage.
-    res.cookie('oauth_state', state, {
-      httpOnly: true,
-      secure: this.isProd(),
-      sameSite: 'lax',
-      maxAge: 10 * 60 * 1000,
-    });
+    res.cookie(
+      'oauth_state',
+      // codeql[js/clear-text-storage-of-sensitive-data]: see comment above -- httpOnly+Secure+SameSite cookie is the intended protection, not clear-text storage.
+      state,
+      {
+        httpOnly: true,
+        secure: this.isProd(),
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000,
+      },
+    );
     return res.redirect(redirectUrl);
   }
 
