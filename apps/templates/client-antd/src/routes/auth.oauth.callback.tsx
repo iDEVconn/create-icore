@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Spin, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setAccessToken, useAuthStore, useNotify } from '@icore/template-shared';
+import { useAuthStore, useNotify } from '@icore/template-shared';
 
 type Status = 'restoring' | 'done' | 'error';
 
@@ -25,7 +25,11 @@ function OAuthCallbackPage() {
       void navigate({ to: '/login' });
       return;
     }
-    setAccessToken(accessToken);
+    // NOTE: the gateway's OAuth callback (Task 5) now sets cookies and
+    // redirects straight to /dashboard with no tokens in the URL at all, so
+    // this hash-param branch is unreachable via the real Google/GitHub
+    // button flow. Left in place as a compile-safe no-op pending a scoped
+    // decision on whether/how to give this template BFF parity here.
     setUser({ id: userId, email });
     setStatus('done');
     void navigate({ to: '/dashboard' });

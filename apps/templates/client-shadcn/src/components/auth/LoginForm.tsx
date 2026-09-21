@@ -9,11 +9,7 @@ const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true
 const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
 
 interface LoginFormProps {
-  onSuccess: (session: {
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string; role?: string };
-  }) => void;
+  onSuccess: (session: { user: { id: string; email: string; role?: string } }) => void;
   onError: (msg: string) => void;
   onSwitchToRegister: () => void;
   onSwitchToMagicLink: () => void;
@@ -36,15 +32,14 @@ export function LoginForm({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const session = await api<{
-        accessToken: string;
-        refreshToken: string;
-        user: { id: string; email: string; role?: string };
-      }>('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const session = await api<{ user: { id: string; email: string; role?: string } }>(
+        '/auth/login',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        },
+      );
       onSuccess(session);
     } catch (err) {
       onError(err instanceof Error ? err.message : t('error.unknown'));

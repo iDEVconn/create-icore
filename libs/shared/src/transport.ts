@@ -129,8 +129,17 @@ export function buildTransport(prefix: string): ClientOptions {
         },
       } as unknown as ClientOptions;
     case 'kafka':
-      // kafkajs retries broker connections internally; clientId defaults from
-      // the prefix, and the consumer needs a groupId.
+      // kafkajs retries broker connections internally, but its OWN default is
+      // only 5 attempts (~10s of backoff, capped at maxRetryTime=30s per
+      // attempt) before the connect promise REJECTS — same class of bug as
+      // the ioredis/nats defaults documented above, just easier to miss since
+      // kafkajs's docs call it "retries connections internally" without
+      // mentioning the cap. An unhandled rejection from that exhausted retry
+      // crashes the process (`ServerKafka`'s listen() never resolves the way
+      // NATS's/MQTT's do to let bootstrapMicroservice() catch it), so a
+      // Kafka broker that's merely slow to come up on boot takes the whole
+      // service down instead of idling and reconnecting once it's reachable.
+      // retries: Infinity keeps the same capped 30s-max backoff forever.
       return {
         transport: Transport.KAFKA,
         options: {
@@ -138,6 +147,7 @@ export function buildTransport(prefix: string): ClientOptions {
             clientId:
               process.env[`${prefix}_KAFKA_CLIENT_ID`]?.trim() || `${prefix.toLowerCase()}-client`,
             brokers: required(`${prefix}_KAFKA_BROKERS`).split(','),
+            retry: { retries: Number.POSITIVE_INFINITY },
           },
           consumer: { groupId: `${prefix.toLowerCase()}-consumer` },
         },

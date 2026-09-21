@@ -3105,6 +3105,7 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.5"
     "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/microservices": "npm:^11.2.5"
     "@nestjs/testing": "npm:^11.2.5"
     firebase-admin: "npm:^14.4.0"
     tslib: "npm:^2.8.1"
@@ -3119,6 +3120,7 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.5"
     "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/microservices": "npm:^11.2.5"
     "@nestjs/mongoose": "npm:^11.0.4"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/jsonwebtoken": "npm:^9.0.10"
@@ -3157,6 +3159,7 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.5"
     "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/microservices": "npm:^11.2.5"
     "@nestjs/testing": "npm:^11.2.5"
     "@supabase/supabase-js": "npm:^2.116.0"
     tslib: "npm:^2.8.1"
@@ -3275,6 +3278,7 @@ __metadata:
     "@casl/ability": "npm:^7.0.1"
     "@nestjs/microservices": "npm:^11.2.5"
     "@types/express": "npm:^5.0.6"
+    ioredis: "npm:^6.0.0"
     tslib: "npm:^2.8.1"
   peerDependencies:
     express: ^5.0.0
@@ -10732,6 +10736,7 @@ __metadata:
     "@types/multer": "npm:^2.2.0"
     cookie-parser: "npm:^1.4.7"
     express: "npm:^5.2.1"
+    ioredis: "npm:^6.0.0"
   languageName: unknown
   linkType: soft
 

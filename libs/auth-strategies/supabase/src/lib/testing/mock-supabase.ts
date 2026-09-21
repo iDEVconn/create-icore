@@ -114,13 +114,35 @@ export function createMockSupabaseClient(): MockSupabaseClient {
     },
     async refreshSession({ refresh_token }: { refresh_token: string }) {
       const uid = refreshToUid.get(refresh_token);
+      // Shape matters here, not just the message: the strategy classifies a
+      // 4xx AuthApiError as a genuine rejection and anything else (retryable
+      // fetch error, 5xx, unknown) as transient, so the mock has to mirror
+      // what GoTrue actually returns for a dead refresh token — HTTP 400,
+      // code `refresh_token_not_found`.
       if (!uid)
-        return { data: { session: null, user: null }, error: { message: 'invalid refresh' } };
+        return {
+          data: { session: null, user: null },
+          error: {
+            name: 'AuthApiError',
+            message: 'Invalid Refresh Token: Refresh Token Not Found',
+            status: 400,
+            code: 'refresh_token_not_found',
+          },
+        };
       const sessionId = refreshToSessionId.get(refresh_token);
       refreshToUid.delete(refresh_token); // rotation
       refreshToSessionId.delete(refresh_token);
       const user = findById(uid);
-      if (!user) return { data: { session: null, user: null }, error: { message: 'user missing' } };
+      if (!user)
+        return {
+          data: { session: null, user: null },
+          error: {
+            name: 'AuthApiError',
+            message: 'User from sub claim in JWT does not exist',
+            status: 403,
+            code: 'user_not_found',
+          },
+        };
       // Preserve the session identity across rotation — a refreshed token pair
       // is still the same logical session, not a new one.
       const session = issueSession(user, sessionId);

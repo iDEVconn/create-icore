@@ -303,11 +303,12 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 ## Important
 
 - `@Public()` decorator exempts routes from `AuthGuard` (login, register, refresh, webhooks).
+- `@Public()` does NOT exempt a route from `CsrfGuard` — add `@SkipCsrf()` (`apps/api/src/app/http/skip-csrf.decorator.ts`) too if the route is genuinely CSRF-exempt (it issues the CSRF cookie itself, or it's a provider webhook with no browser cookie jar). They are separate metadata keys on purpose: making a route public must never silently drop CSRF protection.
 - `@CheckAbility(action, subject)` enforces CASL rules on admin endpoints — server is the source of truth, the client `<Can>` is UX only.
 - Build artifacts (`dist/`, `.vite/`, `.nx/`) are gitignored — do not commit them.
 - `.env` files are gitignored. Each MS ships a `.env.example` committed alongside its `.env`.
 - The `.husky/pre-commit` hook runs lint-staged + `nx affected -t lint test` on every commit. Never bypass with `--no-verify` — fix the underlying issue.
-- Bull Board (`/api/admin/queues`) is gated by `BullBoardAuthMiddleware` (PR #275) — bearer token + `admin` role, checked ahead of the board's raw Express router since it never passes through the Nest `AuthGuard` pipeline.
+- Bull Board (`/api/admin/queues`) is gated by `BullBoardAuthMiddleware` (PR #275, reworked for BFF) — it resolves the `icore_sid` session cookie against `SESSION_STORE` and requires `record.role === 'admin'`, checked ahead of the board's raw Express router since it never passes through the Nest `AuthGuard` pipeline. There is no Bearer token to send any more. Because that router also bypasses the global `CsrfGuard`, the middleware additionally rejects cross-origin mutating requests (`Origin` ≠ `Host`) — bull-board's bundled UI cannot send `X-CSRF-Token`.
 - Swagger (`/api/docs`) is disabled when `NODE_ENV=production` (`apps/api/src/should-enable-swagger.ts`, PR #276) — it was previously exposed unconditionally.
 - RabbitMQ queues declare `durable: true` (`libs/shared/src/transport.ts`, PR #278) — a broker restart no longer silently drops queued messages.
 - `docker-compose.yml`'s postgres/redis services have named volumes (`icore_postgres_data`, `icore_redis_data`) and postgres binds to `127.0.0.1:5432` instead of all interfaces (PR #279).
@@ -317,6 +318,7 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - See `docs/runbooks/third-party-infra-audit-fixes.md` for the full rationale behind the above (source: third-party iCore infrastructure audit, 2026-09-07).
 - `create-icore`'s post-scaffold package-manager install (`tools/create-icore/src/lib/scaffold.ts`'s `runInstall`) checks the install's exit status — a failed install (e.g. npm's `EALLOWSCRIPTS` on project-scoped installs, caused by a global `allow-scripts` npm config that's only valid at user scope) now prints a warning + manual `cd <dir> && <pm> install` fallback instead of the normal "Project scaffolded / Done" success block.
 - `MongoDbDBStrategy.getModel()` (`libs/db-strategies/mongodb/src/lib/mongodb-db.strategy.ts`) casts the model through `Model<unknown>` before caching it — mongoose >=9.10.0 tightened `Model`'s generic variance, and the `^9.9.5` dependency range means every fresh scaffold install (npm/pnpm/yarn) resolves to whatever's newest, so an unqualified assignment there breaks the `db=mongodb` build regardless of package manager.
+- Auth is now a full BFF (Backend-For-Frontend) session model: the browser holds only an opaque, httpOnly `icore_sid` cookie, never a provider token. The gateway resolves identity via a Redis-backed `SessionStore` (requires `SESSION_REDIS_URL`, no in-memory fallback — boot fails fast without it) and refreshes the underlying provider token pair server-side under a distributed lock. The global `CsrfGuard` now covers every mutating route, not just auth — send `X-CSRF-Token` on every non-GET request. See `docs/runbooks/bff-session-auth-migration.md` for the env var, forced-relogin-on-deploy consequence, and known gaps.
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

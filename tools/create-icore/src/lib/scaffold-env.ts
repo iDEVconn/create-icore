@@ -310,8 +310,14 @@ export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions
   try {
     const env = await readFile(envExample, 'utf8');
     const supported = OAUTH_MAGIC_LINK_PROVIDERS.has(opts.authProvider);
+    // client-antd and client-mui now ship an AuthBootstrap component (parity
+    // with client-shadcn) that resolves the session cookie on mount, so the
+    // OAuth round-trip (gateway redirects to /dashboard with cookies set, no
+    // token in the URL) works for every UI template. OAuth availability
+    // follows the auth-provider capability alone.
+    const oauth = supported;
     const next = env
-      .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${supported}`)
+      .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${oauth}`)
       .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`);
     await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setAccessToken, useAuthStore, useNotify } from '@icore/template-shared';
+import { useAuthStore, useNotify } from '@icore/template-shared';
 import { AuthBrandPanel } from '../components/auth/AuthBrandPanel';
 import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
@@ -20,11 +20,7 @@ function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [confirmedEmail, setConfirmedEmail] = useState('');
 
-  function handleLoginSuccess(session: {
-    accessToken: string;
-    user: { id: string; email: string; role?: string };
-  }) {
-    setAccessToken(session.accessToken);
+  function handleLoginSuccess(session: { user: { id: string; email: string; role?: string } }) {
     setUser(session.user);
     notify.success(t('auth.login'));
     void navigate({ to: '/dashboard' });
