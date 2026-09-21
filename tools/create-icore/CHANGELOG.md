@@ -1,5 +1,45 @@
 # @idevconn/create-icore
 
+## 0.19.0
+
+### Minor Changes
+
+- c5458b0: Replaces the hybrid Bearer-access-token + httpOnly-refresh-cookie auth
+  model with a full BFF (Backend-For-Frontend) pattern: the browser now
+  holds only an opaque, httpOnly `icore_sid` session cookie. The gateway
+  resolves identity from a new Redis-backed `SessionStore`, transparently
+  refreshing the underlying provider (Supabase/Firebase/MongoDB/Postgres)
+  token pair server-side under a distributed lock. CSRF protection is now a
+  global guard covering every mutating route, not just `/auth/refresh`.
+  Requires a new `SESSION_REDIS_URL` env var on the gateway. Breaking change:
+  every existing session is invalidated on deploy (forced re-login).
+
+  The role claim is resolved at session-creation time (and re-resolved on
+  every server-side refresh) and stored on the session record, so CASL
+  `@CheckAbility` gates, the admin revoke-user route and Bull Board keep
+  working without a per-request `auth.verify`. Bull Board now authenticates
+  from the session cookie instead of an `Authorization: Bearer` header, CSRF
+  exemptions are declared with a `@SkipCsrf()` decorator instead of a
+  hardcoded path allowlist, and `--client=antd|mui` scaffolds ship with
+  `VITE_AUTH_HAS_OAUTH=false` until those templates get a session-bootstrap
+  equivalent.
+
+### Patch Changes
+
+- d872dc1: Suppresses a CodeQL false positive flagging the `oauth_state` cookie write in `oauthStart` as clear-text storage of sensitive data — it's an httpOnly, Secure (in prod), SameSite cookie, the correct OWASP-recommended pattern for a short-lived anti-CSRF nonce, not a vulnerability.
+- 935dba2: Fixes a real crash: the Kafka transport (`libs/shared/src/transport.ts`) relied on kafkajs's own default of 5 connection retries (~10s of backoff) before its connect promise rejects — unlike every other broker transport (Redis, NATS, MQTT, RabbitMQ), which already override their client's defaults for infinite retry. A Kafka broker that's merely slow to come up on boot (or genuinely down) crashed the gateway/microservice process instead of idling and reconnecting once reachable, caught by the nightly `Scaffold Smoke Matrix`'s `no-upload-kafka-shadcn` combo. Now sets `retry: { retries: Infinity }` on the Kafka client, matching the resilience behavior every other transport already has.
+- 7625116: Closes the `client-antd` / `client-mui` OAuth session-bootstrap gap
+  (GitHub issue #330) left open by the BFF session-auth migration. Both
+  templates now ship an `AuthBootstrap` component (parity with
+  `client-shadcn`'s) that resolves the logged-in user from the `icore_sid`
+  session cookie via `GET /auth/session` on mount, wired into each
+  template's `main.tsx` around `<RouterProvider>`. `writeClientEnv`
+  (`tools/create-icore/src/lib/scaffold-env.ts`) no longer forces
+  `VITE_AUTH_HAS_OAUTH=false` for `--client=antd|mui` — the OAuth button now
+  follows the same auth-provider capability rule as every other UI
+  template, since the OAuth redirect-to-`/dashboard`-with-cookies-only flow
+  now works on all three.
+
 ## 0.18.0
 
 ### Minor Changes
