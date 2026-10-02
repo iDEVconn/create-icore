@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import type { ClientProxy } from '@nestjs/microservices';
 import { RpcException } from '@nestjs/microservices';
-import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { verifyHmac } from '@icore/shared';
 import { AuthClientService } from '../auth-client.service';
 
@@ -67,6 +72,45 @@ describe('AuthClientService — RPC error mapping', () => {
     const service = new AuthClientService({ send } as unknown as ClientProxy);
 
     await expect(service.login('a@x.com', 'pw12345!')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('requestPasswordReset sends email + callbackUrl and resolves against {ok:true}', async () => {
+    const send = vi.fn(() => of({ ok: true as const }));
+    const service = new AuthClientService({ send } as unknown as ClientProxy);
+    await expect(
+      service.requestPasswordReset('a@x.com', 'https://my.app/reset-password'),
+    ).resolves.toBeUndefined();
+    expect(send).toHaveBeenCalledWith('auth.password.forgot', {
+      email: 'a@x.com',
+      callbackUrl: 'https://my.app/reset-password',
+    });
+  });
+
+  it('confirmPasswordReset sends token + password and maps invalid_reset_token to BadRequestException', async () => {
+    const ok = vi.fn(() =>
+      of({
+        accessToken: 'at',
+        refreshToken: 'rt',
+        expiresIn: 3600,
+        user: { id: 'u1', email: 'a@x.com' },
+      }),
+    );
+    await new AuthClientService({ send: ok } as unknown as ClientProxy).confirmPasswordReset(
+      'tok',
+      'newpw123!',
+    );
+    expect(ok).toHaveBeenCalledWith('auth.password.reset', {
+      token: 'tok',
+      password: 'newpw123!',
+    });
+
+    const bad = vi.fn(() => throwError(() => new RpcException('invalid_reset_token')));
+    await expect(
+      new AuthClientService({ send: bad } as unknown as ClientProxy).confirmPasswordReset(
+        'x',
+        'newpw123!',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('passes through unrecognized RPC errors unchanged', async () => {

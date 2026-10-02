@@ -91,6 +91,24 @@ export class AuthController {
     return this.strategy.refresh(session.refreshToken);
   }
 
+  @MessagePattern('auth.password.forgot')
+  async requestPasswordReset(
+    @Payload() payload: { email: string; callbackUrl: string },
+  ): Promise<{ ok: true }> {
+    await this.strategy.requestPasswordReset(payload.email, payload.callbackUrl);
+    return { ok: true };
+  }
+
+  @MessagePattern('auth.password.reset')
+  async confirmPasswordReset(
+    @Payload() payload: { token: string; password: string },
+  ): Promise<AuthSession> {
+    const session = await this.strategy.confirmPasswordReset(payload.token, payload.password);
+    await this.assignInitialRole(session.user.id, session.user.email);
+    // Re-mint so the role is baked into the token (same as signup/magic-link).
+    return this.strategy.refresh(session.refreshToken);
+  }
+
   @MessagePattern('auth.oauth.start')
   startOAuth(
     @Payload() payload: { provider: OAuthProvider; callbackUrl: string },
