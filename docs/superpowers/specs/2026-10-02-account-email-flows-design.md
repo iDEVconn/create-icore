@@ -17,9 +17,7 @@ Status: approved in chat 2026-10-02 (spec pending review). Ships as **two PRs**:
 
 ### Contract (`libs/shared/src/strategies/auth.ts`)
 
-- `signUp(email, password, opts?: { callbackUrl?: string }): Promise<SignUpResult>` where
-  `SignUpResult = { status: 'session'; session: AuthSession } | { status: 'confirmation_required'; user: { id: string; email: string } }`.
-  `user` is needed so the auth MS can still `assignInitialRole(user.id, user.email)`. Firebase/Fake/Postgres/Mongo always return `status: 'session'` (Postgres/Mongo updated mechanically).
+- `signUp(email, password, opts?: { callbackUrl?: string }): Promise<AuthSession>` keeps returning a session. A strategy that cannot issue one yet (Supabase "Confirm email") throws the typed `EmailConfirmationRequiredError({ id, email })` exported from `@icore/shared`. The auth MS catches it, still calls `assignInitialRole(user.id, user.email)`, and answers `SignUpConfirmationRequired = { status: 'confirmation_required'; user: { id; email } }`. **Decision (plan 2026-10-02-signup-email-confirmation):** this replaced an earlier `SignUpResult` union return type, which would have forced edits to ~15 files/tests (contract suite, Fake, Firebase, Postgres, Mongo) for strategies that can never produce the outcome.
 - `requestPasswordReset(email: string, callbackUrl: string): Promise<void>`.
 - `confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession>`.
 - Error codes (RPC messages): `email_not_confirmed`, `invalid_reset_token`.
@@ -58,7 +56,7 @@ Status: approved in chat 2026-10-02 (spec pending review). Ships as **two PRs**:
 
 ## PR split
 
-- **PR 1 — `bug/signup-email-confirmation`**: `SignUpResult` + signup `callbackUrl`, `email_not_confirmed`, gateway 202 + client `confirmation_required` handling (3 clients), `CLIENT_ORIGIN` warning, runbook + Next-steps notice (Supabase part).
+- **PR 1 — `bug/signup-email-confirmation`**: `EmailConfirmationRequiredError` + signup `callbackUrl`, `email_not_confirmed`, gateway 202 + client `confirmation_required` handling (3 clients), `CLIENT_ORIGIN` warning, runbook + Next-steps notice (Supabase part).
 - **PR 2 — `feature/forgot-password`** (cut from `dev` after PR 1 merges): reset contract/strategies/MS/gateway/clients, runbook Firebase + recovery-template parts.
 
 ## Testing
@@ -72,4 +70,4 @@ Status: approved in chat 2026-10-02 (spec pending review). Ships as **two PRs**:
 
 - Supabase recovery needs the `{{ .TokenHash }}` email-template change (same requirement as magic-link). Without it the link is a hosted-verify URL the `/reset-password` route cannot redeem, so the runbook + Next-steps notice are part of the feature, not optional docs.
 - Existing Supabase deployments with confirmation disabled see no behaviour change.
-- `SignUpResult` is a breaking contract change for third-party `AuthStrategy` implementers — changeset notes it.
+- `signUp` gained an optional third parameter and a new documented throw; existing third-party `AuthStrategy` implementations keep compiling and behaving as before (additive) — the changeset notes it.

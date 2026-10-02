@@ -302,6 +302,7 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 
 ## Important
 
+- Signup may not yield a session: with Supabase "Confirm email" on, `AuthStrategy.signUp` throws `EmailConfirmationRequiredError`, the auth MS answers `{status:'confirmation_required'}` and `POST /api/auth/register` returns **202** (no cookies); the clients then show the check-email screen. Login before confirming is **403** `email_not_confirmed`. Provider emails link to `CLIENT_ORIGIN` (gateway env) — Supabase's own Site URL must match it or links point at `localhost:3000`. See `docs/runbooks/auth-email-setup.md`.
 - `@Public()` decorator exempts routes from `AuthGuard` (login, register, refresh, webhooks).
 - `@Public()` does NOT exempt a route from `CsrfGuard` — add `@SkipCsrf()` (`apps/api/src/app/http/skip-csrf.decorator.ts`) too if the route is genuinely CSRF-exempt (it issues the CSRF cookie itself, or it's a provider webhook with no browser cookie jar). They are separate metadata keys on purpose: making a route public must never silently drop CSRF protection.
 - `@CheckAbility(action, subject)` enforces CASL rules on admin endpoints — server is the source of truth, the client `<Can>` is UX only.
