@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseAuthStrategy, createMockSupabaseClient } from '@icore/auth-supabase';
 import { AuthController } from '../auth.controller';
@@ -8,8 +8,11 @@ function makeConfig(env: Record<string, string | undefined>): ConfigService {
 }
 
 describe('AuthController.signup × email confirmation required', () => {
-  const fixture = (env: Record<string, string | undefined> = {}) => {
-    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+  const fixture = (
+    env: Record<string, string | undefined> = {},
+    requireEmailConfirmation = true,
+  ) => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation });
     const strategy = new SupabaseAuthStrategy({ client: mock.client });
     return { mock, strategy, controller: new AuthController(strategy, makeConfig(env)) };
   };
@@ -49,8 +52,22 @@ describe('AuthController.signup × email confirmation required', () => {
     });
   });
 
-  it('propagates real errors (e.g. user exists) unchanged', async () => {
-    const { controller } = fixture();
+  it('duplicate signup of a registered email answers confirmation_required too and never touches roles', async () => {
+    const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
+    await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+    const setRole = vi.spyOn(strategy, 'setRole');
+    const getRole = vi.spyOn(strategy, 'getRole');
+
+    const again = await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+
+    expect(again).toMatchObject({ status: 'confirmation_required' });
+    // the obfuscated user's random id is not a real account — no admin API calls for it
+    expect(getRole).not.toHaveBeenCalled();
+    expect(setRole).not.toHaveBeenCalled();
+  });
+
+  it('propagates real errors (user exists with confirmation OFF) unchanged', async () => {
+    const { controller } = fixture({}, false);
     await controller.signup({ email: 'a@x.com', password: 'pw12345!' });
     await expect(controller.signup({ email: 'a@x.com', password: 'pw12345!' })).rejects.toThrow(
       'user exists',

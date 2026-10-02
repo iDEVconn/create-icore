@@ -42,8 +42,12 @@ export class AuthController {
     } catch (err) {
       if (err instanceof EmailConfirmationRequiredError) {
         // Account exists, no session until the user confirms. The role is
-        // assigned now so the first post-confirmation login already has it.
-        await this.assignInitialRole(err.user.id, err.user.email);
+        // assigned now so the first post-confirmation login already has it —
+        // except for an already-registered email, where the provider hands
+        // back an obfuscated user: its id is not a real account (and the real
+        // account got its role at its own signup), so touching it would 500
+        // and turn this endpoint into an account-existence oracle.
+        if (!err.existingAccount) await this.assignInitialRole(err.user.id, err.user.email);
         return { status: 'confirmation_required', user: err.user };
       }
       throw err;

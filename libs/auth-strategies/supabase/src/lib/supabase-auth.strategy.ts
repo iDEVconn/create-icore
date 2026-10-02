@@ -66,10 +66,12 @@ export class SupabaseAuthStrategy implements AuthStrategy {
       // error, so signup can't be used to enumerate accounts) and mailed a
       // link. That's a normal outcome, not a failure.
       if (data.user) {
-        throw new EmailConfirmationRequiredError({
-          id: data.user.id,
-          email: data.user.email ?? email,
-        });
+        // Empty `identities` is how GoTrue marks the obfuscated duplicate-signup
+        // user: its id is random, not a real account.
+        throw new EmailConfirmationRequiredError(
+          { id: data.user.id, email: data.user.email ?? email },
+          data.user.identities?.length === 0,
+        );
       }
       throw new Error('signup_failed');
     }

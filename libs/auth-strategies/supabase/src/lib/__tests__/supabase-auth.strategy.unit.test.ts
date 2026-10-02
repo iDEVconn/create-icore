@@ -135,6 +135,29 @@ describe('SupabaseAuthStrategy — signUp() with email confirmation', () => {
   });
 });
 
+describe('SupabaseAuthStrategy — signUp() for an already-registered email (Confirm email ON)', () => {
+  it('flags the obfuscated user GoTrue returns, so callers never treat its random id as a real account', async () => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('a@x.com', 'pw12345!').catch(() => undefined);
+
+    const err = await strategy.signUp('a@x.com', 'pw12345!').catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(EmailConfirmationRequiredError);
+    expect((err as EmailConfirmationRequiredError).existingAccount).toBe(true);
+  });
+
+  it('does not flag a genuinely new user', async () => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+
+    const err = await strategy.signUp('b@x.com', 'pw12345!').catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(EmailConfirmationRequiredError);
+    expect((err as EmailConfirmationRequiredError).existingAccount).toBe(false);
+  });
+});
+
 describe('SupabaseAuthStrategy — signIn() before email confirmation', () => {
   it("throws RpcException('email_not_confirmed') so it survives the RPC boundary", async () => {
     const mock = createMockSupabaseClient({ requireEmailConfirmation: true });

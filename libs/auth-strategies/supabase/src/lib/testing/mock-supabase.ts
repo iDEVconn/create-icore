@@ -110,6 +110,18 @@ export function createMockSupabaseClient(
       lastSignUpOptions = options;
       for (const u of users.values()) {
         if (u.email === email) {
+          if (opts.requireEmailConfirmation) {
+            // Real GoTrue with "Confirm email" ON: no error (anti account-
+            // enumeration) — a sanitized user with a FRESH random id and no
+            // identities, and a confirmation email goes to the real owner.
+            return {
+              data: {
+                user: { id: `obfuscated_${Math.random()}`, email, identities: [] },
+                session: null,
+              },
+              error: null,
+            };
+          }
           return { data: { user: null, session: null }, error: { message: 'user exists' } };
         }
       }
@@ -117,7 +129,13 @@ export function createMockSupabaseClient(
       users.set(user.id, user);
       if (opts.requireEmailConfirmation) {
         unconfirmedEmails.add(email);
-        return { data: { user: { id: user.id, email }, session: null }, error: null };
+        return {
+          data: {
+            user: { id: user.id, email, identities: [{ provider: 'email' }] },
+            session: null,
+          },
+          error: null,
+        };
       }
       const session = issueSession(user);
       return { data: { user: session.user, session }, error: null };

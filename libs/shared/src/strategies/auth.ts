@@ -41,7 +41,15 @@ export interface SignUpConfirmationRequired {
  * `SignUpConfirmationRequired`.
  */
 export class EmailConfirmationRequiredError extends Error {
-  constructor(readonly user: { id: string; email: string }) {
+  /**
+   * `existingAccount`: the provider answered a duplicate signup with an
+   * obfuscated user (anti account-enumeration) — `user.id` is a throw-away id,
+   * NOT a real account, so callers must not look it up or assign it a role.
+   */
+  constructor(
+    readonly user: { id: string; email: string },
+    readonly existingAccount = false,
+  ) {
     super('email_confirmation_required');
     this.name = 'EmailConfirmationRequiredError';
   }
