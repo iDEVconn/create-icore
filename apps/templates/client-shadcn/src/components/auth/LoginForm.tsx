@@ -8,12 +8,14 @@ import { Label } from '../ui/label';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
 const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+const AUTH_HAS_PASSWORD_RESET = (import.meta.env.VITE_AUTH_HAS_PASSWORD_RESET as string) === 'true';
 
 interface LoginFormProps {
   onSuccess: (session: { user: { id: string; email: string; role?: string } }) => void;
   onError: (msg: string) => void;
   onSwitchToRegister: () => void;
   onSwitchToMagicLink: () => void;
+  onSwitchToForgot: () => void;
   api: <T>(path: string, init?: RequestInit) => Promise<T>;
 }
 
@@ -22,6 +24,7 @@ export function LoginForm({
   onError,
   onSwitchToRegister,
   onSwitchToMagicLink,
+  onSwitchToForgot,
   api,
 }: LoginFormProps) {
   const { t } = useTranslation();
@@ -85,6 +88,15 @@ export function LoginForm({
             required
             autoComplete="current-password"
           />
+          {AUTH_HAS_PASSWORD_RESET && (
+            <button
+              type="button"
+              onClick={onSwitchToForgot}
+              className="text-sm text-[--color-muted-foreground] hover:underline cursor-pointer"
+            >
+              {t('auth.forgotPassword')}
+            </button>
+          )}
         </div>
         <Button type="submit" className="w-full cursor-pointer" disabled={submitting}>
           {submitting ? <Loader2 size={16} className="animate-spin" /> : t('auth.login')}
