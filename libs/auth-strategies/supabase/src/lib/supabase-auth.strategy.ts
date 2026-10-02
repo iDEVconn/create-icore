@@ -198,13 +198,20 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     if (error || !data?.session || !data.user || !email) {
       throw new RpcException('invalid_reset_token');
     }
+    // End every session (including the recovery one) BEFORE touching the
+    // password, and fail closed: if this errors we abort with the password
+    // unchanged, so the account is never left with "new password, old
+    // (possibly stolen) sessions still alive". The gateway never revokes at the
+    // provider (plan ruling 1).
+    const { error: signOutError } = await this.client.auth.admin.signOut(
+      data.session.access_token,
+      'global',
+    );
+    if (signOutError) throw new Error(signOutError.message);
     const { error: updateError } = await this.client.auth.admin.updateUserById(data.user.id, {
       password: newPassword,
     });
     if (updateError) throw new Error(updateError.message);
-    // End every session (including the recovery one) BEFORE minting the new
-    // one — the gateway never revokes at the provider (plan ruling 1).
-    await this.client.auth.admin.signOut(data.session.access_token, 'global');
     return this.signIn(email, newPassword);
   }
 

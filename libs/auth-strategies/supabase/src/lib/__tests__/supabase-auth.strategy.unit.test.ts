@@ -205,3 +205,21 @@ describe('SupabaseAuthStrategy — password reset', () => {
     expect((err as RpcException).getError()).toBe('invalid_reset_token');
   });
 });
+
+describe('SupabaseAuthStrategy — password reset fails closed', () => {
+  it('if ending the sessions fails it aborts BEFORE the password changes (never "new password, old sessions alive")', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const admin = (mock.client as unknown as { auth: { admin: { signOut: unknown } } }).auth.admin;
+    admin.signOut = async () => ({ error: { message: 'boom' } });
+
+    await expect(
+      strategy.confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!'),
+    ).rejects.toThrow('boom');
+
+    await expect(strategy.signIn('a@x.com', 'oldpw123!')).resolves.toBeTruthy();
+    await expect(strategy.signIn('a@x.com', 'newpw123!')).rejects.toThrow();
+  });
+});
