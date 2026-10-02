@@ -7,6 +7,7 @@ import { api } from '@/main';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
 const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+const AUTH_HAS_PASSWORD_RESET = (import.meta.env.VITE_AUTH_HAS_PASSWORD_RESET as string) === 'true';
 
 interface FormValues {
   email: string;
@@ -16,9 +17,10 @@ interface FormValues {
 interface Props {
   onSwitchRegister: () => void;
   onSwitchMagicLink: () => void;
+  onSwitchForgot: () => void;
 }
 
-export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
+export function LoginForm({ onSwitchRegister, onSwitchMagicLink, onSwitchForgot }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const notify = useNotify();
@@ -118,6 +120,11 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
             {t('auth.switchToRegisterLink')}
           </Typography.Link>
         </Typography.Text>
+        {AUTH_HAS_PASSWORD_RESET && (
+          <Typography.Link onClick={onSwitchForgot} style={{ fontSize: 13 }}>
+            {t('auth.forgotPassword')}
+          </Typography.Link>
+        )}
         {AUTH_HAS_MAGIC_LINK && (
           <Typography.Link onClick={onSwitchMagicLink} style={{ fontSize: 13 }}>
             {t('auth.withMagicLink')}
