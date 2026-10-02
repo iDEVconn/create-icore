@@ -156,7 +156,7 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, 'CLAUDE.md'), '@AGENTS.md\n');
 
   // ── README.md ──────────────────────────────────────────────────────────────
-  const uiLabel = { shadcn: 'shadcn/ui + Tailwind', antd: 'Ant Design 6', mui: 'MUI 6' }[opts.ui];
+  const uiLabel = { shadcn: 'shadcn/ui + Tailwind', antd: 'Ant Design 6', mui: 'MUI 9' }[opts.ui];
   const emailNotice = authEmailNotice(opts.authProvider);
   const emailSetup =
     emailNotice.length > 0
