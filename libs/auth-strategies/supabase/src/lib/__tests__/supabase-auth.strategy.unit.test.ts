@@ -179,3 +179,29 @@ describe('SupabaseAuthStrategy — signIn() before email confirmation', () => {
     expect(session.user.email).toBe('f@x.com');
   });
 });
+
+describe('SupabaseAuthStrategy — password reset', () => {
+  it('requestPasswordReset passes callbackUrl as redirectTo', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    expect(mock.getLastResetRedirect()).toBe('https://my.app/reset-password');
+  });
+
+  it('requestPasswordReset for an unknown email resolves without throwing (no enumeration)', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await expect(
+      strategy.requestPasswordReset('nobody@x.com', 'https://my.app/r'),
+    ).resolves.toBeUndefined();
+  });
+
+  it("confirmPasswordReset rejects a bogus token with RpcException('invalid_reset_token')", async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const err = await strategy.confirmPasswordReset('nope', 'newpw123!').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('invalid_reset_token');
+  });
+});

@@ -23,6 +23,11 @@ runAuthContract(
       if (!mock) throw new Error('mock not registered for strategy');
       return mock.getMagicLinkToken(email);
     },
+    getPasswordResetToken: (strategy, email) => {
+      const mock = mocks.get(strategy as SupabaseAuthStrategy);
+      if (!mock) throw new Error('mock not registered for strategy');
+      return mock.getPasswordResetToken(email);
+    },
     getOAuthCode: (strategy, provider, email) => {
       const mock = mocks.get(strategy as SupabaseAuthStrategy);
       if (!mock) throw new Error('mock not registered for strategy');

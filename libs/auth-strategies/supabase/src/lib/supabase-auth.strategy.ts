@@ -182,6 +182,32 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     return this.toSession(data.session);
   }
 
+  async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: callbackUrl,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.verifyOtp({
+      type: 'recovery',
+      token_hash: token,
+    });
+    const email = data?.user?.email;
+    if (error || !data?.session || !data.user || !email) {
+      throw new RpcException('invalid_reset_token');
+    }
+    const { error: updateError } = await this.client.auth.admin.updateUserById(data.user.id, {
+      password: newPassword,
+    });
+    if (updateError) throw new Error(updateError.message);
+    // End every session (including the recovery one) BEFORE minting the new
+    // one — the gateway never revokes at the provider (plan ruling 1).
+    await this.client.auth.admin.signOut(data.session.access_token, 'global');
+    return this.signIn(email, newPassword);
+  }
+
   async getRole(uid: string): Promise<string | null> {
     const { data, error } = await this.client.auth.admin.getUserById(uid);
     if (error || !data.user) throw new Error(error?.message ?? 'user_missing');
