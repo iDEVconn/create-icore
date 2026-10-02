@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { FakeAuthStrategy } from '@icore/shared';
+import type { AuthSession } from '@icore/shared';
 import { AuthController } from '../auth.controller';
 
 function makeConfig(env: Record<string, string | undefined>): ConfigService {
@@ -17,7 +18,10 @@ describe('AuthController', () => {
 
   it('signup → verify round-trip resolves the new uid', async () => {
     const { controller } = fixture();
-    const session = await controller.signup({ email: 't@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 't@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     expect(session.accessToken).toBeTruthy();
     const verified = await controller.verify({ token: session.accessToken });
     expect(verified.uid).toBe(session.user.id);
@@ -25,14 +29,20 @@ describe('AuthController', () => {
 
   it('login after signup issues a new session for the same user', async () => {
     const { controller } = fixture();
-    const signup = await controller.signup({ email: 'l@x.com', password: 'pw12345!' });
+    const signup = (await controller.signup({
+      email: 'l@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     const login = await controller.login({ email: 'l@x.com', password: 'pw12345!' });
     expect(login.user.id).toBe(signup.user.id);
   });
 
   it('refresh issues a new session and invalidates the used token', async () => {
     const { controller } = fixture();
-    const first = await controller.signup({ email: 'r@x.com', password: 'pw12345!' });
+    const first = (await controller.signup({
+      email: 'r@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     const next = await controller.refresh({ refreshToken: first.refreshToken });
     expect(next.user.id).toBe(first.user.id);
     await expect(controller.refresh({ refreshToken: first.refreshToken })).rejects.toThrow();
@@ -40,7 +50,10 @@ describe('AuthController', () => {
 
   it('logout (auth.revoke) ends the session — a further refresh fails', async () => {
     const { controller } = fixture();
-    const session = await controller.signup({ email: 'logout@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'logout@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     const result = await controller.revoke({ refreshToken: session.refreshToken });
     expect(result).toEqual({ ok: true });
     await expect(controller.refresh({ refreshToken: session.refreshToken })).rejects.toThrow();
@@ -48,7 +61,10 @@ describe('AuthController', () => {
 
   it('setRole writes a role visible on verify after re-login', async () => {
     const { controller } = fixture();
-    const session = await controller.signup({ email: 's@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 's@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     const result = await controller.setRole({ uid: session.user.id, role: 'admin' });
     // Non-empty object, not bare void — a firstValueFrom() client waiting on
     // this over TCP throws "no elements in sequence" on an empty response.
@@ -60,25 +76,37 @@ describe('AuthController', () => {
 
   it('signup auto-assigns admin role when email is in ADMINS_LIST', async () => {
     const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com, owner@x.com' });
-    const session = await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'boss@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     expect(await strategy.getRole(session.user.id)).toBe('admin');
   });
 
   it('signup auto-assigns user role when email is NOT in ADMINS_LIST', async () => {
     const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
-    const session = await controller.signup({ email: 'normal@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'normal@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     expect(await strategy.getRole(session.user.id)).toBe('user');
   });
 
   it('signup auto-assigns user role when ADMINS_LIST is unset', async () => {
     const { strategy, controller } = fixture({});
-    const session = await controller.signup({ email: 'a@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'a@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     expect(await strategy.getRole(session.user.id)).toBe('user');
   });
 
   it('ADMINS_LIST is case-insensitive on email match', async () => {
     const { strategy, controller } = fixture({ ADMINS_LIST: 'BOSS@x.COM' });
-    const session = await controller.signup({ email: 'boss@X.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'boss@X.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     expect(await strategy.getRole(session.user.id)).toBe('admin');
   });
 
@@ -140,7 +168,10 @@ describe('AuthController', () => {
     // again via setRole-after-signup. We use a separate signup path so the
     // strategy's state mirrors a returning consumer.
     const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
-    const session = await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'boss@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     // Manually demote, then re-invoke setRole(admin) to prove the hook is
     // not re-run on subsequent calls. The controller's hook only runs
     // inside signup(), so demoting after the fact must persist.

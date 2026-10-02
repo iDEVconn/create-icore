@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import type { ClientProxy } from '@nestjs/microservices';
 import { RpcException } from '@nestjs/microservices';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { verifyHmac } from '@icore/shared';
 import { AuthClientService } from '../auth-client.service';
 
@@ -44,6 +44,29 @@ describe('AuthClientService — RPC error mapping', () => {
     const service = new AuthClientService(client);
 
     await expect(service.login('a@x.com', 'wrong')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('signup forwards callbackUrl in the RPC payload', async () => {
+    const send = vi.fn(() =>
+      of({ status: 'confirmation_required', user: { id: 'u1', email: 'a@x.com' } }),
+    );
+    const service = new AuthClientService({ send } as unknown as ClientProxy);
+
+    const result = await service.signup('a@x.com', 'pw12345!', 'https://my.app/auth/callback');
+
+    expect(send).toHaveBeenCalledWith('auth.signup', {
+      email: 'a@x.com',
+      password: 'pw12345!',
+      callbackUrl: 'https://my.app/auth/callback',
+    });
+    expect(result).toMatchObject({ status: 'confirmation_required' });
+  });
+
+  it('maps email_not_confirmed to ForbiddenException', async () => {
+    const send = vi.fn(() => throwError(() => new RpcException('email_not_confirmed')));
+    const service = new AuthClientService({ send } as unknown as ClientProxy);
+
+    await expect(service.login('a@x.com', 'pw12345!')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('passes through unrecognized RPC errors unchanged', async () => {
