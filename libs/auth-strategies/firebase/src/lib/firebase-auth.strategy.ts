@@ -52,6 +52,13 @@ function isIdentityToolkitRejection(err: unknown): boolean {
   return IDENTITY_TOOLKIT_REJECTION_CODES.some((code) => message.includes(code));
 }
 
+const INVALID_OOB_CODES = ['INVALID_OOB_CODE', 'EXPIRED_OOB_CODE'] as const;
+
+function isInvalidOobCode(err: unknown): boolean {
+  const message = (err instanceof Error ? err.message : String(err)).toUpperCase();
+  return INVALID_OOB_CODES.some((code) => message.includes(code));
+}
+
 export interface FirebaseAdminAuthLike {
   verifyIdToken(idToken: string): Promise<{ uid: string; email?: string; role?: string }>;
   setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
@@ -62,6 +69,7 @@ export interface FirebaseAdminAuthLike {
    *  no per-session revoke primitive — this is always uid-wide, unlike
    *  Supabase's/postgres's per-refresh-token revoke). */
   revokeRefreshTokens(uid: string): Promise<void>;
+  getUserByEmail(email: string): Promise<{ uid: string }>;
 }
 
 export interface FirebaseAuthStrategyOptions {
@@ -226,6 +234,40 @@ export class FirebaseAuthStrategy implements AuthStrategy {
       expiresIn: Number(res.expiresIn),
       user: { id: res.localId, email: res.email },
     };
+  }
+
+  async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
+    await this.identityToolkit.sendPasswordResetEmail({ email, continueUrl: callbackUrl });
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession> {
+    let email: string;
+    try {
+      ({ email } = await this.identityToolkit.confirmPasswordReset({
+        oobCode: token,
+        newPassword,
+      }));
+    } catch (err) {
+      if (isInvalidOobCode(err)) throw new RpcException('invalid_reset_token');
+      throw err;
+    }
+    // Password FIRST (the old one can no longer mint sessions), then revoke —
+    // uid-wide, so it must run BEFORE the new session is minted below or it
+    // would kill that one too (plan ruling 1). Retry a transient failure; if
+    // it never succeeds fail LOUDLY rather than report a reset that left old
+    // sessions alive as a success.
+    const { uid } = await this.adminAuth.getUserByEmail(email);
+    let revoked = false;
+    for (let attempt = 0; attempt < 3 && !revoked; attempt++) {
+      try {
+        await this.adminAuth.revokeRefreshTokens(uid);
+        revoked = true;
+      } catch {
+        // retry
+      }
+    }
+    if (!revoked) throw new Error('session_revocation_failed');
+    return this.signIn(email, newPassword);
   }
 
   async getRole(uid: string): Promise<string | null> {

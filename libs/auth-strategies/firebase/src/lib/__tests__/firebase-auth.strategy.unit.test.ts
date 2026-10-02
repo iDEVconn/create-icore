@@ -78,3 +78,70 @@ describe('FirebaseAuthStrategy — revoke()', () => {
     await expect(strategy.revoke('not-a-real-token')).resolves.toBeUndefined();
   });
 });
+
+describe('FirebaseAuthStrategy — password reset', () => {
+  it('requestPasswordReset sends a PASSWORD_RESET email for a known user', async () => {
+    const { strategy, toolkit } = fixture();
+    await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    expect(toolkit.getResetCode('a@x.com')).toBeTruthy();
+  });
+
+  it("confirmPasswordReset maps a bad oobCode to RpcException('invalid_reset_token')", async () => {
+    const { strategy } = fixture();
+    const err = await strategy.confirmPasswordReset('bogus', 'newpw123!').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('invalid_reset_token');
+  });
+
+  it('revokes every refresh token issued BEFORE the reset but not the one it returns', async () => {
+    const { strategy, toolkit } = fixture();
+    const before = await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const fresh = await strategy.confirmPasswordReset(toolkit.getResetCode('a@x.com'), 'newpw123!');
+    await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+    await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+  });
+});
+
+describe('FirebaseAuthStrategy — password reset revocation', () => {
+  function build(revoke: (uid: string) => Promise<void>) {
+    const toolkit = createMockIdentityToolkit();
+    const base = createMockAdminAuth({ identityToolkit: toolkit });
+    const adminAuth = {
+      ...base,
+      revokeRefreshTokens: revoke,
+      realRevoke: base.revokeRefreshTokens,
+    };
+    const strategy = new FirebaseAuthStrategy({ identityToolkit: toolkit.client, adminAuth });
+    return { toolkit, base, strategy };
+  }
+
+  it('retries a transient revoke failure and still ends the old sessions', async () => {
+    let calls = 0;
+    const { toolkit, base, strategy } = build(async (uid) => {
+      if (++calls === 1) throw new Error('blip');
+      await base.revokeRefreshTokens(uid);
+    });
+    const before = await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+
+    const fresh = await strategy.confirmPasswordReset(toolkit.getResetCode('a@x.com'), 'newpw123!');
+
+    expect(calls).toBe(2);
+    await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+    await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+  });
+
+  it('fails LOUDLY (session_revocation_failed) when revoking keeps failing — never a silent success', async () => {
+    const { toolkit, strategy } = build(async () => {
+      throw new Error('revoke_failed');
+    });
+    await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+
+    await expect(
+      strategy.confirmPasswordReset(toolkit.getResetCode('a@x.com'), 'newpw123!'),
+    ).rejects.toThrow('session_revocation_failed');
+  });
+});
