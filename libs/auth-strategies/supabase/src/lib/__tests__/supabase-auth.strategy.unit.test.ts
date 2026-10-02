@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RpcException } from '@nestjs/microservices';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { EmailConfirmationRequiredError } from '@icore/shared';
 import { SupabaseAuthStrategy } from '../supabase-auth.strategy';
 import { createMockSupabaseClient } from '../testing/mock-supabase';
 
@@ -89,5 +90,69 @@ describe('SupabaseAuthStrategy — revoke()', () => {
     const mock = createMockSupabaseClient();
     const strategy = new SupabaseAuthStrategy({ client: mock.client });
     await expect(strategy.revoke('not-a-real-token')).resolves.toBeUndefined();
+  });
+});
+
+describe('SupabaseAuthStrategy — signUp() with email confirmation', () => {
+  it('throws EmailConfirmationRequiredError (not a generic Error) when GoTrue returns a user but no session', async () => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+
+    const err = await strategy.signUp('a@x.com', 'pw12345!').catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(EmailConfirmationRequiredError);
+    expect((err as EmailConfirmationRequiredError).user.email).toBe('a@x.com');
+    expect((err as EmailConfirmationRequiredError).user.id).toBeTruthy();
+  });
+
+  it('passes callbackUrl to GoTrue as emailRedirectTo', async () => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+
+    await strategy
+      .signUp('b@x.com', 'pw12345!', { callbackUrl: 'https://my.app/auth/callback' })
+      .catch(() => undefined);
+
+    expect(mock.getLastSignUpOptions()).toEqual({
+      emailRedirectTo: 'https://my.app/auth/callback',
+    });
+  });
+
+  it('still returns a session when confirmation is disabled', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const session = await strategy.signUp('c@x.com', 'pw12345!');
+    expect(session.user.email).toBe('c@x.com');
+  });
+
+  it('real provider errors (e.g. user exists) still throw a plain Error', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('d@x.com', 'pw12345!');
+    const err = await strategy.signUp('d@x.com', 'pw12345!').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(EmailConfirmationRequiredError);
+  });
+});
+
+describe('SupabaseAuthStrategy — signIn() before email confirmation', () => {
+  it("throws RpcException('email_not_confirmed') so it survives the RPC boundary", async () => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('e@x.com', 'pw12345!').catch(() => undefined);
+
+    const err = await strategy.signIn('e@x.com', 'pw12345!').catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('email_not_confirmed');
+  });
+
+  it('signs in normally once the email is confirmed', async () => {
+    const mock = createMockSupabaseClient({ requireEmailConfirmation: true });
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('f@x.com', 'pw12345!').catch(() => undefined);
+    mock.confirmEmail('f@x.com');
+    const session = await strategy.signIn('f@x.com', 'pw12345!');
+    expect(session.user.email).toBe('f@x.com');
   });
 });

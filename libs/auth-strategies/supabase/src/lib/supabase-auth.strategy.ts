@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { RpcException } from '@nestjs/microservices';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { EmailConfirmationRequiredError } from '@icore/shared';
 import type {
   AuthSession,
   AuthStrategy,
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  SignUpOptions,
   VerifiedToken,
 } from '@icore/shared';
 
@@ -51,10 +53,25 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     this.client = opts.client;
   }
 
-  async signUp(email: string, password: string): Promise<AuthSession> {
-    const { data, error } = await this.client.auth.signUp({ email, password });
-    if (error || !data.session) {
-      throw new Error(error?.message ?? 'signup_failed');
+  async signUp(email: string, password: string, opts?: SignUpOptions): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      options: opts?.callbackUrl ? { emailRedirectTo: opts.callbackUrl } : undefined,
+    });
+    if (error) throw new Error(error.message);
+    if (!data.session) {
+      // "Confirm email" is on: GoTrue created the user (or, for an already
+      // registered address, returns an obfuscated user — deliberately NOT an
+      // error, so signup can't be used to enumerate accounts) and mailed a
+      // link. That's a normal outcome, not a failure.
+      if (data.user) {
+        throw new EmailConfirmationRequiredError({
+          id: data.user.id,
+          email: data.user.email ?? email,
+        });
+      }
+      throw new Error('signup_failed');
     }
     return this.toSession(data.session);
   }
@@ -62,6 +79,11 @@ export class SupabaseAuthStrategy implements AuthStrategy {
   async signIn(email: string, password: string): Promise<AuthSession> {
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
+      // RpcException (not a plain Error) so the code survives the MS transport
+      // and the gateway can answer 403 instead of a scrubbed 500.
+      if ((error as { code?: string } | null)?.code === 'email_not_confirmed') {
+        throw new RpcException('email_not_confirmed');
+      }
       throw new Error(error?.message ?? 'invalid_credentials');
     }
     return this.toSession(data.session);
