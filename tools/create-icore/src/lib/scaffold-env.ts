@@ -352,3 +352,61 @@ export async function writeAiEnv(targetDir: string, opts: CreateIcoreOptions): P
     // ai-orchestrator MS not present in template — older snapshots predate this feature
   }
 }
+
+// Default TCP ports of the gateway-proxied MSs that ship in docker-compose.yml
+// (match each MS .env.example). Payment/ai are already tcp in the template.
+const COMPOSE_TCP_PORTS: Record<string, number> = { AUTH: 4001, UPLOAD: 4002 };
+
+/**
+ * docker-compose.yml is templated with `*_TRANSPORT: redis` for auth + upload
+ * (MS and gateway sides). Rewrite those to the transport the user picked:
+ *  - redis: untouched.
+ *  - tcp: MS binds 0.0.0.0:<port>, gateway targets the compose service name; the
+ *    MS no longer depends_on redis (the gateway still does — BFF session store).
+ *  - nats/mqtt/rmq/kafka: transport value flipped, the redis URL dropped. No
+ *    broker service ships in compose, so the broker URL must come from .env.docker.
+ * Must run AFTER the strip passes — a stripped service/line simply doesn't match.
+ */
+export async function rewriteComposeTransport(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  if (opts.transport === 'redis') return;
+  const composePath = join(targetDir, 'docker-compose.yml');
+  let compose: string;
+  try {
+    compose = await readFile(composePath, 'utf8');
+  } catch {
+    return;
+  }
+  const token = TRANSPORT_ENV_TOKEN[opts.transport];
+  const services: { prefix: string; service: string }[] = [
+    { prefix: 'AUTH', service: 'auth' },
+    { prefix: 'UPLOAD', service: 'upload' },
+  ];
+  const pair = (prefix: string) =>
+    new RegExp(`( {6})${prefix}_TRANSPORT: redis\\n {6}${prefix}_REDIS_URL:[^\\n]*`, 'g');
+  const replacement = (prefix: string, service: string, side: 'ms' | 'gateway') =>
+    opts.transport === 'tcp'
+      ? `      ${prefix}_TRANSPORT: tcp\n` +
+        `      ${prefix}_HOST: ${side === 'ms' ? '0.0.0.0' : service}\n` +
+        `      ${prefix}_PORT: ${COMPOSE_TCP_PORTS[prefix]}`
+      : `      ${prefix}_TRANSPORT: ${opts.transport}\n` +
+        `      # ${prefix}_${token}_*: set in .env.docker — no ${opts.transport} service ships in this compose`;
+
+  for (const { prefix, service } of services) {
+    const msBlock = new RegExp(
+      `(\\n {2}${service}:\\n[\\s\\S]+?)(?=\\n {2}\\w+:|\\nnetworks:|\\nvolumes:)`,
+    );
+    compose = compose.replace(msBlock, (block) => {
+      let next = block.replace(pair(prefix), replacement(prefix, service, 'ms'));
+      if (opts.transport === 'tcp') {
+        next = next.replace(/\n {4}depends_on:\n {6}redis:\n {8}condition: service_healthy/, '');
+      }
+      return next;
+    });
+    // Whatever pair is left belongs to the gateway block.
+    compose = compose.replace(pair(prefix), replacement(prefix, service, 'gateway'));
+  }
+  await writeFile(composePath, compose);
+}
