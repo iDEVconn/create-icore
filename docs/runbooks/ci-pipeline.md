@@ -20,6 +20,7 @@ Goal: do as little work per push/PR as possible. Measured on PR runs (2026-09-21
 - New projects need no CI edit (affected-based). A new Dockerfile needs a line in the `mapping` dict in `detect-affected` and in the `docker-build` image list it produces.
 - The old per-project `dist-*` artifact upload on `main` was dropped — nothing downloaded it.
 - `client` has no plain `build` target (it uses `vite:build`), so — as before — CI's Build job does not build it.
+- The `check` job's Redis service container exists for `libs/shared`'s `RedisSessionStore` contract test. Locally that test needs no docker: when `REDIS_TEST_URL` / `localhost:6379` is unreachable it starts a throw-away server via `redis-memory-server` (first run compiles Redis once; see `AGENTS.md` → Testing).
 - All workflows pin `ubuntu-24.04`.
 
 ## Not done (candidates, measure first)

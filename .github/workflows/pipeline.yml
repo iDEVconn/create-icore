@@ -77,6 +77,7 @@ jobs:
   # The `test` step runs libs/shared's RedisSessionStore contract
   # (src/session/__tests__/redis-session-store.contract.integration.test.ts),
   # which needs a REAL Redis -- distributed-lock behaviour cannot be faked.
+  # (Locally the same test falls back to a throw-away redis-memory-server.)
   # It connects to REDIS_TEST_URL, defaulting to redis://localhost:6379,
   # which this service container publishes on the runner host.
   check:

@@ -294,6 +294,7 @@ Since `LlmCallEvent` (llm-router's `onCall`/`onCost` payload) has no notion of _
 - **Unit Tests:** Vitest. Files named `*.unit.test.ts(x)` co-located in `__tests__/` next to the source.
 - **Strategy contract tests:** Every concrete strategy (Supabase, Firebase, Cloudinary) runs `runAuthContract(name, factory)` / `runStorageContract(name, factory)` from `@icore/shared`. A passing contract is the gate for "this strategy is interchangeable with the others".
 - **E2E Tests:** Playwright in `apps/client/e2e/`. Files named `*.spec.ts`. The smoke suite spawns the gateway + both microservices with `FakeAuthStrategy` + `FakeStorageStrategy` (no real provider calls in CI).
+- **Redis contract test (`libs/shared`):** `redis-session-store.contract.integration.test.ts` needs a REAL Redis (distributed-lock correctness cannot be faked). It uses `REDIS_TEST_URL` / `localhost:6379` when reachable (CI's service container) and otherwise starts a throw-away local server via `redis-memory-server` (devDependency, `dependenciesMeta.built=false` so installs never compile Redis). The first local run compiles Redis once (~3-5 min on a loaded machine; cached under `node_modules/.cache/redis-memory-server`). Have `redis-server` installed? Set `REDISMS_SYSTEM_BINARY=$(which redis-server)` to skip the compile. An explicit but unreachable `REDIS_TEST_URL` fails loudly instead of falling back.
 - **Run:** `yarn nx test <project>` or `yarn nx run-many -t test` for all.
 
 ## NestJS tsconfig
