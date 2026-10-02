@@ -9,6 +9,12 @@ export interface AuthContractHelpers {
    */
   getMagicLinkToken: (strategy: AuthStrategy, email: string) => string;
   /**
+   * Return the reset token that `requestPasswordReset` just emitted for `email`.
+   * Optional — strategies without password reset (postgres/mongodb) omit it
+   * and the reset cases skip.
+   */
+  getPasswordResetToken?: (strategy: AuthStrategy, email: string) => string;
+  /**
    * Pre-register an OAuth code+state pair so `completeOAuth` can be exercised
    * without an actual provider redirect. Optional — when absent, the OAuth
    * round-trip contract cases skip.
@@ -134,6 +140,46 @@ export function runAuthContract(
       await strategy.setRole(session.user.id, 'admin');
       expect(await strategy.getRole(session.user.id)).toBe('admin');
     });
+
+    if (helpers?.getPasswordResetToken) {
+      const tokenFor = (email: string) => helpers.getPasswordResetToken!(strategy, email);
+
+      it('requestPasswordReset + confirmPasswordReset sets the new password and returns a working session', async () => {
+        const email = 'reset@x.com';
+        await strategy.signUp(email, 'oldpw123!');
+        await strategy.requestPasswordReset(email, 'http://localhost/reset-password');
+        const session = await strategy.confirmPasswordReset(tokenFor(email), 'newpw123!');
+        expect(session.user.email).toBe(email);
+        await expect(strategy.verifyToken(session.accessToken)).resolves.toMatchObject({ email });
+        await expect(strategy.signIn(email, 'newpw123!')).resolves.toBeTruthy();
+        await expect(strategy.signIn(email, 'oldpw123!')).rejects.toThrow();
+      });
+
+      it('confirmPasswordReset rejects a bogus token', async () => {
+        await expect(
+          strategy.confirmPasswordReset('not-a-real-token', 'newpw123!'),
+        ).rejects.toThrow();
+      });
+
+      it('a reset token is single-use', async () => {
+        const email = 'reset-once@x.com';
+        await strategy.signUp(email, 'oldpw123!');
+        await strategy.requestPasswordReset(email, 'http://localhost/reset-password');
+        const token = tokenFor(email);
+        await strategy.confirmPasswordReset(token, 'newpw123!');
+        await expect(strategy.confirmPasswordReset(token, 'another123!')).rejects.toThrow();
+      });
+
+      it("confirmPasswordReset ends the user's other sessions (old refresh token is dead)", async () => {
+        const email = 'reset-sessions@x.com';
+        const before = await strategy.signUp(email, 'oldpw123!');
+        await strategy.requestPasswordReset(email, 'http://localhost/reset-password');
+        const fresh = await strategy.confirmPasswordReset(tokenFor(email), 'newpw123!');
+        await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+        // …and the session returned by the reset itself still works
+        await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+      });
+    }
 
     if (helpers) {
       it('sendMagicLink + verifyMagicLink round-trips a session', async () => {
