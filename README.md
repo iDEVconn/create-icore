@@ -77,7 +77,7 @@ Full CLI docs: [`tools/create-icore/README.md`](./tools/create-icore/README.md).
 | Payment MS    | `@idevconn/payment` registry (PayPal default) — opt-in via `--payment=paypal`                         |
 | Jobs MS       | BullMQ workers (email / image-process / cleanup stubs) + bull-board admin UI — opt-in `--jobs=bullmq` |
 | Transports    | TCP / Redis / NATS — same env contract across all MSes                                                |
-| Client        | Vite 6 + React 19 + shadcn/Tailwind 4 or Ant Design 6 or MUI 6 + TanStack Router + Query + Zustand    |
+| Client        | Vite 6 + React 19 + shadcn/Tailwind 4 or Ant Design 6 or MUI 9 + TanStack Router + Query + Zustand    |
 | i18n          | i18next + react-i18next (en / ru / he with RTL)                                                       |
 | Form blocking | `@idevconn/use-draft` — global dirty-state with router + browser-close blocking                       |
 | Tests         | Vitest 4 unit + Playwright smoke                                                                      |
