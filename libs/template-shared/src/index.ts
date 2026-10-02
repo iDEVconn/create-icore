@@ -1,5 +1,6 @@
 export * from './lib/api/create-api.js';
 export * from './lib/api/csrf.js';
+export * from './lib/auth/register-response.js';
 export * from './lib/stores/auth.store.js';
 export * from './lib/stores/loading.store.js';
 export * from './lib/abilities/ability-provider.js';
