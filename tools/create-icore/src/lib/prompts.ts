@@ -279,7 +279,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         },
         {
           value: 'mui' as 'shadcn' | 'antd' | 'mui',
-          label: 'MUI 6 (Material Design)',
+          label: 'MUI 9 (Material Design)',
         },
       ],
       initialValue: 'shadcn' as 'shadcn' | 'antd' | 'mui',
