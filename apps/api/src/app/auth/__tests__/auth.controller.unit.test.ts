@@ -5,6 +5,8 @@ import type { AuthClientService } from '@icore/auth-client';
 import { FakeSessionStore } from '@icore/shared';
 import type { Request, Response } from 'express';
 import { AuthController } from '../auth.controller';
+import { IS_PUBLIC_KEY } from '../public.decorator';
+import { SKIP_CSRF_KEY } from '../../http/skip-csrf.decorator';
 
 function makeConfig(env: Record<string, string | undefined>): ConfigService {
   return { get: (key: string) => env[key] } as unknown as ConfigService;
@@ -628,5 +630,33 @@ describe('AuthController — password reset', () => {
     const newSid = res.cookies['icore_sid'];
     expect(newSid).toBeTruthy();
     expect(await sessionStore.get(newSid as string)).not.toBeNull();
+  });
+
+  it.each<[unknown, string]>([
+    ['', 'empty'],
+    [undefined, 'missing'],
+    [42, 'non-string'],
+  ])('reset rejects a %s token (%s) with 400 BEFORE calling the provider', async (token) => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    await expect(
+      controller.resetPassword({ token: token as never, password: 'newpw123!' }, mockRes()),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(client.confirmPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it.each(['forgotPassword', 'resetPassword'] as const)(
+    '%s is @Public() and @SkipCsrf() (it issues / precedes the CSRF cookie)',
+    (method) => {
+      const handler = AuthController.prototype[method];
+      expect(Reflect.getMetadata(IS_PUBLIC_KEY, handler)).toBe(true);
+      expect(Reflect.getMetadata(SKIP_CSRF_KEY, handler)).toBe(true);
+    },
+  );
+
+  it('forgotPassword has its own tighter auth-burst throttle (5 per 60s) overriding the class-level 10', () => {
+    const handler = AuthController.prototype.forgotPassword;
+    expect(Reflect.getMetadata('THROTTLER:LIMITauth-burst', handler)).toBe(5);
+    expect(Reflect.getMetadata('THROTTLER:LIMITauth-burst', AuthController)).toBe(10);
   });
 });

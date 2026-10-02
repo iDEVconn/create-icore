@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '@icore/template-shared';
 import { ResetPasswordForm } from '../ResetPasswordForm';
 
 function setup(
@@ -44,5 +45,19 @@ describe('ResetPasswordForm', () => {
     const { onError } = setup(api, ['newpw123!', 'different1!']);
     await waitFor(() => expect(onError).toHaveBeenCalledWith('auth.passwordMismatch'));
     expect(api).not.toHaveBeenCalled();
+  });
+
+  it('shows the weak-password copy (not "link invalid") when the server answers 400 weak_password', async () => {
+    const { onError } = setup(async () => {
+      throw new ApiError(400, { message: 'weak_password' }, 'weak_password');
+    });
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('auth.resetPasswordWeak'));
+  });
+
+  it('shows the retry hint for a non-400 failure', async () => {
+    const { onError } = setup(async () => {
+      throw new ApiError(500, { message: 'Internal server error' }, 'Internal server error');
+    });
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('auth.resetPasswordRetryHint'));
   });
 });

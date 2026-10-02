@@ -40,6 +40,11 @@ const en = {
     resetPasswordSubmit: 'Set new password',
     resetPasswordInvalidToken: 'This reset link is invalid or has expired. Request a new one.',
     passwordTooShort: 'Password must be at least 8 characters',
+    resetPasswordSuccess: 'Password updated — you are signed in.',
+    resetPasswordWeak:
+      'That password is too weak. Choose a stronger one — you may need to request a new link.',
+    resetPasswordRetryHint:
+      'Something went wrong. If you chose a new password, try logging in with it; otherwise request a new link.',
     checkEmail: 'Verify your email',
     checkEmailDescription:
       'We sent a confirmation link to {{email}}. Click it to activate your account.',
@@ -157,6 +162,11 @@ const ru = {
     resetPasswordSubmit: 'Задать новый пароль',
     resetPasswordInvalidToken: 'Ссылка недействительна или устарела. Запросите новую.',
     passwordTooShort: 'Пароль должен быть не короче 8 символов',
+    resetPasswordSuccess: 'Пароль обновлён — вы вошли в систему.',
+    resetPasswordWeak:
+      'Пароль слишком слабый. Выберите более надёжный — возможно, понадобится новая ссылка.',
+    resetPasswordRetryHint:
+      'Что-то пошло не так. Если вы задали новый пароль, попробуйте войти с ним; иначе запросите новую ссылку.',
     checkEmail: 'Подтвердите email',
     checkEmailDescription:
       'Мы отправили ссылку для подтверждения на {{email}}. Нажмите её для активации аккаунта.',
@@ -273,6 +283,9 @@ const he = {
     resetPasswordSubmit: 'הגדר סיסמה חדשה',
     resetPasswordInvalidToken: 'הקישור אינו תקף או שפג תוקפו. בקש קישור חדש.',
     passwordTooShort: 'הסיסמה חייבת להכיל לפחות 8 תווים',
+    resetPasswordSuccess: 'הסיסמה עודכנה — התחברת.',
+    resetPasswordWeak: 'הסיסמה חלשה מדי. בחר סיסמה חזקה יותר — ייתכן שתצטרך קישור חדש.',
+    resetPasswordRetryHint: 'משהו השתבש. אם בחרת סיסמה חדשה, נסה להתחבר איתה; אחרת בקש קישור חדש.',
     checkEmail: 'אמת את האימייל',
     checkEmailDescription: 'שלחנו קישור אישור אל {{email}}. לחץ עליו להפעלת החשבון.',
     backToLogin: 'חזרה לכניסה',

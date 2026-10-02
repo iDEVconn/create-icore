@@ -100,7 +100,16 @@ export function createMockSupabaseClient(
       if (updates.app_metadata && typeof updates.app_metadata.role === 'string') {
         user.role = updates.app_metadata.role;
       }
-      if (typeof updates.password === 'string') user.password = updates.password;
+      if (typeof updates.password === 'string') {
+        user.password = updates.password;
+        // Real GoTrue (admin update → User.UpdatePassword(tx, nil) → Logout):
+        // changing the password deletes EVERY session of the user, atomically.
+        for (const [access, owner] of accessToUid) {
+          if (owner !== uid) continue;
+          const sid = accessToSessionId.get(access);
+          if (sid) revokedSessionIds.add(sid);
+        }
+      }
       return { data: { user: { id: user.id, email: user.email } }, error: null };
     },
     async getUserById(uid: string) {

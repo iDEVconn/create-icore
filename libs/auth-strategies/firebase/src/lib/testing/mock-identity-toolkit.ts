@@ -20,6 +20,7 @@ export interface MockHandle {
   revokedUids: Set<string>;
   getOobCode(email: string): string;
   getResetCode(email: string): string;
+  getLastResetContinueUrl(): string | undefined;
   /** Uid-wide revoke, ordered: only tokens issued BEFORE this call die. */
   revokeUser(uid: string): void;
   /**
@@ -41,6 +42,7 @@ export function createMockIdentityToolkit(): MockHandle {
   const revokedAtSeq = new Map<string, number>();
   const resetCodes = new Map<string, string>(); // oobCode → email
   const resetByEmail = new Map<string, string>();
+  let lastResetContinueUrl: string | undefined;
   const oobCodes = new Map<string, string>(); // oobCode → email
   const oobByEmail = new Map<string, string>(); // email → oobCode
   const oauthCodeToEmail = new Map<string, string>();
@@ -89,7 +91,8 @@ export function createMockIdentityToolkit(): MockHandle {
       oobCodes.set(oobCode, email);
       oobByEmail.set(email, oobCode);
     },
-    async sendPasswordResetEmail({ email }) {
+    async sendPasswordResetEmail({ email, continueUrl }) {
+      lastResetContinueUrl = continueUrl;
       const user = [...users.values()].find((u) => u.email === email);
       if (!user) throw new Error('EMAIL_NOT_FOUND'); // real Identity Toolkit; the gateway swallows it
       const oobCode = `reset_${user.localId}_${randomUUID()}`;
@@ -99,11 +102,17 @@ export function createMockIdentityToolkit(): MockHandle {
     async confirmPasswordReset({ oobCode, newPassword }) {
       const email = resetCodes.get(oobCode);
       if (!email) throw new Error('INVALID_OOB_CODE');
+      if (newPassword.length < 6) {
+        throw new Error('WEAK_PASSWORD : Password should be at least 6 characters');
+      }
       resetCodes.delete(oobCode);
       resetByEmail.delete(email);
       const user = [...users.values()].find((u) => u.email === email);
       if (!user) throw new Error('EMAIL_NOT_FOUND');
       user.password = newPassword;
+      // Real Firebase: a password change is a "major account change" that
+      // invalidates the user's existing refresh tokens (time-ordered, like revoke).
+      revokedAtSeq.set(user.localId, issueSeq);
       return { email };
     },
     async signInWithEmailLink({ email, oobCode }) {
@@ -183,6 +192,9 @@ export function createMockIdentityToolkit(): MockHandle {
     tokensToUid,
     refreshToUid,
     revokedUids,
+    getLastResetContinueUrl() {
+      return lastResetContinueUrl;
+    },
     getResetCode(email: string): string {
       const code = resetByEmail.get(email);
       if (!code) throw new Error(`no password reset code issued for ${email}`);

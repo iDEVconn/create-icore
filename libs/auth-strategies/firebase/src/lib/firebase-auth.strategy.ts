@@ -54,6 +54,10 @@ function isIdentityToolkitRejection(err: unknown): boolean {
 
 const INVALID_OOB_CODES = ['INVALID_OOB_CODE', 'EXPIRED_OOB_CODE'] as const;
 
+function errorText(err: unknown): string {
+  return (err instanceof Error ? err.message : String(err)).toUpperCase();
+}
+
 function isInvalidOobCode(err: unknown): boolean {
   const message = (err instanceof Error ? err.message : String(err)).toUpperCase();
   return INVALID_OOB_CODES.some((code) => message.includes(code));
@@ -237,7 +241,17 @@ export class FirebaseAuthStrategy implements AuthStrategy {
   }
 
   async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
-    await this.identityToolkit.sendPasswordResetEmail({ email, continueUrl: callbackUrl });
+    // The link's continue URL is only used if the user resets on Firebase's own
+    // hosted page (default handler): send them to /login, where no code is
+    // expected, instead of back to /reset-password without one.
+    const continueUrl = new URL('/login', callbackUrl).toString();
+    try {
+      await this.identityToolkit.sendPasswordResetEmail({ email, continueUrl });
+    } catch (err) {
+      // Unknown address: succeed silently — no enumeration, no error-log noise.
+      if (errorText(err).includes('EMAIL_NOT_FOUND')) return;
+      throw err;
+    }
   }
 
   async confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession> {
@@ -249,24 +263,29 @@ export class FirebaseAuthStrategy implements AuthStrategy {
       }));
     } catch (err) {
       if (isInvalidOobCode(err)) throw new RpcException('invalid_reset_token');
+      if (errorText(err).includes('WEAK_PASSWORD')) throw new RpcException('weak_password');
       throw err;
     }
-    // Password FIRST (the old one can no longer mint sessions), then revoke —
-    // uid-wide, so it must run BEFORE the new session is minted below or it
-    // would kill that one too (plan ruling 1). Retry a transient failure; if
-    // it never succeeds fail LOUDLY rather than report a reset that left old
-    // sessions alive as a success.
-    const { uid } = await this.adminAuth.getUserByEmail(email);
-    let revoked = false;
-    for (let attempt = 0; attempt < 3 && !revoked; attempt++) {
-      try {
-        await this.adminAuth.revokeRefreshTokens(uid);
-        revoked = true;
-      } catch {
-        // retry
+    // A password change is a "major account change" for Firebase: it already
+    // invalidates the user's existing refresh tokens. The explicit uid-wide
+    // revoke below is belt-and-braces and therefore best-effort (3 attempts) —
+    // failing the whole reset here would strand a user whose password HAS
+    // changed and whose one-time code is spent. It must still run BEFORE the new
+    // session is minted (revoke is uid-wide; afterwards it would kill that
+    // session too — plan ruling 1).
+    try {
+      const { uid } = await this.adminAuth.getUserByEmail(email);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await this.adminAuth.revokeRefreshTokens(uid);
+          break;
+        } catch {
+          // retry
+        }
       }
+    } catch {
+      // best-effort (see above)
     }
-    if (!revoked) throw new Error('session_revocation_failed');
     return this.signIn(email, newPassword);
   }
 

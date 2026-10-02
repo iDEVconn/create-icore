@@ -25,6 +25,7 @@ const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
   user_not_found: UnauthorizedException,
   email_not_confirmed: ForbiddenException,
   invalid_reset_token: BadRequestException,
+  weak_password: BadRequestException,
 };
 
 function rpcMessage(err: unknown): string | undefined {

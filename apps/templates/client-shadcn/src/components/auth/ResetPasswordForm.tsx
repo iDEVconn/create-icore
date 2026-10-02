@@ -1,7 +1,7 @@
 import { SyntheticEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { ApiError } from '@icore/template-shared';
+import { RESET_ERROR_KEYS, resolveResetError } from '@icore/template-shared';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -41,13 +41,7 @@ export function ResetPasswordForm({ token, onSuccess, onError, api }: ResetPassw
       );
       onSuccess(session);
     } catch (err) {
-      onError(
-        err instanceof ApiError && err.status === 400
-          ? t('auth.resetPasswordInvalidToken')
-          : err instanceof Error
-            ? err.message
-            : t('error.unknown'),
-      );
+      onError(t(RESET_ERROR_KEYS[resolveResetError(err)]));
     } finally {
       setSubmitting(false);
     }

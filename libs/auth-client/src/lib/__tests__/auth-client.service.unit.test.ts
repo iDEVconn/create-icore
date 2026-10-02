@@ -113,6 +113,14 @@ describe('AuthClientService — RPC error mapping', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('maps weak_password to BadRequestException', async () => {
+    const send = vi.fn(() => throwError(() => new RpcException('weak_password')));
+    const service = new AuthClientService({ send } as unknown as ClientProxy);
+    await expect(service.confirmPasswordReset('tok', 'abc')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
   it('passes through unrecognized RPC errors unchanged', async () => {
     const send = vi.fn(() => throwError(() => new RpcException('some_unmapped_error')));
     const client = { send } as unknown as ClientProxy;

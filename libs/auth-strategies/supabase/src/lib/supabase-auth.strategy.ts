@@ -198,27 +198,21 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     if (error || !data?.session || !data.user || !email) {
       throw new RpcException('invalid_reset_token');
     }
-    // Password FIRST: with the old password dead nothing can mint a fresh
-    // session between this step and the sign-out below (signing out first
-    // would leave a window where the old password still works and the session
-    // it mints survives the reset).
+    // GoTrue's admin password update deletes EVERY session of the user (incl.
+    // the recovery session) in the same transaction (User.UpdatePassword with
+    // a nil session → Logout), so "end all other sessions" is guaranteed by the
+    // password change itself — an explicit signOut afterwards would only get
+    // 403 session_not_found. The gateway never revokes at the provider (plan
+    // ruling 1); signIn below mints the one fresh session.
     const { error: updateError } = await this.client.auth.admin.updateUserById(data.user.id, {
       password: newPassword,
     });
-    if (updateError) throw new Error(updateError.message);
-    // Then end EVERY session (including the recovery one). The gateway never
-    // revokes at the provider (plan ruling 1). Retry a transient failure, and
-    // if it never succeeds fail LOUDLY — never report a reset that left old
-    // sessions alive as a success.
-    let signOutError: { message: string } | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      ({ error: signOutError } = await this.client.auth.admin.signOut(
-        data.session.access_token,
-        'global',
-      ));
-      if (!signOutError) break;
+    if (updateError) {
+      if ((updateError as { code?: string }).code === 'weak_password') {
+        throw new RpcException('weak_password');
+      }
+      throw new Error(updateError.message);
     }
-    if (signOutError) throw new Error('session_revocation_failed');
     return this.signIn(email, newPassword);
   }
 

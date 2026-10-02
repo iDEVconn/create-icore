@@ -3,7 +3,12 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
-import { ApiError, useAuthStore, useNotify } from '@icore/template-shared';
+import {
+  RESET_ERROR_KEYS,
+  resolveResetError,
+  useAuthStore,
+  useNotify,
+} from '@icore/template-shared';
 import { api } from '@/main';
 
 interface Props {
@@ -40,16 +45,10 @@ export function ResetPasswordForm({ token }: Props) {
         },
       );
       setUser(session.user);
-      notify.success(t('auth.resetPasswordSubmit'));
+      notify.success(t('auth.resetPasswordSuccess'));
       await navigate({ to: '/dashboard' });
     } catch (err) {
-      notify.error(
-        err instanceof ApiError && err.status === 400
-          ? t('auth.resetPasswordInvalidToken')
-          : err instanceof Error
-            ? err.message
-            : t('error.unknown'),
-      );
+      notify.error(t(RESET_ERROR_KEYS[resolveResetError(err)]));
     } finally {
       setSubmitting(false);
     }

@@ -206,61 +206,47 @@ describe('SupabaseAuthStrategy — password reset', () => {
   });
 });
 
-describe('SupabaseAuthStrategy — password reset revokes sessions after the password change', () => {
-  type MockAdmin = { auth: { admin: { signOut: (...a: unknown[]) => Promise<unknown> } } };
+describe('SupabaseAuthStrategy — password reset against GoTrue semantics', () => {
+  type MockAdmin = {
+    auth: { admin: { signOut: (...a: unknown[]) => Promise<unknown>; updateUserById: unknown } };
+  };
 
-  it('changes the password BEFORE ending sessions, so the old password cannot mint a session in between', async () => {
-    const mock = createMockSupabaseClient();
-    const strategy = new SupabaseAuthStrategy({ client: mock.client });
-    await strategy.signUp('a@x.com', 'oldpw123!');
-    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
-    const admin = (mock.client as unknown as MockAdmin).auth.admin;
-    const realSignOut = admin.signOut.bind(admin);
-    let oldPasswordWorkedAtSignOut: boolean | undefined;
-    admin.signOut = async (...args: unknown[]) => {
-      oldPasswordWorkedAtSignOut = await strategy.signIn('a@x.com', 'oldpw123!').then(
-        () => true,
-        () => false,
-      );
-      return realSignOut(...args);
-    };
-
-    await strategy.confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!');
-
-    expect(oldPasswordWorkedAtSignOut).toBe(false);
-  });
-
-  it('retries a transient sign-out failure and still ends the old sessions', async () => {
+  it('relies on GoTrue ending every session when the password changes — it does not need (and must not fail on) admin.signOut', async () => {
     const mock = createMockSupabaseClient();
     const strategy = new SupabaseAuthStrategy({ client: mock.client });
     const before = await strategy.signUp('a@x.com', 'oldpw123!');
     await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    // Real GoTrue deletes ALL sessions (incl. the recovery one) inside the
+    // password-update transaction, so a later sign-out of the recovery JWT
+    // answers 403 session_not_found. The strategy must not depend on it.
     const admin = (mock.client as unknown as MockAdmin).auth.admin;
-    const realSignOut = admin.signOut.bind(admin);
-    let calls = 0;
-    admin.signOut = async (...args: unknown[]) =>
-      ++calls === 1 ? { error: { message: 'blip' } } : realSignOut(...args);
+    admin.signOut = async () => ({ error: { message: 'session_not_found', status: 403 } });
 
     const fresh = await strategy.confirmPasswordReset(
       mock.getPasswordResetToken('a@x.com'),
       'newpw123!',
     );
 
-    expect(calls).toBe(2);
     await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
     await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
   });
 
-  it('fails LOUDLY (session_revocation_failed) when sign-out keeps failing — never a silent success', async () => {
+  it("maps GoTrue's weak_password to RpcException('weak_password') so the gateway can answer 400", async () => {
     const mock = createMockSupabaseClient();
     const strategy = new SupabaseAuthStrategy({ client: mock.client });
     await strategy.signUp('a@x.com', 'oldpw123!');
     await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
     const admin = (mock.client as unknown as MockAdmin).auth.admin;
-    admin.signOut = async () => ({ error: { message: 'boom' } });
+    admin.updateUserById = async () => ({
+      data: { user: null },
+      error: { code: 'weak_password', message: 'Password should contain a digit' },
+    });
 
-    await expect(
-      strategy.confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!'),
-    ).rejects.toThrow('session_revocation_failed');
+    const err = await strategy
+      .confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!')
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('weak_password');
   });
 });

@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { resolveResetToken, useAuthStore, useNotify } from '@icore/template-shared';
+import { resolveEmailAction, useAuthStore, useNotify } from '@icore/template-shared';
 import { AuthBrandPanel } from '../components/auth/AuthBrandPanel';
 import { ResetPasswordForm } from '../components/auth/ResetPasswordForm';
 import { api } from '@/main';
@@ -12,7 +13,22 @@ function ResetPasswordPage() {
   const navigate = useNavigate();
   const notify = useNotify();
   const setUser = useAuthStore((s) => s.setUser);
-  const token = resolveResetToken(new URLSearchParams(window.location.search));
+  const [action] = useState(() => resolveEmailAction(new URLSearchParams(window.location.search)));
+
+  useEffect(() => {
+    if (action.kind === 'signIn') {
+      // Firebase's action URL is project-wide: a magic-link email lands here too.
+      window.location.replace(`/auth/callback?${action.search}`);
+    } else if (action.kind === 'ignore') {
+      void navigate({ to: '/login' });
+    } else if (action.kind === 'reset') {
+      // The reset token is a live credential: don't leave it in the URL / history.
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [action, navigate]);
+
+  if (action.kind === 'signIn' || action.kind === 'ignore') return null;
+  const token = action.kind === 'reset' ? action.token : null;
 
   return (
     <main className="flex min-h-screen bg-[--color-background]">
@@ -27,7 +43,7 @@ function ResetPasswordPage() {
               onError={(msg) => notify.error(msg)}
               onSuccess={(session) => {
                 setUser(session.user);
-                notify.success(t('auth.resetPasswordSubmit'));
+                notify.success(t('auth.resetPasswordSuccess'));
                 void navigate({ to: '/dashboard' });
               }}
             />

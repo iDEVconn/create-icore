@@ -254,6 +254,9 @@ export class AuthController {
     @Body() body: { token: string; password: string },
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (typeof body.token !== 'string' || body.token.length === 0) {
+      throw new BadRequestException('invalid_reset_token');
+    }
     if (typeof body.password !== 'string' || body.password.length < 8) {
       throw new BadRequestException('password_too_short');
     }

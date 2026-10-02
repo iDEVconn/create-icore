@@ -21,7 +21,8 @@ export function authEmailNotice(authProvider: CreateIcoreOptions['authProvider']
     return [
       'Firebase email links: Authentication → Settings → Authorized domains — add your client domain.',
       'Forgot password: Authentication → Templates → Password reset → Customize action URL →',
-      '  <CLIENT_ORIGIN>/reset-password (without it Firebase resets on its own hosted page and /reset-password is never used).',
+      '  <CLIENT_ORIGIN>/reset-password (project-wide: /reset-password also forwards magic-link emails to /auth/callback;',
+      '  without it Firebase resets on its own hosted page and returns the user to /login).',
       'Details: docs/runbooks/auth-email-setup.md',
     ];
   }
