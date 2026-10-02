@@ -14608,6 +14608,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"find-package-json@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "find-package-json@npm:1.2.0"
+  checksum: 10c0/85d6c97afb9f8f0deb0d344a1c4eb8027347cf4d61666c28d3ac3f913e916684441218682b3dd6f8ad570e5d43c96a7db521f70183d70df559d07e1f99cdc635
+  languageName: node
+  linkType: hard
+
 "find-root@npm:^1.1.0":
   version: 1.1.0
   resolution: "find-root@npm:1.1.0"
@@ -15100,6 +15107,13 @@ __metadata:
   version: 0.1.0
   resolution: "get-package-type@npm:0.1.0"
   checksum: 10c0/e34cdf447fdf1902a1f6d5af737eaadf606d2ee3518287abde8910e04159368c268568174b2e71102b87b26c2020486f126bfca9c4fb1ceb986ff99b52ecd1be
+  languageName: node
+  linkType: hard
+
+"get-port@npm:^5.1.1":
+  version: 5.1.1
+  resolution: "get-port@npm:5.1.1"
+  checksum: 10c0/2873877a469b24e6d5e0be490724a17edb39fafc795d1d662e7bea951ca649713b4a50117a473f9d162312cb0e946597bd0e049ed2f866e79e576e8e213d3d1c
   languageName: node
   linkType: hard
 
@@ -15721,7 +15735,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"https-proxy-agent@npm:^7.0.1, https-proxy-agent@npm:^7.0.6":
+"https-proxy-agent@npm:^7.0.0, https-proxy-agent@npm:^7.0.1, https-proxy-agent@npm:^7.0.6":
   version: 7.0.6
   resolution: "https-proxy-agent@npm:7.0.6"
   dependencies:
@@ -15923,6 +15937,7 @@ __metadata:
     react: "npm:^19.3.0"
     react-dom: "npm:^19.3.0"
     react-i18next: "npm:^17.0.15"
+    redis-memory-server: "npm:^0.17.1"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
     ts-jest: "npm:^29.4.14"
@@ -15940,6 +15955,9 @@ __metadata:
     webpack-cli: "npm:7.2.3"
     webpack-dev-server: "npm:6.0.0"
     zustand: "npm:^5.0.15"
+  dependenciesMeta:
+    redis-memory-server:
+      built: false
   languageName: unknown
   linkType: soft
 
@@ -18336,6 +18354,15 @@ __metadata:
   dependencies:
     p-locate: "npm:^6.0.0"
   checksum: 10c0/139e8a7fe11cfbd7f20db03923cacfa5db9e14fa14887ea121345597472b4a63c1a42a8a5187defeeff6acf98fd568da7382aa39682d38f0af27433953a97751
+  languageName: node
+  linkType: hard
+
+"lockfile@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "lockfile@npm:1.0.4"
+  dependencies:
+    signal-exit: "npm:^3.0.2"
+  checksum: 10c0/80b7777ceb43105d9e588733c3efc2514653a5e3a0dae3e61347a1f5381da34dcaa2caaa60c39ed5d4ad31c1735a4831e5639a0ba1c508bfea8dbc9c89777b37
   languageName: node
   linkType: hard
 
@@ -21564,6 +21591,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"redis-memory-server@npm:^0.17.1":
+  version: 0.17.1
+  resolution: "redis-memory-server@npm:0.17.1"
+  dependencies:
+    camelcase: "npm:^6.3.0"
+    cross-spawn: "npm:^7.0.3"
+    debug: "npm:^4.3.4"
+    find-cache-dir: "npm:^3.3.2"
+    find-package-json: "npm:^1.2.0"
+    get-port: "npm:^5.1.1"
+    https-proxy-agent: "npm:^7.0.0"
+    lockfile: "npm:^1.0.4"
+    rimraf: "npm:^5.0.1"
+    semver: "npm:^7.5.3"
+    tar: "npm:^7.5.4"
+    tmp: "npm:^0.2.1"
+  dependenciesMeta:
+    unrs-resolver:
+      built: true
+  bin:
+    redis-memory-server: bin/index.js
+  checksum: 10c0/32fd3ababb5bd71d75fd1ca72f4516cbbe3a8cb06fd6cc4f23b5e3cc8a2e2c4c0e832de6423c49b79ccaf88406715653772ca3cb87e6c4460f198723417a9202
+  languageName: node
+  linkType: hard
+
 "reflect-metadata@npm:^0.2.2":
   version: 0.2.2
   resolution: "reflect-metadata@npm:0.2.2"
@@ -23919,7 +23971,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tmp@npm:0.2.7":
+"tmp@npm:0.2.7, tmp@npm:^0.2.1":
   version: 0.2.7
   resolution: "tmp@npm:0.2.7"
   checksum: 10c0/59eb55584f2f07210d3231b6a1f6b5c2b9794d8a7b509c8ee867ed2acad6d2245ee2448b7937b676ffbff3155a70077edde8a69f9d7cf0f90c86a62e8910c357
