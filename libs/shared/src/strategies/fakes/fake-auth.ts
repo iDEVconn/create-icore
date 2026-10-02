@@ -1,3 +1,4 @@
+import { EmailConfirmationRequiredError } from '../auth';
 import type {
   AuthSession,
   AuthStrategy,
@@ -30,16 +31,28 @@ export class FakeAuthStrategy implements AuthStrategy {
   private readonly oauthCodes = new Map<string, string>();
   private lastOAuthState: string | null = null;
 
+  requireEmailConfirmation = false;
+  private readonly unconfirmed = new Set<string>();
+
+  confirmEmail(email: string): void {
+    this.unconfirmed.delete(email);
+  }
+
   async signUp(email: string, password: string): Promise<AuthSession> {
     if (this.users.has(email)) throw new Error('user_exists');
     const user: StoredUser = { id: globalThis.crypto.randomUUID(), email, password };
     this.users.set(email, user);
+    if (this.requireEmailConfirmation) {
+      this.unconfirmed.add(email);
+      throw new EmailConfirmationRequiredError({ id: user.id, email });
+    }
     return this.issueSession(user);
   }
 
   async signIn(email: string, password: string): Promise<AuthSession> {
     const user = this.users.get(email);
     if (!user || user.password !== password) throw new Error('invalid_credentials');
+    if (this.unconfirmed.has(email)) throw new Error('email_not_confirmed');
     return this.issueSession(user);
   }
 

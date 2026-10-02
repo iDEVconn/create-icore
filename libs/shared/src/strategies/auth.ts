@@ -23,10 +23,35 @@ export interface OAuthStartResult {
   state: string;
 }
 
+export interface SignUpOptions {
+  /** Where the provider's confirmation email should send the user back to. */
+  callbackUrl?: string;
+}
+
+/** Returned by the auth MS `auth.signup` when the user exists but has no session yet. */
+export interface SignUpConfirmationRequired {
+  status: 'confirmation_required';
+  user: { id: string; email: string };
+}
+
+/**
+ * Thrown by `AuthStrategy.signUp` when the account was created but the provider
+ * requires the user to confirm their email before a session can be issued
+ * (e.g. Supabase "Confirm email"). Not a failure — the auth MS turns it into
+ * `SignUpConfirmationRequired`.
+ */
+export class EmailConfirmationRequiredError extends Error {
+  constructor(readonly user: { id: string; email: string }) {
+    super('email_confirmation_required');
+    this.name = 'EmailConfirmationRequiredError';
+  }
+}
+
 export interface AuthStrategy {
   verifyToken(token: string): Promise<VerifiedToken>;
   signIn(email: string, password: string): Promise<AuthSession>;
-  signUp(email: string, password: string): Promise<AuthSession>;
+  /** May throw `EmailConfirmationRequiredError` instead of returning a session. */
+  signUp(email: string, password: string, opts?: SignUpOptions): Promise<AuthSession>;
   refresh(refreshToken: string): Promise<AuthSession>;
   /**
    * Invalidates a refresh token (logout) — a further refresh() call with it
