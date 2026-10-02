@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpStatus,
   Inject,
   Logger,
   Param,
@@ -57,7 +58,9 @@ export class AuthController {
   @Public()
   @SkipCsrf()
   @Post('register')
-  @ApiOperation({ summary: 'Create a new user and start a server-side session' })
+  @ApiOperation({
+    summary: 'Create a new user (201 + session, or 202 when email confirmation is required)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -72,8 +75,18 @@ export class AuthController {
     @Body() body: { email: string; password: string },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const session = await this.authClient.signup(body.email, body.password);
-    return this.startSession(session, res, await this.resolveRole(session.accessToken));
+    const result = await this.authClient.signup(
+      body.email,
+      body.password,
+      `${this.clientOrigin()}/auth/callback`,
+    );
+    if ('status' in result) {
+      // Account created, but the provider wants the email confirmed first —
+      // no session exists, so no cookies.
+      res.status(HttpStatus.ACCEPTED);
+      return { status: 'confirmation_required' as const, email: result.user.email };
+    }
+    return this.startSession(result, res, await this.resolveRole(result.accessToken));
   }
 
   @Public()
@@ -177,8 +190,7 @@ export class AuthController {
     },
   })
   requestMagicLink(@Body() body: { email: string }) {
-    const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
-    return this.authClient.sendMagicLink(body.email, `${origin}/auth/callback`);
+    return this.authClient.sendMagicLink(body.email, `${this.clientOrigin()}/auth/callback`);
   }
 
   @Public()
@@ -307,6 +319,21 @@ export class AuthController {
    * `undefined` fails CLOSED (no role => no admin ability), it never grants
    * anything.
    */
+  private warnedMissingClientOrigin = false;
+
+  /** Where provider emails (confirm / magic-link) send the user back to. */
+  private clientOrigin(): string {
+    const origin = this.cfg.get<string>('CLIENT_ORIGIN');
+    if (origin) return origin;
+    if (!this.warnedMissingClientOrigin) {
+      this.warnedMissingClientOrigin = true;
+      this.logger.warn(
+        'CLIENT_ORIGIN is not set — emails will link to http://localhost:4200. Set it to your client URL (and the same value as Site URL in Supabase → Authentication → URL Configuration).',
+      );
+    }
+    return 'http://localhost:4200';
+  }
+
   private async resolveRole(accessToken: string): Promise<string | undefined> {
     try {
       const verified = await this.authClient.verify(accessToken);
@@ -366,8 +393,7 @@ export class AuthController {
       // CSRF-protected mutating request fails despite a valid session.
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
-    const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
-    return res.redirect(`${origin}/dashboard`);
+    return res.redirect(`${this.clientOrigin()}/dashboard`);
   }
 
   private isProd(): boolean {

@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNotify } from '@icore/template-shared';
+import { useNavigate } from '@tanstack/react-router';
+import {
+  isConfirmationRequired,
+  useAuthStore,
+  useNotify,
+  type RegisterResponse,
+} from '@icore/template-shared';
 import { api } from '@/main';
 
 interface Props {
@@ -13,6 +19,8 @@ interface Props {
 export function RegisterForm({ onSuccess, onSwitchLogin }: Props) {
   const { t } = useTranslation();
   const notify = useNotify();
+  const navigate = useNavigate();
+  const setUser = useAuthStore((s) => s.setUser);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,12 +37,18 @@ export function RegisterForm({ onSuccess, onSwitchLogin }: Props) {
     setMismatch(false);
     setSubmitting(true);
     try {
-      await api('/auth/register', {
+      const res = await api<RegisterResponse>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      onSuccess(email);
+      if (isConfirmationRequired(res)) {
+        onSuccess(res.email);
+      } else {
+        setUser(res.user);
+        notify.success(t('auth.login'));
+        await navigate({ to: '/dashboard' });
+      }
     } catch (err) {
       notify.error(err instanceof Error ? err.message : t('error.unknown'));
     } finally {

@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pmRun } from './options.js';
+import { authEmailNotice } from './auth-email-notice.js';
 import type { CreateIcoreOptions } from './options.js';
 
 /**
@@ -156,6 +157,11 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
 
   // ── README.md ──────────────────────────────────────────────────────────────
   const uiLabel = { shadcn: 'shadcn/ui + Tailwind', antd: 'Ant Design 6', mui: 'MUI 9' }[opts.ui];
+  const emailNotice = authEmailNotice(opts.authProvider);
+  const emailSetup =
+    emailNotice.length > 0
+      ? `## Provider setup (email links)\n\n${emailNotice.join('\n')}\n\n`
+      : '';
   const readme = `# ${opts.projectName}
 
 > Scaffolded with [iCore](https://github.com/iDEVconn/create-icore) — Nx + NestJS + React full-stack template.
@@ -184,7 +190,7 @@ ${devCmd}
 # → http://localhost:3001/api/docs  Swagger
 \`\`\`
 
-## Commands
+${emailSetup}## Commands
 
 \`\`\`bash
 ${nx} run <project>:serve   # start a single service

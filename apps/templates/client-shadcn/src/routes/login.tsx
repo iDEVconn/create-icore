@@ -54,6 +54,7 @@ function LoginPage() {
             <RegisterForm
               api={api}
               onSuccess={handleRegisterSuccess}
+              onSignedIn={handleLoginSuccess}
               onError={handleError}
               onSwitchToLogin={() => setMode('login')}
             />

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Logger, UnauthorizedException } from '@nestjs/common';
 import type { AuthClientService } from '@icore/auth-client';
 import { FakeSessionStore } from '@icore/shared';
 import type { Request, Response } from 'express';
@@ -65,6 +65,7 @@ function mockRes() {
       clearedCookies.push(name);
       return res;
     }),
+    status: vi.fn(() => res),
     redirect: vi.fn((url: string) => {
       redirectedTo = url;
       return res;
@@ -496,5 +497,66 @@ describe('AuthController — OAuth', () => {
     const controller = new AuthController(client, makeConfig({}), sessionStore);
     const res = mockRes();
     await expect(controller.oauthStart('apple', res)).rejects.toThrow();
+  });
+});
+
+describe('AuthController — register', () => {
+  let sessionStore: FakeSessionStore;
+  beforeEach(() => {
+    sessionStore = new FakeSessionStore();
+  });
+
+  it('answers 202 confirmation_required, sets no cookies and creates no session', async () => {
+    const client = makeAuthClient();
+    (client.signup as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      status: 'confirmation_required',
+      user: { id: 'u1', email: 'a@x.com' },
+    });
+    const controller = new AuthController(
+      client,
+      makeConfig({ CLIENT_ORIGIN: 'https://my.app' }),
+      sessionStore,
+    );
+    const res = mockRes();
+
+    const result = await controller.register({ email: 'a@x.com', password: 'pw12345!' }, res);
+
+    expect(result).toEqual({ status: 'confirmation_required', email: 'a@x.com' });
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.ACCEPTED);
+    expect(res.cookies['icore_sid']).toBeUndefined();
+    expect(client.signup).toHaveBeenCalledWith(
+      'a@x.com',
+      'pw12345!',
+      'https://my.app/auth/callback',
+    );
+  });
+
+  it('still starts a session and returns { user } when the provider issued one', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const res = mockRes();
+
+    const result = await controller.register({ email: 'a@x.com', password: 'pw12345!' }, res);
+
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.cookies['icore_sid']).toBeTruthy();
+  });
+
+  it('warns once when CLIENT_ORIGIN is unset and falls back to localhost:4200', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+
+    await controller.register({ email: 'a@x.com', password: 'pw12345!' }, mockRes());
+    await controller.requestMagicLink({ email: 'a@x.com' });
+
+    expect(client.signup).toHaveBeenCalledWith(
+      'a@x.com',
+      'pw12345!',
+      'http://localhost:4200/auth/callback',
+    );
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('CLIENT_ORIGIN'))).toHaveLength(1);
+    warn.mockRestore();
   });
 });

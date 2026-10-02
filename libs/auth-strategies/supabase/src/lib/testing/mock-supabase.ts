@@ -18,9 +18,15 @@ export interface MockSupabaseClient {
   client: SupabaseClient;
   getMagicLinkToken(email: string): string;
   getOAuthChallenge(provider: 'google' | 'github', email: string): { code: string; state: string };
+  confirmEmail(email: string): void;
+  getLastSignUpOptions(): { emailRedirectTo?: string } | undefined;
 }
 
-export function createMockSupabaseClient(): MockSupabaseClient {
+export function createMockSupabaseClient(
+  opts: { requireEmailConfirmation?: boolean } = {},
+): MockSupabaseClient {
+  const unconfirmedEmails = new Set<string>();
+  let lastSignUpOptions: { emailRedirectTo?: string } | undefined;
   const users = new Map<string, FakeUser>();
   const accessToUid = new Map<string, string>();
   const refreshToUid = new Map<string, string>();
@@ -92,20 +98,62 @@ export function createMockSupabaseClient(): MockSupabaseClient {
   };
 
   const auth = {
-    async signUp({ email, password }: { email: string; password: string }) {
+    async signUp({
+      email,
+      password,
+      options,
+    }: {
+      email: string;
+      password: string;
+      options?: { emailRedirectTo?: string };
+    }) {
+      lastSignUpOptions = options;
       for (const u of users.values()) {
         if (u.email === email) {
+          if (opts.requireEmailConfirmation) {
+            // Real GoTrue with "Confirm email" ON: no error (anti account-
+            // enumeration) — a sanitized user with a FRESH random id and no
+            // identities, and a confirmation email goes to the real owner.
+            return {
+              data: {
+                user: { id: `obfuscated_${Math.random()}`, email, identities: [] },
+                session: null,
+              },
+              error: null,
+            };
+          }
           return { data: { user: null, session: null }, error: { message: 'user exists' } };
         }
       }
       const user: FakeUser = { id: `uid_${users.size + 1}`, email, password };
       users.set(user.id, user);
+      if (opts.requireEmailConfirmation) {
+        unconfirmedEmails.add(email);
+        return {
+          data: {
+            user: { id: user.id, email, identities: [{ provider: 'email' }] },
+            session: null,
+          },
+          error: null,
+        };
+      }
       const session = issueSession(user);
       return { data: { user: session.user, session }, error: null };
     },
     async signInWithPassword({ email, password }: { email: string; password: string }) {
       for (const u of users.values()) {
         if (u.email === email && u.password === password) {
+          if (unconfirmedEmails.has(email)) {
+            return {
+              data: { user: null, session: null },
+              error: {
+                name: 'AuthApiError',
+                message: 'Email not confirmed',
+                status: 400,
+                code: 'email_not_confirmed',
+              },
+            };
+          }
           const session = issueSession(u);
           return { data: { user: session.user, session }, error: null };
         }
@@ -233,6 +281,12 @@ export function createMockSupabaseClient(): MockSupabaseClient {
       const code = `code_${Math.random()}`;
       oauthCodeToEmail.set(code, email);
       return { code, state: lastOAuthState };
+    },
+    confirmEmail(email: string) {
+      unconfirmedEmails.delete(email);
+    },
+    getLastSignUpOptions() {
+      return lastSignUpOptions;
     },
   };
 }

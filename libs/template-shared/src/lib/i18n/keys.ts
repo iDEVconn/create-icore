@@ -26,6 +26,7 @@ const en = {
     magicLinkSent: 'Check your inbox',
     magicLinkSentDescription: 'We sent a sign-in link to {{email}}.',
     magicLinkUseDifferentEmail: 'Use a different email',
+    emailNotConfirmed: 'Please confirm your email first — check your inbox for the link.',
     checkEmail: 'Verify your email',
     checkEmailDescription:
       'We sent a confirmation link to {{email}}. Click it to activate your account.',
@@ -129,6 +130,7 @@ const ru = {
     magicLinkSent: 'Проверьте почту',
     magicLinkSentDescription: 'Мы отправили ссылку для входа на {{email}}.',
     magicLinkUseDifferentEmail: 'Использовать другой email',
+    emailNotConfirmed: 'Сначала подтвердите email — ссылка в письме.',
     checkEmail: 'Подтвердите email',
     checkEmailDescription:
       'Мы отправили ссылку для подтверждения на {{email}}. Нажмите её для активации аккаунта.',
@@ -232,6 +234,7 @@ const he = {
     magicLinkSent: 'בדוק את תיבת הדואר',
     magicLinkSentDescription: 'שלחנו קישור כניסה אל {{email}}.',
     magicLinkUseDifferentEmail: 'השתמש באימייל אחר',
+    emailNotConfirmed: 'יש לאשר את האימייל תחילה — הקישור נמצא בתיבת הדואר.',
     checkEmail: 'אמת את האימייל',
     checkEmailDescription: 'שלחנו קישור אישור אל {{email}}. לחץ עליו להפעלת החשבון.',
     backToLogin: 'חזרה לכניסה',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { createMockPostgresAuth } from '@icore/auth-postgres';
+import type { AuthSession } from '@icore/shared';
 import { AuthController } from '../auth.controller';
 
 function makeConfig(env: Record<string, string | undefined>): ConfigService {
@@ -15,14 +16,20 @@ describe('AuthController × PostgresAuthStrategy × role-on-first-token', () => 
 
   it('signup: the FIRST accessToken already carries the role assignInitialRole just wrote', async () => {
     const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
-    const session = await controller.signup({ email: 'boss@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'boss@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     const verified = await strategy.verifyToken(session.accessToken);
     expect(verified.role).toBe('admin');
   });
 
   it('signup: non-admin email also gets its role baked into the first token', async () => {
     const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com' });
-    const session = await controller.signup({ email: 'normal@x.com', password: 'pw12345!' });
+    const session = (await controller.signup({
+      email: 'normal@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
     const verified = await strategy.verifyToken(session.accessToken);
     expect(verified.role).toBe('user');
   });

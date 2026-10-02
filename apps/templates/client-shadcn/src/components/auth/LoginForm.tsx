@@ -1,6 +1,7 @@
 import { SyntheticEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
+import { ApiError } from '@icore/template-shared';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -42,7 +43,13 @@ export function LoginForm({
       );
       onSuccess(session);
     } catch (err) {
-      onError(err instanceof Error ? err.message : t('error.unknown'));
+      onError(
+        err instanceof ApiError && err.status === 403
+          ? t('auth.emailNotConfirmed')
+          : err instanceof Error
+            ? err.message
+            : t('error.unknown'),
+      );
     } finally {
       setSubmitting(false);
     }

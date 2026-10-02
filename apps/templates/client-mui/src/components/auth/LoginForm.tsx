@@ -5,7 +5,7 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import { SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
-import { useAuthStore, useNotify } from '@icore/template-shared';
+import { ApiError, useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '@/main';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
@@ -41,7 +41,13 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
       notify.success(t('auth.login'));
       await navigate({ to: '/dashboard' });
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : t('error.unknown'));
+      notify.error(
+        err instanceof ApiError && err.status === 403
+          ? t('auth.emailNotConfirmed')
+          : err instanceof Error
+            ? err.message
+            : t('error.unknown'),
+      );
     } finally {
       setSubmitting(false);
     }

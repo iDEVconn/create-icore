@@ -1,8 +1,20 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, type Observable } from 'rxjs';
 import { signHmac } from '@icore/shared';
-import type { AuthSession, OAuthProvider, OAuthStartResult, VerifiedToken } from '@icore/shared';
+import type {
+  AuthSession,
+  OAuthProvider,
+  OAuthStartResult,
+  SignUpConfirmationRequired,
+  VerifiedToken,
+} from '@icore/shared';
 import { AUTH_CLIENT } from './auth-client.tokens';
 
 const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
@@ -10,6 +22,7 @@ const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
   invalid_credentials: UnauthorizedException,
   invalid_refresh_token: UnauthorizedException,
   user_not_found: UnauthorizedException,
+  email_not_confirmed: ForbiddenException,
 };
 
 function rpcMessage(err: unknown): string | undefined {
@@ -59,8 +72,20 @@ export class AuthClientService {
     return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.login', { email, password })));
   }
 
-  signup(email: string, password: string): Promise<AuthSession> {
-    return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.signup', { email, password })));
+  signup(
+    email: string,
+    password: string,
+    callbackUrl?: string,
+  ): Promise<AuthSession | SignUpConfirmationRequired> {
+    return mapRpcErrors(
+      firstValueFrom(
+        this.send<AuthSession | SignUpConfirmationRequired>('auth.signup', {
+          email,
+          password,
+          callbackUrl,
+        }),
+      ),
+    );
   }
 
   refresh(refreshToken: string): Promise<AuthSession> {
