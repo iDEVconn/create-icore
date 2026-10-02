@@ -22,6 +22,8 @@ export interface IdentityToolkitClient {
   signIn(email: string, password: string): Promise<IdentityToolkitSignInResponse>;
   refresh(refreshToken: string): Promise<IdentityToolkitRefreshResponse>;
   sendOobCode(opts: { email: string; continueUrl: string }): Promise<void>;
+  sendPasswordResetEmail(opts: { email: string; continueUrl: string }): Promise<void>;
+  confirmPasswordReset(opts: { oobCode: string; newPassword: string }): Promise<{ email: string }>;
   signInWithEmailLink(opts: {
     email: string;
     oobCode: string;
@@ -72,6 +74,24 @@ export class HttpIdentityToolkitClient implements IdentityToolkitClient {
       email: opts.email,
       continueUrl: opts.continueUrl,
     });
+  }
+
+  async sendPasswordResetEmail(opts: { email: string; continueUrl: string }): Promise<void> {
+    await this.post<unknown>('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode', {
+      requestType: 'PASSWORD_RESET',
+      email: opts.email,
+      continueUrl: opts.continueUrl,
+    });
+  }
+
+  async confirmPasswordReset(opts: {
+    oobCode: string;
+    newPassword: string;
+  }): Promise<{ email: string }> {
+    return this.post<{ email: string }>(
+      'https://identitytoolkit.googleapis.com/v1/accounts:resetPassword',
+      { oobCode: opts.oobCode, newPassword: opts.newPassword },
+    );
   }
 
   async signInWithEmailLink(opts: {

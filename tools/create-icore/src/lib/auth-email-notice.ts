@@ -11,13 +11,18 @@ export function authEmailNotice(authProvider: CreateIcoreOptions['authProvider']
       'Supabase email links: open your project → Authentication → URL Configuration and set',
       '  • Site URL = your client URL (CLIENT_ORIGIN in apps/api/.env). The default is http://localhost:3000,',
       '    so confirmation emails would otherwise point there.',
-      '  • Redirect URLs = <CLIENT_ORIGIN>/auth/callback',
+      '  • Redirect URLs = <CLIENT_ORIGIN>/auth/callback and <CLIENT_ORIGIN>/reset-password',
+      'Forgot password: Authentication → Email Templates → Reset Password — link to',
+      '  {{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery',
       'Details: docs/runbooks/auth-email-setup.md',
     ];
   }
   if (authProvider === 'firebase') {
     return [
       'Firebase email links: Authentication → Settings → Authorized domains — add your client domain.',
+      'Forgot password: Authentication → Templates → Password reset → Customize action URL →',
+      '  <CLIENT_ORIGIN>/reset-password (project-wide: /reset-password also forwards magic-link emails to /auth/callback;',
+      '  without it Firebase resets on its own hosted page and returns the user to /login).',
       'Details: docs/runbooks/auth-email-setup.md',
     ];
   }

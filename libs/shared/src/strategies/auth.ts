@@ -73,6 +73,18 @@ export interface AuthStrategy {
   getRole(uid: string): Promise<string | null>;
   sendMagicLink(req: MagicLinkRequest): Promise<void>;
   verifyMagicLink(token: string): Promise<AuthSession>;
+  /**
+   * Asks the provider to email a password-reset link that lands on `callbackUrl`.
+   * Callers above the gateway must not learn whether the account exists, so a
+   * provider may succeed silently for an unknown address.
+   */
+  requestPasswordReset(email: string, callbackUrl: string): Promise<void>;
+  /**
+   * Redeems a reset token, sets `newPassword`, ENDS EVERY OTHER SESSION of that
+   * user at the provider, and returns a fresh session for the new password.
+   * Rejects with `invalid_reset_token` for a bogus / expired / already-used token.
+   */
+  confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession>;
   startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult>;
   completeOAuth(provider: OAuthProvider, code: string, state: string): Promise<AuthSession>;
 }

@@ -19,6 +19,8 @@ export interface MockSupabaseClient {
   getMagicLinkToken(email: string): string;
   getOAuthChallenge(provider: 'google' | 'github', email: string): { code: string; state: string };
   confirmEmail(email: string): void;
+  getPasswordResetToken(email: string): string;
+  getLastResetRedirect(): string | undefined;
   getLastSignUpOptions(): { emailRedirectTo?: string } | undefined;
 }
 
@@ -26,6 +28,9 @@ export function createMockSupabaseClient(
   opts: { requireEmailConfirmation?: boolean } = {},
 ): MockSupabaseClient {
   const unconfirmedEmails = new Set<string>();
+  const recoveryTokenToUid = new Map<string, string>();
+  const recoveryTokenByEmail = new Map<string, string>();
+  let lastResetRedirect: string | undefined;
   let lastSignUpOptions: { emailRedirectTo?: string } | undefined;
   const users = new Map<string, FakeUser>();
   const accessToUid = new Map<string, string>();
@@ -69,19 +74,41 @@ export function createMockSupabaseClient(
   }
 
   const admin = {
-    async signOut(jwt: string, _scope?: 'global' | 'local' | 'others') {
-      // Revoke the whole session lineage the JWT belongs to (see the
-      // accessToSessionId/refreshToSessionId comment above) — matching real
-      // Supabase's 'local' scope, which is all this strategy uses.
+    async signOut(jwt: string, scope?: 'global' | 'local' | 'others') {
+      // 'local': revoke the whole session lineage the JWT belongs to (see the
+      // accessToSessionId/refreshToSessionId comment above). 'global': every
+      // session of the JWT's user — what real Supabase does for scope 'global'.
       const sessionId = accessToSessionId.get(jwt);
-      if (sessionId) revokedSessionIds.add(sessionId);
+      if (scope === 'global') {
+        const uid = accessToUid.get(jwt);
+        for (const [access, owner] of accessToUid) {
+          if (owner !== uid) continue;
+          const sid = accessToSessionId.get(access);
+          if (sid) revokedSessionIds.add(sid);
+        }
+      } else if (sessionId) {
+        revokedSessionIds.add(sessionId);
+      }
       return { error: null };
     },
-    async updateUserById(uid: string, updates: { app_metadata?: { role?: string } }) {
+    async updateUserById(
+      uid: string,
+      updates: { app_metadata?: { role?: string }; password?: string },
+    ) {
       const user = findById(uid);
       if (!user) return { data: { user: null }, error: { message: 'user missing' } };
       if (updates.app_metadata && typeof updates.app_metadata.role === 'string') {
         user.role = updates.app_metadata.role;
+      }
+      if (typeof updates.password === 'string') {
+        user.password = updates.password;
+        // Real GoTrue (admin update → User.UpdatePassword(tx, nil) → Logout):
+        // changing the password deletes EVERY session of the user, atomically.
+        for (const [access, owner] of accessToUid) {
+          if (owner !== uid) continue;
+          const sid = accessToSessionId.get(access);
+          if (sid) revokedSessionIds.add(sid);
+        }
       }
       return { data: { user: { id: user.id, email: user.email } }, error: null };
     },
@@ -178,6 +205,17 @@ export function createMockSupabaseClient(
           },
         };
       const sessionId = refreshToSessionId.get(refresh_token);
+      if (sessionId && revokedSessionIds.has(sessionId)) {
+        return {
+          data: { session: null, user: null },
+          error: {
+            name: 'AuthApiError',
+            message: 'Invalid Refresh Token: Session Revoked',
+            status: 400,
+            code: 'refresh_token_not_found',
+          },
+        };
+      }
       refreshToUid.delete(refresh_token); // rotation
       refreshToSessionId.delete(refresh_token);
       const user = findById(uid);
@@ -236,17 +274,28 @@ export function createMockSupabaseClient(
       magicTokenByEmail.set(email, tokenHash);
       return { data: {}, error: null };
     },
-    async verifyOtp({ type, token_hash }: { type: 'magiclink'; token_hash: string }) {
-      if (type !== 'magiclink') {
+    async verifyOtp({ type, token_hash }: { type: 'magiclink' | 'recovery'; token_hash: string }) {
+      const bucket =
+        type === 'recovery' ? recoveryTokenToUid : type === 'magiclink' ? magicTokenToUid : null;
+      if (!bucket) {
         return { data: { user: null, session: null }, error: { message: 'unsupported type' } };
       }
-      const uid = magicTokenToUid.get(token_hash);
+      const uid = bucket.get(token_hash);
       if (!uid) return { data: { user: null, session: null }, error: { message: 'invalid otp' } };
-      magicTokenToUid.delete(token_hash);
+      bucket.delete(token_hash);
       const user = findById(uid);
       if (!user) return { data: { user: null, session: null }, error: { message: 'user missing' } };
       const session = issueSession(user);
       return { data: { user: session.user, session }, error: null };
+    },
+    async resetPasswordForEmail(email: string, options?: { redirectTo?: string }) {
+      lastResetRedirect = options?.redirectTo;
+      const user = [...users.values()].find((u) => u.email === email);
+      if (!user) return { data: {}, error: null }; // GoTrue answers success for unknown emails
+      const tokenHash = `rec_${user.id}_${recoveryTokenToUid.size}_${Math.random()}`;
+      recoveryTokenToUid.set(tokenHash, user.id);
+      recoveryTokenByEmail.set(email, tokenHash);
+      return { data: {}, error: null };
     },
     async getUser(token?: string) {
       if (!token) return { data: { user: null }, error: { message: 'missing token' } };
@@ -284,6 +333,14 @@ export function createMockSupabaseClient(
     },
     confirmEmail(email: string) {
       unconfirmedEmails.delete(email);
+    },
+    getPasswordResetToken(email: string) {
+      const token = recoveryTokenByEmail.get(email);
+      if (!token) throw new Error(`no password reset issued for ${email}`);
+      return token;
+    },
+    getLastResetRedirect() {
+      return lastResetRedirect;
     },
     getLastSignUpOptions() {
       return lastSignUpOptions;

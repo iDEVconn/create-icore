@@ -8,6 +8,7 @@ const baseProps = {
   onError: noop,
   onSwitchToRegister: noop,
   onSwitchToMagicLink: noop,
+  onSwitchToForgot: noop,
 };
 
 describe('LoginForm — provider capability gating', () => {
@@ -66,5 +67,25 @@ describe('LoginForm — provider capability gating', () => {
     expect(screen.queryByText('Google')).toBeNull();
     expect(screen.queryByText('GitHub')).toBeNull();
     expect(screen.getByText('auth.withMagicLink')).toBeDefined();
+  });
+
+  it('shows the forgot-password link when the provider supports password reset', async () => {
+    vi.stubEnv('VITE_AUTH_HAS_PASSWORD_RESET', 'true');
+    vi.resetModules();
+    const { LoginForm } = await import('../LoginForm');
+
+    render(<LoginForm {...baseProps} />);
+
+    expect(screen.getByText('auth.forgotPassword')).toBeDefined();
+  });
+
+  it('hides the forgot-password link when the provider does not support it (postgres/mongodb)', async () => {
+    vi.stubEnv('VITE_AUTH_HAS_PASSWORD_RESET', 'false');
+    vi.resetModules();
+    const { LoginForm } = await import('../LoginForm');
+
+    render(<LoginForm {...baseProps} />);
+
+    expect(screen.queryByText('auth.forgotPassword')).toBeNull();
   });
 });

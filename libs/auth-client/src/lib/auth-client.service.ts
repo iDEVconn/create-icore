@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -23,6 +24,8 @@ const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
   invalid_refresh_token: UnauthorizedException,
   user_not_found: UnauthorizedException,
   email_not_confirmed: ForbiddenException,
+  invalid_reset_token: BadRequestException,
+  weak_password: BadRequestException,
 };
 
 function rpcMessage(err: unknown): string | undefined {
@@ -106,6 +109,16 @@ export class AuthClientService {
 
   verifyMagicLink(token: string): Promise<AuthSession> {
     return firstValueFrom(this.send<AuthSession>('auth.magicLink.verify', { token }));
+  }
+
+  async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
+    await firstValueFrom(this.send<{ ok: true }>('auth.password.forgot', { email, callbackUrl }));
+  }
+
+  confirmPasswordReset(token: string, password: string): Promise<AuthSession> {
+    return mapRpcErrors(
+      firstValueFrom(this.send<AuthSession>('auth.password.reset', { token, password })),
+    );
   }
 
   startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult> {

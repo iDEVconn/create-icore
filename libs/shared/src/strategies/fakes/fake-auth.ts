@@ -104,6 +104,38 @@ export class FakeAuthStrategy implements AuthStrategy {
     return this.issueSession(user);
   }
 
+  private readonly resetTokens = new Map<string, string>(); // token → uid
+  private readonly resetTokenByEmail = new Map<string, string>();
+
+  async requestPasswordReset(email: string, _callbackUrl: string): Promise<void> {
+    const user = this.users.get(email);
+    if (!user) return; // unknown address: silent, like a real provider
+    const token = globalThis.crypto.randomUUID();
+    this.resetTokens.set(token, user.id);
+    this.resetTokenByEmail.set(email, token);
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession> {
+    const uid = this.resetTokens.get(token);
+    if (!uid) throw new Error('invalid_reset_token');
+    this.resetTokens.delete(token);
+    const user = this.findById(uid);
+    user.password = newPassword;
+    for (const [refresh, owner] of this.refreshToUid) {
+      if (owner === uid) this.refreshToUid.delete(refresh);
+    }
+    for (const [access, owner] of this.tokensToUid) {
+      if (owner === uid) this.tokensToUid.delete(access);
+    }
+    return this.issueSession(user);
+  }
+
+  getLastPasswordResetToken(email: string): string {
+    const token = this.resetTokenByEmail.get(email);
+    if (!token) throw new Error(`no password reset issued for ${email}`);
+    return token;
+  }
+
   getLastMagicLinkToken(email: string): string {
     const token = this.magicLinkByEmail.get(email);
     if (!token) throw new Error(`no magic-link issued for ${email}`);

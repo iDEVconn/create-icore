@@ -297,9 +297,10 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 
-// authProvider values that implement startOAuth/sendMagicLink. postgres and
-// mongodb both throw not_implemented for either, so their generated client
-// must not surface the OAuth buttons or the magic-link toggle.
+// authProvider values that implement startOAuth/sendMagicLink/password reset.
+// postgres and mongodb throw not_implemented for all of them, so their
+// generated client must not surface the OAuth buttons, the magic-link toggle
+// or the forgot-password link.
 const OAUTH_MAGIC_LINK_PROVIDERS: ReadonlySet<CreateIcoreOptions['authProvider']> = new Set([
   'supabase',
   'firebase',
@@ -318,7 +319,8 @@ export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions
     const oauth = supported;
     const next = env
       .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${oauth}`)
-      .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`);
+      .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`)
+      .replace(/^VITE_AUTH_HAS_PASSWORD_RESET=.*$/m, `VITE_AUTH_HAS_PASSWORD_RESET=${supported}`);
     await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {
     // .env.example may not exist in older snapshots

@@ -182,6 +182,40 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     return this.toSession(data.session);
   }
 
+  async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: callbackUrl,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.verifyOtp({
+      type: 'recovery',
+      token_hash: token,
+    });
+    const email = data?.user?.email;
+    if (error || !data?.session || !data.user || !email) {
+      throw new RpcException('invalid_reset_token');
+    }
+    // GoTrue's admin password update deletes EVERY session of the user (incl.
+    // the recovery session) in the same transaction (User.UpdatePassword with
+    // a nil session → Logout), so "end all other sessions" is guaranteed by the
+    // password change itself — an explicit signOut afterwards would only get
+    // 403 session_not_found. The gateway never revokes at the provider (plan
+    // ruling 1); signIn below mints the one fresh session.
+    const { error: updateError } = await this.client.auth.admin.updateUserById(data.user.id, {
+      password: newPassword,
+    });
+    if (updateError) {
+      if ((updateError as { code?: string }).code === 'weak_password') {
+        throw new RpcException('weak_password');
+      }
+      throw new Error(updateError.message);
+    }
+    return this.signIn(email, newPassword);
+  }
+
   async getRole(uid: string): Promise<string | null> {
     const { data, error } = await this.client.auth.admin.getUserById(uid);
     if (error || !data.user) throw new Error(error?.message ?? 'user_missing');

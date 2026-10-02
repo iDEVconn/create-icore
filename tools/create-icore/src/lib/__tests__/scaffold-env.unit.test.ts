@@ -22,7 +22,8 @@ async function fixture(): Promise<string> {
       '# Set by the generator based on --auth=<provider>. Gates OAuth buttons + the\n' +
       "# magic-link toggle in LoginForm — postgres/mongodb don't implement either yet.\n" +
       'VITE_AUTH_HAS_OAUTH=false\n' +
-      'VITE_AUTH_HAS_MAGIC_LINK=false\n',
+      'VITE_AUTH_HAS_MAGIC_LINK=false\n' +
+      'VITE_AUTH_HAS_PASSWORD_RESET=false\n',
   );
   return dir;
 }
@@ -76,6 +77,19 @@ describe('writeClientEnv', () => {
     expect(countAssignments(env, 'VITE_AUTH_HAS_MAGIC_LINK')).toBe(1);
     expect(env).toMatch(/^VITE_AUTH_HAS_OAUTH=true$/m);
     expect(env).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=true$/m);
+  });
+
+  it.each([
+    ['supabase', 'true'],
+    ['firebase', 'true'],
+    ['postgres', 'false'],
+    ['mongodb', 'false'],
+  ] as const)('%s → VITE_AUTH_HAS_PASSWORD_RESET=%s', async (provider, value) => {
+    const dir = await fixture();
+    await writeClientEnv(dir, { ...baseOpts, authProvider: provider });
+    const env = await readFile(join(dir, 'apps/client/.env'), 'utf8');
+    expect(countAssignments(env, 'VITE_AUTH_HAS_PASSWORD_RESET')).toBe(1);
+    expect(env).toMatch(new RegExp(`^VITE_AUTH_HAS_PASSWORD_RESET=${value}$`, 'm'));
   });
 
   // antd/mui now ship an AuthBootstrap component (parity with client-shadcn)

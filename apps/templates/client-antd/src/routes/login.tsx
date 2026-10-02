@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { AuthBrandPanel } from '../components/auth/AuthBrandPanel';
 import { CheckEmailScreen } from '../components/auth/CheckEmailScreen';
+import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm';
 import { LoginForm } from '../components/auth/LoginForm';
 import { MagicLinkForm } from '../components/auth/MagicLinkForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
 
-type Mode = 'login' | 'register' | 'magicLink' | 'checkEmail';
+type Mode = 'login' | 'register' | 'magicLink' | 'forgot' | 'checkEmail';
 
 function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
@@ -37,6 +38,7 @@ function LoginPage() {
             <LoginForm
               onSwitchRegister={() => setMode('register')}
               onSwitchMagicLink={() => setMode('magicLink')}
+              onSwitchForgot={() => setMode('forgot')}
             />
           )}
           {mode === 'register' && (
@@ -46,6 +48,7 @@ function LoginPage() {
             />
           )}
           {mode === 'magicLink' && <MagicLinkForm onSwitchLogin={() => setMode('login')} />}
+          {mode === 'forgot' && <ForgotPasswordForm onSwitchLogin={() => setMode('login')} />}
           {mode === 'checkEmail' && (
             <CheckEmailScreen email={checkEmail} onBack={() => setMode('login')} />
           )}

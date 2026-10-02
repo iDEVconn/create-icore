@@ -179,3 +179,74 @@ describe('SupabaseAuthStrategy — signIn() before email confirmation', () => {
     expect(session.user.email).toBe('f@x.com');
   });
 });
+
+describe('SupabaseAuthStrategy — password reset', () => {
+  it('requestPasswordReset passes callbackUrl as redirectTo', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    expect(mock.getLastResetRedirect()).toBe('https://my.app/reset-password');
+  });
+
+  it('requestPasswordReset for an unknown email resolves without throwing (no enumeration)', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await expect(
+      strategy.requestPasswordReset('nobody@x.com', 'https://my.app/r'),
+    ).resolves.toBeUndefined();
+  });
+
+  it("confirmPasswordReset rejects a bogus token with RpcException('invalid_reset_token')", async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const err = await strategy.confirmPasswordReset('nope', 'newpw123!').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('invalid_reset_token');
+  });
+});
+
+describe('SupabaseAuthStrategy — password reset against GoTrue semantics', () => {
+  type MockAdmin = {
+    auth: { admin: { signOut: (...a: unknown[]) => Promise<unknown>; updateUserById: unknown } };
+  };
+
+  it('relies on GoTrue ending every session when the password changes — it does not need (and must not fail on) admin.signOut', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const before = await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    // Real GoTrue deletes ALL sessions (incl. the recovery one) inside the
+    // password-update transaction, so a later sign-out of the recovery JWT
+    // answers 403 session_not_found. The strategy must not depend on it.
+    const admin = (mock.client as unknown as MockAdmin).auth.admin;
+    admin.signOut = async () => ({ error: { message: 'session_not_found', status: 403 } });
+
+    const fresh = await strategy.confirmPasswordReset(
+      mock.getPasswordResetToken('a@x.com'),
+      'newpw123!',
+    );
+
+    await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+    await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+  });
+
+  it("maps GoTrue's weak_password to RpcException('weak_password') so the gateway can answer 400", async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const admin = (mock.client as unknown as MockAdmin).auth.admin;
+    admin.updateUserById = async () => ({
+      data: { user: null },
+      error: { code: 'weak_password', message: 'Password should contain a digit' },
+    });
+
+    const err = await strategy
+      .confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!')
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('weak_password');
+  });
+});

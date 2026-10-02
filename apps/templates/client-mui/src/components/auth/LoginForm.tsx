@@ -10,13 +10,15 @@ import { api } from '@/main';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
 const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+const AUTH_HAS_PASSWORD_RESET = (import.meta.env.VITE_AUTH_HAS_PASSWORD_RESET as string) === 'true';
 
 interface Props {
   onSwitchRegister: () => void;
   onSwitchMagicLink: () => void;
+  onSwitchForgot: () => void;
 }
 
-export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
+export function LoginForm({ onSwitchRegister, onSwitchMagicLink, onSwitchForgot }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const notify = useNotify();
@@ -134,6 +136,20 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
             {t('auth.switchToRegisterLink')}
           </Box>
         </Typography>
+        {AUTH_HAS_PASSWORD_RESET && (
+          <Box
+            component="span"
+            onClick={onSwitchForgot}
+            sx={{
+              fontSize: 13,
+              color: 'primary.main',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {t('auth.forgotPassword')}
+          </Box>
+        )}
         {AUTH_HAS_MAGIC_LINK && (
           <Box
             component="span"
