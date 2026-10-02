@@ -625,7 +625,8 @@ describe('AuthController — password reset', () => {
     expect(client.confirmPasswordReset).toHaveBeenCalledWith('tok', 'newpw123!');
     expect(await sessionStore.get(old.sessionId)).toBeNull();
     expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
-    expect(res.cookies['icore_sid']).toBeTruthy();
-    expect(await sessionStore.get(res.cookies['icore_sid'])).not.toBeNull();
+    const newSid = res.cookies['icore_sid'];
+    expect(newSid).toBeTruthy();
+    expect(await sessionStore.get(newSid as string)).not.toBeNull();
   });
 });

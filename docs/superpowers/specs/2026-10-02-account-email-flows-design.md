@@ -71,3 +71,10 @@ Status: approved in chat 2026-10-02 (spec pending review). Ships as **two PRs**:
 - Supabase recovery needs the `{{ .TokenHash }}` email-template change (same requirement as magic-link). Without it the link is a hosted-verify URL the `/reset-password` route cannot redeem, so the runbook + Next-steps notice are part of the feature, not optional docs.
 - Existing Supabase deployments with confirmation disabled see no behaviour change.
 - `signUp` gained an optional third parameter and a new documented throw; existing third-party `AuthStrategy` implementations keep compiling and behaving as before (additive) — the changeset notes it.
+
+## PR 2 implementation rulings (plan 2026-10-02-forgot-password)
+
+1. **Provider-side session revocation happens inside the strategies**, not in the gateway: Firebase's `revokeRefreshTokens(uid)` is uid-wide, so calling it after the new session was minted would kill that session. Order is: change the password → end the user's other provider sessions (3 attempts, fails loudly with `session_revocation_failed`) → mint the fresh session. The gateway only deletes the local Redis sessions before starting the new one. (Two background security reviews pushed this from "revoke first" to "password first": signing out before the password change leaves a window where the old password can mint a session that survives the reset.)
+2. **Firebase reset token is the raw `oobCode`** (the `resetPassword` REST call needs only the code and returns the email) — no `base64(email):` wrapping, no `?email=` on the continue URL.
+3. **The "email sent" view is built into `ForgotPasswordForm`** (like `MagicLinkForm`); `CheckEmailScreen`'s copy is about account activation.
+4. **`/reset-password` redirects to `/login` when `VITE_AUTH_HAS_PASSWORD_RESET` is off** instead of the generator stripping the route; the flag mirrors `VITE_AUTH_HAS_OAUTH`/`MAGIC_LINK` (supabase/firebase only).

@@ -20,4 +20,17 @@ describe('authEmailNotice', () => {
       expect(authEmailNotice(p)).toEqual([]);
     },
   );
+
+  it('also covers the forgot-password setup for Supabase (redirect URL + Reset Password template)', () => {
+    const text = authEmailNotice('supabase').join('\n');
+    expect(text).toContain('/reset-password');
+    expect(text).toContain('Reset Password');
+    expect(text).toContain('{{ .TokenHash }}');
+  });
+
+  it('also covers the forgot-password setup for Firebase (custom action URL)', () => {
+    const text = authEmailNotice('firebase').join('\n');
+    expect(text).toContain('Password reset');
+    expect(text).toContain('/reset-password');
+  });
 });
