@@ -206,20 +206,61 @@ describe('SupabaseAuthStrategy — password reset', () => {
   });
 });
 
-describe('SupabaseAuthStrategy — password reset fails closed', () => {
-  it('if ending the sessions fails it aborts BEFORE the password changes (never "new password, old sessions alive")', async () => {
+describe('SupabaseAuthStrategy — password reset revokes sessions after the password change', () => {
+  type MockAdmin = { auth: { admin: { signOut: (...a: unknown[]) => Promise<unknown> } } };
+
+  it('changes the password BEFORE ending sessions, so the old password cannot mint a session in between', async () => {
     const mock = createMockSupabaseClient();
     const strategy = new SupabaseAuthStrategy({ client: mock.client });
     await strategy.signUp('a@x.com', 'oldpw123!');
     await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
-    const admin = (mock.client as unknown as { auth: { admin: { signOut: unknown } } }).auth.admin;
+    const admin = (mock.client as unknown as MockAdmin).auth.admin;
+    const realSignOut = admin.signOut.bind(admin);
+    let oldPasswordWorkedAtSignOut: boolean | undefined;
+    admin.signOut = async (...args: unknown[]) => {
+      oldPasswordWorkedAtSignOut = await strategy.signIn('a@x.com', 'oldpw123!').then(
+        () => true,
+        () => false,
+      );
+      return realSignOut(...args);
+    };
+
+    await strategy.confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!');
+
+    expect(oldPasswordWorkedAtSignOut).toBe(false);
+  });
+
+  it('retries a transient sign-out failure and still ends the old sessions', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const before = await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const admin = (mock.client as unknown as MockAdmin).auth.admin;
+    const realSignOut = admin.signOut.bind(admin);
+    let calls = 0;
+    admin.signOut = async (...args: unknown[]) =>
+      ++calls === 1 ? { error: { message: 'blip' } } : realSignOut(...args);
+
+    const fresh = await strategy.confirmPasswordReset(
+      mock.getPasswordResetToken('a@x.com'),
+      'newpw123!',
+    );
+
+    expect(calls).toBe(2);
+    await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+    await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+  });
+
+  it('fails LOUDLY (session_revocation_failed) when sign-out keeps failing — never a silent success', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const admin = (mock.client as unknown as MockAdmin).auth.admin;
     admin.signOut = async () => ({ error: { message: 'boom' } });
 
     await expect(
       strategy.confirmPasswordReset(mock.getPasswordResetToken('a@x.com'), 'newpw123!'),
-    ).rejects.toThrow('boom');
-
-    await expect(strategy.signIn('a@x.com', 'oldpw123!')).resolves.toBeTruthy();
-    await expect(strategy.signIn('a@x.com', 'newpw123!')).rejects.toThrow();
+    ).rejects.toThrow('session_revocation_failed');
   });
 });
