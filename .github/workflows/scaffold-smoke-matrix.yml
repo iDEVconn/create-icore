@@ -20,7 +20,7 @@ permissions:
 jobs:
   smoke:
     name: ${{ matrix.pm }} · ${{ matrix.combo.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # pm × the same 4-combo covering set used by Layer A, but here each combo
     # also carries a `ui` so shadcn / antd / mui all get a real Vite build, and
     # the services are actually booted. Services absent in a combo are trimmed

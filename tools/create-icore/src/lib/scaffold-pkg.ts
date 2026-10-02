@@ -249,7 +249,7 @@ ${opts.upload !== 'none' ? `├── upload-client/     gateway → upload MS\n
 
 **Strategy swap** — provider is chosen at runtime via env. Never import a concrete strategy in app code; always inject via the factory token (\`AuthStrategy\`, \`StorageStrategy\`, \`DBStrategy\`).
 
-**Transport** — \`buildTransport(prefix)\` reads \`${opts.transport.toUpperCase()}*\` vars. Same helper on gateway client-modules and each MS \`main.ts\`. Supports tcp / redis / nats — change by flipping \`*_TRANSPORT\` in \`.env\`.
+**Transport** — \`buildTransport(prefix)\` reads \`${opts.transport.toUpperCase()}*\` vars. Same helper on gateway client-modules and each MS \`main.ts\`. Supports tcp / redis / nats / mqtt / rmq / kafka — change by flipping \`*_TRANSPORT\` in \`.env\`.
 
 **Env layering**:
 1. Root \`.env\` — \`DB_PROVIDER\`
