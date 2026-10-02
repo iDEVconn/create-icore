@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -205,6 +206,61 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const session = await this.authClient.verifyMagicLink(body.token);
+    return this.startSession(session, res, await this.resolveRole(session.accessToken));
+  }
+
+  @Public()
+  @SkipCsrf()
+  @Post('password/forgot')
+  @Throttle({ 'auth-burst': { limit: 5, ttl: seconds(60) } })
+  @ApiOperation({
+    summary: 'Email a password-reset link (always 200 — never reveals whether the account exists)',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: { email: { type: 'string', format: 'email' } },
+    },
+  })
+  async forgotPassword(@Body() body: { email: string }) {
+    try {
+      await this.authClient.requestPasswordReset(
+        body.email,
+        `${this.clientOrigin()}/reset-password`,
+      );
+    } catch (err) {
+      // Same answer for known and unknown addresses, so the response can't be
+      // used to enumerate accounts. The cause is only logged.
+      this.logger.warn('forgotPassword: provider error swallowed', err);
+    }
+    return { ok: true as const };
+  }
+
+  @Public()
+  @SkipCsrf()
+  @Post('password/reset')
+  @ApiOperation({
+    summary: 'Set a new password from a reset token, end all other sessions, start a new one',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['token', 'password'],
+      properties: { token: { type: 'string' }, password: { type: 'string', minLength: 8 } },
+    },
+  })
+  async resetPassword(
+    @Body() body: { token: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (typeof body.password !== 'string' || body.password.length < 8) {
+      throw new BadRequestException('password_too_short');
+    }
+    const session = await this.authClient.confirmPasswordReset(body.token, body.password);
+    // The strategy already ended every provider session; drop the local ones
+    // BEFORE creating the new one so it is not caught by the sweep.
+    await this.sessionStore.deleteAllForUser(session.user.id);
     return this.startSession(session, res, await this.resolveRole(session.accessToken));
   }
 

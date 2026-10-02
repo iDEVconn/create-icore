@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
-import { HttpStatus, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Logger, UnauthorizedException } from '@nestjs/common';
 import type { AuthClientService } from '@icore/auth-client';
 import { FakeSessionStore } from '@icore/shared';
 import type { Request, Response } from 'express';
@@ -31,6 +31,13 @@ function makeAuthClient(): AuthClientService {
       user: { id: 'u1', email: 'a@x.com' },
     }),
     revoke: vi.fn().mockResolvedValue(undefined),
+    requestPasswordReset: vi.fn().mockResolvedValue(undefined),
+    confirmPasswordReset: vi.fn().mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresIn: 3600,
+      user: { id: 'u1', email: 'a@x.com' },
+    }),
     sendMagicLink: vi.fn().mockResolvedValue(undefined),
     verifyMagicLink: vi.fn().mockResolvedValue({
       accessToken: 'at',
@@ -558,5 +565,67 @@ describe('AuthController — register', () => {
     );
     expect(warn.mock.calls.filter(([m]) => String(m).includes('CLIENT_ORIGIN'))).toHaveLength(1);
     warn.mockRestore();
+  });
+});
+
+describe('AuthController — password reset', () => {
+  let sessionStore: FakeSessionStore;
+  beforeEach(() => {
+    sessionStore = new FakeSessionStore();
+  });
+
+  it('forgot builds the callback from CLIENT_ORIGIN and answers {ok:true}', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(
+      client,
+      makeConfig({ CLIENT_ORIGIN: 'https://my.app' }),
+      sessionStore,
+    );
+    await expect(controller.forgotPassword({ email: 'a@x.com' })).resolves.toEqual({ ok: true });
+    expect(client.requestPasswordReset).toHaveBeenCalledWith(
+      'a@x.com',
+      'https://my.app/reset-password',
+    );
+  });
+
+  it('forgot answers the SAME {ok:true} when the provider throws (no account enumeration)', async () => {
+    const client = makeAuthClient();
+    (client.requestPasswordReset as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('EMAIL_NOT_FOUND'),
+    );
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    await expect(controller.forgotPassword({ email: 'nobody@x.com' })).resolves.toEqual({
+      ok: true,
+    });
+  });
+
+  it('reset rejects a short password with 400 BEFORE calling the provider', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    await expect(
+      controller.resetPassword({ token: 't', password: 'short' }, mockRes()),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(client.confirmPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it("reset kills the user's old local sessions, then starts a new one (cookies + {user})", async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const old = await sessionStore.create({
+      uid: 'u1',
+      email: 'a@x.com',
+      providerAccessToken: 'at0',
+      providerRefreshToken: 'rt0',
+      providerAccessTokenExpiresAt: Date.now() + 3_600_000,
+    });
+    const res = mockRes();
+
+    const result = await controller.resetPassword({ token: 'tok', password: 'newpw123!' }, res);
+
+    expect(client.confirmPasswordReset).toHaveBeenCalledWith('tok', 'newpw123!');
+    expect(await sessionStore.get(old.sessionId)).toBeNull();
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
+    expect(res.cookies['icore_sid']).toBeTruthy();
+    expect(await sessionStore.get(res.cookies['icore_sid'])).not.toBeNull();
   });
 });
