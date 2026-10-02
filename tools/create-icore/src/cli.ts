@@ -7,6 +7,7 @@ import * as p from '@clack/prompts';
 import { collectOptions } from './lib/prompts.js';
 import { scaffold } from './lib/scaffold.js';
 import { pmRun } from './lib/options.js';
+import { authEmailNotice } from './lib/auth-email-notice.js';
 import { runMigrateCli } from './migrate/migrate-cli.js';
 
 const [nodeMajor] = process.versions.node.split('.').map(Number);
@@ -67,6 +68,11 @@ async function main() {
   p.log.info(`  open http://localhost:4200`);
   if (opts.authProvider !== 'none') {
     p.log.info(`  edit apps/microservices/auth/.env to plug in real ${opts.authProvider} creds`);
+  }
+  const emailNotice = authEmailNotice(opts.authProvider);
+  if (emailNotice.length > 0) {
+    p.log.warn('One-time provider setup:');
+    for (const line of emailNotice) p.log.info(line);
   }
 }
 
