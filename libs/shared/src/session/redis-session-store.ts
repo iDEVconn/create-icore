@@ -4,15 +4,19 @@ import type { NewSessionRecord, SessionRecord, SessionStore } from './session-st
 const SESSION_KEY = (id: string) => `session:${id}`;
 const USER_SESSIONS_KEY = (uid: string) => `user-sessions:${uid}`;
 const LOCK_KEY = (id: string) => `session-lock:${id}`;
-const LOCK_TTL_MS = 10_000;
+// The lock is released by TTL, so it must outlive everything done while holding
+// it. AuthGuard holds it across two bounded RPCs (`refresh` + `verify`, each
+// capped at IN_LOCK_RPC_TIMEOUT_MS = 8 s in @icore/auth-client) plus a Redis
+// write: ~16 s worst case, hence 30 s. A TTL shorter than the work lets a
+// parallel request in, which then refreshes with an already-rotated token.
+const LOCK_TTL_MS = 30_000;
 const LOCK_POLL_MS = 50;
-// Upper bound on how long a caller waits to ACQUIRE the refresh lock. Redis
-// expires the lock itself after LOCK_TTL_MS, so no legitimate holder can keep
-// it longer than that -- waiting past a small multiple of the TTL means
-// something is wedged (a stalled Redis, a pathological pile-up), and the
-// caller is better off failing fast into the gateway's 503 path than hanging
-// a request forever, which is what the original `while (true)` did.
-const LOCK_MAX_WAIT_MS = LOCK_TTL_MS * 2;
+// Upper bound on how long a caller waits to ACQUIRE the refresh lock. A healthy
+// holder finishes in well under a second and a stuck one is cut off by the RPC
+// timeouts, so waiting past this means something is wedged (a stalled Redis, a
+// pathological pile-up) and the caller is better off failing fast into the
+// gateway's 503 path than hanging a request forever.
+const LOCK_MAX_WAIT_MS = 20_000;
 // Sessions never auto-expire from Redis on their own -- the provider refresh
 // token is the real expiry authority (30 days, matching the old icore_rt
 // cookie's maxAge). Setting the same TTL here means a Redis-side idle
@@ -33,20 +37,24 @@ const RELEASE_LOCK_LUA = `
 `;
 
 export interface RedisSessionStoreOptions {
-  /** Max time to wait for the refresh lock before giving up. Defaults to
-   *  twice the lock's own TTL; overridable so tests can assert the bound
-   *  without waiting 20 seconds. */
+  /** Max time to wait for the refresh lock before giving up (default 20 s);
+   *  overridable so tests can assert the bound without waiting that long. */
   lockMaxWaitMs?: number;
+  /** How long an acquired refresh lock lives before Redis expires it (default
+   *  30 s); overridable so tests can exercise expiry under a live holder. */
+  lockTtlMs?: number;
 }
 
 export class RedisSessionStore implements SessionStore {
   private readonly lockMaxWaitMs: number;
+  private readonly lockTtlMs: number;
 
   constructor(
     private readonly redis: IORedis,
     options: RedisSessionStoreOptions = {},
   ) {
     this.lockMaxWaitMs = options.lockMaxWaitMs ?? LOCK_MAX_WAIT_MS;
+    this.lockTtlMs = options.lockTtlMs ?? LOCK_TTL_MS;
   }
 
   async create(record: NewSessionRecord): Promise<SessionRecord> {
@@ -74,11 +82,15 @@ export class RedisSessionStore implements SessionStore {
     const existing = await this.get(sessionId);
     if (!existing) return;
     const updated: SessionRecord = { ...existing, ...patch, lastRefreshedAt: Date.now() };
+    // XX: only if the key still exists. A delete (logout / admin revoke) that
+    // landed between the read above and this write must win -- a plain SET
+    // would silently resurrect the revoked session.
     await this.redis.set(
       SESSION_KEY(sessionId),
       JSON.stringify(updated),
       'EX',
       SESSION_TTL_SECONDS,
+      'XX',
     );
   }
 
@@ -117,7 +129,7 @@ export class RedisSessionStore implements SessionStore {
     const token = globalThis.crypto.randomUUID();
     const deadline = Date.now() + this.lockMaxWaitMs;
     for (;;) {
-      const acquired = await this.redis.set(key, token, 'PX', LOCK_TTL_MS, 'NX');
+      const acquired = await this.redis.set(key, token, 'PX', this.lockTtlMs, 'NX');
       if (acquired === 'OK') break;
       if (Date.now() >= deadline) {
         throw new Error(`session_refresh_lock_timeout: ${sessionId}`);
