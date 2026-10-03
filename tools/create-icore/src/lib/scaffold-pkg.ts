@@ -41,7 +41,14 @@ export async function writePnpmWorkspace(targetDir: string): Promise<void> {
   ]
     .map((p) => `  '${p}': true`)
     .join('\n');
-  const content = `packages:\n${packagesBlock}\n\nallowBuilds:\n${allowBuilds}\n`;
+  // shamefullyHoist: the built microservice bundles keep every non-@icore
+  // package external and resolve it upward from dist/ to the ROOT node_modules
+  // (see apps/*/webpack.config.js). pnpm's strict isolation does NOT hoist a
+  // dependency declared only in a workspace lib (firebase-admin, ioredis, …), so
+  // the service would die at boot with "Cannot find module". npm/yarn hoist;
+  // this makes pnpm resolve the same way, i.e. like everything else this
+  // project is tested against.
+  const content = `packages:\n${packagesBlock}\n\nshamefullyHoist: true\n\nallowBuilds:\n${allowBuilds}\n`;
   await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
 }
 

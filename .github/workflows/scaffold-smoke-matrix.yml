@@ -52,10 +52,15 @@ jobs:
         run: |
           yarn nx build create-icore
           node tools/create-icore/scripts/snapshot-templates.mjs
+      # --run-seconds is how long the booted services are watched for a crash marker.
+      # 25 s was too short: on a slower runner the services were still BUILDING when
+      # the window closed, so a deterministic pnpm boot crash (firebase-admin/ioredis
+      # not hoisted) went unseen — a false green. A crash exits early, so a generous
+      # window only costs time on legs that are genuinely healthy.
       - name: Scaffold + install + build + boot
         run: |
           node tools/create-icore/scripts/smoke-scaffold.mjs \
             ${{ matrix.combo.flags }} \
-            --pm=${{ matrix.pm }} --mode=install --run --run-seconds=25 \
+            --pm=${{ matrix.pm }} --mode=install --run --run-seconds=90 \
             --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,ai-orchestrator,api,client \
             --services=api,auth,upload,notes,jobs,payment,ai-orchestrator
