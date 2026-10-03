@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom, type Observable } from 'rxjs';
+import { firstValueFrom, timeout, type Observable } from 'rxjs';
 import { signHmac } from '@icore/shared';
 import type {
   AuthSession,
@@ -46,6 +46,18 @@ async function mapRpcErrors<T>(promise: Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Upper bound for the RPCs AuthGuard makes while HOLDING the session refresh
+ * lock (`refresh` + the role re-check `verify`). The lock is released by TTL
+ * (RedisSessionStore LOCK_TTL_MS), so these two calls back to back must finish
+ * well inside it: a hung or restarting auth MS then fails fast (the guard
+ * answers 503 and keeps the session) instead of letting the lock expire under a
+ * live holder and a parallel request refresh with an already-rotated token.
+ * Deliberately NOT applied to login/signup/magic-link/reset, which can
+ * legitimately be slow (password hashing, outbound email).
+ */
+export const IN_LOCK_RPC_TIMEOUT_MS = 8_000;
+
 @Injectable()
 export class AuthClientService {
   constructor(@Inject(AUTH_CLIENT) private readonly client: ClientProxy) {}
@@ -68,7 +80,9 @@ export class AuthClientService {
   }
 
   verify(token: string): Promise<VerifiedToken> {
-    return firstValueFrom(this.send<VerifiedToken>('auth.verify', { token }));
+    return firstValueFrom(
+      this.send<VerifiedToken>('auth.verify', { token }).pipe(timeout(IN_LOCK_RPC_TIMEOUT_MS)),
+    );
   }
 
   login(email: string, password: string): Promise<AuthSession> {
@@ -92,7 +106,13 @@ export class AuthClientService {
   }
 
   refresh(refreshToken: string): Promise<AuthSession> {
-    return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.refresh', { refreshToken })));
+    return mapRpcErrors(
+      firstValueFrom(
+        this.send<AuthSession>('auth.refresh', { refreshToken }).pipe(
+          timeout(IN_LOCK_RPC_TIMEOUT_MS),
+        ),
+      ),
+    );
   }
 
   async revoke(refreshToken: string): Promise<void> {

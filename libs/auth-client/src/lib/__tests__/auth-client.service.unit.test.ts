@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { of, throwError } from 'rxjs';
+import { NEVER, TimeoutError, of, throwError } from 'rxjs';
 import type { ClientProxy } from '@nestjs/microservices';
 import { RpcException } from '@nestjs/microservices';
 import {
@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { verifyHmac } from '@icore/shared';
-import { AuthClientService } from '../auth-client.service';
+import { AuthClientService, IN_LOCK_RPC_TIMEOUT_MS } from '../auth-client.service';
 
 describe('AuthClientService — wire contract', () => {
   it('setRole() sends uid+role and resolves against the real {ok:true} wire response', async () => {
@@ -182,5 +182,47 @@ describe('AuthClientService — TCP HMAC signing', () => {
         'test-secret',
       ),
     ).toBe(true);
+  });
+});
+
+// refresh() and verify() run INSIDE AuthGuard's session refresh lock (Redis
+// LOCK_TTL_MS). Without a bound, a hung/restarting auth MS lets the lock expire
+// while the holder is still working, and a parallel request then refreshes with
+// an already-rotated token. They must fail fast (-> the guard's 503, session kept).
+describe('AuthClientService — bounded in-lock RPCs', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(['refresh', 'verify'] as const)(
+    '%s() rejects with a TimeoutError after IN_LOCK_RPC_TIMEOUT_MS when the auth MS never answers',
+    async (method) => {
+      vi.useFakeTimers();
+      const send = vi.fn(() => NEVER);
+      const service = new AuthClientService({ send } as unknown as ClientProxy);
+
+      const settled = service[method]('tok').then(
+        () => 'resolved',
+        (err: unknown) => err,
+      );
+      await vi.advanceTimersByTimeAsync(IN_LOCK_RPC_TIMEOUT_MS + 1);
+
+      expect(await settled).toBeInstanceOf(TimeoutError);
+    },
+  );
+
+  it('does not impose that timeout on slow-by-nature calls like login()', async () => {
+    vi.useFakeTimers();
+    const send = vi.fn(() => NEVER);
+    const service = new AuthClientService({ send } as unknown as ClientProxy);
+    let settled = false;
+    void service.login('a@x.com', 'pw').then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+
+    await vi.advanceTimersByTimeAsync(IN_LOCK_RPC_TIMEOUT_MS * 3);
+
+    expect(settled).toBe(false);
   });
 });
