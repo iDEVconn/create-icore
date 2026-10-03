@@ -51,6 +51,40 @@ export function runSessionStoreContract(name: string, factory: () => SessionStor
       expect(await store.get(created.sessionId)).toBeNull();
     });
 
+    it('update() reports whether the session still existed', async () => {
+      const store = factory();
+      const created = await store.create({
+        uid: 'u1',
+        email: 'a@b.com',
+        providerAccessToken: 'at1',
+        providerRefreshToken: 'rt1',
+        providerAccessTokenExpiresAt: 1,
+      });
+      expect(await store.update(created.sessionId, { providerAccessToken: 'at2' })).toBe(true);
+      await store.delete(created.sessionId);
+      expect(await store.update(created.sessionId, { providerAccessToken: 'at3' })).toBe(false);
+      expect(await store.get(created.sessionId)).toBeNull(); // not resurrected
+    });
+
+    it('delete() returns the record it deleted, with the latest tokens (null for an unknown session)', async () => {
+      const store = factory();
+      const created = await store.create({
+        uid: 'u1',
+        email: 'a@b.com',
+        providerAccessToken: 'at1',
+        providerRefreshToken: 'rt1',
+        providerAccessTokenExpiresAt: 1,
+      });
+      await store.update(created.sessionId, { providerRefreshToken: 'rt2' });
+
+      const deleted = await store.delete(created.sessionId);
+
+      expect(deleted?.sessionId).toBe(created.sessionId);
+      expect(deleted?.providerRefreshToken).toBe('rt2');
+      expect(await store.delete(created.sessionId)).toBeNull();
+      expect(await store.delete('does-not-exist')).toBeNull();
+    });
+
     it('deleteAllForUser() kills every session for that uid, leaves others', async () => {
       const store = factory();
       const s1 = await store.create({

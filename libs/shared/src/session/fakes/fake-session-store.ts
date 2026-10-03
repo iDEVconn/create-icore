@@ -20,14 +20,17 @@ export class FakeSessionStore implements SessionStore {
     return this.sessions.get(sessionId) ?? null;
   }
 
-  async update(sessionId: string, patch: Partial<SessionRecord>): Promise<void> {
+  async update(sessionId: string, patch: Partial<SessionRecord>): Promise<boolean> {
     const existing = this.sessions.get(sessionId);
-    if (!existing) return;
+    if (!existing) return false;
     this.sessions.set(sessionId, { ...existing, ...patch, lastRefreshedAt: Date.now() });
+    return true;
   }
 
-  async delete(sessionId: string): Promise<void> {
+  async delete(sessionId: string): Promise<SessionRecord | null> {
+    const existing = this.sessions.get(sessionId) ?? null;
     this.sessions.delete(sessionId);
+    return existing;
   }
 
   async deleteAllForUser(uid: string): Promise<SessionRecord[]> {

@@ -78,46 +78,49 @@ export class RedisSessionStore implements SessionStore {
     return raw ? (JSON.parse(raw) as SessionRecord) : null;
   }
 
-  async update(sessionId: string, patch: Partial<SessionRecord>): Promise<void> {
+  async update(sessionId: string, patch: Partial<SessionRecord>): Promise<boolean> {
     const existing = await this.get(sessionId);
-    if (!existing) return;
+    if (!existing) return false;
     const updated: SessionRecord = { ...existing, ...patch, lastRefreshedAt: Date.now() };
     // XX: only if the key still exists. A delete (logout / admin revoke) that
     // landed between the read above and this write must win -- a plain SET
-    // would silently resurrect the revoked session.
-    await this.redis.set(
+    // would silently resurrect the revoked session. `null` = it was deleted.
+    const written = await this.redis.set(
       SESSION_KEY(sessionId),
       JSON.stringify(updated),
       'EX',
       SESSION_TTL_SECONDS,
       'XX',
     );
+    return written === 'OK';
   }
 
-  async delete(sessionId: string): Promise<void> {
-    const existing = await this.get(sessionId);
-    if (!existing) return;
-    await this.redis
-      .multi()
-      .del(SESSION_KEY(sessionId))
-      .srem(USER_SESSIONS_KEY(existing.uid), sessionId)
-      .exec();
+  async delete(sessionId: string): Promise<SessionRecord | null> {
+    // GETDEL: read-and-delete in ONE atomic command, so the returned record is
+    // exactly what was deleted -- never a stale read of a token a concurrent
+    // refresh has since rotated.
+    const raw = await this.redis.getdel(SESSION_KEY(sessionId));
+    if (!raw) return null;
+    const deleted = JSON.parse(raw) as SessionRecord;
+    await this.redis.srem(USER_SESSIONS_KEY(deleted.uid), sessionId);
+    return deleted;
   }
 
   async deleteAllForUser(uid: string): Promise<SessionRecord[]> {
     const ids = await this.redis.smembers(USER_SESSIONS_KEY(uid));
     if (ids.length === 0) return [];
-    // Read the full records before deleting -- callers (e.g. admin
-    // revoke-user) need the provider refresh token to revoke it upstream,
-    // and it's gone once the key is deleted. This read step is necessarily
-    // sequential/non-atomic (it's just gets, not writes), but the delete
-    // batch below still runs as a single atomic multi/exec.
-    const records = await Promise.all(ids.map((id) => this.get(id)));
-    const deleted = records.filter((record): record is SessionRecord => record !== null);
+    // One atomic MULTI of GETDELs: the records returned are the ones actually
+    // deleted, with their tokens at the moment of deletion (callers -- admin
+    // revoke-user -- revoke each at the provider), not an earlier read.
     const multi = this.redis.multi();
-    for (const id of ids) multi.del(SESSION_KEY(id));
+    for (const id of ids) multi.getdel(SESSION_KEY(id));
     multi.del(USER_SESSIONS_KEY(uid));
-    await multi.exec();
+    const results = (await multi.exec()) ?? [];
+    const deleted: SessionRecord[] = [];
+    for (let i = 0; i < ids.length; i++) {
+      const [err, raw] = results[i] ?? [null, null];
+      if (!err && typeof raw === 'string') deleted.push(JSON.parse(raw) as SessionRecord);
+    }
     return deleted;
   }
 

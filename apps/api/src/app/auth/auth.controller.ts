@@ -134,13 +134,15 @@ export class AuthController {
     if (sessionId) {
       let record: SessionRecord | null = null;
       try {
-        record = await this.sessionStore.get(sessionId);
         // Delete the session record FIRST -- the moment this call returns,
         // the session is provably dead server-side even if the provider
         // revoke below fails. (Same ordering rationale as the old
         // clearCookies-after-best-effort-revoke logout, just applied to the
-        // store instead of the cookie.)
-        await this.sessionStore.delete(sessionId);
+        // store instead of the cookie.) delete() hands back the record as it was
+        // AT deletion, so the token revoked below is the current one even if a
+        // refresh rotated it a moment ago -- a separate earlier get() could not
+        // promise that.
+        record = await this.sessionStore.delete(sessionId);
       } catch (err) {
         // Best-effort, exactly like the provider revoke below: a Redis blip
         // must not 500 the user out of a logout. The cookies are still
