@@ -5,18 +5,20 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import { SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
-import { useAuthStore, useNotify } from '@icore/template-shared';
+import { ApiError, useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '@/main';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
 const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+const AUTH_HAS_PASSWORD_RESET = (import.meta.env.VITE_AUTH_HAS_PASSWORD_RESET as string) === 'true';
 
 interface Props {
   onSwitchRegister: () => void;
   onSwitchMagicLink: () => void;
+  onSwitchForgot: () => void;
 }
 
-export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
+export function LoginForm({ onSwitchRegister, onSwitchMagicLink, onSwitchForgot }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const notify = useNotify();
@@ -41,7 +43,13 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
       notify.success(t('auth.login'));
       await navigate({ to: '/dashboard' });
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : t('error.unknown'));
+      notify.error(
+        err instanceof ApiError && err.status === 403
+          ? t('auth.emailNotConfirmed')
+          : err instanceof Error
+            ? err.message
+            : t('error.unknown'),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -128,6 +136,20 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
             {t('auth.switchToRegisterLink')}
           </Box>
         </Typography>
+        {AUTH_HAS_PASSWORD_RESET && (
+          <Box
+            component="span"
+            onClick={onSwitchForgot}
+            sx={{
+              fontSize: 13,
+              color: 'primary.main',
+              cursor: 'pointer',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {t('auth.forgotPassword')}
+          </Box>
+        )}
         {AUTH_HAS_MAGIC_LINK && (
           <Box
             component="span"

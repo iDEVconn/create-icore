@@ -29,13 +29,41 @@ transport (`AUTH_TRANSPORT=redis`) — the two point at different concerns
 and may even be different Redis instances/databases.
 
 `sessionStoreProvider` (`apps/api/src/app/session/session-store.provider.ts`)
-throws at boot if `SESSION_REDIS_URL` is unset — there is deliberately no
-in-memory fallback. Unlike other optional per-feature Redis usages in this
-repo, a session store that loses its data on a gateway restart would
-silently log out every logged-in user, so the factory fails fast instead.
+throws at boot if `SESSION_REDIS_URL` is unset (with the default
+`SESSION_STORE=redis`) — there is deliberately no _silent_ in-memory
+fallback. A session store that loses its data on a gateway restart would
+silently log out every logged-in user, so the factory fails fast instead;
+running without Redis is an explicit opt-in, see
+[Choosing the session store](#choosing-the-session-store).
 
 Add `SESSION_REDIS_URL=redis://localhost:6379` (or your managed Redis URL)
 to every gateway `.env`/deployment config before deploying this branch.
+
+## Choosing the session store
+
+`SESSION_STORE=redis|memory` on the gateway (`apps/api/.env`); unset means
+`redis`, so existing deployments are unchanged.
+
+- **`redis`** (default) — sessions survive gateway restarts and can be shared
+  by several gateway instances. Needs `SESSION_REDIS_URL`.
+- **`memory`** — `InMemorySessionStore` keeps sessions in the gateway process
+  (30-day sliding expiry, swept every 10 min). No Redis service needed, which
+  suits small single-instance projects. What it gives up: **a gateway restart
+  logs everyone out**, and **only ONE gateway instance may run** (a second
+  instance would not see the first one's sessions). The refresh-lock
+  guarantees still hold within the process.
+
+`memory` always logs a loud warning at boot. With `NODE_ENV=production` the
+gateway refuses to start unless `SESSION_STORE_ALLOW_MEMORY=true` is set (the
+exact string) — an acknowledgment that you accept the two limits above. An
+unknown `SESSION_STORE` value fails at boot.
+
+The generator exposes this as `create-icore --session=redis|memory` (wizard
+asks it for every `auth` other than `none`). `memory` writes
+`SESSION_STORE=memory` into `apps/api/.env` and, in `docker-compose.yml`,
+sets `SESSION_STORE: memory` + `SESSION_STORE_ALLOW_MEMORY: 'true'` and drops
+the Redis service, volume and `depends_on` — unless `--jobs=bullmq` or
+`--transport=redis` still need Redis.
 
 ## Where the role comes from now
 
@@ -71,6 +99,16 @@ the request. `RedisSessionStore.withRefreshLock` likewise gives up after
 `2 × LOCK_TTL_MS` rather than polling forever. Sessions are never deleted
 on an infrastructure failure — only an explicit `invalid_refresh_token`
 rejection from the provider does that.
+
+## Parallel requests and the refresh lock
+
+When a session's provider access token is within 30 s of expiry, the first request refreshes the provider token pair server-side under a Redis lock (`session-lock:<sid>`); parallel requests wait for the lock, then re-read the already-refreshed record. Providers rotate refresh tokens (single use), so two refreshes with the same token would burn it. Guards that keep it from logging users out or leaving orphaned provider sessions:
+
+- **Bounded work under the lock.** `AuthClientService.refresh` and `verify` (the only two RPCs made while holding it) time out after 8 s (`IN_LOCK_RPC_TIMEOUT_MS`), and the lock TTL is 30 s (`RedisSessionStore` `lockTtlMs`, waiters give up after 20 s with a 503). A hung or restarting auth MS therefore fails fast with **503 and the session kept**, instead of the lock expiring under a live holder. `login`/`signup`/magic-link/reset are intentionally not capped (hashing, outbound email).
+- **A lost race is not a dead session.** If the provider answers `invalid_refresh_token`, `AuthGuard` re-reads the record first: when its refresh token differs from the one it used, another request already rotated it and stored the new pair, so the guard returns that fresh record. Only a token nobody rotated deletes the session (401).
+- **`update()` never resurrects a session.** It writes with `SET … XX`, so a logout / admin revoke that lands between its read and its write wins.
+
+- **Logout and admin revoke hand the provider the CURRENT token.** `SessionStore.delete()` / `deleteAllForUser()` read-and-delete atomically (`GETDEL`; `MULTI` of `GETDEL`s for a user) and return the records as they were at deletion, so `POST /auth/logout` and `POST /auth/admin/revoke-user/:uid` revoke the token a concurrent refresh may have just rotated, not a stale earlier read. `update()` resolves `false` when the session is gone; if that happens to a refresh that was in flight, `AuthGuard` revokes the freshly minted pair itself (no orphaned provider session) and answers 401.
 
 ## Forced re-login on deploy
 

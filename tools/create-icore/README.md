@@ -24,8 +24,9 @@ npm i -g @idevconn/create-icore && create-icore my-saas
 | `--auth`       | `supabase` \| `firebase` \| `mongodb` \| `none`    | prompted        | Auth provider. Use `none` for a minimal SPA with no login system — skips db, example, and transport questions.                                                                  |
 | `--db`         | `supabase` \| `firebase` \| `mongodb` \| `none`    | prompted        | Database backend. Fully independent of `--auth` — mix-and-match combos like `--auth=firebase --db=supabase` are first-class. Use `none` when `--auth=none` (set automatically). |
 | `--upload`     | `supabase` \| `firebase` \| `cloudinary` \| `none` | prompted        | File upload provider. Use `none` to remove the upload microservice entirely.                                                                                                    |
-| `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`        | UI library. All three are fully implemented: `shadcn` (Tailwind 4 + shadcn/ui), `antd` (Ant Design 6), `mui` (MUI 6 / Material Design).                                         |
+| `--ui`         | `shadcn` \| `antd` \| `mui`                        | `shadcn`        | UI library. All three are fully implemented: `shadcn` (Tailwind 4 + shadcn/ui), `antd` (Ant Design 6), `mui` (MUI 9 / Material Design).                                         |
 | `--transport`  | `tcp` \| `redis` \| `nats`                         | `tcp`           | Microservice transport                                                                                                                                                          |
+| `--session`    | `redis` \| `memory`                                | `redis`         | Where login sessions live. `memory` = no Redis service (restart logs everyone out, one gateway instance only). Ignored with `--auth=none`.                                      |
 | `--no-git`     | —                                                  | git enabled     | Skip `git init`                                                                                                                                                                 |
 | `--no-install` | —                                                  | install enabled | Skip `yarn install`                                                                                                                                                             |
 | `--config`     | path to `.json` file                               | —               | Pre-fill any wizard answer from a JSON file. Missing fields still prompt interactively. CLI flags override config values. See **Non-interactive / CI mode** below.              |
@@ -75,6 +76,7 @@ Pass `--config <path>` to skip individual prompts using a JSON file. Any field o
   "example": "notes",
   "ui": "shadcn",
   "transport": "nats",
+  "session": "redis",
   "packageManager": "yarn",
   "initGit": true,
   "install": false

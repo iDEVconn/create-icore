@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  HttpStatus,
   Inject,
   Logger,
   Param,
@@ -57,7 +59,9 @@ export class AuthController {
   @Public()
   @SkipCsrf()
   @Post('register')
-  @ApiOperation({ summary: 'Create a new user and start a server-side session' })
+  @ApiOperation({
+    summary: 'Create a new user (201 + session, or 202 when email confirmation is required)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -72,8 +76,18 @@ export class AuthController {
     @Body() body: { email: string; password: string },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const session = await this.authClient.signup(body.email, body.password);
-    return this.startSession(session, res, await this.resolveRole(session.accessToken));
+    const result = await this.authClient.signup(
+      body.email,
+      body.password,
+      `${this.clientOrigin()}/auth/callback`,
+    );
+    if ('status' in result) {
+      // Account created, but the provider wants the email confirmed first —
+      // no session exists, so no cookies.
+      res.status(HttpStatus.ACCEPTED);
+      return { status: 'confirmation_required' as const, email: result.user.email };
+    }
+    return this.startSession(result, res, await this.resolveRole(result.accessToken));
   }
 
   @Public()
@@ -120,13 +134,15 @@ export class AuthController {
     if (sessionId) {
       let record: SessionRecord | null = null;
       try {
-        record = await this.sessionStore.get(sessionId);
         // Delete the session record FIRST -- the moment this call returns,
         // the session is provably dead server-side even if the provider
         // revoke below fails. (Same ordering rationale as the old
         // clearCookies-after-best-effort-revoke logout, just applied to the
-        // store instead of the cookie.)
-        await this.sessionStore.delete(sessionId);
+        // store instead of the cookie.) delete() hands back the record as it was
+        // AT deletion, so the token revoked below is the current one even if a
+        // refresh rotated it a moment ago -- a separate earlier get() could not
+        // promise that.
+        record = await this.sessionStore.delete(sessionId);
       } catch (err) {
         // Best-effort, exactly like the provider revoke below: a Redis blip
         // must not 500 the user out of a logout. The cookies are still
@@ -177,8 +193,7 @@ export class AuthController {
     },
   })
   requestMagicLink(@Body() body: { email: string }) {
-    const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
-    return this.authClient.sendMagicLink(body.email, `${origin}/auth/callback`);
+    return this.authClient.sendMagicLink(body.email, `${this.clientOrigin()}/auth/callback`);
   }
 
   @Public()
@@ -193,6 +208,64 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const session = await this.authClient.verifyMagicLink(body.token);
+    return this.startSession(session, res, await this.resolveRole(session.accessToken));
+  }
+
+  @Public()
+  @SkipCsrf()
+  @Post('password/forgot')
+  @Throttle({ 'auth-burst': { limit: 5, ttl: seconds(60) } })
+  @ApiOperation({
+    summary: 'Email a password-reset link (always 200 — never reveals whether the account exists)',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: { email: { type: 'string', format: 'email' } },
+    },
+  })
+  async forgotPassword(@Body() body: { email: string }) {
+    try {
+      await this.authClient.requestPasswordReset(
+        body.email,
+        `${this.clientOrigin()}/reset-password`,
+      );
+    } catch (err) {
+      // Same answer for known and unknown addresses, so the response can't be
+      // used to enumerate accounts. The cause is only logged.
+      this.logger.warn('forgotPassword: provider error swallowed', err);
+    }
+    return { ok: true as const };
+  }
+
+  @Public()
+  @SkipCsrf()
+  @Post('password/reset')
+  @ApiOperation({
+    summary: 'Set a new password from a reset token, end all other sessions, start a new one',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['token', 'password'],
+      properties: { token: { type: 'string' }, password: { type: 'string', minLength: 8 } },
+    },
+  })
+  async resetPassword(
+    @Body() body: { token: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (typeof body.token !== 'string' || body.token.length === 0) {
+      throw new BadRequestException('invalid_reset_token');
+    }
+    if (typeof body.password !== 'string' || body.password.length < 8) {
+      throw new BadRequestException('password_too_short');
+    }
+    const session = await this.authClient.confirmPasswordReset(body.token, body.password);
+    // The strategy already ended every provider session; drop the local ones
+    // BEFORE creating the new one so it is not caught by the sweep.
+    await this.sessionStore.deleteAllForUser(session.user.id);
     return this.startSession(session, res, await this.resolveRole(session.accessToken));
   }
 
@@ -251,13 +324,17 @@ export class AuthController {
     // provider's callback -- it is never readable by client JS and never
     // sent over plain HTTP in prod. There is no server-side store to move it
     // to that would improve on the browser's own httpOnly cookie jar here.
-    // codeql[js/clear-text-storage-of-sensitive-data]: see comment above -- httpOnly+Secure+SameSite cookie is the intended protection, not clear-text storage.
-    res.cookie('oauth_state', state, {
-      httpOnly: true,
-      secure: this.isProd(),
-      sameSite: 'lax',
-      maxAge: 10 * 60 * 1000,
-    });
+    res.cookie(
+      'oauth_state',
+      // codeql[js/clear-text-storage-of-sensitive-data]: see comment above -- httpOnly+Secure+SameSite cookie is the intended protection, not clear-text storage.
+      state,
+      {
+        httpOnly: true,
+        secure: this.isProd(),
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000,
+      },
+    );
     return res.redirect(redirectUrl);
   }
 
@@ -303,6 +380,21 @@ export class AuthController {
    * `undefined` fails CLOSED (no role => no admin ability), it never grants
    * anything.
    */
+  private warnedMissingClientOrigin = false;
+
+  /** Where provider emails (confirm / magic-link) send the user back to. */
+  private clientOrigin(): string {
+    const origin = this.cfg.get<string>('CLIENT_ORIGIN');
+    if (origin) return origin;
+    if (!this.warnedMissingClientOrigin) {
+      this.warnedMissingClientOrigin = true;
+      this.logger.warn(
+        'CLIENT_ORIGIN is not set — emails will link to http://localhost:4200. Set it to your client URL (and the same value as Site URL in Supabase → Authentication → URL Configuration).',
+      );
+    }
+    return 'http://localhost:4200';
+  }
+
   private async resolveRole(accessToken: string): Promise<string | undefined> {
     try {
       const verified = await this.authClient.verify(accessToken);
@@ -362,8 +454,7 @@ export class AuthController {
       // CSRF-protected mutating request fails despite a valid session.
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
-    const origin = this.cfg.get<string>('CLIENT_ORIGIN') ?? 'http://localhost:4200';
-    return res.redirect(`${origin}/dashboard`);
+    return res.redirect(`${this.clientOrigin()}/dashboard`);
   }
 
   private isProd(): boolean {

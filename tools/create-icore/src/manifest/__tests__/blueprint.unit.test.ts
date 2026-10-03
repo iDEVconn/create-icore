@@ -23,6 +23,7 @@ const opts: CreateIcoreOptions = {
   example: 'notes',
   ui: 'antd',
   transport: 'nats',
+  session: 'redis',
   packageManager: 'pnpm',
   initGit: true,
   install: true,

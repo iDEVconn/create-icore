@@ -20,7 +20,7 @@ permissions:
 jobs:
   smoke:
     name: ${{ matrix.pm }} · ${{ matrix.combo.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # pm × the same 4-combo covering set used by Layer A, but here each combo
     # also carries a `ui` so shadcn / antd / mui all get a real Vite build, and
     # the services are actually booted. Services absent in a combo are trimmed
@@ -43,6 +43,8 @@ jobs:
             flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=kafka --ui=shadcn
           - name: mongodb-full-tcp-shadcn
             flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
+          - name: supabase-minimal-tcp-memory-shadcn
+            flags: --auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --session=memory
     steps:
       - uses: actions/checkout@v5
         with:
@@ -52,10 +54,15 @@ jobs:
         run: |
           yarn nx build create-icore
           node tools/create-icore/scripts/snapshot-templates.mjs
+      # --run-seconds is how long the booted services are watched for a crash marker.
+      # 25 s was too short: on a slower runner the services were still BUILDING when
+      # the window closed, so a deterministic pnpm boot crash (firebase-admin/ioredis
+      # not hoisted) went unseen — a false green. A crash exits early, so a generous
+      # window only costs time on legs that are genuinely healthy.
       - name: Scaffold + install + build + boot
         run: |
           node tools/create-icore/scripts/smoke-scaffold.mjs \
             ${{ matrix.combo.flags }} \
-            --pm=${{ matrix.pm }} --mode=install --run --run-seconds=25 \
+            --pm=${{ matrix.pm }} --mode=install --run --run-seconds=90 \
             --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,ai-orchestrator,api,client \
             --services=api,auth,upload,notes,jobs,payment,ai-orchestrator

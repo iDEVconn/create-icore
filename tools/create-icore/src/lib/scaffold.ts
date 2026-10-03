@@ -15,6 +15,8 @@ import {
   writeClientEnv,
   writePaymentEnv,
   writeAiEnv,
+  rewriteComposeTransport,
+  rewriteComposeSession,
 } from './scaffold-env.js';
 import {
   removeFirebaseAdminLib,
@@ -56,6 +58,8 @@ export {
   writeClientEnv,
   writePaymentEnv,
   writeAiEnv,
+  rewriteComposeTransport,
+  rewriteComposeSession,
   applyAuthNoneVariants,
   removeAuthOnlyPaths,
   removeAuthTsconfigPaths,
@@ -223,6 +227,9 @@ export async function scaffold(
     await removeAuthTsconfigPaths(opts.targetDir);
     await removeDockerComposeAuthService(opts.targetDir);
   }
+  // After every compose strip so removed services/lines are simply not matched.
+  await rewriteComposeTransport(opts.targetDir, opts);
+  await rewriteComposeSession(opts.targetDir, opts);
   if (opts.upload !== 'none') {
     await cleanupUnusedStorage(opts.targetDir, opts.upload);
     await writeStorageProvider(opts.targetDir, opts.upload);

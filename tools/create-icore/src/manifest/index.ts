@@ -15,6 +15,8 @@ export const MANIFEST = {
       },
       appTests: [
         'apps/microservices/auth/src/app/__tests__/auth.controller.supabase.integration.unit.test.ts',
+        'apps/microservices/auth/src/app/__tests__/auth.controller.signup-confirmation.unit.test.ts',
+        'apps/microservices/auth/src/app/__tests__/auth.controller.password-reset.unit.test.ts',
       ],
     },
     firebase: {

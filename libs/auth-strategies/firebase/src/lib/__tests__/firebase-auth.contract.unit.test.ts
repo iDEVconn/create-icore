@@ -38,6 +38,11 @@ runAuthContract(
       const emailB64 = Buffer.from(email, 'utf8').toString('base64');
       return `${emailB64}:${oobCode}`;
     },
+    getPasswordResetToken: (strategy, email) => {
+      const toolkit = toolkits.get(strategy as FirebaseAuthStrategy);
+      if (!toolkit) throw new Error('toolkit not registered for strategy');
+      return toolkit.getResetCode(email);
+    },
     getOAuthCode: (strategy, _provider, email) => {
       const toolkit = toolkits.get(strategy as FirebaseAuthStrategy);
       if (!toolkit) throw new Error('toolkit not registered for strategy');

@@ -78,3 +78,74 @@ describe('FirebaseAuthStrategy — revoke()', () => {
     await expect(strategy.revoke('not-a-real-token')).resolves.toBeUndefined();
   });
 });
+
+describe('FirebaseAuthStrategy — password reset', () => {
+  it('requestPasswordReset sends a PASSWORD_RESET email for a known user', async () => {
+    const { strategy, toolkit } = fixture();
+    await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    expect(toolkit.getResetCode('a@x.com')).toBeTruthy();
+  });
+
+  it("confirmPasswordReset maps a bad oobCode to RpcException('invalid_reset_token')", async () => {
+    const { strategy } = fixture();
+    const err = await strategy.confirmPasswordReset('bogus', 'newpw123!').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('invalid_reset_token');
+  });
+
+  it('revokes every refresh token issued BEFORE the reset but not the one it returns', async () => {
+    const { strategy, toolkit } = fixture();
+    const before = await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const fresh = await strategy.confirmPasswordReset(toolkit.getResetCode('a@x.com'), 'newpw123!');
+    await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+    await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+  });
+});
+
+describe('FirebaseAuthStrategy — password reset hardening', () => {
+  it('requestPasswordReset for an unknown email resolves silently (no enumeration, no error log)', async () => {
+    const { strategy } = fixture();
+    await expect(
+      strategy.requestPasswordReset('nobody@x.com', 'https://my.app/reset-password'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('sends the continue URL to /login so a reset done on the Firebase-hosted page lands somewhere valid', async () => {
+    const { strategy, toolkit } = fixture();
+    await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    expect(toolkit.getLastResetContinueUrl()).toBe('https://my.app/login');
+  });
+
+  it("maps Firebase's WEAK_PASSWORD to RpcException('weak_password')", async () => {
+    const { strategy, toolkit } = fixture();
+    await strategy.signUp('a@x.com', 'pw12345!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+    const err = await strategy
+      .confirmPasswordReset(toolkit.getResetCode('a@x.com'), '123')
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RpcException);
+    expect((err as RpcException).getError()).toBe('weak_password');
+  });
+
+  it('the explicit uid-wide revoke is best-effort: Firebase already invalidates refresh tokens on a password change', async () => {
+    const toolkit = createMockIdentityToolkit();
+    const base = createMockAdminAuth({ identityToolkit: toolkit });
+    const adminAuth = {
+      ...base,
+      revokeRefreshTokens: async () => {
+        throw new Error('revoke_failed');
+      },
+    };
+    const strategy = new FirebaseAuthStrategy({ identityToolkit: toolkit.client, adminAuth });
+    const before = await strategy.signUp('a@x.com', 'oldpw123!');
+    await strategy.requestPasswordReset('a@x.com', 'https://my.app/reset-password');
+
+    const fresh = await strategy.confirmPasswordReset(toolkit.getResetCode('a@x.com'), 'newpw123!');
+
+    await expect(strategy.refresh(before.refreshToken)).rejects.toThrow();
+    await expect(strategy.refresh(fresh.refreshToken)).resolves.toBeTruthy();
+  });
+});

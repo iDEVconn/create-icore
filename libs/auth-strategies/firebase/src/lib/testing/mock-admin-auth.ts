@@ -11,6 +11,7 @@ export interface FakeAdminAuth {
     uid: string,
   ): Promise<{ uid: string; email?: string; customClaims?: Record<string, unknown> }>;
   revokeRefreshTokens(uid: string): Promise<void>;
+  getUserByEmail(email: string): Promise<{ uid: string }>;
 }
 
 export function createMockAdminAuth(opts: FakeAdminAuthOptions): FakeAdminAuth {
@@ -39,7 +40,12 @@ export function createMockAdminAuth(opts: FakeAdminAuthOptions): FakeAdminAuth {
       };
     },
     async revokeRefreshTokens(uid) {
-      opts.identityToolkit.revokedUids.add(uid);
+      opts.identityToolkit.revokeUser(uid);
+    },
+    async getUserByEmail(email) {
+      const user = [...opts.identityToolkit.users.values()].find((u) => u.email === email);
+      if (!user) throw new Error('USER_NOT_FOUND');
+      return { uid: user.localId };
     },
   };
 }

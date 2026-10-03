@@ -32,6 +32,7 @@ const baseOpts: CreateIcoreOptions = {
   example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
+  session: 'redis',
   packageManager: 'yarn',
   initGit: false,
   install: false,

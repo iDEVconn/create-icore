@@ -1,8 +1,21 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom, type Observable } from 'rxjs';
+import { firstValueFrom, timeout, type Observable } from 'rxjs';
 import { signHmac } from '@icore/shared';
-import type { AuthSession, OAuthProvider, OAuthStartResult, VerifiedToken } from '@icore/shared';
+import type {
+  AuthSession,
+  OAuthProvider,
+  OAuthStartResult,
+  SignUpConfirmationRequired,
+  VerifiedToken,
+} from '@icore/shared';
 import { AUTH_CLIENT } from './auth-client.tokens';
 
 const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
@@ -10,6 +23,9 @@ const RPC_ERROR_MAP: Record<string, new (message: string) => Error> = {
   invalid_credentials: UnauthorizedException,
   invalid_refresh_token: UnauthorizedException,
   user_not_found: UnauthorizedException,
+  email_not_confirmed: ForbiddenException,
+  invalid_reset_token: BadRequestException,
+  weak_password: BadRequestException,
 };
 
 function rpcMessage(err: unknown): string | undefined {
@@ -29,6 +45,18 @@ async function mapRpcErrors<T>(promise: Promise<T>): Promise<T> {
     throw err;
   }
 }
+
+/**
+ * Upper bound for the RPCs AuthGuard makes while HOLDING the session refresh
+ * lock (`refresh` + the role re-check `verify`). The lock is released by TTL
+ * (RedisSessionStore LOCK_TTL_MS), so these two calls back to back must finish
+ * well inside it: a hung or restarting auth MS then fails fast (the guard
+ * answers 503 and keeps the session) instead of letting the lock expire under a
+ * live holder and a parallel request refresh with an already-rotated token.
+ * Deliberately NOT applied to login/signup/magic-link/reset, which can
+ * legitimately be slow (password hashing, outbound email).
+ */
+export const IN_LOCK_RPC_TIMEOUT_MS = 8_000;
 
 @Injectable()
 export class AuthClientService {
@@ -52,19 +80,39 @@ export class AuthClientService {
   }
 
   verify(token: string): Promise<VerifiedToken> {
-    return firstValueFrom(this.send<VerifiedToken>('auth.verify', { token }));
+    return firstValueFrom(
+      this.send<VerifiedToken>('auth.verify', { token }).pipe(timeout(IN_LOCK_RPC_TIMEOUT_MS)),
+    );
   }
 
   login(email: string, password: string): Promise<AuthSession> {
     return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.login', { email, password })));
   }
 
-  signup(email: string, password: string): Promise<AuthSession> {
-    return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.signup', { email, password })));
+  signup(
+    email: string,
+    password: string,
+    callbackUrl?: string,
+  ): Promise<AuthSession | SignUpConfirmationRequired> {
+    return mapRpcErrors(
+      firstValueFrom(
+        this.send<AuthSession | SignUpConfirmationRequired>('auth.signup', {
+          email,
+          password,
+          callbackUrl,
+        }),
+      ),
+    );
   }
 
   refresh(refreshToken: string): Promise<AuthSession> {
-    return mapRpcErrors(firstValueFrom(this.send<AuthSession>('auth.refresh', { refreshToken })));
+    return mapRpcErrors(
+      firstValueFrom(
+        this.send<AuthSession>('auth.refresh', { refreshToken }).pipe(
+          timeout(IN_LOCK_RPC_TIMEOUT_MS),
+        ),
+      ),
+    );
   }
 
   async revoke(refreshToken: string): Promise<void> {
@@ -81,6 +129,16 @@ export class AuthClientService {
 
   verifyMagicLink(token: string): Promise<AuthSession> {
     return firstValueFrom(this.send<AuthSession>('auth.magicLink.verify', { token }));
+  }
+
+  async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
+    await firstValueFrom(this.send<{ ok: true }>('auth.password.forgot', { email, callbackUrl }));
+  }
+
+  confirmPasswordReset(token: string, password: string): Promise<AuthSession> {
+    return mapRpcErrors(
+      firstValueFrom(this.send<AuthSession>('auth.password.reset', { token, password })),
+    );
   }
 
   startOAuth(provider: OAuthProvider, callbackUrl: string): Promise<OAuthStartResult> {

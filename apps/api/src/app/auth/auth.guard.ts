@@ -90,6 +90,13 @@ export class AuthGuard implements CanActivate {
       // rejection as transient.
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes('invalid_refresh_token')) {
+        // The provider rotates refresh tokens (single use). If the refresh lock
+        // did not exclude us (it expired during a slow refresh) another request
+        // may have already rotated THIS token and stored the new pair: our
+        // "invalid" is then a lost race, not a dead session -- hand back the
+        // winner's record instead of logging the user out.
+        const latest = await this.sessionStore.get(sessionId);
+        if (latest && latest.providerRefreshToken !== record.providerRefreshToken) return latest;
         await this.sessionStore.delete(sessionId);
         return null;
       }
@@ -107,7 +114,14 @@ export class AuthGuard implements CanActivate {
       // the session exists.
       role: await this.resolveRole(refreshed.accessToken, record.role),
     };
-    await this.sessionStore.update(sessionId, updated);
+    const stored = await this.sessionStore.update(sessionId, updated);
+    if (!stored) {
+      // The session was deleted (logout / admin revoke) while the provider call
+      // was in flight, so the pair we just minted has no owner and must not be
+      // left alive at the provider. Best-effort: the session is dead either way.
+      await this.authClient.revoke(refreshed.refreshToken).catch(() => undefined);
+      return null;
+    }
     return { ...record, ...updated };
   }
 

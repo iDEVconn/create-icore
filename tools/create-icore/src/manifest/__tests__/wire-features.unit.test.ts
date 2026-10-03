@@ -17,6 +17,7 @@ const base: CreateIcoreOptions = {
   example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
+  session: 'redis',
   packageManager: 'npm',
   initGit: false,
   install: false,

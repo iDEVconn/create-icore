@@ -1,6 +1,12 @@
 import { Button, Form, Input, Space, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useNotify } from '@icore/template-shared';
+import { useNavigate } from '@tanstack/react-router';
+import {
+  isConfirmationRequired,
+  useAuthStore,
+  useNotify,
+  type RegisterResponse,
+} from '@icore/template-shared';
 import { api } from '@/main';
 
 interface FormValues {
@@ -17,16 +23,24 @@ interface Props {
 export function RegisterForm({ onSuccess, onSwitchLogin }: Props) {
   const { t } = useTranslation();
   const notify = useNotify();
+  const navigate = useNavigate();
+  const setUser = useAuthStore((s) => s.setUser);
   const [form] = Form.useForm<FormValues>();
 
   async function handleFinish(values: FormValues) {
     try {
-      await api('/auth/register', {
+      const res = await api<RegisterResponse>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: values.email, password: values.password }),
       });
-      onSuccess(values.email);
+      if (isConfirmationRequired(res)) {
+        onSuccess(res.email);
+      } else {
+        setUser(res.user);
+        notify.success(t('auth.login'));
+        await navigate({ to: '/dashboard' });
+      }
     } catch (err) {
       notify.error(err instanceof Error ? err.message : t('error.unknown'));
     }

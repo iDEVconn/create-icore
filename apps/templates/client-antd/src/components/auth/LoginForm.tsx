@@ -2,11 +2,12 @@ import { Button, Divider, Form, Input, Space, Typography } from 'antd';
 import { GithubOutlined, GoogleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from '@tanstack/react-router';
-import { useAuthStore, useNotify } from '@icore/template-shared';
+import { ApiError, useAuthStore, useNotify } from '@icore/template-shared';
 import { api } from '@/main';
 
 const AUTH_HAS_OAUTH = (import.meta.env.VITE_AUTH_HAS_OAUTH as string) === 'true';
 const AUTH_HAS_MAGIC_LINK = (import.meta.env.VITE_AUTH_HAS_MAGIC_LINK as string) === 'true';
+const AUTH_HAS_PASSWORD_RESET = (import.meta.env.VITE_AUTH_HAS_PASSWORD_RESET as string) === 'true';
 
 interface FormValues {
   email: string;
@@ -16,9 +17,10 @@ interface FormValues {
 interface Props {
   onSwitchRegister: () => void;
   onSwitchMagicLink: () => void;
+  onSwitchForgot: () => void;
 }
 
-export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
+export function LoginForm({ onSwitchRegister, onSwitchMagicLink, onSwitchForgot }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const notify = useNotify();
@@ -38,7 +40,13 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
       notify.success(t('auth.login'));
       await navigate({ to: '/dashboard' });
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : t('error.unknown'));
+      notify.error(
+        err instanceof ApiError && err.status === 403
+          ? t('auth.emailNotConfirmed')
+          : err instanceof Error
+            ? err.message
+            : t('error.unknown'),
+      );
     }
   }
 
@@ -112,6 +120,11 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink }: Props) {
             {t('auth.switchToRegisterLink')}
           </Typography.Link>
         </Typography.Text>
+        {AUTH_HAS_PASSWORD_RESET && (
+          <Typography.Link onClick={onSwitchForgot} style={{ fontSize: 13 }}>
+            {t('auth.forgotPassword')}
+          </Typography.Link>
+        )}
         {AUTH_HAS_MAGIC_LINK && (
           <Typography.Link onClick={onSwitchMagicLink} style={{ fontSize: 13 }}>
             {t('auth.withMagicLink')}

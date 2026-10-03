@@ -24,7 +24,11 @@ function ctxWith(req: MockRequest): ExecutionContext {
 
 describe('AuthGuard', () => {
   let sessionStore: FakeSessionStore;
-  let authClient: { refresh: ReturnType<typeof vi.fn>; verify: ReturnType<typeof vi.fn> };
+  let authClient: {
+    refresh: ReturnType<typeof vi.fn>;
+    verify: ReturnType<typeof vi.fn>;
+    revoke: ReturnType<typeof vi.fn>;
+  };
   let reflector: Reflector;
   let guard: AuthGuard;
 
@@ -32,6 +36,7 @@ describe('AuthGuard', () => {
     sessionStore = new FakeSessionStore();
     authClient = {
       refresh: vi.fn(),
+      revoke: vi.fn().mockResolvedValue(undefined),
       verify: vi.fn().mockResolvedValue({ uid: 'u1', email: 'a@b.com', role: undefined }),
     };
     reflector = { getAllAndOverride: () => false } as unknown as Reflector;
@@ -111,6 +116,89 @@ describe('AuthGuard', () => {
     authClient.refresh.mockRejectedValue(new Error('invalid_refresh_token'));
     const req: MockRequest = { cookies: { icore_sid: record.sessionId } };
     await expect(guard.canActivate(ctxWith(req))).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(await sessionStore.get(record.sessionId)).toBeNull();
+  });
+
+  describe('when the refresh lock does not exclude (e.g. it expired during a slow refresh)', () => {
+    // Provider with single-use refresh tokens (Supabase/Firebase rotation semantics).
+    function rotatingProvider() {
+      const valid = new Set(['rt1']);
+      let n = 1;
+      authClient.refresh.mockImplementation(async (token: string) => {
+        await new Promise((r) => setTimeout(r, 20));
+        if (!valid.has(token)) throw new Error('invalid_refresh_token');
+        valid.delete(token);
+        n += 1;
+        valid.add(`rt${n}`);
+        return {
+          accessToken: `at${n}`,
+          refreshToken: `rt${n}`,
+          expiresIn: 3600,
+          user: { id: 'u1', email: 'a@b.com' },
+        };
+      });
+    }
+
+    async function staleSession() {
+      return sessionStore.create({
+        uid: 'u1',
+        email: 'a@b.com',
+        providerAccessToken: 'at1',
+        providerRefreshToken: 'rt1',
+        providerAccessTokenExpiresAt: Date.now() - 1000,
+      });
+    }
+
+    it("a request that LOST the race (its refresh token was already rotated by the winner) keeps the winner's fresh session instead of deleting it", async () => {
+      // Same as the Redis lock after LOCK_TTL_MS elapses mid-refresh: everyone gets in.
+      sessionStore.withRefreshLock = async (_id, fn) => fn();
+      rotatingProvider();
+      const record = await staleSession();
+      const reqs: MockRequest[] = [1, 2].map(() => ({ cookies: { icore_sid: record.sessionId } }));
+
+      const results = await Promise.allSettled(reqs.map((r) => guard.canActivate(ctxWith(r))));
+
+      expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled']);
+      const after = await sessionStore.get(record.sessionId);
+      expect(after).not.toBeNull();
+      expect(after?.providerRefreshToken).toBe('rt2'); // the winner's tokens, not clobbered
+    });
+
+    it('a genuinely dead refresh token (nobody rotated it) still deletes the session and answers 401', async () => {
+      authClient.refresh.mockRejectedValue(new Error('invalid_refresh_token'));
+      const record = await staleSession();
+      const req: MockRequest = { cookies: { icore_sid: record.sessionId } };
+
+      await expect(guard.canActivate(ctxWith(req))).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(await sessionStore.get(record.sessionId)).toBeNull();
+    });
+  });
+
+  it('revokes the freshly minted token pair when the session was deleted while the refresh was in flight (no orphaned provider session)', async () => {
+    const record = await sessionStore.create({
+      uid: 'u1',
+      email: 'a@b.com',
+      providerAccessToken: 'at1',
+      providerRefreshToken: 'rt1',
+      providerAccessTokenExpiresAt: Date.now() - 1000,
+    });
+    authClient.refresh.mockImplementation(async () => {
+      // logout / admin revoke lands while the provider call is in flight
+      await sessionStore.delete(record.sessionId);
+      return {
+        accessToken: 'at2',
+        refreshToken: 'rt2',
+        expiresIn: 3600,
+        user: { id: 'u1', email: 'a@b.com' },
+      };
+    });
+    authClient.revoke.mockResolvedValue(undefined);
+    const req: MockRequest = { cookies: { icore_sid: record.sessionId } };
+
+    await expect(guard.canActivate(ctxWith(req))).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(authClient.revoke).toHaveBeenCalledWith('rt2');
     expect(await sessionStore.get(record.sessionId)).toBeNull();
   });
 

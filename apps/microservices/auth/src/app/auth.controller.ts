@@ -1,11 +1,13 @@
 import { Controller, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EmailConfirmationRequiredError } from '@icore/shared';
 import type {
   AuthSession,
   AuthStrategy,
   OAuthProvider,
   OAuthStartResult,
+  SignUpConfirmationRequired,
   VerifiedToken,
 } from '@icore/shared';
 
@@ -29,8 +31,27 @@ export class AuthController {
   }
 
   @MessagePattern('auth.signup')
-  async signup(@Payload() payload: { email: string; password: string }): Promise<AuthSession> {
-    const session = await this.strategy.signUp(payload.email, payload.password);
+  async signup(
+    @Payload() payload: { email: string; password: string; callbackUrl?: string },
+  ): Promise<AuthSession | SignUpConfirmationRequired> {
+    let session: AuthSession;
+    try {
+      session = await this.strategy.signUp(payload.email, payload.password, {
+        callbackUrl: payload.callbackUrl,
+      });
+    } catch (err) {
+      if (err instanceof EmailConfirmationRequiredError) {
+        // Account exists, no session until the user confirms. The role is
+        // assigned now so the first post-confirmation login already has it —
+        // except for an already-registered email, where the provider hands
+        // back an obfuscated user: its id is not a real account (and the real
+        // account got its role at its own signup), so touching it would 500
+        // and turn this endpoint into an account-existence oracle.
+        if (!err.existingAccount) await this.assignInitialRole(err.user.id, err.user.email);
+        return { status: 'confirmation_required', user: err.user };
+      }
+      throw err;
+    }
     await this.assignInitialRole(session.user.id, session.user.email);
     // Re-mint via refresh(): JWT-based strategies bake `role` into the token at
     // sign time, so the pre-assignment session's token would otherwise report
@@ -67,6 +88,24 @@ export class AuthController {
   async verifyMagicLink(@Payload() payload: { token: string }): Promise<AuthSession> {
     const session = await this.strategy.verifyMagicLink(payload.token);
     await this.assignInitialRole(session.user.id, session.user.email);
+    return this.strategy.refresh(session.refreshToken);
+  }
+
+  @MessagePattern('auth.password.forgot')
+  async requestPasswordReset(
+    @Payload() payload: { email: string; callbackUrl: string },
+  ): Promise<{ ok: true }> {
+    await this.strategy.requestPasswordReset(payload.email, payload.callbackUrl);
+    return { ok: true };
+  }
+
+  @MessagePattern('auth.password.reset')
+  async confirmPasswordReset(
+    @Payload() payload: { token: string; password: string },
+  ): Promise<AuthSession> {
+    const session = await this.strategy.confirmPasswordReset(payload.token, payload.password);
+    await this.assignInitialRole(session.user.id, session.user.email);
+    // Re-mint so the role is baked into the token (same as signup/magic-link).
     return this.strategy.refresh(session.refreshToken);
   }
 

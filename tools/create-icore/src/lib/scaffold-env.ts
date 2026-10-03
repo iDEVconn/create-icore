@@ -19,13 +19,13 @@ export const TRANSPORT_ENV_TOKEN: Record<string, string> = {
 // for redis already ships via the jobs/BullMQ stack.)
 export const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
   nats: { nats: '^2.29.3' },
-  mqtt: { mqtt: '^5.15.1' },
-  rmq: { amqplib: '^2.0.1', 'amqp-connection-manager': '^5.0.0' },
+  mqtt: { mqtt: '^5.16.0' },
+  rmq: { amqplib: '^2.2.0', 'amqp-connection-manager': '^5.0.0' },
   kafka: { kafkajs: '^2.2.4' },
 };
 
 export const MONGODB_DEPS: Record<string, string> = {
-  mongoose: '^9.6.3',
+  mongoose: '^9.10.3',
   '@nestjs/mongoose': '^11.0.4',
   bcrypt: '^6.0.0',
   jsonwebtoken: '^9.0.3',
@@ -270,6 +270,9 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   for (const prefix of ['AUTH', 'UPLOAD', 'NOTES', 'PAYMENT', 'AI']) {
     next = uncommentTransportEnv(next, prefix, opts.transport);
   }
+  if (opts.session === 'memory' && opts.authProvider !== 'none') {
+    next = next.replace(/^SESSION_REDIS_URL=.*$/m, 'SESSION_STORE=memory');
+  }
   if (opts.authProvider === 'none') {
     next = next
       .split('\n')
@@ -297,9 +300,10 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 
-// authProvider values that implement startOAuth/sendMagicLink. postgres and
-// mongodb both throw not_implemented for either, so their generated client
-// must not surface the OAuth buttons or the magic-link toggle.
+// authProvider values that implement startOAuth/sendMagicLink/password reset.
+// postgres and mongodb throw not_implemented for all of them, so their
+// generated client must not surface the OAuth buttons, the magic-link toggle
+// or the forgot-password link.
 const OAUTH_MAGIC_LINK_PROVIDERS: ReadonlySet<CreateIcoreOptions['authProvider']> = new Set([
   'supabase',
   'firebase',
@@ -318,7 +322,8 @@ export async function writeClientEnv(targetDir: string, opts: CreateIcoreOptions
     const oauth = supported;
     const next = env
       .replace(/^VITE_AUTH_HAS_OAUTH=.*$/m, `VITE_AUTH_HAS_OAUTH=${oauth}`)
-      .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`);
+      .replace(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m, `VITE_AUTH_HAS_MAGIC_LINK=${supported}`)
+      .replace(/^VITE_AUTH_HAS_PASSWORD_RESET=.*$/m, `VITE_AUTH_HAS_PASSWORD_RESET=${supported}`);
     await writeFile(join(targetDir, 'apps/client/.env'), next);
   } catch {
     // .env.example may not exist in older snapshots
@@ -351,4 +356,104 @@ export async function writeAiEnv(targetDir: string, opts: CreateIcoreOptions): P
   } catch {
     // ai-orchestrator MS not present in template — older snapshots predate this feature
   }
+}
+
+// Default TCP ports of the gateway-proxied MSs that ship in docker-compose.yml
+// (match each MS .env.example). Payment/ai are already tcp in the template.
+const COMPOSE_TCP_PORTS: Record<string, number> = { AUTH: 4001, UPLOAD: 4002 };
+
+/**
+ * docker-compose.yml is templated with `*_TRANSPORT: redis` for auth + upload
+ * (MS and gateway sides). Rewrite those to the transport the user picked:
+ *  - redis: untouched.
+ *  - tcp: MS binds 0.0.0.0:<port>, gateway targets the compose service name; the
+ *    MS no longer depends_on redis (the gateway still does — BFF session store).
+ *  - nats/mqtt/rmq/kafka: transport value flipped, the redis URL dropped. No
+ *    broker service ships in compose, so the broker URL must come from .env.docker.
+ * Must run AFTER the strip passes — a stripped service/line simply doesn't match.
+ */
+export async function rewriteComposeTransport(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  if (opts.transport === 'redis') return;
+  const composePath = join(targetDir, 'docker-compose.yml');
+  let compose: string;
+  try {
+    compose = await readFile(composePath, 'utf8');
+  } catch {
+    return;
+  }
+  const token = TRANSPORT_ENV_TOKEN[opts.transport];
+  const services: { prefix: string; service: string }[] = [
+    { prefix: 'AUTH', service: 'auth' },
+    { prefix: 'UPLOAD', service: 'upload' },
+  ];
+  const pair = (prefix: string) =>
+    new RegExp(`( {6})${prefix}_TRANSPORT: redis\\n {6}${prefix}_REDIS_URL:[^\\n]*`, 'g');
+  const replacement = (prefix: string, service: string, side: 'ms' | 'gateway') =>
+    opts.transport === 'tcp'
+      ? `      ${prefix}_TRANSPORT: tcp\n` +
+        `      ${prefix}_HOST: ${side === 'ms' ? '0.0.0.0' : service}\n` +
+        `      ${prefix}_PORT: ${COMPOSE_TCP_PORTS[prefix]}`
+      : `      ${prefix}_TRANSPORT: ${opts.transport}\n` +
+        `      # ${prefix}_${token}_*: set in .env.docker — no ${opts.transport} service ships in this compose`;
+
+  for (const { prefix, service } of services) {
+    const msBlock = new RegExp(
+      `(\\n {2}${service}:\\n[\\s\\S]+?)(?=\\n {2}\\w+:|\\nnetworks:|\\nvolumes:)`,
+    );
+    compose = compose.replace(msBlock, (block) => {
+      let next = block.replace(pair(prefix), replacement(prefix, service, 'ms'));
+      if (opts.transport === 'tcp') {
+        next = next.replace(/\n {4}depends_on:\n {6}redis:\n {8}condition: service_healthy/, '');
+      }
+      return next;
+    });
+    // Whatever pair is left belongs to the gateway block.
+    compose = compose.replace(pair(prefix), replacement(prefix, service, 'gateway'));
+  }
+  await writeFile(composePath, compose);
+}
+
+/**
+ * --session=memory: the gateway keeps sessions in-process (SESSION_STORE=memory)
+ * instead of in Redis. In docker-compose that means: gateway env switches, and —
+ * only if nothing else needs Redis (no BullMQ, transport is not `redis`) — the
+ * Redis service, its volume and every `depends_on: redis` are removed.
+ * Choosing `memory` at generation time IS the explicit acknowledgment production
+ * needs, so the container (NODE_ENV=production) gets SESSION_STORE_ALLOW_MEMORY.
+ * auth=none has no sessions at all: untouched. Run AFTER rewriteComposeTransport
+ * and the strip passes.
+ */
+export async function rewriteComposeSession(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  if (opts.session !== 'memory' || opts.authProvider === 'none') return;
+  const composePath = join(targetDir, 'docker-compose.yml');
+  let compose: string;
+  try {
+    compose = await readFile(composePath, 'utf8');
+  } catch {
+    return;
+  }
+  compose = compose.replace(
+    / {6}# BFF session store[\s\S]*?SESSION_REDIS_URL: [^\n]*/,
+    `      # --session=memory: sessions live in the gateway process (no Redis for them).\n` +
+      `      # A restart logs everyone out; run exactly ONE gateway instance.\n` +
+      `      SESSION_STORE: memory\n` +
+      `      SESSION_STORE_ALLOW_MEMORY: 'true'`,
+  );
+  const redisStillNeeded = opts.jobs === 'bullmq' || opts.transport === 'redis';
+  if (!redisStillNeeded) {
+    compose = compose
+      .replace(/\n {2}redis:\n(?: {4}[^\n]*\n)*? {4}networks: \[icore\]\n/, '\n')
+      // a service whose ONLY dependency was redis loses the whole block (a bare
+      // `depends_on:` is invalid compose) — broker transports keep it on auth/upload
+      .replace(/\n {4}depends_on:\n {6}redis:\n {8}condition: service_healthy(?=\n {4}\S)/g, '')
+      .replace(/\n {6}redis:\n {8}condition: service_healthy/g, '')
+      .replace(/\n {2}icore_redis_data:/, '');
+  }
+  await writeFile(composePath, compose);
 }

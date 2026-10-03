@@ -18,11 +18,10 @@ permissions:
 jobs:
   detect-affected:
     name: Detect affected projects
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       has-affected: ${{ steps.affected.outputs.has-affected }}
-      projects: ${{ steps.affected.outputs.projects }}
-      buildable: ${{ steps.affected.outputs.buildable }}
+      docker-images: ${{ steps.affected.outputs.docker-images }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -34,18 +33,33 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             PROJECTS=$(yarn nx show projects --json 2>/dev/null || echo '[]')
-            BUILDABLE=$(yarn nx show projects --with-target=build --json 2>/dev/null || echo '[]')
           else
             PROJECTS=$(yarn nx show projects --affected --json 2>/dev/null || echo '[]')
-            BUILDABLE=$(yarn nx show projects --affected --with-target=build --json 2>/dev/null || echo '[]')
+          fi
+
+          # Map affected Nx projects to their Docker image names so docker-build
+          # only builds images whose underlying project (or a lib it depends on —
+          # the project graph already propagates those) changed.
+          DOCKER_IMAGES=$(PROJECTS_JSON="$PROJECTS" python3 -c "
+          import json, os
+          projects = json.loads(os.environ['PROJECTS_JSON'])
+          mapping = {'api': 'gateway', 'auth': 'ms-auth', 'upload': 'ms-upload', 'jobs': 'ms-jobs', 'payment': 'ms-payment', 'ai-orchestrator': 'ms-ai'}
+          print(json.dumps([mapping[p] for p in projects if p in mapping]))
+          ")
+
+          # On PRs an image build only earns its cost when something the image is
+          # MADE of changed (Dockerfiles, compose, lockfile/deps) — app-code changes
+          # are already covered by the Build job. Pushes + manual runs build every
+          # affected image.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if ! git diff --name-only "$NX_BASE" "$NX_HEAD" | grep -qE '^(Dockerfile\.[^/]+|\.dockerignore|docker-compose[^/]*|package\.json|yarn\.lock|\.yarnrc\.yml|\.nvmrc)$'; then
+              DOCKER_IMAGES='[]'
+            fi
           fi
 
           {
-            echo "projects<<EOF"
-            echo "$PROJECTS"
-            echo "EOF"
-            echo "buildable<<EOF"
-            echo "$BUILDABLE"
+            echo "docker-images<<EOF"
+            echo "$DOCKER_IMAGES"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -55,23 +69,22 @@ jobs:
             echo "has-affected=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # lint + test + format + route-integrity in ONE job: one install instead of
+  # four. Each keeps its own step so a failure still names the check, and
+  # `!cancelled()` runs later steps after an earlier failure so one push
+  # reports every problem.
+  #
+  # The `test` step runs libs/shared's RedisSessionStore contract
+  # (src/session/__tests__/redis-session-store.contract.integration.test.ts),
+  # which needs a REAL Redis -- distributed-lock behaviour cannot be faked.
+  # (Locally the same test falls back to a throw-away redis-memory-server.)
+  # It connects to REDIS_TEST_URL, defaulting to redis://localhost:6379,
+  # which this service container publishes on the runner host.
   check:
-    name: Check (${{ matrix.task }})
+    name: Check (lint, test, format)
     needs: [detect-affected]
     if: needs.detect-affected.outputs.has-affected == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        task: [lint, test, 'format:check', 'route-integrity']
-    # The `test` matrix leg runs libs/shared's RedisSessionStore contract
-    # (src/session/__tests__/redis-session-store.contract.integration.test.ts),
-    # which needs a REAL Redis -- distributed-lock behaviour cannot be faked.
-    # It connects to REDIS_TEST_URL, defaulting to redis://localhost:6379,
-    # which this service container publishes on the runner host. `services:`
-    # is per-job (not per-matrix-leg), so the container also starts for the
-    # lint/format/route-integrity legs -- a few seconds of idle container,
-    # cheaper than splitting the matrix into a separate job.
+    runs-on: ubuntu-24.04
     services:
       redis:
         image: redis:7-alpine
@@ -87,49 +100,56 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+        with:
+          nx-cache: 'true'
       - uses: nrwl/nx-set-shas@v5
-      - name: Run ${{ matrix.task }}
+      - name: Lint
+        run: yarn nx affected -t lint --parallel
+      - name: Test
+        if: ${{ !cancelled() }}
+        run: yarn nx affected -t test --parallel
+      - name: Format check (changed files)
+        if: ${{ !cancelled() }}
         run: |
-          if [ "${{ matrix.task }}" = "format:check" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             yarn format:check
-          elif [ "${{ matrix.task }}" = "route-integrity" ]; then
-            node tools/create-icore/scripts/check-route-integrity.mjs
-          else
-            yarn nx affected -t ${{ matrix.task }} --parallel
+            exit 0
           fi
+          FILES=$(git diff --name-only --diff-filter=ACMR "$NX_BASE" "$NX_HEAD" | grep -E '\.(ts|tsx|json)$' || true)
+          if [ -z "$FILES" ]; then
+            echo "No changed ts/tsx/json files to check."
+            exit 0
+          fi
+          # prettier applies .prettierignore to explicit paths too.
+          printf '%s\n' "$FILES" | xargs -d '\n' yarn prettier --check
+      - name: Route integrity
+        if: ${{ !cancelled() }}
+        run: node tools/create-icore/scripts/check-route-integrity.mjs
 
+  # Runs alongside `check` (not after it) and builds every affected project in
+  # ONE job: Nx orders the graph and builds each shared lib once, instead of ~30
+  # matrix legs that each paid a full install and rebuilt their deps.
+  # docker-build below still waits for `check`.
   build:
-    name: Build ${{ matrix.project }}
-    needs: [check, detect-affected]
-    if: |
-      always() && !cancelled() &&
-      needs.check.result != 'failure' &&
-      needs.detect-affected.outputs.has-affected == 'true' &&
-      needs.detect-affected.outputs.buildable != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        project: ${{ fromJSON(needs.detect-affected.outputs.buildable) }}
+    name: Build (affected)
+    needs: [detect-affected]
+    if: needs.detect-affected.outputs.has-affected == 'true'
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: nrwl/nx-set-shas@v5
-      - name: Build ${{ matrix.project }}
-        run: yarn nx build ${{ matrix.project }}
-      - name: Upload dist
-        if: github.ref == 'refs/heads/main' && hashFiles(format('apps/{0}/dist/**', matrix.project)) != ''
-        uses: actions/upload-artifact@v5
         with:
-          name: dist-${{ matrix.project }}
-          path: |
-            apps/**/dist
-            libs/**/dist
-            tools/**/dist
-          if-no-files-found: ignore
-          retention-days: 7
+          nx-cache: 'true'
+      - uses: nrwl/nx-set-shas@v5
+      - name: Build affected
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            yarn nx run-many -t build --parallel
+          else
+            yarn nx affected -t build --parallel
+          fi
 
   # Layer A scaffold smoke — generate a real project from the templates snapshot
   # and TYPECHECK it (tsc --noEmit). Catches the "strip produced text that does
@@ -140,57 +160,77 @@ jobs:
   # option (auth, db, upload×4, payment, jobs, example, transport) appears at
   # least once. The client/ui variants need a real Vite build, so they're
   # covered by the heavier install+build+RUN matrix in scaffold-smoke-matrix.yml.
+  #
+  # Two shards of four combos: the ~35s install + CLI build is paid twice
+  # instead of eight times. Each combo scaffolds into its own tmp dir.
   scaffold-smoke:
-    name: Scaffold smoke (${{ matrix.combo.name }})
+    name: Scaffold smoke (shard ${{ matrix.shard.name }})
     needs: [detect-affected]
     if: needs.detect-affected.outputs.has-affected == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        combo:
-          - name: supabase-full
-            flags: --auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --ai=llm-router --example=notes --transport=tcp
-          - name: firebase-minimal
-            flags: --auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis
-          - name: cloudinary-nats
-            flags: --auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats
-          - name: no-upload
-            flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp
-          - name: mongodb-full
-            flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp
-          - name: mongodb-mixed
-            flags: --auth=mongodb --db=firebase --upload=cloudinary --payment=none --jobs=none --example=notes --transport=redis
-          - name: postgres-direct
-            flags: --auth=supabase --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
-          - name: postgres-auth
-            flags: --auth=postgres --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
+        shard:
+          - name: 1
+            combos: |
+              supabase-full|--auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --ai=llm-router --example=notes --transport=tcp
+              firebase-minimal|--auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis
+              cloudinary-nats|--auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats
+              no-upload|--auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --session=memory
+          - name: 2
+            combos: |
+              mongodb-full|--auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp
+              mongodb-mixed|--auth=mongodb --db=firebase --upload=cloudinary --payment=none --jobs=none --example=notes --transport=redis
+              postgres-direct|--auth=supabase --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
+              postgres-auth|--auth=postgres --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - uses: ./.github/actions/setup
+        with:
+          nx-cache: 'true'
       - name: Build CLI + snapshot templates
         run: |
           yarn nx build create-icore
           node tools/create-icore/scripts/snapshot-templates.mjs
-      - name: Scaffold + typecheck
+      - name: Scaffold + typecheck combos
+        env:
+          COMBOS: ${{ matrix.shard.combos }}
         run: |
-          node tools/create-icore/scripts/smoke-scaffold.mjs \
-            ${{ matrix.combo.flags }} --mode=link \
-            --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,ai-orchestrator,api
+          failed=""
+          while IFS='|' read -r name flags; do
+            [ -z "$name" ] && continue
+            echo "::group::$name"
+            if ! node tools/create-icore/scripts/smoke-scaffold.mjs \
+              $flags --mode=link \
+              --projects=shared,firebase-admin,auth,upload,notes,jobs,payment,ai-orchestrator,api; then
+              failed="$failed $name"
+              echo "::error::scaffold smoke failed: $name"
+            fi
+            echo "::endgroup::"
+          done <<< "$COMBOS"
+          if [ -n "$failed" ]; then
+            echo "Failed combos:$failed"
+            exit 1
+          fi
 
   docker-build:
     name: Docker build (${{ matrix.image }})
-    needs: [check]
+    needs: [check, detect-affected]
+    # Images only matter on main: skip pushes to dev and PRs that target dev.
+    # (push to main -> github.ref; PR into main -> github.base_ref.) `always()`
+    # + explicit result checks so a skipped `check` doesn't silently skip this.
     if: |
-      always() && !cancelled() && needs.check.result != 'failure' &&
-      (github.ref == 'refs/heads/main' || github.base_ref == 'main')
-    runs-on: ubuntu-latest
+      always() && !cancelled() &&
+      (github.ref == 'refs/heads/main' || github.base_ref == 'main') &&
+      needs.check.result != 'failure' &&
+      needs.detect-affected.outputs.has-affected == 'true' &&
+      needs.detect-affected.outputs.docker-images != '[]'
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        image: [gateway, ms-auth, ms-upload, ms-jobs, ms-payment, ms-ai]
+        image: ${{ fromJSON(needs.detect-affected.outputs.docker-images) }}
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4

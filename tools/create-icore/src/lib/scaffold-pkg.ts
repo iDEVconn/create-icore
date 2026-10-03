@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pmRun } from './options.js';
+import { authEmailNotice } from './auth-email-notice.js';
 import type { CreateIcoreOptions } from './options.js';
 
 /**
@@ -40,7 +41,14 @@ export async function writePnpmWorkspace(targetDir: string): Promise<void> {
   ]
     .map((p) => `  '${p}': true`)
     .join('\n');
-  const content = `packages:\n${packagesBlock}\n\nallowBuilds:\n${allowBuilds}\n`;
+  // shamefullyHoist: the built microservice bundles keep every non-@icore
+  // package external and resolve it upward from dist/ to the ROOT node_modules
+  // (see apps/*/webpack.config.js). pnpm's strict isolation does NOT hoist a
+  // dependency declared only in a workspace lib (firebase-admin, ioredis, …), so
+  // the service would die at boot with "Cannot find module". npm/yarn hoist;
+  // this makes pnpm resolve the same way, i.e. like everything else this
+  // project is tested against.
+  const content = `packages:\n${packagesBlock}\n\nshamefullyHoist: true\n\nallowBuilds:\n${allowBuilds}\n`;
   await writeFile(join(targetDir, 'pnpm-workspace.yaml'), content);
 }
 
@@ -155,7 +163,18 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, 'CLAUDE.md'), '@AGENTS.md\n');
 
   // ── README.md ──────────────────────────────────────────────────────────────
-  const uiLabel = { shadcn: 'shadcn/ui + Tailwind', antd: 'Ant Design 6', mui: 'MUI 6' }[opts.ui];
+  const uiLabel = { shadcn: 'shadcn/ui + Tailwind', antd: 'Ant Design 6', mui: 'MUI 9' }[opts.ui];
+  const emailNotice = authEmailNotice(opts.authProvider);
+  const emailSetup =
+    emailNotice.length > 0
+      ? `## Provider setup (email links)\n\n${emailNotice.join('\n')}\n\n`
+      : '';
+  const sessionNote =
+    opts.authProvider === 'none'
+      ? ''
+      : opts.session === 'memory'
+        ? '## Session store\n\nSessions are stored in the gateway process (`SESSION_STORE=memory` in `apps/api/.env`): a restart logs everyone out and only ONE gateway instance may run. Switch to `SESSION_STORE=redis` plus `SESSION_REDIS_URL` when you need either.\n\n'
+        : '## Session store\n\nSessions are stored in Redis (`SESSION_REDIS_URL` in `apps/api/.env`), so they survive restarts and several gateway instances can share them.\n\n';
   const readme = `# ${opts.projectName}
 
 > Scaffolded with [iCore](https://github.com/iDEVconn/create-icore) — Nx + NestJS + React full-stack template.
@@ -184,7 +203,7 @@ ${devCmd}
 # → http://localhost:3001/api/docs  Swagger
 \`\`\`
 
-## Commands
+${emailSetup}${sessionNote}## Commands
 
 \`\`\`bash
 ${nx} run <project>:serve   # start a single service
@@ -249,7 +268,7 @@ ${opts.upload !== 'none' ? `├── upload-client/     gateway → upload MS\n
 
 **Strategy swap** — provider is chosen at runtime via env. Never import a concrete strategy in app code; always inject via the factory token (\`AuthStrategy\`, \`StorageStrategy\`, \`DBStrategy\`).
 
-**Transport** — \`buildTransport(prefix)\` reads \`${opts.transport.toUpperCase()}*\` vars. Same helper on gateway client-modules and each MS \`main.ts\`. Supports tcp / redis / nats — change by flipping \`*_TRANSPORT\` in \`.env\`.
+**Transport** — \`buildTransport(prefix)\` reads \`${opts.transport.toUpperCase()}*\` vars. Same helper on gateway client-modules and each MS \`main.ts\`. Supports tcp / redis / nats / mqtt / rmq / kafka — change by flipping \`*_TRANSPORT\` in \`.env\`.
 
 **Env layering**:
 1. Root \`.env\` — \`DB_PROVIDER\`

@@ -7,9 +7,10 @@ import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
 import { MagicLinkForm } from '../components/auth/MagicLinkForm';
 import { CheckEmailScreen } from '../components/auth/CheckEmailScreen';
+import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm';
 import { api } from '@/main';
 
-type Mode = 'login' | 'register' | 'magicLink' | 'checkEmail';
+type Mode = 'login' | 'register' | 'magicLink' | 'forgot' | 'checkEmail';
 
 function LoginPage() {
   const { t } = useTranslation();
@@ -48,18 +49,27 @@ function LoginPage() {
               onError={handleError}
               onSwitchToRegister={() => setMode('register')}
               onSwitchToMagicLink={() => setMode('magicLink')}
+              onSwitchToForgot={() => setMode('forgot')}
             />
           )}
           {mode === 'register' && (
             <RegisterForm
               api={api}
               onSuccess={handleRegisterSuccess}
+              onSignedIn={handleLoginSuccess}
               onError={handleError}
               onSwitchToLogin={() => setMode('login')}
             />
           )}
           {mode === 'magicLink' && (
             <MagicLinkForm
+              api={api}
+              onError={handleError}
+              onSwitchToLogin={() => setMode('login')}
+            />
+          )}
+          {mode === 'forgot' && (
+            <ForgotPasswordForm
               api={api}
               onError={handleError}
               onSwitchToLogin={() => setMode('login')}

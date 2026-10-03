@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeClientEnv } from '../scaffold-env.js';
+import { writeClientEnv, writeGatewayEnv } from '../scaffold-env.js';
 import type { CreateIcoreOptions } from '../options.js';
 
 // Mirrors the exact pattern already used in scaffold.unit.test.ts:976 for reading
@@ -22,7 +22,8 @@ async function fixture(): Promise<string> {
       '# Set by the generator based on --auth=<provider>. Gates OAuth buttons + the\n' +
       "# magic-link toggle in LoginForm — postgres/mongodb don't implement either yet.\n" +
       'VITE_AUTH_HAS_OAUTH=false\n' +
-      'VITE_AUTH_HAS_MAGIC_LINK=false\n',
+      'VITE_AUTH_HAS_MAGIC_LINK=false\n' +
+      'VITE_AUTH_HAS_PASSWORD_RESET=false\n',
   );
   return dir;
 }
@@ -78,6 +79,19 @@ describe('writeClientEnv', () => {
     expect(env).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=true$/m);
   });
 
+  it.each([
+    ['supabase', 'true'],
+    ['firebase', 'true'],
+    ['postgres', 'false'],
+    ['mongodb', 'false'],
+  ] as const)('%s → VITE_AUTH_HAS_PASSWORD_RESET=%s', async (provider, value) => {
+    const dir = await fixture();
+    await writeClientEnv(dir, { ...baseOpts, authProvider: provider });
+    const env = await readFile(join(dir, 'apps/client/.env'), 'utf8');
+    expect(countAssignments(env, 'VITE_AUTH_HAS_PASSWORD_RESET')).toBe(1);
+    expect(env).toMatch(new RegExp(`^VITE_AUTH_HAS_PASSWORD_RESET=${value}$`, 'm'));
+  });
+
   // antd/mui now ship an AuthBootstrap component (parity with client-shadcn)
   // that resolves the session cookie on mount, so a completed OAuth redirect
   // to /dashboard is picked up correctly and OAuth follows the same
@@ -115,4 +129,30 @@ describe('writeClientEnv — real template .env.example files have the VITE_AUTH
       expect(envExample).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m);
     },
   );
+});
+
+describe('writeGatewayEnv — session store', () => {
+  const mk = async (session: 'redis' | 'memory') => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-gwenv-'));
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/.env.example'),
+      'AUTH_TRANSPORT=tcp\nSESSION_REDIS_URL=redis://localhost:6379\n',
+    );
+    await writeGatewayEnv(dir, {
+      authProvider: 'supabase',
+      transport: 'tcp',
+      session,
+    } as CreateIcoreOptions);
+    return readFile(join(dir, 'apps/api/.env'), 'utf8');
+  };
+
+  it('session=memory swaps SESSION_REDIS_URL for SESSION_STORE=memory; redis leaves it', async () => {
+    const mem = await mk('memory');
+    expect(mem).toContain('SESSION_STORE=memory');
+    expect(mem).not.toContain('SESSION_REDIS_URL');
+    const redis = await mk('redis');
+    expect(redis).toContain('SESSION_REDIS_URL=redis://localhost:6379');
+    expect(redis).not.toContain('SESSION_STORE=');
+  });
 });

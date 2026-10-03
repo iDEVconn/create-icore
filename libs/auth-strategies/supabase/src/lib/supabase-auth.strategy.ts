@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { RpcException } from '@nestjs/microservices';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { EmailConfirmationRequiredError } from '@icore/shared';
 import type {
   AuthSession,
   AuthStrategy,
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  SignUpOptions,
   VerifiedToken,
 } from '@icore/shared';
 
@@ -51,10 +53,27 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     this.client = opts.client;
   }
 
-  async signUp(email: string, password: string): Promise<AuthSession> {
-    const { data, error } = await this.client.auth.signUp({ email, password });
-    if (error || !data.session) {
-      throw new Error(error?.message ?? 'signup_failed');
+  async signUp(email: string, password: string, opts?: SignUpOptions): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      options: opts?.callbackUrl ? { emailRedirectTo: opts.callbackUrl } : undefined,
+    });
+    if (error) throw new Error(error.message);
+    if (!data.session) {
+      // "Confirm email" is on: GoTrue created the user (or, for an already
+      // registered address, returns an obfuscated user — deliberately NOT an
+      // error, so signup can't be used to enumerate accounts) and mailed a
+      // link. That's a normal outcome, not a failure.
+      if (data.user) {
+        // Empty `identities` is how GoTrue marks the obfuscated duplicate-signup
+        // user: its id is random, not a real account.
+        throw new EmailConfirmationRequiredError(
+          { id: data.user.id, email: data.user.email ?? email },
+          data.user.identities?.length === 0,
+        );
+      }
+      throw new Error('signup_failed');
     }
     return this.toSession(data.session);
   }
@@ -62,6 +81,11 @@ export class SupabaseAuthStrategy implements AuthStrategy {
   async signIn(email: string, password: string): Promise<AuthSession> {
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
+      // RpcException (not a plain Error) so the code survives the MS transport
+      // and the gateway can answer 403 instead of a scrubbed 500.
+      if ((error as { code?: string } | null)?.code === 'email_not_confirmed') {
+        throw new RpcException('email_not_confirmed');
+      }
       throw new Error(error?.message ?? 'invalid_credentials');
     }
     return this.toSession(data.session);
@@ -156,6 +180,40 @@ export class SupabaseAuthStrategy implements AuthStrategy {
       throw new Error(error?.message ?? 'invalid_magic_link');
     }
     return this.toSession(data.session);
+  }
+
+  async requestPasswordReset(email: string, callbackUrl: string): Promise<void> {
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: callbackUrl,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<AuthSession> {
+    const { data, error } = await this.client.auth.verifyOtp({
+      type: 'recovery',
+      token_hash: token,
+    });
+    const email = data?.user?.email;
+    if (error || !data?.session || !data.user || !email) {
+      throw new RpcException('invalid_reset_token');
+    }
+    // GoTrue's admin password update deletes EVERY session of the user (incl.
+    // the recovery session) in the same transaction (User.UpdatePassword with
+    // a nil session → Logout), so "end all other sessions" is guaranteed by the
+    // password change itself — an explicit signOut afterwards would only get
+    // 403 session_not_found. The gateway never revokes at the provider (plan
+    // ruling 1); signIn below mints the one fresh session.
+    const { error: updateError } = await this.client.auth.admin.updateUserById(data.user.id, {
+      password: newPassword,
+    });
+    if (updateError) {
+      if ((updateError as { code?: string }).code === 'weak_password') {
+        throw new RpcException('weak_password');
+      }
+      throw new Error(updateError.message);
+    }
+    return this.signIn(email, newPassword);
   }
 
   async getRole(uid: string): Promise<string | null> {

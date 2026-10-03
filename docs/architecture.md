@@ -14,7 +14,7 @@ High-level view of how iCore is assembled. Detailed design lives in `docs/superp
 | 6    | Client shell (Vite + shadcn + TanStack Router)                   | ✅ done |
 | 7    | `@idevconn/create-icore` CLI + publish                           | ✅ done |
 | 6.1  | Ant Design 6 client template                                     | ✅ done |
-| 6.2  | MUI 6 client template                                            | ✅ done |
+| 6.2  | MUI 9 client template                                            | ✅ done |
 | 8    | `DBStrategy` lib + CLI `DB_PROVIDER` env                         | ✅ done |
 | 6.3  | Unified light/dark theme switching                               | ✅ done |
 | 6.4  | Magic-link email sign-in (passwordless)                          | ✅ done |
@@ -151,7 +151,7 @@ Both auth and storage hide behind a single interface. NestJS module wires a fact
 
 ## Plan 6.2 deliverables (complete)
 
-- `apps/templates/client-mui/` — Vite 6 + React 19 + MUI 6 (Material Design) + TanStack Router + TanStack Query. Routes mirror `client-shadcn` and `client-antd`: `/` (landing reading `VITE_APP_VERSION`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. `ThemeProvider` with dark mode (`createTheme({ palette: { mode: 'dark' } })`) wired at `main.tsx`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` using MUI `AppBar`, `Drawer`, and `Box` subcomponents. Custom `MuiNotifierHost` Snackbar host wired via `setNotifier` — Zustand-backed queue renders stacked `Alert` toasts inside a `Snackbar`. `PageLayout` gates with `<Can>` and resets global dirty flag.
+- `apps/templates/client-mui/` — Vite 6 + React 19 + MUI 9 (Material Design) + TanStack Router + TanStack Query. Routes mirror `client-shadcn` and `client-antd`: `/` (landing reading `VITE_APP_VERSION`), `/login`, `/_dashboard` (pathless protected layout) → `/dashboard` + `/profile`. `ThemeProvider` with dark mode (`createTheme({ palette: { mode: 'dark' } })`) wired at `main.tsx`. Layout split into `LayoutHeader` / `LayoutSider` / `LayoutFooter` using MUI `AppBar`, `Drawer`, and `Box` subcomponents. Custom `MuiNotifierHost` Snackbar host wired via `setNotifier` — Zustand-backed queue renders stacked `Alert` toasts inside a `Snackbar`. `PageLayout` gates with `<Can>` and resets global dirty flag.
 - `apps/templates/client-mui-e2e/` — Playwright smoke suite (4 cases): landing heading contains `iCore v` and `mui` text visible, login form labels visible, `/_dashboard/dashboard` and `/_dashboard/profile` redirect to `/login` when unauthenticated. `playwright.config.ts` `webServer` targets `yarn nx serve client-mui` on port `:4202`. NOTE: browsers cannot install on Ubuntu 26.04-x64; tests run on a supported CI runner only.
 - `tools/create-icore` CLI updated: `--ui=mui` now routes to the real `apps/templates/client-mui` snapshot; no fallback to shadcn. The UI library prompt label changed from "MUI (coming soon — falls back to shadcn)" to "MUI 6 (Material Design)". All three UI dimensions (`shadcn`, `antd`, `mui`) are first-class — no choice falls back any more. CLI test count grew by 1 (mui selection path).
 
@@ -326,3 +326,6 @@ Admin queue dashboard: `http://localhost:3001/api/admin/queues` (front with reve
 - `create-icore migrate` migration authoring runbook → [`docs/runbooks/authoring-a-migration.md`](./runbooks/authoring-a-migration.md) (registry got its first real entry, `payment-never-crash-factory`, in PR #258)
 - Day-to-day agent rules → [`AGENTS.md`](../AGENTS.md)
 - Provider setup walk-throughs → [`AGENTS.md` § Provider-specific Setup](../AGENTS.md#provider-specific-setup)
+- Choosing the session store (Redis vs in-memory) → [`docs/runbooks/bff-session-auth-migration.md` § Choosing the session store](./runbooks/bff-session-auth-migration.md#choosing-the-session-store)
+- Auth email links / signup confirmation setup → [`docs/runbooks/auth-email-setup.md`](./runbooks/auth-email-setup.md)
+- Forgot-password flow and provider email templates → [`docs/runbooks/auth-email-setup.md` § Forgot password](./runbooks/auth-email-setup.md#forgot-password-supabase-and-firebase)

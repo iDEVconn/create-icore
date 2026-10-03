@@ -1,6 +1,6 @@
 # Local Docker stack
 
-`docker compose up` brings postgres + redis + auth MS + upload MS + jobs MS + payment MS + ai-orchestrator MS + the gateway online with `transport=redis`. The client (Vite + your chosen template) runs outside compose for hot-reload — or use `Dockerfile.client` for a production-style container (see below).
+`docker compose up` brings postgres + redis + auth MS + upload MS + jobs MS + payment MS + ai-orchestrator MS + the gateway online with the transport you picked at scaffold time (the template itself ships `redis`). The client (Vite + your chosen template) runs outside compose for hot-reload — or use `Dockerfile.client` for a production-style container (see below).
 
 ## Steps
 
@@ -9,6 +9,18 @@
 3. `docker compose up --build`
 4. In another terminal: `yarn nx vite:dev client-shadcn` (or `client-antd` / `client-mui`).
 5. Verify the gateway: `curl http://localhost:3001/api/docs` — Swagger UI loads (only outside production; see `should-enable-swagger.ts`).
+
+## Transport vs. Redis
+
+Redis is in the stack whenever sessions live in it (`--session=redis`, the default): the gateway's BFF session store (`SESSION_REDIS_URL`, see `bff-session-auth-migration.md`) refuses to boot without it. With `--session=memory` the generator removes the Redis service, volume and every `depends_on: redis` and gives the gateway `SESSION_STORE: memory` + `SESSION_STORE_ALLOW_MEMORY: 'true'` — unless `--jobs=bullmq` or `--transport=redis` still need Redis, in which case it stays. The transport decides how gateway ↔ MS talk:
+
+| `--transport`               | auth / upload MS env in compose                                                                      | MS `depends_on: redis` |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------- |
+| `redis`                     | `*_TRANSPORT: redis` + `*_REDIS_URL`                                                                 | yes                    |
+| `tcp`                       | `*_TRANSPORT: tcp`, `*_HOST: 0.0.0.0`, `*_PORT: 4001/4002` (gateway side: `*_HOST: auth` / `upload`) | no                     |
+| `nats`/`mqtt`/`rmq`/`kafka` | `*_TRANSPORT: <kind>`, broker URL comes from `.env.docker`                                           | no                     |
+
+No broker service ships in compose — for nats/mqtt/rmq/kafka add one yourself. `create-icore` rewrites compose via `rewriteComposeTransport` (`tools/create-icore/src/lib/scaffold-env.ts`); before this it left `*_TRANSPORT: redis` hardcoded regardless of `--transport`.
 
 ## Layout
 

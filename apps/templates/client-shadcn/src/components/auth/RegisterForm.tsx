@@ -1,18 +1,26 @@
 import { SyntheticEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
+import { isConfirmationRequired, type RegisterResponse } from '@icore/template-shared';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 interface RegisterFormProps {
   onSuccess: (email: string) => void;
+  onSignedIn: (session: { user: { id: string; email: string; role?: string } }) => void;
   onError: (msg: string) => void;
   onSwitchToLogin: () => void;
   api: <T>(path: string, init?: RequestInit) => Promise<T>;
 }
 
-export function RegisterForm({ onSuccess, onError, onSwitchToLogin, api }: RegisterFormProps) {
+export function RegisterForm({
+  onSuccess,
+  onSignedIn,
+  onError,
+  onSwitchToLogin,
+  api,
+}: RegisterFormProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,12 +37,13 @@ export function RegisterForm({ onSuccess, onError, onSwitchToLogin, api }: Regis
     }
     setSubmitting(true);
     try {
-      await api('/auth/register', {
+      const res = await api<RegisterResponse>('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      onSuccess(email);
+      if (isConfirmationRequired(res)) onSuccess(res.email);
+      else onSignedIn(res);
     } catch (err) {
       onError(err instanceof Error ? err.message : t('error.unknown'));
     } finally {

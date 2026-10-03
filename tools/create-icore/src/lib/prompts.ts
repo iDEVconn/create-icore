@@ -15,6 +15,7 @@ import type {
   PackageManager,
   MsTransport,
   CreateIcoreOptions,
+  SessionStoreKind,
 } from './options.js';
 
 function detectPackageManager(): PackageManager {
@@ -117,6 +118,9 @@ export function parseFlags(argv: string[]): ParsedFlags {
         break;
       case 'transport':
         out.transport = v as MsTransport;
+        break;
+      case 'session':
+        out.session = v as SessionStoreKind;
         break;
       case 'package-manager':
         out.packageManager = v as PackageManager;
@@ -279,7 +283,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         },
         {
           value: 'mui' as 'shadcn' | 'antd' | 'mui',
-          label: 'MUI 6 (Material Design)',
+          label: 'MUI 9 (Material Design)',
         },
       ],
       initialValue: 'shadcn' as 'shadcn' | 'antd' | 'mui',
@@ -305,6 +309,29 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
           initialValue: 'tcp' as MsTransport,
         })) as MsTransport));
   if (p.isCancel(transport)) throw new Error('cancelled');
+
+  // No sessions at all without auth, so nothing to ask. Otherwise Redis stays the
+  // default; `memory` (no Redis service, one instance, restart = re-login) is an
+  // explicit, informed choice.
+  const session: SessionStoreKind =
+    flags.session ??
+    (authProvider === 'none'
+      ? 'redis'
+      : ((await p.select({
+          message: 'Where should login sessions be stored?',
+          options: [
+            {
+              value: 'redis' as SessionStoreKind,
+              label: 'Redis (recommended — survives restarts, several gateway instances)',
+            },
+            {
+              value: 'memory' as SessionStoreKind,
+              label: 'In memory (no Redis service; a restart logs everyone out, one instance only)',
+            },
+          ],
+          initialValue: 'redis' as SessionStoreKind,
+        })) as SessionStoreKind));
+  if (p.isCancel(session)) throw new Error('cancelled');
 
   const packageManager = flags.packageManager ?? detectPackageManager();
 
@@ -342,6 +369,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     example,
     ui,
     transport,
+    session,
     packageManager,
     initGit,
     install,

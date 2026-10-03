@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Logger, UnauthorizedException } from '@nestjs/common';
 import type { AuthClientService } from '@icore/auth-client';
 import { FakeSessionStore } from '@icore/shared';
 import type { Request, Response } from 'express';
 import { AuthController } from '../auth.controller';
+import { IS_PUBLIC_KEY } from '../public.decorator';
+import { SKIP_CSRF_KEY } from '../../http/skip-csrf.decorator';
 
 function makeConfig(env: Record<string, string | undefined>): ConfigService {
   return { get: (key: string) => env[key] } as unknown as ConfigService;
@@ -31,6 +33,13 @@ function makeAuthClient(): AuthClientService {
       user: { id: 'u1', email: 'a@x.com' },
     }),
     revoke: vi.fn().mockResolvedValue(undefined),
+    requestPasswordReset: vi.fn().mockResolvedValue(undefined),
+    confirmPasswordReset: vi.fn().mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresIn: 3600,
+      user: { id: 'u1', email: 'a@x.com' },
+    }),
     sendMagicLink: vi.fn().mockResolvedValue(undefined),
     verifyMagicLink: vi.fn().mockResolvedValue({
       accessToken: 'at',
@@ -65,6 +74,7 @@ function mockRes() {
       clearedCookies.push(name);
       return res;
     }),
+    status: vi.fn(() => res),
     redirect: vi.fn((url: string) => {
       redirectedTo = url;
       return res;
@@ -360,6 +370,30 @@ describe('AuthController — logout', () => {
     expect(res.clearedCookies).toContain('icore_csrf');
   });
 
+  it('revokes the refresh token the atomic delete returned, not a stale earlier read (a refresh may have rotated it meanwhile)', async () => {
+    const client = makeAuthClient();
+    const base = {
+      sessionId: 'sid-1',
+      uid: 'u1',
+      email: 'a@x.com',
+      providerAccessToken: 'at',
+      providerAccessTokenExpiresAt: 0,
+      createdAt: 0,
+      lastRefreshedAt: 0,
+    };
+    const store = {
+      get: vi.fn().mockResolvedValue({ ...base, providerRefreshToken: 'rt1' }),
+      delete: vi.fn().mockResolvedValue({ ...base, providerRefreshToken: 'rt2' }),
+    } as unknown as FakeSessionStore;
+    const controller = new AuthController(client, makeConfig({}), store);
+    const req = { cookies: { icore_sid: 'sid-1' } } as unknown as Request;
+
+    await controller.logout(req, mockRes());
+
+    expect(client.revoke).toHaveBeenCalledWith('rt2');
+    expect(client.revoke).not.toHaveBeenCalledWith('rt1');
+  });
+
   it('is idempotent when there is no session cookie', async () => {
     const client = makeAuthClient();
     const controller = new AuthController(client, makeConfig({}), sessionStore);
@@ -496,5 +530,157 @@ describe('AuthController — OAuth', () => {
     const controller = new AuthController(client, makeConfig({}), sessionStore);
     const res = mockRes();
     await expect(controller.oauthStart('apple', res)).rejects.toThrow();
+  });
+});
+
+describe('AuthController — register', () => {
+  let sessionStore: FakeSessionStore;
+  beforeEach(() => {
+    sessionStore = new FakeSessionStore();
+  });
+
+  it('answers 202 confirmation_required, sets no cookies and creates no session', async () => {
+    const client = makeAuthClient();
+    (client.signup as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      status: 'confirmation_required',
+      user: { id: 'u1', email: 'a@x.com' },
+    });
+    const controller = new AuthController(
+      client,
+      makeConfig({ CLIENT_ORIGIN: 'https://my.app' }),
+      sessionStore,
+    );
+    const res = mockRes();
+
+    const result = await controller.register({ email: 'a@x.com', password: 'pw12345!' }, res);
+
+    expect(result).toEqual({ status: 'confirmation_required', email: 'a@x.com' });
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.ACCEPTED);
+    expect(res.cookies['icore_sid']).toBeUndefined();
+    expect(client.signup).toHaveBeenCalledWith(
+      'a@x.com',
+      'pw12345!',
+      'https://my.app/auth/callback',
+    );
+  });
+
+  it('still starts a session and returns { user } when the provider issued one', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const res = mockRes();
+
+    const result = await controller.register({ email: 'a@x.com', password: 'pw12345!' }, res);
+
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.cookies['icore_sid']).toBeTruthy();
+  });
+
+  it('warns once when CLIENT_ORIGIN is unset and falls back to localhost:4200', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+
+    await controller.register({ email: 'a@x.com', password: 'pw12345!' }, mockRes());
+    await controller.requestMagicLink({ email: 'a@x.com' });
+
+    expect(client.signup).toHaveBeenCalledWith(
+      'a@x.com',
+      'pw12345!',
+      'http://localhost:4200/auth/callback',
+    );
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('CLIENT_ORIGIN'))).toHaveLength(1);
+    warn.mockRestore();
+  });
+});
+
+describe('AuthController — password reset', () => {
+  let sessionStore: FakeSessionStore;
+  beforeEach(() => {
+    sessionStore = new FakeSessionStore();
+  });
+
+  it('forgot builds the callback from CLIENT_ORIGIN and answers {ok:true}', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(
+      client,
+      makeConfig({ CLIENT_ORIGIN: 'https://my.app' }),
+      sessionStore,
+    );
+    await expect(controller.forgotPassword({ email: 'a@x.com' })).resolves.toEqual({ ok: true });
+    expect(client.requestPasswordReset).toHaveBeenCalledWith(
+      'a@x.com',
+      'https://my.app/reset-password',
+    );
+  });
+
+  it('forgot answers the SAME {ok:true} when the provider throws (no account enumeration)', async () => {
+    const client = makeAuthClient();
+    (client.requestPasswordReset as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('EMAIL_NOT_FOUND'),
+    );
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    await expect(controller.forgotPassword({ email: 'nobody@x.com' })).resolves.toEqual({
+      ok: true,
+    });
+  });
+
+  it('reset rejects a short password with 400 BEFORE calling the provider', async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    await expect(
+      controller.resetPassword({ token: 't', password: 'short' }, mockRes()),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(client.confirmPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it("reset kills the user's old local sessions, then starts a new one (cookies + {user})", async () => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    const old = await sessionStore.create({
+      uid: 'u1',
+      email: 'a@x.com',
+      providerAccessToken: 'at0',
+      providerRefreshToken: 'rt0',
+      providerAccessTokenExpiresAt: Date.now() + 3_600_000,
+    });
+    const res = mockRes();
+
+    const result = await controller.resetPassword({ token: 'tok', password: 'newpw123!' }, res);
+
+    expect(client.confirmPasswordReset).toHaveBeenCalledWith('tok', 'newpw123!');
+    expect(await sessionStore.get(old.sessionId)).toBeNull();
+    expect(result).toEqual({ user: { id: 'u1', email: 'a@x.com', role: 'user' } });
+    const newSid = res.cookies['icore_sid'];
+    expect(newSid).toBeTruthy();
+    expect(await sessionStore.get(newSid as string)).not.toBeNull();
+  });
+
+  it.each<[unknown, string]>([
+    ['', 'empty'],
+    [undefined, 'missing'],
+    [42, 'non-string'],
+  ])('reset rejects a %s token (%s) with 400 BEFORE calling the provider', async (token) => {
+    const client = makeAuthClient();
+    const controller = new AuthController(client, makeConfig({}), sessionStore);
+    await expect(
+      controller.resetPassword({ token: token as never, password: 'newpw123!' }, mockRes()),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(client.confirmPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it.each(['forgotPassword', 'resetPassword'] as const)(
+    '%s is @Public() and @SkipCsrf() (it issues / precedes the CSRF cookie)',
+    (method) => {
+      const handler = AuthController.prototype[method];
+      expect(Reflect.getMetadata(IS_PUBLIC_KEY, handler)).toBe(true);
+      expect(Reflect.getMetadata(SKIP_CSRF_KEY, handler)).toBe(true);
+    },
+  );
+
+  it('forgotPassword has its own tighter auth-burst throttle (5 per 60s) overriding the class-level 10', () => {
+    const handler = AuthController.prototype.forgotPassword;
+    expect(Reflect.getMetadata('THROTTLER:LIMITauth-burst', handler)).toBe(5);
+    expect(Reflect.getMetadata('THROTTLER:LIMITauth-burst', AuthController)).toBe(10);
   });
 });

@@ -1,11 +1,16 @@
 name: Setup
-description: Set up Node + yarn 4 + cache
+description: Set up Node + yarn 4 + cache (optionally the Nx task cache)
+inputs:
+  nx-cache:
+    description: Also restore/save .nx/cache (per-job key). Off for jobs that run no Nx tasks.
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
     - uses: actions/setup-node@v5
       with:
-        node-version: 24
+        node-version-file: .nvmrc
     - name: Enable corepack
       shell: bash
       run: corepack enable
@@ -22,3 +27,14 @@ runs:
     - name: Install
       shell: bash
       run: yarn install --immutable
+    # Per-job key so `check` and `build` don't overwrite each other's entries;
+    # restore-keys fall back to the lockfile-scoped, then job-scoped prefix.
+    - name: Cache Nx tasks
+      if: inputs.nx-cache == 'true'
+      uses: actions/cache@v5
+      with:
+        path: .nx/cache
+        key: nx-${{ runner.os }}-${{ github.job }}-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
+        restore-keys: |
+          nx-${{ runner.os }}-${{ github.job }}-${{ hashFiles('yarn.lock') }}-
+          nx-${{ runner.os }}-${{ github.job }}-
