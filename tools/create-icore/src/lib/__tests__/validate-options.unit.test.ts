@@ -14,6 +14,7 @@ const base: CreateIcoreOptions = {
   example: 'notes',
   ui: 'shadcn',
   transport: 'tcp',
+  session: 'redis',
   packageManager: 'yarn',
   initGit: false,
   install: false,
@@ -70,5 +71,22 @@ describe('validateOptions', () => {
     const opts = { ...base, authProvider: 'none' as const, example: 'notes' as const };
     validateOptions(opts);
     expect(opts.example).toBe('notes');
+  });
+
+  it('ignores --session=memory when auth=none (no sessions at all) and says so', () => {
+    const { warnings, corrected } = validateOptions({
+      ...base,
+      authProvider: 'none' as const,
+      example: 'none' as const,
+      session: 'memory' as const,
+    });
+    expect(corrected.session).toBe('redis');
+    expect(warnings.join(' ')).toMatch(/--session.*auth=none/);
+  });
+
+  it('keeps session=memory for an authenticated project', () => {
+    expect(validateOptions({ ...base, session: 'memory' as const }).corrected.session).toBe(
+      'memory',
+    );
   });
 });
