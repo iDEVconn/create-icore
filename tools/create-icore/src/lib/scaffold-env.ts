@@ -19,13 +19,13 @@ export const TRANSPORT_ENV_TOKEN: Record<string, string> = {
 // for redis already ships via the jobs/BullMQ stack.)
 export const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
   nats: { nats: '^2.29.3' },
-  mqtt: { mqtt: '^5.15.1' },
-  rmq: { amqplib: '^2.0.1', 'amqp-connection-manager': '^5.0.0' },
+  mqtt: { mqtt: '^5.16.0' },
+  rmq: { amqplib: '^2.2.0', 'amqp-connection-manager': '^5.0.0' },
   kafka: { kafkajs: '^2.2.4' },
 };
 
 export const MONGODB_DEPS: Record<string, string> = {
-  mongoose: '^9.6.3',
+  mongoose: '^9.10.3',
   '@nestjs/mongoose': '^11.0.4',
   bcrypt: '^6.0.0',
   jsonwebtoken: '^9.0.3',
