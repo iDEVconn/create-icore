@@ -169,6 +169,12 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
     emailNotice.length > 0
       ? `## Provider setup (email links)\n\n${emailNotice.join('\n')}\n\n`
       : '';
+  const sessionNote =
+    opts.authProvider === 'none'
+      ? ''
+      : opts.session === 'memory'
+        ? '## Session store\n\nSessions are stored in the gateway process (`SESSION_STORE=memory` in `apps/api/.env`): a restart logs everyone out and only ONE gateway instance may run. Switch to `SESSION_STORE=redis` plus `SESSION_REDIS_URL` when you need either.\n\n'
+        : '## Session store\n\nSessions are stored in Redis (`SESSION_REDIS_URL` in `apps/api/.env`), so they survive restarts and several gateway instances can share them.\n\n';
   const readme = `# ${opts.projectName}
 
 > Scaffolded with [iCore](https://github.com/iDEVconn/create-icore) — Nx + NestJS + React full-stack template.
@@ -197,7 +203,7 @@ ${devCmd}
 # → http://localhost:3001/api/docs  Swagger
 \`\`\`
 
-${emailSetup}## Commands
+${emailSetup}${sessionNote}## Commands
 
 \`\`\`bash
 ${nx} run <project>:serve   # start a single service

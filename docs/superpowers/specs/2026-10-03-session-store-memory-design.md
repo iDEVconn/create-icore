@@ -51,3 +51,10 @@ The BFF session model (PR #329) made Redis mandatory: `apps/api/src/app/session/
 - `memory` gives up two guarantees on purpose: sessions survive a restart, and more than one gateway instance can share them. Both are documented and gated (warning + production acknowledgment).
 - Memory growth is bounded by the 30-day TTL + sweep, not by a size cap (YAGNI for the target projects).
 - `ioredis` stays a dependency of the generated project (`libs/shared` / the provider import it); only the _service_ disappears.
+
+## Implementation rulings
+
+- **Sweep test cadence:** the in-memory sweep test uses `sweepIntervalMs: DAY` (not 1 s) — with fake timers over 31 days a 1 s interval is ~2.7M ticks and times out; the sweep's observable effect (`size`) is identical.
+- **Blueprint stays session-free:** `session` is not written to `blueprint.json` (it is a runtime/gateway concern like `packageManager` is not a feature); the blueprint tests keep their expected shapes.
+- **Generated README:** gets a `## Session store` section (omitted for `auth=none`) so a scaffolded `memory` project states its two limits up front.
+- **Install-mode smoke (pnpm, supabase/tcp/memory, no Redis anywhere):** services api/auth/notes stayed up 120 s, `✓ smoke OK`; nightly matrix gained `supabase-minimal-tcp-memory-shadcn`, PR pipeline's `no-upload` combo runs with `--session=memory`.
