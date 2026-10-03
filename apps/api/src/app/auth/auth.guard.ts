@@ -114,7 +114,14 @@ export class AuthGuard implements CanActivate {
       // the session exists.
       role: await this.resolveRole(refreshed.accessToken, record.role),
     };
-    await this.sessionStore.update(sessionId, updated);
+    const stored = await this.sessionStore.update(sessionId, updated);
+    if (!stored) {
+      // The session was deleted (logout / admin revoke) while the provider call
+      // was in flight, so the pair we just minted has no owner and must not be
+      // left alive at the provider. Best-effort: the session is dead either way.
+      await this.authClient.revoke(refreshed.refreshToken).catch(() => undefined);
+      return null;
+    }
     return { ...record, ...updated };
   }
 

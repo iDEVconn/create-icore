@@ -370,6 +370,30 @@ describe('AuthController — logout', () => {
     expect(res.clearedCookies).toContain('icore_csrf');
   });
 
+  it('revokes the refresh token the atomic delete returned, not a stale earlier read (a refresh may have rotated it meanwhile)', async () => {
+    const client = makeAuthClient();
+    const base = {
+      sessionId: 'sid-1',
+      uid: 'u1',
+      email: 'a@x.com',
+      providerAccessToken: 'at',
+      providerAccessTokenExpiresAt: 0,
+      createdAt: 0,
+      lastRefreshedAt: 0,
+    };
+    const store = {
+      get: vi.fn().mockResolvedValue({ ...base, providerRefreshToken: 'rt1' }),
+      delete: vi.fn().mockResolvedValue({ ...base, providerRefreshToken: 'rt2' }),
+    } as unknown as FakeSessionStore;
+    const controller = new AuthController(client, makeConfig({}), store);
+    const req = { cookies: { icore_sid: 'sid-1' } } as unknown as Request;
+
+    await controller.logout(req, mockRes());
+
+    expect(client.revoke).toHaveBeenCalledWith('rt2');
+    expect(client.revoke).not.toHaveBeenCalledWith('rt1');
+  });
+
   it('is idempotent when there is no session cookie', async () => {
     const client = makeAuthClient();
     const controller = new AuthController(client, makeConfig({}), sessionStore);

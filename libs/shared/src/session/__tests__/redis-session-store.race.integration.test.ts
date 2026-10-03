@@ -83,3 +83,55 @@ describe('RedisSessionStore.withRefreshLock — TTL', () => {
     expect(events).toEqual(['A:in', 'B:in', 'A:out']);
   });
 });
+
+describe('RedisSessionStore — delete vs a concurrent refresh update', () => {
+  // The provider refresh token a deletion hands back is what logout / admin
+  // revoke send to the provider. It must be the token at the moment of deletion:
+  // if update() landed between a separate read and the delete, the revoke would
+  // hit an already-rotated token and leave the NEW provider session alive.
+  it.each([
+    [
+      'delete',
+      (store: RedisSessionStore, sid: string) => store.delete(sid).then((r) => (r ? [r] : [])),
+    ],
+    ['deleteAllForUser', (store: RedisSessionStore) => store.deleteAllForUser('u1')],
+  ] as const)(
+    '%s never returns a stale token for an update that was applied before the deletion',
+    async (_name, remove) => {
+      const store = new RedisSessionStore(redis);
+      const created = await store.create(record);
+      // Land an update right after the store's own read of the record, i.e. between
+      // a read and a delete if the implementation does them separately.
+      const realGet = redis.get.bind(redis);
+      let updated: boolean | undefined;
+      vi.spyOn(redis, 'get').mockImplementationOnce((async (key: string) => {
+        const value = await realGet(key);
+        await store.update(created.sessionId, { providerRefreshToken: 'rt2' });
+        updated = true;
+        return value;
+      }) as never);
+
+      const deleted = await remove(store, created.sessionId);
+
+      expect(deleted).toHaveLength(1);
+      if (updated) expect(deleted[0]?.providerRefreshToken).toBe('rt2');
+      expect(await store.get(created.sessionId)).toBeNull();
+    },
+  );
+});
+
+describe('RedisSessionStore — delete racing a real concurrent refresh update', () => {
+  it('whenever the update was applied, the record handed back by the deletion carries its token', async () => {
+    const store = new RedisSessionStore(redis);
+    for (let i = 0; i < 40; i++) {
+      const created = await store.create(record);
+      const [applied, deleted] = await Promise.all([
+        store.update(created.sessionId, { providerRefreshToken: `rt-new-${i}` }),
+        store.delete(created.sessionId),
+      ]);
+      expect(deleted).not.toBeNull();
+      if (applied) expect(deleted?.providerRefreshToken).toBe(`rt-new-${i}`);
+      expect(await store.get(created.sessionId)).toBeNull();
+    }
+  });
+});

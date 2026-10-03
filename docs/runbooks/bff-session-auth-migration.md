@@ -74,13 +74,13 @@ rejection from the provider does that.
 
 ## Parallel requests and the refresh lock
 
-When a session's provider access token is within 30 s of expiry, the first request refreshes the provider token pair server-side under a Redis lock (`session-lock:<sid>`); parallel requests wait for the lock, then re-read the already-refreshed record. Providers rotate refresh tokens (single use), so two refreshes with the same token would burn it. Three guards keep that from logging users out:
+When a session's provider access token is within 30 s of expiry, the first request refreshes the provider token pair server-side under a Redis lock (`session-lock:<sid>`); parallel requests wait for the lock, then re-read the already-refreshed record. Providers rotate refresh tokens (single use), so two refreshes with the same token would burn it. Guards that keep it from logging users out or leaving orphaned provider sessions:
 
 - **Bounded work under the lock.** `AuthClientService.refresh` and `verify` (the only two RPCs made while holding it) time out after 8 s (`IN_LOCK_RPC_TIMEOUT_MS`), and the lock TTL is 30 s (`RedisSessionStore` `lockTtlMs`, waiters give up after 20 s with a 503). A hung or restarting auth MS therefore fails fast with **503 and the session kept**, instead of the lock expiring under a live holder. `login`/`signup`/magic-link/reset are intentionally not capped (hashing, outbound email).
 - **A lost race is not a dead session.** If the provider answers `invalid_refresh_token`, `AuthGuard` re-reads the record first: when its refresh token differs from the one it used, another request already rotated it and stored the new pair, so the guard returns that fresh record. Only a token nobody rotated deletes the session (401).
 - **`update()` never resurrects a session.** It writes with `SET … XX`, so a logout / admin revoke that lands between its read and its write wins.
 
-Known, parked: `logout` and `POST /auth/admin/revoke-user/:uid` read the provider refresh token outside the lock, so next to a concurrent refresh they can revoke a token that was just rotated (the new provider session then stays alive until it expires). Same class of problem, separate change.
+- **Logout and admin revoke hand the provider the CURRENT token.** `SessionStore.delete()` / `deleteAllForUser()` read-and-delete atomically (`GETDEL`; `MULTI` of `GETDEL`s for a user) and return the records as they were at deletion, so `POST /auth/logout` and `POST /auth/admin/revoke-user/:uid` revoke the token a concurrent refresh may have just rotated, not a stale earlier read. `update()` resolves `false` when the session is gone; if that happens to a refresh that was in flight, `AuthGuard` revokes the freshly minted pair itself (no orphaned provider session) and answers 401.
 
 ## Forced re-login on deploy
 
