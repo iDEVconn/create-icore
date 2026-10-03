@@ -8,6 +8,7 @@ export type AiProvider = 'llm-router' | 'none';
 export type ExampleMode = 'notes' | 'none';
 export type UiLibrary = 'shadcn' | 'antd' | 'mui';
 export type MsTransport = 'tcp' | 'redis' | 'nats' | 'mqtt' | 'rmq' | 'kafka';
+export type SessionStoreKind = 'redis' | 'memory';
 export type PackageManager = 'yarn' | 'npm' | 'pnpm';
 
 /**
@@ -46,6 +47,11 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
     );
   }
 
+  if (opts.authProvider === 'none' && opts.session !== 'redis') {
+    warnings.push('--session has no effect with auth=none (there are no sessions) — ignored');
+    corrected = { ...corrected, session: 'redis' };
+  }
+
   return { warnings, corrected };
 }
 
@@ -61,6 +67,8 @@ export interface CreateIcoreOptions {
   example: ExampleMode;
   ui: UiLibrary;
   transport: MsTransport;
+  /** Where the gateway keeps login sessions: Redis (default) or in its own process. */
+  session: SessionStoreKind;
   packageManager: PackageManager;
   initGit: boolean;
   install: boolean;

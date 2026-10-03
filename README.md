@@ -50,6 +50,7 @@ The CLI prompts (interactive) or accepts flags (non-interactive) for:
 | **Jobs**        | BullMQ + bull-board admin UI, or `none` (opt-in, requires Redis)                |
 | **UI library**  | shadcn/Tailwind, **Ant Design**, **MUI**                                        |
 | **Transport**   | TCP, Redis, NATS                                                                |
+| **Sessions**    | Redis (default) or in-memory (`--session=memory`, no Redis service)             |
 
 After scaffolding:
 

@@ -16,6 +16,10 @@ describe('parseFlags', () => {
     expect(parseFlags(['my-app', '--auth=firebase']).authProvider).toBe('firebase');
   });
 
+  it('reads --session=memory', () => {
+    expect(parseFlags(['my-app', '--session=memory']).session).toBe('memory');
+  });
+
   it('reads --db=firebase', () => {
     expect(parseFlags(['my-app', '--db=firebase']).dbProvider).toBe('firebase');
   });
@@ -150,5 +154,49 @@ describe('collectOptions cascade when authProvider=none', () => {
     ];
     const opts = await collectOptions({ argv, cwd: '.' });
     expect(opts.transport).toBe('tcp');
+  });
+});
+
+describe('collectOptions — session store', () => {
+  const argv = (extra: string[]) => [
+    'my-app',
+    '--auth=supabase',
+    '--db=supabase',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=none',
+    '--ai=none',
+    '--example=none',
+    '--ui=shadcn',
+    '--transport=tcp',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+    ...extra,
+  ];
+
+  it('takes --session without asking', async () => {
+    const opts = await collectOptions({ argv: argv(['--session=memory']), cwd: '.' });
+    expect(opts.session).toBe('memory');
+  });
+
+  it('does not ask for a session store when auth=none (there are no sessions) and uses redis', async () => {
+    const opts = await collectOptions({
+      argv: [
+        'my-app',
+        '--auth=none',
+        '--upload=none',
+        '--payment=none',
+        '--jobs=none',
+        '--ai=none',
+        '--ui=shadcn',
+        '--transport=tcp',
+        '--package-manager=yarn',
+        '--no-git',
+        '--no-install',
+      ],
+      cwd: '.',
+    });
+    expect(opts.session).toBe('redis');
   });
 });

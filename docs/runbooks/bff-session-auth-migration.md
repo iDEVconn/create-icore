@@ -29,13 +29,41 @@ transport (`AUTH_TRANSPORT=redis`) — the two point at different concerns
 and may even be different Redis instances/databases.
 
 `sessionStoreProvider` (`apps/api/src/app/session/session-store.provider.ts`)
-throws at boot if `SESSION_REDIS_URL` is unset — there is deliberately no
-in-memory fallback. Unlike other optional per-feature Redis usages in this
-repo, a session store that loses its data on a gateway restart would
-silently log out every logged-in user, so the factory fails fast instead.
+throws at boot if `SESSION_REDIS_URL` is unset (with the default
+`SESSION_STORE=redis`) — there is deliberately no _silent_ in-memory
+fallback. A session store that loses its data on a gateway restart would
+silently log out every logged-in user, so the factory fails fast instead;
+running without Redis is an explicit opt-in, see
+[Choosing the session store](#choosing-the-session-store).
 
 Add `SESSION_REDIS_URL=redis://localhost:6379` (or your managed Redis URL)
 to every gateway `.env`/deployment config before deploying this branch.
+
+## Choosing the session store
+
+`SESSION_STORE=redis|memory` on the gateway (`apps/api/.env`); unset means
+`redis`, so existing deployments are unchanged.
+
+- **`redis`** (default) — sessions survive gateway restarts and can be shared
+  by several gateway instances. Needs `SESSION_REDIS_URL`.
+- **`memory`** — `InMemorySessionStore` keeps sessions in the gateway process
+  (30-day sliding expiry, swept every 10 min). No Redis service needed, which
+  suits small single-instance projects. What it gives up: **a gateway restart
+  logs everyone out**, and **only ONE gateway instance may run** (a second
+  instance would not see the first one's sessions). The refresh-lock
+  guarantees still hold within the process.
+
+`memory` always logs a loud warning at boot. With `NODE_ENV=production` the
+gateway refuses to start unless `SESSION_STORE_ALLOW_MEMORY=true` is set (the
+exact string) — an acknowledgment that you accept the two limits above. An
+unknown `SESSION_STORE` value fails at boot.
+
+The generator exposes this as `create-icore --session=redis|memory` (wizard
+asks it for every `auth` other than `none`). `memory` writes
+`SESSION_STORE=memory` into `apps/api/.env` and, in `docker-compose.yml`,
+sets `SESSION_STORE: memory` + `SESSION_STORE_ALLOW_MEMORY: 'true'` and drops
+the Redis service, volume and `depends_on` — unless `--jobs=bullmq` or
+`--transport=redis` still need Redis.
 
 ## Where the role comes from now
 

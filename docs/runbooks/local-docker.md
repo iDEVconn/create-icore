@@ -12,7 +12,7 @@
 
 ## Transport vs. Redis
 
-Redis is **always** in the stack, whatever `--transport` you chose: the gateway's BFF session store (`SESSION_REDIS_URL`, see `bff-session-auth-migration.md`) has no in-memory fallback and the gateway refuses to boot without it. The transport only decides how gateway ↔ MS talk:
+Redis is in the stack whenever sessions live in it (`--session=redis`, the default): the gateway's BFF session store (`SESSION_REDIS_URL`, see `bff-session-auth-migration.md`) refuses to boot without it. With `--session=memory` the generator removes the Redis service, volume and every `depends_on: redis` and gives the gateway `SESSION_STORE: memory` + `SESSION_STORE_ALLOW_MEMORY: 'true'` — unless `--jobs=bullmq` or `--transport=redis` still need Redis, in which case it stays. The transport decides how gateway ↔ MS talk:
 
 | `--transport`               | auth / upload MS env in compose                                                                      | MS `depends_on: redis` |
 | --------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------- |

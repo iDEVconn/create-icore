@@ -326,5 +326,6 @@ Admin queue dashboard: `http://localhost:3001/api/admin/queues` (front with reve
 - `create-icore migrate` migration authoring runbook → [`docs/runbooks/authoring-a-migration.md`](./runbooks/authoring-a-migration.md) (registry got its first real entry, `payment-never-crash-factory`, in PR #258)
 - Day-to-day agent rules → [`AGENTS.md`](../AGENTS.md)
 - Provider setup walk-throughs → [`AGENTS.md` § Provider-specific Setup](../AGENTS.md#provider-specific-setup)
+- Choosing the session store (Redis vs in-memory) → [`docs/runbooks/bff-session-auth-migration.md` § Choosing the session store](./runbooks/bff-session-auth-migration.md#choosing-the-session-store)
 - Auth email links / signup confirmation setup → [`docs/runbooks/auth-email-setup.md`](./runbooks/auth-email-setup.md)
 - Forgot-password flow and provider email templates → [`docs/runbooks/auth-email-setup.md` § Forgot password](./runbooks/auth-email-setup.md#forgot-password-supabase-and-firebase)

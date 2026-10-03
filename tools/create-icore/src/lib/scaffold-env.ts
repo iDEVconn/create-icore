@@ -270,6 +270,9 @@ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOption
   for (const prefix of ['AUTH', 'UPLOAD', 'NOTES', 'PAYMENT', 'AI']) {
     next = uncommentTransportEnv(next, prefix, opts.transport);
   }
+  if (opts.session === 'memory' && opts.authProvider !== 'none') {
+    next = next.replace(/^SESSION_REDIS_URL=.*$/m, 'SESSION_STORE=memory');
+  }
   if (opts.authProvider === 'none') {
     next = next
       .split('\n')
@@ -409,6 +412,48 @@ export async function rewriteComposeTransport(
     });
     // Whatever pair is left belongs to the gateway block.
     compose = compose.replace(pair(prefix), replacement(prefix, service, 'gateway'));
+  }
+  await writeFile(composePath, compose);
+}
+
+/**
+ * --session=memory: the gateway keeps sessions in-process (SESSION_STORE=memory)
+ * instead of in Redis. In docker-compose that means: gateway env switches, and —
+ * only if nothing else needs Redis (no BullMQ, transport is not `redis`) — the
+ * Redis service, its volume and every `depends_on: redis` are removed.
+ * Choosing `memory` at generation time IS the explicit acknowledgment production
+ * needs, so the container (NODE_ENV=production) gets SESSION_STORE_ALLOW_MEMORY.
+ * auth=none has no sessions at all: untouched. Run AFTER rewriteComposeTransport
+ * and the strip passes.
+ */
+export async function rewriteComposeSession(
+  targetDir: string,
+  opts: CreateIcoreOptions,
+): Promise<void> {
+  if (opts.session !== 'memory' || opts.authProvider === 'none') return;
+  const composePath = join(targetDir, 'docker-compose.yml');
+  let compose: string;
+  try {
+    compose = await readFile(composePath, 'utf8');
+  } catch {
+    return;
+  }
+  compose = compose.replace(
+    / {6}# BFF session store[\s\S]*?SESSION_REDIS_URL: [^\n]*/,
+    `      # --session=memory: sessions live in the gateway process (no Redis for them).\n` +
+      `      # A restart logs everyone out; run exactly ONE gateway instance.\n` +
+      `      SESSION_STORE: memory\n` +
+      `      SESSION_STORE_ALLOW_MEMORY: 'true'`,
+  );
+  const redisStillNeeded = opts.jobs === 'bullmq' || opts.transport === 'redis';
+  if (!redisStillNeeded) {
+    compose = compose
+      .replace(/\n {2}redis:\n(?: {4}[^\n]*\n)*? {4}networks: \[icore\]\n/, '\n')
+      // a service whose ONLY dependency was redis loses the whole block (a bare
+      // `depends_on:` is invalid compose) — broker transports keep it on auth/upload
+      .replace(/\n {4}depends_on:\n {6}redis:\n {8}condition: service_healthy(?=\n {4}\S)/g, '')
+      .replace(/\n {6}redis:\n {8}condition: service_healthy/g, '')
+      .replace(/\n {2}icore_redis_data:/, '');
   }
   await writeFile(composePath, compose);
 }

@@ -11,6 +11,7 @@ import type {
   MsTransport,
   PackageManager,
   CreateIcoreOptions,
+  SessionStoreKind,
 } from './options.js';
 
 export class ConfigFileError extends Error {
@@ -36,6 +37,7 @@ const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
 const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
 const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
 const MS_TRANSPORTS: readonly MsTransport[] = ['tcp', 'redis', 'nats', 'mqtt', 'rmq', 'kafka'];
+const SESSION_STORES: readonly SessionStoreKind[] = ['redis', 'memory'];
 const PACKAGE_MANAGERS: readonly PackageManager[] = ['yarn', 'npm', 'pnpm'];
 
 function assertEnum<T extends string>(field: string, value: unknown, valid: readonly T[]): T {
@@ -82,6 +84,7 @@ export function validateConfig(raw: unknown): Partial<CreateIcoreOptions> {
   if ('ui' in obj) result.ui = assertEnum('ui', obj['ui'], UI_LIBRARIES);
   if ('transport' in obj)
     result.transport = assertEnum('transport', obj['transport'], MS_TRANSPORTS);
+  if ('session' in obj) result.session = assertEnum('session', obj['session'], SESSION_STORES);
   if ('packageManager' in obj)
     result.packageManager = assertEnum('packageManager', obj['packageManager'], PACKAGE_MANAGERS);
   if ('initGit' in obj) result.initGit = assertBoolean('initGit', obj['initGit']);

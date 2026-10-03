@@ -5,6 +5,12 @@ import { join } from 'node:path';
 import { validateConfig, loadConfig, ConfigFileError } from '../config.js';
 
 describe('validateConfig', () => {
+  it('accepts session: memory / redis and rejects anything else', () => {
+    expect(validateConfig({ session: 'memory' })).toEqual({ session: 'memory' });
+    expect(validateConfig({ session: 'redis' })).toEqual({ session: 'redis' });
+    expect(() => validateConfig({ session: 'dynamo' })).toThrow(/redis, memory/);
+  });
+
   it('returns empty object for empty input', () => {
     expect(validateConfig({})).toEqual({});
   });

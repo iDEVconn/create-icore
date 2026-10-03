@@ -43,6 +43,8 @@ jobs:
             flags: --auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=kafka --ui=shadcn
           - name: mongodb-full-tcp-shadcn
             flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
+          - name: supabase-minimal-tcp-memory-shadcn
+            flags: --auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --session=memory
     steps:
       - uses: actions/checkout@v5
         with:

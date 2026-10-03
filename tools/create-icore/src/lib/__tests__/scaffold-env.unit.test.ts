@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeClientEnv } from '../scaffold-env.js';
+import { writeClientEnv, writeGatewayEnv } from '../scaffold-env.js';
 import type { CreateIcoreOptions } from '../options.js';
 
 // Mirrors the exact pattern already used in scaffold.unit.test.ts:976 for reading
@@ -129,4 +129,30 @@ describe('writeClientEnv — real template .env.example files have the VITE_AUTH
       expect(envExample).toMatch(/^VITE_AUTH_HAS_MAGIC_LINK=.*$/m);
     },
   );
+});
+
+describe('writeGatewayEnv — session store', () => {
+  const mk = async (session: 'redis' | 'memory') => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-gwenv-'));
+    await mkdir(join(dir, 'apps/api'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/api/.env.example'),
+      'AUTH_TRANSPORT=tcp\nSESSION_REDIS_URL=redis://localhost:6379\n',
+    );
+    await writeGatewayEnv(dir, {
+      authProvider: 'supabase',
+      transport: 'tcp',
+      session,
+    } as CreateIcoreOptions);
+    return readFile(join(dir, 'apps/api/.env'), 'utf8');
+  };
+
+  it('session=memory swaps SESSION_REDIS_URL for SESSION_STORE=memory; redis leaves it', async () => {
+    const mem = await mk('memory');
+    expect(mem).toContain('SESSION_STORE=memory');
+    expect(mem).not.toContain('SESSION_REDIS_URL');
+    const redis = await mk('redis');
+    expect(redis).toContain('SESSION_REDIS_URL=redis://localhost:6379');
+    expect(redis).not.toContain('SESSION_STORE=');
+  });
 });
