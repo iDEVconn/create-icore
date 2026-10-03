@@ -20,7 +20,7 @@
 //
 // Usage:
 //   node scripts/smoke-scaffold.mjs --auth=supabase --db=supabase \
-//     --upload=cloudinary --transport=tcp --pm=yarn --mode=link --run
+//     --upload=cloudinary --transport=tcp [--session=redis|memory] --pm=yarn --mode=link --run
 
 import { createRequire } from 'node:module';
 import { mkdtemp, rm, symlink, mkdir, readFile } from 'node:fs/promises';
@@ -88,6 +88,7 @@ const opts = {
   example: args.example ?? 'notes',
   ui: args.ui ?? 'shadcn',
   transport: args.transport ?? 'tcp',
+  session: args.session ?? 'redis',
   packageManager: pm,
   initGit: false,
   install: false,

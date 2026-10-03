@@ -177,7 +177,7 @@ jobs:
               supabase-full|--auth=supabase --db=supabase --upload=supabase --payment=paypal --jobs=bullmq --ai=llm-router --example=notes --transport=tcp
               firebase-minimal|--auth=firebase --db=firebase --upload=firebase --payment=none --jobs=none --example=none --transport=redis
               cloudinary-nats|--auth=supabase --db=firebase --upload=cloudinary --payment=paypal --jobs=bullmq --example=notes --transport=nats
-              no-upload|--auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp
+              no-upload|--auth=firebase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --session=memory
           - name: 2
             combos: |
               mongodb-full|--auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp
