@@ -449,6 +449,9 @@ export async function rewriteComposeSession(
   if (!redisStillNeeded) {
     compose = compose
       .replace(/\n {2}redis:\n(?: {4}[^\n]*\n)*? {4}networks: \[icore\]\n/, '\n')
+      // a service whose ONLY dependency was redis loses the whole block (a bare
+      // `depends_on:` is invalid compose) — broker transports keep it on auth/upload
+      .replace(/\n {4}depends_on:\n {6}redis:\n {8}condition: service_healthy(?=\n {4}\S)/g, '')
       .replace(/\n {6}redis:\n {8}condition: service_healthy/g, '')
       .replace(/\n {2}icore_redis_data:/, '');
   }

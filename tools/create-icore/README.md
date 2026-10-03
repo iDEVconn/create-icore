@@ -76,6 +76,7 @@ Pass `--config <path>` to skip individual prompts using a JSON file. Any field o
   "example": "notes",
   "ui": "shadcn",
   "transport": "nats",
+  "session": "redis",
   "packageManager": "yarn",
   "initGit": true,
   "install": false

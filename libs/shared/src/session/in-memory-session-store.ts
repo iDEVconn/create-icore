@@ -31,6 +31,10 @@ interface Entry {
  * withRefreshLock() is single-flight per session id. Unlike the test-only
  * FakeSessionStore it EXPIRES sessions, otherwise a long-lived process would
  * accumulate dead records forever.
+ *
+ * Unlike Redis there is no holder TTL: a `fn` that never settles blocks that
+ * session's refresh until restart. Callers bound the work done under the lock
+ * (the 8 s in-lock RPC caps), and waiters give up after `lockMaxWaitMs`.
  */
 export class InMemorySessionStore implements SessionStore {
   private readonly entries = new Map<string, Entry>();
@@ -113,12 +117,19 @@ export class InMemorySessionStore implements SessionStore {
     });
     const tail = previous.then(() => mine);
     this.locks.set(sessionId, tail);
+    let acquired = false;
     try {
       await this.waitFor(previous, sessionId);
+      acquired = true;
       return await fn();
     } finally {
       release();
-      if (this.locks.get(sessionId) === tail) this.locks.delete(sessionId);
+      if (this.locks.get(sessionId) === tail) {
+        // A waiter that timed out never held the lock: the previous holder is still
+        // running, so later callers must keep queueing behind it, not start fresh.
+        if (acquired) this.locks.delete(sessionId);
+        else this.locks.set(sessionId, previous);
+      }
     }
   }
 

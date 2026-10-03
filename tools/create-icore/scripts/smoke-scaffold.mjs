@@ -194,7 +194,7 @@ async function main() {
   opts.targetDir = join(dir, opts.projectName);
   await mkdir(opts.targetDir, { recursive: true });
 
-  const combo = `auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} transport=${opts.transport} pm=${pm} mode=${mode} run=${doRun}`;
+  const combo = `auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} transport=${opts.transport} session=${opts.session} pm=${pm} mode=${mode} run=${doRun}`;
   console.log(`\n=== smoke: ${combo} ===`);
 
   await scaffold(opts, templatesDir);

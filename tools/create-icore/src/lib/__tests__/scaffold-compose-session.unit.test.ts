@@ -56,6 +56,16 @@ describe('rewriteComposeSession', () => {
     expect(c).toContain('icore_redis_data');
   });
 
+  it.each(['nats', 'mqtt', 'rmq', 'kafka'] as const)(
+    'memory + transport=%s (no redis needed): no empty depends_on is left behind',
+    async (transport) => {
+      const c = await compose({ session: 'memory', transport, upload: 'supabase' });
+      expect(c).not.toMatch(/\n {2}redis:\n/);
+      expect(c).not.toMatch(/depends_on:\n(?! {6}\S)/);
+      expect(c).not.toMatch(/depends_on:\s*\n\s*\n/);
+    },
+  );
+
   it('memory + transport=redis: the Redis service STAYS (the transport needs it)', async () => {
     const c = await compose({ session: 'memory', transport: 'redis' });
     expect(c).toContain('SESSION_STORE: memory');

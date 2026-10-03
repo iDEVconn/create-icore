@@ -111,4 +111,24 @@ describe('InMemorySessionStore — withRefreshLock', () => {
     await holder;
     await expect(store.withRefreshLock('s1', async () => 'after')).resolves.toBe('after');
   });
+
+  it('keeps single-flight for a caller arriving after a waiter timed out while the holder still runs', async () => {
+    store = new InMemorySessionStore({ sweepIntervalMs: 0, lockMaxWaitMs: 40 });
+    let running = 0;
+    let maxConcurrent = 0;
+    const guarded = async () => {
+      running++;
+      maxConcurrent = Math.max(maxConcurrent, running);
+      await sleep(150);
+      running--;
+    };
+    const holder = store.withRefreshLock('s1', guarded);
+    await sleep(5);
+    const timedOut = store.withRefreshLock('s1', async () => 'late');
+    await expect(timedOut).rejects.toThrow('session_refresh_lock_timeout: s1');
+    // holder is still inside fn(); a new caller must queue behind it, not run beside it
+    const third = store.withRefreshLock('s1', guarded).catch(() => 'timeout');
+    await Promise.all([holder, third]);
+    expect(maxConcurrent).toBe(1);
+  });
 });
