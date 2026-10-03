@@ -11,3 +11,4 @@ export * from './http/session-cookie';
 export * from './session/session-store';
 export * from './session/fakes/fake-session-store';
 export * from './session/redis-session-store';
+export * from './session/in-memory-session-store';
