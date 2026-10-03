@@ -1,5 +1,25 @@
 # @idevconn/create-icore
 
+## 0.20.0
+
+### Minor Changes
+
+- 0b3f8ae: Forgot password for Supabase and Firebase: login-page link, in-app /reset-password, POST /auth/password/forgot (always 200) and /password/reset (ends all other sessions), new VITE_AUTH_HAS_PASSWORD_RESET flag; AuthStrategy gains requestPasswordReset/confirmPasswordReset (third-party implementers must add them)
+- 45448ca: New --session=redis|memory option: run login sessions in the gateway process (SESSION_STORE=memory) so small projects need no Redis service; the generated docker-compose drops Redis when nothing else uses it. Default stays redis. Gateway: SESSION_STORE switch, InMemorySessionStore with 30-day expiry, loud warning and a production acknowledgment (SESSION_STORE_ALLOW_MEMORY=true)
+
+### Patch Changes
+
+- 07a1113: Fixes the CodeQL suppression comment added in a prior patch — GitHub's `// codeql[rule-id]` directive must sit immediately adjacent to the specific flagged argument, not just before the statement it's part of. The `oauth_state` cookie write's suppression is repositioned inside the `res.cookie(...)` argument list, directly before `state`, matching the pattern that actually worked for the equivalent (now-deleted) `icore_rt` cookie suppression.
+- 13d65b9: Scaffolded docker-compose.yml now honors --transport (was hardcoded to redis); document that Redis is always required for BFF sessions
+- 9283ac7: Bump patch/minor dependencies across the workspace (NestJS 11.2.7, @anthropic-ai/sdk 0.131, openai 7.27, firebase-admin 14.5, supabase-js 2.117, vitest 5.0.3, eslint 10.11, vite 8.3.2 and others); no majors
+- d9a06fd: Logout and admin revoke-user now revoke the provider refresh token that was current at deletion (atomic GETDEL) instead of a possibly-rotated earlier read, and a refresh that loses to a concurrent logout revokes the token pair it just minted; SessionStore.update/delete now return whether/what they changed
+- 28c5b9a: Wizard, generated README and docs said "MUI 6" while the client-mui template ships MUI 9
+- 0551f10: pnpm projects boot: generated pnpm-workspace.yaml now sets shamefullyHoist so built microservices find firebase-admin/ioredis/etc. at the root node_modules (they crashed with "Cannot find module" under pnpm's strict isolation); nightly scaffold smoke waits 90 s instead of 25 s so such crashes are no longer false greens
+- a36225b: Run the RedisSessionStore contract test locally without docker: falls back to a throw-away redis-memory-server when no Redis is reachable (test infrastructure only)
+- 5c7a898: Fix a session-refresh race: a request that lost the refresh race no longer deletes the winner's fresh session, the in-lock auth RPCs (refresh/verify) time out after 8 s and the refresh lock TTL is 30 s so a hung auth MS fails fast with 503 instead of letting the lock expire, and RedisSessionStore.update no longer resurrects a deleted session
+- 595450f: Signup with Supabase "Confirm email" no longer 500s: gateway answers 202 confirmation_required, clients show the check-email screen, emails link to CLIENT_ORIGIN, unconfirmed login is a clear 403; CLI prints the Supabase/Firebase URL setup notice
+- d0e31d5: Generated projects now ship the same dependency versions as this repo (Nx 23, ESLint 10, vitest 5, jsdom 30, …) instead of a stale hand-maintained shell; a drift test + sync script keep them aligned
+
 ## 0.19.0
 
 ### Minor Changes
