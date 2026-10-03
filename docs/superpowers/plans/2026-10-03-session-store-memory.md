@@ -39,7 +39,7 @@
 
 **Interfaces:**
 
-- Produces: `class InMemorySessionStore implements SessionStore` with `constructor(options?: InMemorySessionStoreOptions)` and `close(): void`; `interface InMemorySessionStoreOptions { sessionTtlMs?: number; sweepIntervalMs?: number; lockMaxWaitMs?: number; now?: () => number }` (defaults: 30 days, 10 min — `0` disables the sweep, 20 s, `Date.now`).
+- Produces: `class InMemorySessionStore implements SessionStore` with `constructor(options?: InMemorySessionStoreOptions)`, `close(): void` and `get size(): number`; `interface InMemorySessionStoreOptions { sessionTtlMs?: number; sweepIntervalMs?: number; lockMaxWaitMs?: number; now?: () => number }` (defaults: 30 days, 10 min — `0` disables the sweep, 20 s, `Date.now`).
 
 - [ ] **Step 1: Write the failing tests** — `in-memory-session-store.unit.test.ts`:
 
@@ -88,16 +88,14 @@ describe('InMemorySessionStore — expiry', () => {
     expect(await store.deleteAllForUser('u1')).toEqual([]);
   });
 
-  it('the periodic sweep drops expired sessions without any read, and does not keep the process alive', async () => {
+  it('the periodic sweep drops expired sessions without any read', async () => {
     vi.useFakeTimers();
     try {
       const store = new InMemorySessionStore({ sweepIntervalMs: 1000 });
-      const created = await store.create(record);
+      await store.create(record);
+      expect(store.size).toBe(1);
       await vi.advanceTimersByTimeAsync(31 * DAY);
-      // peek at the internal map through a fresh create/list-free assertion: get() is lazy, so
-      // assert via deleteAllForUser, which only returns LIVE records
-      expect(await store.deleteAllForUser('u1')).toEqual([]);
-      expect(created.sessionId).toBeTruthy();
+      expect(store.size).toBe(0); // swept, never read
       store.close();
     } finally {
       vi.useRealTimers();
@@ -212,6 +210,11 @@ export class InMemorySessionStore implements SessionStore {
     }
   }
 
+  /** Stored entries (including not-yet-swept expired ones); for tests/diagnostics. */
+  get size(): number {
+    return this.entries.size;
+  }
+
   close(): void {
     if (this.sweepTimer) clearInterval(this.sweepTimer);
   }
@@ -310,7 +313,7 @@ export class InMemorySessionStore implements SessionStore {
 
 Add `export * from './session/in-memory-session-store';` to `libs/shared/src/index.ts` (next to the other session exports).
 
-- [ ] **Step 4: Run to verify it passes** — `yarn nx test shared`. Expected: PASS (contract suite for the new store, expiry, lock cases; all existing). If the sweep test is vacuous on review (it asserts via live-only reads), strengthen it by spying on `entries` is NOT allowed — keep behaviour-level.
+- [ ] **Step 4: Run to verify it passes** — `yarn nx test shared`. Expected: PASS (contract suite for the new store, expiry, lock cases; all existing).
 
 - [ ] **Step 5: Commit**
 
