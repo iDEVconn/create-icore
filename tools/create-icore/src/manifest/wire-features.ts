@@ -100,8 +100,10 @@ export async function cleanupUnusedFeatures(
   for (const key of ['notes', 'payment', 'jobs', 'ai'] as FeatureKey[]) {
     if (chosen.has(key)) continue;
     const unit = FEATURES[key];
-    for (const dir of unit.libDirs)
+    for (const dir of unit.libDirs) {
+      if (dir === 'libs/db-strategies' && opts.dbProvider !== 'none') continue;
       await rm(join(targetDir, dir), { recursive: true, force: true });
+    }
     const dropKeys = new Set([...Object.keys(unit.tsPaths), ...Object.keys(unit.deps)]);
     await stripJsonKeys(join(targetDir, API_PKG), (k) => dropKeys.has(k));
     await stripTsconfigKeys(targetDir, Object.keys(unit.tsPaths));

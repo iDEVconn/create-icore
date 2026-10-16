@@ -82,7 +82,8 @@ export function parseFlags(argv: string[]): ParsedFlags {
       if (a && !out.projectName) out.projectName = a;
       continue;
     }
-    const parts = a.includes('=') ? a.split('=', 2) : [a, argv[++i]];
+    const isBoolFlag = a === '--no-git' || a === '--no-install';
+    const parts = a.includes('=') ? a.split('=', 2) : isBoolFlag ? [a, ''] : [a, argv[++i]];
     const k = parts[0] ?? '';
     const vIn = parts[1];
     const key = k.slice(2);
@@ -188,16 +189,17 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
   if (p.isCancel(authProvider)) throw new Error('cancelled');
 
   const dbProvider: DbProvider =
-    authProvider === 'none'
+    flags.dbProvider ??
+    (authProvider === 'none'
       ? 'none'
-      : (flags.dbProvider ??
-        ((await p.select({
+      : ((await p.select({
           message: 'Database backend',
           options: [
             { value: 'supabase', label: 'Supabase Postgres' },
             { value: 'firebase', label: 'Firestore' },
             { value: 'mongodb', label: 'MongoDB' },
             { value: 'postgres', label: 'PostgreSQL (direct, postgres.js)' },
+            { value: 'sqlite', label: 'SQLite (local file-based, WAL mode)' },
           ],
           initialValue: authProvider as DbProvider,
         })) as DbProvider));

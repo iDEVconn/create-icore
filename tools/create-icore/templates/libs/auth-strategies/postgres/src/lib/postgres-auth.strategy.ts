@@ -210,6 +210,14 @@ export class PostgresAuthStrategy implements AuthStrategy {
     throw new Error('not_implemented');
   }
 
+  async requestPasswordReset(_email: string, _callbackUrl: string): Promise<void> {
+    throw new Error('not_implemented');
+  }
+
+  async confirmPasswordReset(_token: string, _newPassword: string): Promise<AuthSession> {
+    throw new Error('not_implemented');
+  }
+
   async startOAuth(_provider: OAuthProvider, _callbackUrl: string): Promise<OAuthStartResult> {
     throw new Error('not_implemented');
   }
