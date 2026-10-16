@@ -133,6 +133,16 @@ export const MANIFEST = {
         into: 'notes',
       },
     },
+    sqlite: {
+      libDirs: ['libs/db-strategies/sqlite'],
+      deps: { 'better-sqlite3': '^11.8.1', '@types/better-sqlite3': '^7.6.12' },
+      tsPaths: { '@icore/db-sqlite': ['libs/db-strategies/sqlite/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/db-sqlite',
+        symbol: 'SqliteDbModule',
+        into: 'notes',
+      },
+    },
   },
   feature: {
     notes: {

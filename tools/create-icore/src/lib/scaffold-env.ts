@@ -78,6 +78,7 @@ const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
   minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin'],
+  sqlite: ['better-sqlite3'],
 };
 
 /**
@@ -252,6 +253,9 @@ export async function writeNotesEnv(targetDir: string, opts: CreateIcoreOptions)
     const env = await readFile(envExample, 'utf8');
     let next = env.replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`);
     next = uncommentTransportEnv(next, 'NOTES', opts.transport);
+    if (opts.dbProvider === 'sqlite') {
+      next += '\nSQLITE_DB_PATH=./sqlite/app.db\nSQLITE_WAL=true\nSQLITE_BUSY_TIMEOUT=5000\n';
+    }
     await writeFile(join(targetDir, 'apps/microservices/notes/.env'), next);
   } catch {
     // notes .env.example may not exist in older snapshots

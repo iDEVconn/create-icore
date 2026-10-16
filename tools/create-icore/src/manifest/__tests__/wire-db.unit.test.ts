@@ -11,7 +11,7 @@ async function fixture(): Promise<string> {
     join(dir, 'apps/microservices/notes/src/app/db.provider.ts'),
     `import { SupabaseDbModule } from '@icore/db-supabase';\nexport const DbProviderModule = SupabaseDbModule.forRoot('x');\n`,
   );
-  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres']) {
+  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres', 'sqlite']) {
     await mkdir(join(dir, `libs/db-strategies/${d}/src`), { recursive: true });
     await writeFile(join(dir, `libs/db-strategies/${d}/src/index.ts`), 'export {};');
   }
@@ -24,7 +24,9 @@ async function fixture(): Promise<string> {
         '@icore/db-firestore': '*',
         '@icore/db-mongodb': '*',
         '@icore/db-postgres': '*',
+        '@icore/db-sqlite': '*',
         '@supabase/supabase-js': '^2.106.2',
+        'better-sqlite3': '^11.8.1',
       },
     }),
   );
@@ -37,6 +39,7 @@ async function fixture(): Promise<string> {
           '@icore/db-firestore': ['libs/db-strategies/firestore/src/index.ts'],
           '@icore/db-mongodb': ['libs/db-strategies/mongodb/src/index.ts'],
           '@icore/db-postgres': ['libs/db-strategies/postgres/src/index.ts'],
+          '@icore/db-sqlite': ['libs/db-strategies/sqlite/src/index.ts'],
         },
       },
     }),
@@ -73,6 +76,18 @@ describe('writeDbProvider', () => {
     expect(src).toContain('PostgresDbModule.forRoot');
     expect(src).not.toContain('SupabaseDbModule');
   });
+
+  it('wires the chosen db module (sqlite)', async () => {
+    const dir = await fixture();
+    await writeDbProvider(dir, 'sqlite');
+    const src = await readFile(
+      join(dir, 'apps/microservices/notes/src/app/db.provider.ts'),
+      'utf8',
+    );
+    expect(src).toContain("from '@icore/db-sqlite'");
+    expect(src).toContain('SqliteDbModule.forRoot');
+    expect(src).not.toContain('SupabaseDbModule');
+  });
 });
 
 describe('cleanupUnusedDb', () => {
@@ -84,6 +99,7 @@ describe('cleanupUnusedDb', () => {
     expect(await exists(join(dir, 'libs/db-strategies/supabase'))).toBe(false);
     expect(await exists(join(dir, 'libs/db-strategies/mongodb'))).toBe(false);
     expect(await exists(join(dir, 'libs/db-strategies/postgres'))).toBe(false);
+    expect(await exists(join(dir, 'libs/db-strategies/sqlite'))).toBe(false);
 
     const pkg = JSON.parse(
       await readFile(join(dir, 'apps/microservices/notes/package.json'), 'utf8'),
@@ -91,9 +107,33 @@ describe('cleanupUnusedDb', () => {
     expect(pkg.dependencies['@icore/db-firestore']).toBe('*');
     expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
     expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-sqlite');
     expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js'); // supabase raw dep stripped
+    expect(pkg.dependencies).not.toHaveProperty('better-sqlite3');
 
     const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
     expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/db-firestore']);
+  });
+
+  it('cleans up unchosen and keeps sqlite when sqlite is chosen', async () => {
+    const dir = await fixture();
+    await cleanupUnusedDb(dir, 'sqlite');
+
+    expect(await exists(join(dir, 'libs/db-strategies/sqlite'))).toBe(true);
+    expect(await exists(join(dir, 'libs/db-strategies/supabase'))).toBe(false);
+    expect(await exists(join(dir, 'libs/db-strategies/firestore'))).toBe(false);
+    expect(await exists(join(dir, 'libs/db-strategies/mongodb'))).toBe(false);
+    expect(await exists(join(dir, 'libs/db-strategies/postgres'))).toBe(false);
+
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/notes/package.json'), 'utf8'),
+    );
+    expect(pkg.dependencies['@icore/db-sqlite']).toBe('*');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-firestore');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
+
+    const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
+    expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/db-sqlite']);
   });
 });

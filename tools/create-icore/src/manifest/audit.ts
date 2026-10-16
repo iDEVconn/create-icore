@@ -48,6 +48,7 @@ const PROVIDER_SDKS: Record<string, string[]> = {
   minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin', '@icore/firebase-admin'],
+  sqlite: ['better-sqlite3'],
 };
 
 async function readBlueprint(dir: string): Promise<Blueprint | null> {
