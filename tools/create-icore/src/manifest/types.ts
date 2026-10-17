@@ -33,6 +33,8 @@ export interface Unit {
   /** App-level (not lib) test files that belong to this unit and must be removed
    *  when the unit is NOT selected (they import the unit's now-absent lib). */
   appTests?: string[];
+  /** Utility scripts under `tools/` that are only emitted when this unit is active. */
+  toolFiles?: string[];
 }
 
 export type StorageProvider = Exclude<UploadProvider, 'none'>;

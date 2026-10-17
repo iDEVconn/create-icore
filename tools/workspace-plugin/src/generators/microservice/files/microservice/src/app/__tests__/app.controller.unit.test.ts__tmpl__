@@ -1,0 +1,24 @@
+import { describe, expect, it<% if (withDb) { %>, vi<% } %> } from 'vitest';
+<% if (withDb) { %>import type { DBStrategy } from '@icore/shared';
+<% } %>import { AppController } from '../app.controller';
+import { AppService } from '../app.service';
+
+describe('<%= className %> AppController', () => {
+  it('returns status ok on <%= fileName %>.ping', () => {
+<% if (withDb) { %>    const fakeDb = {
+      get: vi.fn(),
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      list: vi.fn(),
+    } as unknown as DBStrategy;
+    const service = new AppService(fakeDb);
+<% } else { %>    const service = new AppService();
+<% } %>    const controller = new AppController(service);
+    const res = controller.ping();
+
+    expect(res.status).toBe('ok');
+    expect(res.service).toBe('<%= fileName %>');
+    expect(typeof res.timestamp).toBe('string');
+  });
+});

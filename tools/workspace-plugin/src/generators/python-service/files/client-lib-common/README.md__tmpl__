@@ -1,0 +1,3 @@
+# <%= fileName %>-client
+
+Gateway client library for the `<%= fileName %>` Python microservice (<%= framework %>).

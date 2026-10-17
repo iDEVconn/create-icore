@@ -1,0 +1,12 @@
+import pytest
+from src.main import <%= className %>Servicer, pb2
+
+
+@pytest.mark.asyncio
+async def test_ping() -> None:
+    servicer = <%= className %>Servicer()
+    if pb2 is None:
+        pytest.skip("Generated protobuf stubs not present")
+    response = await servicer.Ping(None, None)
+    assert response.status == "ok"
+    assert response.service == "<%= fileName %>"

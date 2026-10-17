@@ -4,6 +4,7 @@
   "neverConnectToCloud": true,
   "analytics": false,
   "useInferencePlugins": true,
+  "useDaemonProcess": false,
   "pluginsConfig": {
     "@nx/js": {
       "analyzeSourceFiles": true

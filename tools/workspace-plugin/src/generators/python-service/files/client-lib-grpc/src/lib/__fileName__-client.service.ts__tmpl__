@@ -1,0 +1,29 @@
+import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
+import type { ClientGrpc } from '@nestjs/microservices';
+import { firstValueFrom, type Observable } from 'rxjs';
+import { <%= constantName %>_CLIENT } from './<%= fileName %>-client.tokens';
+
+export interface <%= className %>PingResponse {
+  status: 'ok';
+  service: '<%= fileName %>';
+  timestamp: string;
+}
+
+interface <%= className %>GrpcService {
+  ping(data: Record<string, never>): Observable<<%= className %>PingResponse>;
+}
+
+@Injectable()
+export class <%= className %>ClientService implements OnModuleInit {
+  private rpcService!: <%= className %>GrpcService;
+
+  constructor(@Inject(<%= constantName %>_CLIENT) private readonly client: ClientGrpc) {}
+
+  onModuleInit(): void {
+    this.rpcService = this.client.getService<<%= className %>GrpcService>('<%= className %>Service');
+  }
+
+  ping(): Promise<<%= className %>PingResponse> {
+    return firstValueFrom(this.rpcService.ping({}));
+  }
+}

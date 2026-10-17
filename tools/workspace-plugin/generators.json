@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "name": "@icore/workspace-plugin",
+  "version": "0.0.1",
+  "generators": {
+    "microservice": {
+      "factory": "./src/generators/microservice/generator",
+      "schema": "./src/generators/microservice/schema.json",
+      "description": "Generate a NestJS microservice, its @icore/<name>-client library, and wire it into the API gateway."
+    },
+    "python-service": {
+      "factory": "./src/generators/python-service/generator",
+      "schema": "./src/generators/python-service/schema.json",
+      "description": "Generate a Python microservice (FastAPI or gRPC via uv), its @icore/<name>-client library, and wire it into the API gateway."
+    }
+  }
+}

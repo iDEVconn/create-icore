@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateIcoreOptions } from './options.js';
 
@@ -78,7 +78,7 @@ const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
   minio: ['minio'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin'],
-  sqlite: ['better-sqlite3'],
+  sqlite: ['better-sqlite3', '@types/better-sqlite3'],
 };
 
 /**
@@ -166,7 +166,20 @@ export async function rewriteRootPackageJson(
         pkg['packageManager'] = `yarn@${match[1]}`;
       }
     } catch {
-      // ignore — keep whatever the template had
+      // ignore — fallback below
+    }
+    // If packageManager is not set or points to old fallback, scan .yarn/releases
+    if (!pkg['packageManager'] || pkg['packageManager'] === 'yarn@4.5.0') {
+      try {
+        const releases = await readdir(join(targetDir, '.yarn', 'releases'));
+        const yarnBin = releases.find((f) => f.startsWith('yarn-') && f.endsWith('.cjs'));
+        const vMatch = yarnBin?.match(/^yarn-(\d+\.\d+\.\d+)\.cjs$/);
+        if (vMatch?.[1]) {
+          pkg['packageManager'] = `yarn@${vMatch[1]}`;
+        }
+      } catch {
+        // ignore — keep whatever the template had
+      }
     }
   }
   // pnpm 9+ no longer reads the "pnpm" key from package.json — settings now
@@ -209,6 +222,10 @@ export async function rewriteRootPackageJson(
   }
   if (noMs) {
     delete rootDeps['@nestjs/microservices'];
+  }
+  if (opts.example === 'none') {
+    const scripts = (pkg as { scripts?: Record<string, string> }).scripts;
+    if (scripts) delete scripts['remove-notes'];
   }
 
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');

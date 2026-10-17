@@ -41,16 +41,17 @@ npm init @idevconn/icore my-app -- --auth=supabase --db=supabase --upload=none
 
 The CLI prompts (interactive) or accepts flags (non-interactive) for:
 
-| Dimension       | Choices                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| **Auth**        | Supabase, Firebase — both support password + magic-link + OAuth (Google/GitHub) |
-| **Database**    | Supabase Postgres or Firestore — fully independent of `--auth`                  |
-| **File upload** | Supabase Storage, Firebase Cloud Storage, Cloudinary, `none`                    |
-| **Payment**     | PayPal via `@idevconn/payment`, or `none` (opt-in)                              |
-| **Jobs**        | BullMQ + bull-board admin UI, or `none` (opt-in, requires Redis)                |
-| **UI library**  | shadcn/Tailwind, **Ant Design**, **MUI**                                        |
-| **Transport**   | TCP, Redis, NATS                                                                |
-| **Sessions**    | Redis (default) or in-memory (`--session=memory`, no Redis service)             |
+| Dimension         | Choices                                                                                                                                                                                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Auth**          | Supabase, Firebase — both support password + magic-link + OAuth (Google/GitHub)                                                                                                                                                                                                               |
+| **Database**      | Supabase Postgres or Firestore — fully independent of `--auth`                                                                                                                                                                                                                                |
+| **File upload**   | Supabase Storage, Firebase Cloud Storage, Cloudinary, `none`                                                                                                                                                                                                                                  |
+| **Payment**       | PayPal via `@idevconn/payment`, or `none` (opt-in)                                                                                                                                                                                                                                            |
+| **Jobs**          | BullMQ + bull-board admin UI, or `none` (opt-in, requires Redis)                                                                                                                                                                                                                              |
+| **UI library**    | shadcn/Tailwind, **Ant Design**, **MUI**                                                                                                                                                                                                                                                      |
+| **Transport**     | TCP, Redis, NATS                                                                                                                                                                                                                                                                              |
+| **Sessions**      | Redis (default) or in-memory (`--session=memory`, no Redis service)                                                                                                                                                                                                                           |
+| **Microservices** | Add NestJS services via `yarn nx g @icore/workspace-plugin:microservice <name>` or Python services via `yarn nx g @icore/workspace-plugin:python-service <name>` (see [NestJS guide](./docs/articles/microservice-plugin.md) / [Python guide](./docs/articles/python-microservice-plugin.md)) |
 
 After scaffolding:
 
@@ -65,6 +66,64 @@ yarn dev          # gateway + auth MS + upload MS (+ payment/notes/jobs if opted
 Or run the whole backend stack in docker via `docker compose up` (see [`docs/runbooks/local-docker.md`](./docs/runbooks/local-docker.md)).
 
 Full CLI docs: [`tools/create-icore/README.md`](./tools/create-icore/README.md).
+
+## Adding Microservices
+
+You can scaffold and wire new decoupled microservices in either TypeScript (NestJS) or Python at any time using the workspace generator plugin (`@icore/workspace-plugin`).
+
+### NestJS Microservices
+
+```bash
+yarn nx g @icore/workspace-plugin:microservice billing
+```
+
+This automates creating the microservice (`apps/microservices/billing`), its client library (`libs/billing-client`), and the gateway REST proxy (`apps/api/src/app/billing`), wiring everything together via TypeScript AST manipulation.
+
+#### Arguments & Options
+
+- `<name>` — Name of the microservice (e.g. `billing`, `notifications`).
+- `--transport` — Transport protocol (`tcp`, `redis`, `nats`, `mqtt`, `rmq`, `kafka`). Default: auto-detected.
+- `--port` — TCP port (auto-increments to next free port, e.g. `4006+`).
+- `--inspectPort` — Node debugger port (auto-increments, e.g. `9235+`).
+- `--withDb` — Pre-wires `DBStrategy` into the microservice.
+- `--withDocker` — Scaffolds `Dockerfile.ms-<name>` for production builds.
+- `--skipBff` — Skips client lib & gateway wiring (for standalone worker services).
+- `--tags` — Comma-separated Nx boundary tags.
+
+👉 **[Read the full NestJS Microservice Plugin Guide](./docs/articles/microservice-plugin.md)** for architecture details, RPC tutorials, DB usage, and pub/sub events.
+
+### Python Microservices (FastAPI / gRPC via uv)
+
+Scaffold a high-performance Python microservice managed by [Astral `uv`](https://github.com/astral-sh/uv), auto-registered in the root `uv` workspace, and pre-wired with a typed NestJS client:
+
+```bash
+# FastAPI microservice with OpenAPI & Axios BFF client (default)
+yarn nx g @icore/workspace-plugin:python-service ml-inference
+
+# gRPC microservice with .proto contract & NestJS ClientGrpc
+yarn nx g @icore/workspace-plugin:python-service embeddings --framework=grpc
+```
+
+#### Arguments & Options
+
+- `<name>` — Name of the microservice (e.g. `ml-inference`, `embeddings`).
+- `--framework` — Framework: `fastapi` (default) or `grpc`.
+- `--port` — Service port (auto-increments to next free port, e.g. `4006+`).
+- `--uvWorkspace` — Auto-registers in root `pyproject.toml` `[tool.uv.workspace]` (default: `true`).
+- `--skipBff` — Skips `@icore/<name>-client` and gateway AST wiring (for standalone workers).
+- `--tags` — Comma-separated Nx boundary tags (e.g. `--tags=tier:ai,team:data`).
+
+#### Standard Python Tasks
+
+```bash
+yarn nx serve <name>       # Run dev server with reload
+yarn nx test <name>        # Run pytest
+yarn nx lint <name>        # Run Ruff linter
+yarn nx format <name>      # Auto-format with Ruff
+yarn nx typecheck <name>   # Strict type check with Mypy
+```
+
+👉 **[Read the full Python Microservice Plugin Guide](./docs/articles/python-microservice-plugin.md)** for complete architecture, Protobuf compilation, Docker builds, and custom endpoint tutorials.
 
 ## What's inside the scaffold
 
@@ -82,6 +141,7 @@ Full CLI docs: [`tools/create-icore/README.md`](./tools/create-icore/README.md).
 | i18n          | i18next + react-i18next (en / ru / he with RTL)                                                       |
 | Form blocking | `@idevconn/use-draft` — global dirty-state with router + browser-close blocking                       |
 | Tests         | Vitest 4 unit + Playwright smoke                                                                      |
+| Microservices | Local generator (`@icore/workspace-plugin`) for scaffolding & wiring new services                     |
 | Docker        | `Dockerfile.{gateway,ms-auth,ms-upload,ms-jobs}` + `docker-compose.yml` (gateway + MSes + redis)      |
 | Publish       | changesets + OIDC trusted publishing + npm provenance                                                 |
 | CI            | nx affected lint/test/build matrix + docker build matrix (main only) + auto sync-main-to-dev          |
@@ -113,7 +173,8 @@ icore/
 ├── Dockerfile.{gateway,ms-auth,ms-upload,ms-jobs}
 ├── docker-compose.yml
 └── tools/
-    └── create-icore/                              # the published CLI
+    ├── create-icore/                              # the published CLI
+    └── workspace-plugin/                          # custom generator plugin (@icore/workspace-plugin)
 ```
 
 ## Contributing

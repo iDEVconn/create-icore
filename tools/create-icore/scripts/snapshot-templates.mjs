@@ -1,4 +1,5 @@
-import { cp, mkdir, rm } from 'node:fs/promises';
+import { cp, mkdir, rename, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +19,6 @@ const PATHS_TO_COPY = [
   'apps/microservices/ai-orchestrator-e2e',
   'apps/templates',
   'libs',
-  'tools/create-icore/_template-shell',
   'tsconfig.base.json',
   'nx.json',
   '.gitignore',
@@ -28,6 +28,7 @@ const PATHS_TO_COPY = [
   '.yarnrc.yml',
   '.yarn/releases',
   'eslint.config.mjs',
+  'jest.preset.js',
   'Dockerfile.gateway',
   'Dockerfile.ms-auth',
   'Dockerfile.ms-upload',
@@ -85,6 +86,22 @@ async function main() {
     const dest = resolve(out, f);
     await mkdir(dirname(dest), { recursive: true });
     await cp(shell, dest);
+  }
+
+  // Rename top-level dotfiles to underscore names so npm pack/publish doesn't
+  // silently omit them from the published tarball (.yarnrc.yml, .gitignore, .github, .husky).
+  const DOTFILE_RENAMES = {
+    '.yarnrc.yml': '_yarnrc.yml',
+    '.gitignore': '_gitignore',
+    '.github': '_github',
+    '.husky': '_husky',
+  };
+  for (const [from, to] of Object.entries(DOTFILE_RENAMES)) {
+    const src = resolve(out, from);
+    const dest = resolve(out, to);
+    if (existsSync(src)) {
+      await rename(src, dest);
+    }
   }
 
   console.log(`Templates written to ${out}`);

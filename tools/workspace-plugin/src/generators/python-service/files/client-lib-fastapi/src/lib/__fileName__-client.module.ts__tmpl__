@@ -1,0 +1,23 @@
+import { DynamicModule, Module } from '@nestjs/common';
+import { <%= className %>ClientService } from './<%= fileName %>-client.service';
+import {
+  <%= constantName %>_HTTP_OPTIONS,
+  type <%= className %>HttpOptions,
+} from './<%= fileName %>-client.tokens';
+
+@Module({})
+export class <%= className %>ClientModule {
+  static forRoot(options?: <%= className %>HttpOptions): DynamicModule {
+    return {
+      module: <%= className %>ClientModule,
+      providers: [
+        {
+          provide: <%= constantName %>_HTTP_OPTIONS,
+          useValue: options,
+        },
+        <%= className %>ClientService,
+      ],
+      exports: [<%= className %>ClientService],
+    };
+  }
+}

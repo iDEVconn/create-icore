@@ -1,0 +1,14 @@
+# <%= className %> Microservice
+
+Python microservice using **<%= framework %>** and managed via **uv**.
+
+## Commands
+
+- `nx serve <%= fileName %>` - Run dev server
+- `nx lint <%= fileName %>` - Run Ruff linter
+- `nx format <%= fileName %>` - Run Ruff formatter
+- `nx test <%= fileName %>` - Run Pytest suite
+- `nx typecheck <%= fileName %>` - Run Mypy type checker
+<% if (framework === 'grpc') { -%>
+- `nx proto <%= fileName %>` - Compile Protobuf files
+<% } -%>

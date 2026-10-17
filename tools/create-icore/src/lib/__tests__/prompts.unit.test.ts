@@ -200,3 +200,59 @@ describe('collectOptions — session store', () => {
     expect(opts.session).toBe('redis');
   });
 });
+
+describe('collectOptions — flag validation', () => {
+  const valid = [
+    'my-app',
+    '--auth=none',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=bullmq',
+    '--ai=none',
+    '--ui=shadcn',
+    '--transport=redis',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+  const withFlag = (flag: string) =>
+    valid.map((a) => (a.startsWith(flag.split('=')[0] + '=') ? flag : a));
+
+  it.each([
+    ['--package-manager=yarn.', 'flag "packageManager" got "yarn."'],
+    ['--ui=', 'flag "ui" got ""'],
+    ['--transport=redsi', 'flag "transport" got "redsi"'],
+  ])('rejects %s before scaffolding', async (flag, message) => {
+    await expect(collectOptions({ argv: withFlag(flag), cwd: '.' })).rejects.toThrow(message);
+  });
+
+  it('rejects an unknown --db value', async () => {
+    await expect(collectOptions({ argv: [...valid, '--db=sqlit'], cwd: '.' })).rejects.toThrow(
+      'flag "dbProvider" got "sqlit"',
+    );
+  });
+
+  it('accepts a valid flag set unchanged', async () => {
+    const opts = await collectOptions({ argv: valid, cwd: '.' });
+    expect(opts.packageManager).toBe('yarn');
+    expect(opts.transport).toBe('redis');
+  });
+});
+
+describe('parseFlags — separators and unknown flags', () => {
+  it('skips the `--` that `yarn create <pkg> <name> -- …` forwards', () => {
+    const flags = parseFlags(['my-app', '--', '--db=sqlite', '--jobs=bullmq']);
+    expect(flags.projectName).toBe('my-app');
+    expect(flags.dbProvider).toBe('sqlite');
+    expect(flags.jobs).toBe('bullmq');
+  });
+
+  it('warns on an unknown flag instead of silently ignoring it', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    parseFlags(['my-app', '--packge-manager=yarn']);
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('unknown flag --packge-manager'),
+    );
+    stderrSpy.mockRestore();
+  });
+});

@@ -289,10 +289,20 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
       join(authDir, 'libs/shared/src/abilities/index.ts'),
       'export function defineAbilitiesFor() {}',
     );
-    await mkdir(join(authDir, 'libs/shared/src'), { recursive: true });
+    await mkdir(join(authDir, 'libs/shared/src/session'), { recursive: true });
+    for (const f of ['env.ts', 'jobs.ts', 'transport.ts', 'session/session-store.ts']) {
+      await writeFile(join(authDir, 'libs/shared/src', f), '');
+    }
     await writeFile(
       join(authDir, 'libs/shared/src/index.ts'),
-      "export * from './env';\nexport * from './abilities';\nexport * from './transport';\n",
+      [
+        "export * from './env';",
+        "export * from './abilities';",
+        "export * from './jobs';",
+        "export * from './transport';",
+        "export * from './session/session-store';",
+        '',
+      ].join('\n'),
     );
     await writeFile(
       join(authDir, 'libs/shared/src/client.ts'),
@@ -480,6 +490,10 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
       join(authDir, 'libs/template-shared/src/lib/abilities/ability-provider.tsx'),
       'export function AbilityProvider() { return null; }',
     );
+    await mkdir(join(authDir, 'libs/template-shared/src/lib/stores'), { recursive: true });
+    await mkdir(join(authDir, 'libs/template-shared/src/lib/api'), { recursive: true });
+    await writeFile(join(authDir, 'libs/template-shared/src/lib/stores/auth.store.ts'), '');
+    await writeFile(join(authDir, 'libs/template-shared/src/lib/api/create-api.ts'), '');
     await writeFile(
       join(authDir, 'libs/template-shared/src/index.ts'),
       [
@@ -662,16 +676,15 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(src).toContain('NestFactory');
   });
 
-  it('applyAuthNoneVariants: writes libs/shared/src/index.ts without abilities export', async () => {
+  it('applyAuthNoneVariants: prunes only the abilities export from libs/shared/src/index.ts', async () => {
+    await removeAuthOnlyPaths(authDir);
     await applyAuthNoneVariants(authDir, 'shadcn');
     const idx = await readFile(join(authDir, 'libs/shared/src/index.ts'), 'utf8');
     expect(idx).not.toContain("'./abilities'");
     expect(idx).toContain("'./env'");
     expect(idx).toContain("'./transport'");
+    expect(idx).toContain("'./session/session-store'");
     // ./jobs MUST be present so cleanupUnusedFeatures can strip it when jobs=none.
-    // If missing here, all-none combos fail: applyAuthNoneVariants runs first, then
-    // cleanupUnusedFeatures strips ./jobs — but if it was never written, jobs.ts
-    // ref leak is impossible, yet the ordering contract must still hold.
     expect(idx).toContain("'./jobs'");
   });
 
@@ -682,7 +695,8 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(client).toContain("'./types'");
   });
 
-  it('applyAuthNoneVariants: writes template-shared/index.ts without ability-provider export', async () => {
+  it('applyAuthNoneVariants: prunes the ability-provider export from template-shared/index.ts', async () => {
+    await removeAuthOnlyPaths(authDir);
     await applyAuthNoneVariants(authDir, 'shadcn');
     const src = await readFile(join(authDir, 'libs/template-shared/src/index.ts'), 'utf8');
     expect(src).not.toContain('ability-provider');

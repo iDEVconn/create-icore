@@ -1715,6 +1715,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bull-board/api@npm:9.10.4":
+  version: 9.10.4
+  resolution: "@bull-board/api@npm:9.10.4"
+  dependencies:
+    redis-info: "npm:^3.1.0"
+    valibot: "npm:^1.5.0"
+  peerDependencies:
+    "@bull-board/ui": 9.10.4
+    bull: ^4.16.5
+    bullmq: ^5.56.0 || ^6.0.0
+  peerDependenciesMeta:
+    bull:
+      optional: true
+    bullmq:
+      optional: true
+  checksum: 10c0/4604fcf880d6fc724141e8b1287f29d7787794f27f0d503e0bb4564d8a4c450f55fb13311c368424a5d142179bc41511096b4a8b9e04d5b561a84461de156d5b
+  languageName: node
+  linkType: hard
+
 "@bull-board/express@npm:^9.10.2":
   version: 9.10.2
   resolution: "@bull-board/express@npm:9.10.2"
@@ -1733,6 +1752,15 @@ __metadata:
   dependencies:
     "@bull-board/api": "npm:9.10.2"
   checksum: 10c0/8d8021fd5c17f281918d5b0c9d6c476b673dc68e918470ed03819834aba9bd6d7eb1559596aceb48cd167b7e8e0a062de936172d68e1559584fd6e9094ba312b
+  languageName: node
+  linkType: hard
+
+"@bull-board/ui@npm:^9.10.2":
+  version: 9.10.4
+  resolution: "@bull-board/ui@npm:9.10.4"
+  dependencies:
+    "@bull-board/api": "npm:9.10.4"
+  checksum: 10c0/96d040f0ed38e66172f53446f486f77b5e0072b54bdbb0da83fb9136f8812df9a95ff608614b31b50dc8abc4181fa8f2d9afbdab03e6660b82a5fb637acba05f
   languageName: node
   linkType: hard
 
@@ -3080,7 +3108,11 @@ __metadata:
     "@idevconn/llm-router": "npm:^0.13.0"
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    jest: "npm:~30.5.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    ts-jest: "npm:^29.4.14"
     tslib: "npm:^2.8.1"
   languageName: unknown
   linkType: soft
@@ -3092,8 +3124,13 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3107,9 +3144,12 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/microservices": "npm:^11.2.7"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     firebase-admin: "npm:^14.5.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3122,13 +3162,17 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/microservices": "npm:^11.2.7"
     "@nestjs/mongoose": "npm:^11.0.4"
+    "@nx/vite": "npm:23.2.1"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/jsonwebtoken": "npm:^9.0.10"
     bcrypt: "npm:^6.0.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     jsonwebtoken: "npm:^9.0.3"
     mongodb-memory-server: "npm:^11.3.0"
     mongoose: "npm:^9.10.3"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3141,14 +3185,17 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/microservices": "npm:^11.2.7"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/jsonwebtoken": "npm:^9.0.10"
     argon2: "npm:^0.45.1"
     bcrypt: "npm:^6.0.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     jsonwebtoken: "npm:^9.0.3"
     postgres: "npm:^3.4.9"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3161,9 +3208,12 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/microservices": "npm:^11.2.7"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3176,9 +3226,12 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     firebase-admin: "npm:^14.5.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3190,9 +3243,13 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
     mongodb-memory-server: "npm:^11.3.0"
     mongoose: "npm:^9.10.3"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3204,9 +3261,30 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
     postgres: "npm:^3.4.9"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+  languageName: unknown
+  linkType: soft
+
+"@icore/db-sqlite@workspace:libs/db-strategies/sqlite":
+  version: 0.0.0-use.local
+  resolution: "@icore/db-sqlite@workspace:libs/db-strategies/sqlite"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.2.7"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@types/better-sqlite3": "npm:^9.6.0"
+    better-sqlite3: "npm:^13.0.3"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3218,9 +3296,12 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3228,8 +3309,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@icore/firebase-admin@workspace:libs/firebase-admin"
   dependencies:
+    "@nx/vite": "npm:23.2.1"
     firebase-admin: "npm:^14.5.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3242,6 +3327,11 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     bullmq: "npm:^6.3.11"
     ioredis: "npm:^6.0.0"
+    jest: "npm:~30.5.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    ts-jest: "npm:^29.4.14"
     tslib: "npm:^2.8.1"
   languageName: unknown
   linkType: soft
@@ -3253,7 +3343,11 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    jest: "npm:~30.5.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    ts-jest: "npm:^29.4.14"
     tslib: "npm:^2.8.1"
   languageName: unknown
   linkType: soft
@@ -3266,7 +3360,11 @@ __metadata:
     "@idevconn/payment": "npm:^1.2.0"
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    jest: "npm:~30.5.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    ts-jest: "npm:^29.4.14"
     tslib: "npm:^2.8.1"
   languageName: unknown
   linkType: soft
@@ -3277,9 +3375,13 @@ __metadata:
   dependencies:
     "@casl/ability": "npm:^7.0.1"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     "@types/express": "npm:^5.0.6"
     ioredis: "npm:^6.0.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   peerDependencies:
     express: ^5.0.0
   peerDependenciesMeta:
@@ -3296,9 +3398,12 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     cloudinary: "npm:^2.11.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3311,9 +3416,12 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     firebase-admin: "npm:^14.5.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3325,9 +3433,12 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
     minio: "npm:^8.0.7"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3339,9 +3450,13 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/mongoose": "npm:^11.0.4"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
     mongodb-memory-server: "npm:^11.3.0"
     mongoose: "npm:^9.10.3"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -3353,13 +3468,16 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
     tslib: "npm:^2.8.1"
-    vitest: "npm:^5.0.3"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
-"@icore/template-shared@workspace:libs/template-shared":
+"@icore/template-shared@npm:*, @icore/template-shared@workspace:libs/template-shared":
   version: 0.0.0-use.local
   resolution: "@icore/template-shared@workspace:libs/template-shared"
   dependencies:
@@ -3367,13 +3485,21 @@ __metadata:
     "@icore/shared": "npm:*"
     "@idevconn/api-client": "npm:^0.3.3"
     "@idevconn/use-draft": "npm:^0.2.3"
+    "@nx/vite": "npm:23.2.1"
+    "@tanstack/react-router": "npm:^1.170.41"
     i18next: "npm:^26.4.2"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    react: "npm:^19.3.0"
+    react-dom: "npm:^19.3.0"
     react-i18next: "npm:^17.0.15"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
     zustand: "npm:^5.0.15"
   peerDependencies:
-    react: ^19.2.7
-    react-dom: ^19.2.7
+    "@tanstack/react-router": ^1.170.41
+    react: ^19.3.0
+    react-dom: ^19.3.0
   languageName: unknown
   linkType: soft
 
@@ -3384,21 +3510,40 @@ __metadata:
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
   languageName: unknown
   linkType: soft
 
-"@icore/vite-plugins@workspace:libs/vite-plugins":
+"@icore/vite-plugins@npm:*, @icore/vite-plugins@workspace:libs/vite-plugins":
   version: 0.0.0-use.local
   resolution: "@icore/vite-plugins@workspace:libs/vite-plugins"
+  dependencies:
+    jsonc-eslint-parser: "npm:^3.3.0"
+    vite: "npm:^8.3.2"
   peerDependencies:
-    tslib: ^2.8.1
     vite: ^8.3.2
     vitest: ~5.0.3
   peerDependenciesMeta:
     vite:
       optional: false
+    vitest:
+      optional: true
+  languageName: unknown
+  linkType: soft
+
+"@icore/workspace-plugin@workspace:tools/workspace-plugin":
+  version: 0.0.0-use.local
+  resolution: "@icore/workspace-plugin@workspace:tools/workspace-plugin"
+  dependencies:
+    "@nx/devkit": "npm:23.2.1"
+    tslib: "npm:^2.8.1"
+    typescript: "npm:6.0.3"
   languageName: unknown
   linkType: soft
 
@@ -10460,13 +10605,19 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
     "@types/pg": "npm:^8.23.1"
     openai: "npm:^7.27.0"
     pg: "npm:^8.23.1"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 
@@ -10716,6 +10867,7 @@ __metadata:
   dependencies:
     "@bull-board/api": "npm:^9.10.2"
     "@bull-board/express": "npm:^9.10.2"
+    "@bull-board/ui": "npm:^9.10.2"
     "@casl/ability": "npm:^7.0.1"
     "@icore/ai-client": "npm:*"
     "@icore/auth-client": "npm:*"
@@ -10732,11 +10884,21 @@ __metadata:
     "@nestjs/platform-express": "npm:^11.2.7"
     "@nestjs/swagger": "npm:^11.4.7"
     "@nestjs/throttler": "npm:^6.7.1"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     "@types/express": "npm:^5.0.6"
     "@types/multer": "npm:^2.3.0"
+    bullmq: "npm:^6.3.11"
     cookie-parser: "npm:^1.4.7"
     express: "npm:^5.2.1"
     ioredis: "npm:^6.0.0"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    reflect-metadata: "npm:^0.2.2"
+    rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 
@@ -11023,10 +11185,16 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 
@@ -12116,7 +12284,27 @@ __metadata:
   resolution: "client-antd@workspace:apps/templates/client-antd"
   dependencies:
     "@ant-design/icons": "npm:^6.3.4"
+    "@icore/shared": "npm:*"
+    "@icore/template-shared": "npm:*"
+    "@icore/vite-plugins": "npm:*"
+    "@idevconn/api-client": "npm:^0.3.3"
+    "@idevconn/use-draft": "npm:^0.2.3"
+    "@nx/vite": "npm:23.2.1"
+    "@tanstack/react-query": "npm:^5.104.1"
+    "@tanstack/react-router": "npm:^1.170.41"
+    "@tanstack/router-plugin": "npm:^1.168.42"
+    "@testing-library/react": "npm:16.3.3"
+    "@types/react": "npm:^19.3.0"
+    "@types/react-dom": "npm:^19.3.0"
+    "@vitejs/plugin-react": "npm:^6.1.1"
     antd: "npm:^6.6.5"
+    i18next: "npm:^26.4.2"
+    react: "npm:^19.3.0"
+    react-dom: "npm:^19.3.0"
+    react-i18next: "npm:^17.0.15"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    zustand: "npm:^5.0.15"
   languageName: unknown
   linkType: soft
 
@@ -12126,8 +12314,28 @@ __metadata:
   dependencies:
     "@emotion/react": "npm:^11.14.0"
     "@emotion/styled": "npm:^11.14.1"
+    "@icore/shared": "npm:*"
+    "@icore/template-shared": "npm:*"
+    "@icore/vite-plugins": "npm:*"
+    "@idevconn/api-client": "npm:^0.3.3"
+    "@idevconn/use-draft": "npm:^0.2.3"
     "@mui/icons-material": "npm:^9.4.0"
     "@mui/material": "npm:^9.4.0"
+    "@nx/vite": "npm:23.2.1"
+    "@tanstack/react-query": "npm:^5.104.1"
+    "@tanstack/react-router": "npm:^1.170.41"
+    "@tanstack/router-plugin": "npm:^1.168.42"
+    "@testing-library/react": "npm:16.3.3"
+    "@types/react": "npm:^19.3.0"
+    "@types/react-dom": "npm:^19.3.0"
+    "@vitejs/plugin-react": "npm:^6.1.1"
+    i18next: "npm:^26.4.2"
+    react: "npm:^19.3.0"
+    react-dom: "npm:^19.3.0"
+    react-i18next: "npm:^17.0.15"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    zustand: "npm:^5.0.15"
   languageName: unknown
   linkType: soft
 
@@ -12135,20 +12343,40 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "client-shadcn@workspace:apps/templates/client-shadcn"
   dependencies:
+    "@icore/shared": "npm:*"
+    "@icore/template-shared": "npm:*"
+    "@icore/vite-plugins": "npm:*"
     "@idevconn/ai-usage": "npm:^0.4.0"
+    "@idevconn/api-client": "npm:^0.3.3"
+    "@idevconn/use-draft": "npm:^0.2.3"
+    "@nx/vite": "npm:23.2.1"
     "@radix-ui/react-dialog": "npm:^1.1.23"
     "@radix-ui/react-dropdown-menu": "npm:^2.1.24"
     "@radix-ui/react-label": "npm:^2.1.15"
     "@radix-ui/react-slot": "npm:^1.3.3"
     "@tailwindcss/vite": "npm:^4.3.3"
+    "@tanstack/react-query": "npm:^5.104.1"
+    "@tanstack/react-router": "npm:^1.170.41"
+    "@tanstack/router-plugin": "npm:^1.168.42"
+    "@testing-library/react": "npm:16.3.3"
+    "@types/react": "npm:^19.3.0"
+    "@types/react-dom": "npm:^19.3.0"
+    "@vitejs/plugin-react": "npm:^6.1.1"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
+    i18next: "npm:^26.4.2"
     lucide-react: "npm:^1.50.0"
+    react: "npm:^19.3.0"
+    react-dom: "npm:^19.3.0"
+    react-i18next: "npm:^17.0.15"
     sonner: "npm:^2.0.8"
     tailwind-merge: "npm:^3.7.0"
     tailwindcss: "npm:^4.3.3"
     tw-animate-css: "npm:^1.4.0"
+    vite: "npm:^8.3.2"
     vite-plugin-pwa: "npm:^1.3.0"
+    vitest: "npm:~5.0.3"
+    zustand: "npm:^5.0.15"
   languageName: unknown
   linkType: soft
 
@@ -17571,11 +17799,17 @@ __metadata:
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     bullmq: "npm:^6.3.11"
     ioredis: "npm:^6.0.0"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 
@@ -19580,10 +19814,16 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 
@@ -20372,9 +20612,15 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 
@@ -24805,11 +25051,17 @@ __metadata:
     "@nestjs/config": "npm:^4.0.4"
     "@nestjs/core": "npm:^11.2.7"
     "@nestjs/microservices": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    "@nx/webpack": "npm:23.2.1"
     "@supabase/supabase-js": "npm:^2.117.2"
     cloudinary: "npm:^2.11.0"
     reflect-metadata: "npm:^0.2.2"
     rxjs: "npm:^7.8.2"
+    tsconfig-paths-webpack-plugin: "npm:^4.2.0"
     tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+    webpack: "npm:5.111.1"
   languageName: unknown
   linkType: soft
 

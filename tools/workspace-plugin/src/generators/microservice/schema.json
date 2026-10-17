@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "IcoreMicroserviceGenerator",
+  "title": "Create an iCore NestJS Microservice",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Microservice name (e.g. billing, notifications, service-one).",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What name would you like to use for the microservice?",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9-]*$"
+    },
+    "transport": {
+      "type": "string",
+      "description": "Default transport protocol written to .env.example / .env (auto-detected from apps/api/.env if omitted).",
+      "enum": ["tcp", "redis", "nats", "mqtt", "rmq", "kafka"]
+    },
+    "port": {
+      "type": "number",
+      "description": "TCP port for the microservice (auto-incremented from existing microservices if omitted)."
+    },
+    "inspectPort": {
+      "type": "number",
+      "description": "Node.js debugger/inspect port for nx serve (auto-incremented from existing microservices if omitted)."
+    },
+    "skipBff": {
+      "type": "boolean",
+      "description": "Skip generating libs/<name>-client and wiring the service into apps/api.",
+      "default": false
+    },
+    "withDb": {
+      "type": "boolean",
+      "description": "Generate db.provider.ts and inject DBStrategy into the microservice.",
+      "default": false
+    },
+    "withDocker": {
+      "type": "boolean",
+      "description": "Generate Dockerfile.ms-<name> at the workspace root.",
+      "default": false
+    },
+    "tags": {
+      "type": "string",
+      "description": "Comma-separated extra Nx tags to append to default tags (type:microservice, scope:<name>)."
+    }
+  },
+  "required": ["name"]
+}

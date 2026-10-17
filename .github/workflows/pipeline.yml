@@ -125,6 +125,9 @@ jobs:
       - name: Route integrity
         if: ${{ !cancelled() }}
         run: node tools/create-icore/scripts/check-route-integrity.mjs
+      - name: Template tarball dotfiles check
+        if: ${{ !cancelled() }}
+        run: node tools/create-icore/scripts/check-tarball-dotfiles.mjs
 
   # Runs alongside `check` (not after it) and builds every affected project in
   # ONE job: Nx orders the graph and builds each shared lib once, instead of ~30

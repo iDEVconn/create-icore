@@ -11,6 +11,13 @@
     "@nestjs/config": "^4.0.4",
     "bullmq": "^6.3.11",
     "ioredis": "^6.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "jest": "~30.5.2",
+    "jsonc-eslint-parser": "^3.3.0",
+    "ts-jest": "^29.4.14"
   }
 }

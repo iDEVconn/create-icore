@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
@@ -187,26 +188,33 @@ const SHARED_CLIENT_TS = `\
 export * from './types';
 `;
 
-const SHARED_INDEX_TS = `\
-export * from './env';
-export * from './bootstrap';
-export * from './jobs';
-export * from './strategies';
-export * from './transport';
-export * from './types';
-`;
+// Pruned in place, never replaced: an export line is dropped only when its
+// target was deleted by AUTH_ONLY_PATHS, so new template exports survive.
+const AUTH_NONE_BARRELS = ['libs/shared/src/index.ts', 'libs/template-shared/src/index.ts'];
 
-const TEMPLATE_SHARED_INDEX_TS = `\
-export * from './lib/api/create-api.js';
-export * from './lib/stores/auth.store.js';
-export * from './lib/stores/loading.store.js';
-export * from './lib/i18n/create-i18n.js';
-export * from './lib/i18n/keys.js';
-export * from './lib/notify/use-notify.js';
-export * from './lib/draft/index.js';
-export * from './lib/landing/LandingPage.js';
-export * from './lib/stores/theme.store.js';
-`;
+const EXPORT_FROM_RE = /^\s*export\s+(?:\*|\{[^}]*\})\s+from\s+['"](\.[^'"]+)['"]/;
+
+function barrelTargetExists(barrelDir: string, spec: string): boolean {
+  const base = join(barrelDir, spec.replace(/\.js$/, ''));
+  return ['', '.ts', '.tsx', '/index.ts', '/index.tsx'].some((ext) => existsSync(base + ext));
+}
+
+export async function pruneBarrel(targetDir: string, rel: string): Promise<void> {
+  const path = join(targetDir, rel);
+  let raw: string;
+  try {
+    raw = await readFile(path, 'utf8');
+  } catch (err) {
+    if (isEnoent(err)) return;
+    throw err;
+  }
+  const dir = dirname(path);
+  const kept = raw.split('\n').filter((line) => {
+    const m = EXPORT_FROM_RE.exec(line);
+    return !m?.[1] || barrelTargetExists(dir, m[1]);
+  });
+  await writeFile(path, kept.join('\n'));
+}
 
 // ─── ai.module.ts auth=none variant (no CASL) ────────────────────────────────
 // `apps/api/src/app/abilities` is deleted above (AUTH_ONLY_PATHS), so the
@@ -859,8 +867,6 @@ const COMMON_VARIANTS: Record<string, string> = {
   'apps/api/src/app/app.module.ts': GATEWAY_APP_MODULE_TS,
   'apps/api/src/app/ai/ai.module.ts': AI_MODULE_NO_AUTH_TS,
   'libs/shared/src/client.ts': SHARED_CLIENT_TS,
-  'libs/shared/src/index.ts': SHARED_INDEX_TS,
-  'libs/template-shared/src/index.ts': TEMPLATE_SHARED_INDEX_TS,
 };
 
 const UI_VARIANTS: Record<string, Record<string, string>> = {
@@ -899,4 +905,5 @@ export async function applyAuthNoneVariants(targetDir: string, ui: string): Prom
       // ignore — file may not exist in test scaffolds
     }
   }
+  for (const rel of AUTH_NONE_BARRELS) await pruneBarrel(targetDir, rel);
 }

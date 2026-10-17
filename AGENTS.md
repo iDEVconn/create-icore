@@ -26,6 +26,8 @@ iCore is a bootstrap scaffold for Nx + NestJS + React projects. It ships infrast
   4. Update the relevant `.md` files in `docs/` (or `AGENTS.md`). Describe problem + solution + test plan. New runbooks go in `docs/runbooks/`, plans in `docs/superpowers/plans/`.
      No commit lands with a red lint, red build, or undocumented behavior change. The pre-commit hook backstops 1–3; step 4 is on you.
 - **Clean Code:** Actively remove unused imports, duplicated code, and deprecated APIs.
+- **MANDATORY — NX IN-PROCESS EXECUTION & DAEMON CONTROL:** In Nx 23, isolated plugin worker processes create Unix domain sockets under `/tmp/.nx/` which get refused (`connect EPERM`) in sandboxed shells and restricted terminals. Always maintain `"useDaemonProcess": false` in `nx.json`, and ensure `NX_DAEMON=false NX_ISOLATE_PLUGINS=false` is set in root `.env` and `package.json` scripts (`build`, `lint`, `test`). This runs plugin inference in-process and avoids 30-second worker socket connection timeouts.
+- **MANDATORY — TEMPLATE DOTFILES SHIP AS UNDERSCORES:** npm pack / publish drops leading dotfiles (`.yarnrc.yml`, `.gitignore`, `.github/`, `.husky/`). In `tools/create-icore/templates/`, all top-level dotfiles must be snapshotted with underscore prefixes (`_yarnrc.yml`, `_gitignore`, `_github/`, `_husky/`). The CLI's `copyTree` restores them to their dotfile names upon project scaffolding, and falls back to generating a minimal `.yarnrc.yml` (`nodeLinker: node-modules`) if missing. Never check in dotfiles under `tools/create-icore/templates/` directly; always run `node tools/create-icore/scripts/snapshot-templates.mjs` and verify with `node tools/create-icore/scripts/check-tarball-dotfiles.mjs`.
 
 ## Architecture
 
@@ -287,6 +289,7 @@ Since `LlmCallEvent` (llm-router's `onCall`/`onCost` payload) has no notion of _
 - `yarn nx test <project>` — run unit tests for a project
 - `yarn nx run-many -t lint test build` — full pre-merge check across affected projects
 - `yarn nx graph` — open the dependency graph in the browser
+- `yarn nx g @icore/workspace-plugin:microservice <name>` — scaffold a new NestJS microservice (`apps/microservices/<name>`), its `@icore/<name>-client` library (`libs/<name>-client`), and AST-wire it into `apps/api` (`features.module.ts`, `gateway-services.ts`, `package.json`, `.env.example`). Optional flags: `--transport=<tcp|redis|nats|mqtt|rmq|kafka>`, `--port=<number>`, `--inspectPort=<number>`, `--withDb`, `--withDocker`, `--skipBff`, `--tags=<csv>`.
 
 ## Testing
 

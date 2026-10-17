@@ -1,0 +1,19 @@
+import { Controller, Get } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  <%= className %>ClientService,
+  type <%= className %>PingResponse,
+} from '@icore/<%= fileName %>-client';
+
+@ApiTags('<%= fileName %>')
+@ApiBearerAuth()
+@Controller('<%= fileName %>')
+export class <%= className %>Controller {
+  constructor(private readonly <%= propertyName %>: <%= className %>ClientService) {}
+
+  @Get('health')
+  @ApiOperation({ summary: 'Check <%= fileName %> microservice health' })
+  health(): Promise<<%= className %>PingResponse> {
+    return this.<%= propertyName %>.ping();
+  }
+}

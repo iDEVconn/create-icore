@@ -135,7 +135,7 @@ export const MANIFEST = {
     },
     sqlite: {
       libDirs: ['libs/db-strategies/sqlite'],
-      deps: { 'better-sqlite3': '^11.8.1', '@types/better-sqlite3': '^7.6.12' },
+      deps: { 'better-sqlite3': '^13.0.3', '@types/better-sqlite3': '^9.6.0' },
       tsPaths: { '@icore/db-sqlite': ['libs/db-strategies/sqlite/src/index.ts'] },
       nestModule: {
         importFrom: '@icore/db-sqlite',
@@ -161,6 +161,7 @@ export const MANIFEST = {
       gatewayModule: { importFrom: './notes/notes.module', symbol: 'NotesModule' },
       gatewayService: { name: 'notes', prefix: 'NOTES' },
       clientNav: { route: '/notes', labelKey: 'nav.notes', iconName: 'notes' },
+      toolFiles: ['tools/remove-notes.mjs'],
     },
     payment: {
       libDirs: [

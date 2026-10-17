@@ -1,0 +1,19 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
+import { <%= constantName %>_CLIENT } from './<%= fileName %>-client.tokens';
+
+export interface <%= className %>PingResponse {
+  status: 'ok';
+  service: '<%= fileName %>';
+  timestamp: string;
+}
+
+@Injectable()
+export class <%= className %>ClientService {
+  constructor(@Inject(<%= constantName %>_CLIENT) private readonly client: ClientProxy) {}
+
+  ping(): Promise<<%= className %>PingResponse> {
+    return firstValueFrom(this.client.send<<%= className %>PingResponse>('<%= fileName %>.ping', {}));
+  }
+}

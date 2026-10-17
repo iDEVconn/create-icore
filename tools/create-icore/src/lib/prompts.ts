@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from './config.js';
+import { loadConfig, validateConfig } from './config.js';
 import type {
   AuthProvider,
   DbProvider,
@@ -78,6 +78,7 @@ export function parseFlags(argv: string[]): ParsedFlags {
   const out: ParsedFlags = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    if (a === '--') continue;
     if (!a || !a.startsWith('--')) {
       if (a && !out.projectName) out.projectName = a;
       continue;
@@ -135,6 +136,8 @@ export function parseFlags(argv: string[]): ParsedFlags {
       case 'config':
         out._configPath = v;
         break;
+      default:
+        process.stderr.write(`Warning: unknown flag --${key} (ignored)\n`);
     }
   }
   return out;
@@ -144,6 +147,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
   const flags = parseFlags(argv);
   const configPath = flags._configPath;
   delete flags._configPath;
+  Object.assign(flags, validateConfig(flags, 'flag'));
 
   if (configPath) {
     const configValues = await loadConfig(configPath);

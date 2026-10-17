@@ -1,0 +1,22 @@
+<% if (withDb) { %>import { Inject, Injectable } from '@nestjs/common';
+import type { DBStrategy } from '@icore/shared';
+<% } else { %>import { Injectable } from '@nestjs/common';
+<% } %>
+export interface <%= className %>PingResult {
+  status: 'ok';
+  service: '<%= fileName %>';
+  timestamp: string;
+}
+
+@Injectable()
+export class AppService {
+<% if (withDb) { %>  constructor(@Inject('DBStrategy') private readonly db: DBStrategy) {}
+
+<% } %>  ping(): <%= className %>PingResult {
+    return {
+      status: 'ok',
+      service: '<%= fileName %>',
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
