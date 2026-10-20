@@ -3,9 +3,7 @@
     {
       "id": "payment-never-crash-factory",
       "kind": "codemod",
-      "affectedAxes": [
-        "payment:paypal"
-      ],
+      "affectedAxes": ["payment:paypal"],
       "affectedGlobs": [
         "apps/microservices/payment/src/app/app.module.ts",
         "apps/microservices/payment/src/app/fake-payment.strategy.ts"
