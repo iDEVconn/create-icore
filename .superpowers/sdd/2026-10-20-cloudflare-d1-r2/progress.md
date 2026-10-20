@@ -95,3 +95,5 @@ Final-fix triage: fix F1, F2, runbook line 29 vs 55 wording, AGENTS MinIO step 1
 Ruling: R7 — Retry-After above 30 s is NOT slept: throw D1ApiError(429) immediately (fail fast); <= 30 s honoured — Cloudflare's 429 is a 5-minute block, sleeping defeats the 10 s timeout policy — costs a caller-visible 429 where a patient retry might have worked.
 Ruling: R8 — S3Client gets requestChecksumCalculation/responseChecksumValidation 'WHEN_REQUIRED' (known AWS SDK >=3.729 vs R2 interop hazard; harmless when R2 accepts defaults) — unverified without live R2 — costs nothing if wrong beyond skipping optional checksums.
 Controller TODO: PR description must state "not live-tested against real D1/R2"; never stage docs/live-testing-supabase-accounts.md.
+Final fix wave: commit 484e37d (F1-F4), scoped re-review: all addressed, no new breakage.
+FINAL: complete. Workspace kept (committed into the branch per user memory feedback-commit-sdd-execution-record).
