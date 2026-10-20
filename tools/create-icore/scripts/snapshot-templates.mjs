@@ -17,6 +17,7 @@ const PATHS_TO_COPY = [
   'apps/microservices/jobs',
   'apps/microservices/ai-orchestrator',
   'apps/microservices/ai-orchestrator-e2e',
+  'apps/worker',
   'apps/templates',
   'libs',
   'tsconfig.base.json',
@@ -60,6 +61,11 @@ const IGNORE_REL = new Set([
   '.yarn/install-state.gz',
   'coverage',
   'tmp',
+  // apps/worker local build/smoke output (never part of a template)
+  'apps/worker/build',
+  'apps/worker/tsconfig.bundle.json',
+  'apps/worker/.dev.vars',
+  '.wrangler',
 ]);
 
 async function main() {

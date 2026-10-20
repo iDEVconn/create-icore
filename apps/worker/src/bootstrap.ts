@@ -7,16 +7,9 @@ import { buildTransportMS } from '@icore/shared';
 import { WorkerBindingsModule } from './bindings.module';
 import type { WorkerEnv } from './env';
 import { createGatewayModule } from './gateway.module';
-import { AuthMsModule, NotesMsModule, UploadMsModule } from './hosted-apps';
+import { MICROSERVICES } from './hosted-apps';
 
 export const PORT = 3000;
-
-/** The microservices hosted next to the gateway; `<PREFIX>_TRANSPORT=local` wires each to it. */
-const MICROSERVICES: { prefix: string; module: Type<unknown> }[] = [
-  { prefix: 'AUTH', module: AuthMsModule },
-  { prefix: 'UPLOAD', module: UploadMsModule },
-  { prefix: 'NOTES', module: NotesMsModule },
-];
 
 // `abortOnError: false`: Nest's default turns a failed bootstrap into `process.exit(1)`, which
 // Workers reports as a canceled request (and the caller could not clear a memoized promise).

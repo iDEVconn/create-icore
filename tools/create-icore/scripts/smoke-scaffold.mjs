@@ -63,10 +63,18 @@ const doRun = args.run === 'true' || args.run === '';
 // --lint=false to skip. Ignored in link mode (nx lint needs a real install).
 const doLint = mode === 'install' && args.lint !== 'false';
 const runSeconds = Number(args['run-seconds'] ?? 20);
-const projects = (args.projects ?? 'shared,auth,upload,notes,api,template-shared')
+const host = args.host ?? 'node';
+const projects = (
+  args.projects ??
+  (host === 'cloudflare'
+    ? 'shared,auth,upload,notes,api,template-shared,worker'
+    : 'shared,auth,upload,notes,api,template-shared')
+)
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
+// The Worker is part of every cloudflare scaffold: always typecheck/build it.
+if (host === 'cloudflare' && !projects.includes('worker')) projects.push('worker');
 const services = (args.services ?? 'api,auth,upload,notes')
   .split(',')
   .map((s) => s.trim())
@@ -78,17 +86,18 @@ const targets = (args.targets ?? 'build')
 
 const opts = {
   projectName: 'smoke-app',
+  host,
   targetDir: '',
   authProvider: args.auth ?? 'supabase',
-  dbProvider: args.db ?? 'supabase',
+  dbProvider: args.db ?? (host === 'cloudflare' ? 'none' : 'supabase'),
   upload: args.upload ?? 'cloudinary',
   payment: args.payment ?? 'none',
   jobs: args.jobs ?? 'none',
   ai: args.ai ?? 'none',
   example: args.example ?? 'notes',
   ui: args.ui ?? 'shadcn',
-  transport: args.transport ?? 'tcp',
-  session: args.session ?? 'redis',
+  transport: args.transport ?? (host === 'cloudflare' ? 'local' : 'tcp'),
+  session: args.session ?? (host === 'cloudflare' ? 'durable-object' : 'redis'),
   packageManager: pm,
   initGit: false,
   install: false,
@@ -123,6 +132,7 @@ const TSCONFIG = {
   api: 'apps/api/tsconfig.app.json',
   'template-shared': 'libs/template-shared/tsconfig.lib.json',
   client: 'apps/client/tsconfig.app.json',
+  worker: 'apps/worker/tsconfig.json',
 };
 
 /**
@@ -194,7 +204,7 @@ async function main() {
   opts.targetDir = join(dir, opts.projectName);
   await mkdir(opts.targetDir, { recursive: true });
 
-  const combo = `auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} transport=${opts.transport} session=${opts.session} pm=${pm} mode=${mode} run=${doRun}`;
+  const combo = `host=${host} auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} transport=${opts.transport} session=${opts.session} pm=${pm} mode=${mode} run=${doRun}`;
   console.log(`\n=== smoke: ${combo} ===`);
 
   await scaffold(opts, templatesDir);
@@ -241,7 +251,7 @@ async function main() {
       const configs = [tsconfigPath];
       if (rel.startsWith('apps/')) {
         const specPath = tsconfigPath.replace(/\.app\.json$/, '.spec.json');
-        if (existsSync(specPath)) configs.push(specPath);
+        if (specPath !== tsconfigPath && existsSync(specPath)) configs.push(specPath);
       }
       for (const cfg of configs) {
         const code = run('node', [tsc, '--noEmit', '-p', cfg], opts.targetDir);
@@ -292,7 +302,15 @@ async function main() {
     }
   }
 
-  if (doRun) {
+  if (doRun && host === 'cloudflare') {
+    // The Worker is not a Node service: run its own end-to-end smoke (wrangler dev --local, workerd).
+    console.log('\n--- worker smoke (wrangler dev --local) ---');
+    const code = run('node', [nxBin, 'run', 'worker:smoke', '--skip-nx-cache'], opts.targetDir);
+    if (code !== 0) {
+      console.error(`\n✗ smoke FAILED (${combo}) — worker smoke red. inspect: ${opts.targetDir}`);
+      process.exit(code);
+    }
+  } else if (doRun) {
     // Trim to services that this combo actually generated (e.g. upload=none /
     // example=none / payment=none drop their microservice).
     const present = services.filter((s) => {

@@ -2,7 +2,7 @@ import { copyFile, mkdir, readdir, readFile, rmdir, stat, writeFile, rm } from '
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import type { CreateIcoreOptions, AuthBackend } from './options.js';
+import { hostOf, type CreateIcoreOptions, type AuthBackend } from './options.js';
 import {
   rewriteRootPackageJson,
   pruneRootProviderDeps,
@@ -38,6 +38,7 @@ import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
 import { cleanupUnusedDb, writeDbProvider } from '../manifest/wire-db.js';
 import { cleanupUnusedAiUsageDb, writeAiUsageDbProvider } from '../manifest/wire-ai-usage-db.js';
+import { writeHostWiring } from '../manifest/wire-host.js';
 import { resolveBindings, type BindingDiagnostic } from '../manifest/resolve.js';
 import {
   writePnpmWorkspace,
@@ -312,7 +313,9 @@ export async function scaffold(
     opts.upload === 'none' &&
     opts.dbProvider === 'none' &&
     opts.payment === 'none' &&
-    opts.ai === 'none'
+    opts.ai === 'none' &&
+    // The Worker's bootstrap starts microservices through buildTransportMS (transport.ts).
+    hostOf(opts) !== 'cloudflare'
   ) {
     await removeStrategiesLib(opts.targetDir);
   }
@@ -323,6 +326,10 @@ export async function scaffold(
   } catch {
     // ignore — not empty or doesn't exist
   }
+
+  // Specialise apps/worker (hosted modules, wrangler vars, D1 binding) for the features that
+  // survived the cleanup above. No-op for the Node host.
+  await writeHostWiring(opts.targetDir, opts);
 
   await writeBlueprintJson(opts.targetDir, opts);
   await writeServiceBlueprints(opts.targetDir, opts);

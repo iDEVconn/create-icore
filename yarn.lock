@@ -3695,7 +3695,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@icore/db-d1@npm:*, @icore/db-d1@workspace:libs/db-strategies/d1":
+"@icore/db-d1@workspace:libs/db-strategies/d1":
   version: 0.0.0-use.local
   resolution: "@icore/db-d1@workspace:libs/db-strategies/d1"
   dependencies:
@@ -27202,7 +27202,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "worker@workspace:apps/worker"
   dependencies:
-    "@icore/db-d1": "npm:*"
     "@icore/shared": "npm:*"
     "@nestjs/common": "npm:^11.2.7"
     "@nestjs/config": "npm:^4.0.4"

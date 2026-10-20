@@ -16,6 +16,7 @@ import type {
   MsTransport,
   CreateIcoreOptions,
   SessionStoreKind,
+  HostKind,
 } from './options.js';
 
 function detectPackageManager(): PackageManager {
@@ -90,6 +91,9 @@ export function parseFlags(argv: string[]): ParsedFlags {
     const key = k.slice(2);
     const v = (vIn ?? '') as string;
     switch (key) {
+      case 'host':
+        out.host = v as HostKind;
+        break;
       case 'auth':
         out.authProvider = v as AuthProvider;
         break;
@@ -178,15 +182,37 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     })) as string);
   if (p.isCancel(projectName)) throw new Error('cancelled');
 
+  const hostAnswer =
+    flags.host ??
+    ((await p.select({
+      message: 'Where will the project run?',
+      options: [
+        { value: 'node', label: 'Node processes (Docker / VPS) — the default' },
+        {
+          value: 'cloudflare',
+          label: 'Cloudflare Workers — one Worker, D1 + R2 (Supabase for auth only)',
+        },
+      ],
+      initialValue: 'node' as HostKind,
+    })) as HostKind);
+  if (p.isCancel(hostAnswer)) throw new Error('cancelled');
+  // Anything but an explicit Cloudflare answer is the classic Node deployment.
+  const host: HostKind = hostAnswer === 'cloudflare' ? 'cloudflare' : 'node';
+  const cf = host === 'cloudflare';
+
   const authProvider =
     flags.authProvider ??
     ((await p.select({
       message: 'Auth provider',
       options: [
         { value: 'supabase', label: 'Supabase' },
-        { value: 'firebase', label: 'Firebase' },
-        { value: 'mongodb', label: 'MongoDB (Custom Auth)' },
-        { value: 'postgres', label: 'PostgreSQL (direct, postgres.js + bcrypt + JWT)' },
+        ...(cf
+          ? []
+          : [
+              { value: 'firebase', label: 'Firebase' },
+              { value: 'mongodb', label: 'MongoDB (Custom Auth)' },
+              { value: 'postgres', label: 'PostgreSQL (direct, postgres.js + bcrypt + JWT)' },
+            ]),
         { value: 'none', label: 'None — no login, open API (simple SPA)' },
       ],
     })) as AuthProvider);
@@ -196,73 +222,86 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     flags.dbProvider ??
     (authProvider === 'none'
       ? 'none'
-      : ((await p.select({
-          message: 'Database backend',
-          options: [
-            { value: 'supabase', label: 'Supabase Postgres' },
-            { value: 'firebase', label: 'Firestore' },
-            { value: 'mongodb', label: 'MongoDB' },
-            { value: 'postgres', label: 'PostgreSQL (direct, postgres.js)' },
-            { value: 'sqlite', label: 'SQLite (local file-based, WAL mode)' },
-            { value: 'd1', label: 'Cloudflare D1 (SQLite over REST)' },
-          ],
-          initialValue: authProvider as DbProvider,
-        })) as DbProvider));
+      : cf
+        ? 'd1'
+        : ((await p.select({
+            message: 'Database backend',
+            options: [
+              { value: 'supabase', label: 'Supabase Postgres' },
+              { value: 'firebase', label: 'Firestore' },
+              { value: 'mongodb', label: 'MongoDB' },
+              { value: 'postgres', label: 'PostgreSQL (direct, postgres.js)' },
+              { value: 'sqlite', label: 'SQLite (local file-based, WAL mode)' },
+              { value: 'd1', label: 'Cloudflare D1 (SQLite over REST)' },
+            ],
+            initialValue: authProvider as DbProvider,
+          })) as DbProvider));
   if (p.isCancel(dbProvider)) throw new Error('cancelled');
 
   const upload =
     flags.upload ??
     ((await p.select({
       message: 'File upload provider',
-      options: [
-        { value: 'supabase', label: 'Supabase Storage' },
-        { value: 'firebase', label: 'Firebase Cloud Storage' },
-        { value: 'cloudinary', label: 'Cloudinary' },
-        { value: 'minio', label: 'MinIO (self-hosted, S3-compatible)' },
-        { value: 'r2', label: 'Cloudflare R2 (S3-compatible)' },
-        { value: 'mongodb', label: 'MongoDB GridFS' },
-        { value: 'none', label: 'None — skip the upload microservice' },
-      ],
+      options: cf
+        ? [
+            { value: 'r2', label: 'Cloudflare R2 (S3-compatible)' },
+            { value: 'none', label: 'None — skip the upload microservice' },
+          ]
+        : [
+            { value: 'supabase', label: 'Supabase Storage' },
+            { value: 'firebase', label: 'Firebase Cloud Storage' },
+            { value: 'cloudinary', label: 'Cloudinary' },
+            { value: 'minio', label: 'MinIO (self-hosted, S3-compatible)' },
+            { value: 'r2', label: 'Cloudflare R2 (S3-compatible)' },
+            { value: 'mongodb', label: 'MongoDB GridFS' },
+            { value: 'none', label: 'None — skip the upload microservice' },
+          ],
     })) as UploadProvider);
   if (p.isCancel(upload)) throw new Error('cancelled');
 
   const payment =
     flags.payment ??
-    ((await p.select({
-      message: 'Payment provider',
-      options: [
-        { value: 'none', label: 'None — skip the payment microservice' },
-        { value: 'paypal', label: 'PayPal (via @idevconn/payment)' },
-      ],
-      initialValue: 'none' as PaymentProvider,
-    })) as PaymentProvider);
+    (cf
+      ? ('none' as PaymentProvider)
+      : ((await p.select({
+          message: 'Payment provider',
+          options: [
+            { value: 'none', label: 'None — skip the payment microservice' },
+            { value: 'paypal', label: 'PayPal (via @idevconn/payment)' },
+          ],
+          initialValue: 'none' as PaymentProvider,
+        })) as PaymentProvider));
   if (p.isCancel(payment)) throw new Error('cancelled');
 
   const jobs =
     flags.jobs ??
-    ((await p.select({
-      message: 'Job queue (BullMQ + bull-board)',
-      options: [
-        { value: 'none', label: 'None — skip jobs MS' },
-        { value: 'bullmq', label: 'BullMQ + bull-board admin UI (requires Redis)' },
-      ],
-      initialValue: 'none' as JobsProvider,
-    })) as JobsProvider);
+    (cf
+      ? ('none' as JobsProvider)
+      : ((await p.select({
+          message: 'Job queue (BullMQ + bull-board)',
+          options: [
+            { value: 'none', label: 'None — skip jobs MS' },
+            { value: 'bullmq', label: 'BullMQ + bull-board admin UI (requires Redis)' },
+          ],
+          initialValue: 'none' as JobsProvider,
+        })) as JobsProvider));
   if (p.isCancel(jobs)) throw new Error('cancelled');
 
   const ai =
     flags.ai ??
-    ((await p.select({
-      message: 'AI orchestrator (LLM routing via @idevconn/llm-router)',
-      options: [
-        { value: 'none', label: 'None — skip the AI orchestrator MS' },
-        {
-          value: 'llm-router',
-          label: 'llm-router (Gemini/Claude/ChatGPT registry + orchestrator + RAG)',
-        },
-      ],
-      initialValue: 'none' as AiProvider,
-    })) as AiProvider);
+    (cf
+      ? ('none' as AiProvider)
+      : ((await p.select({
+          message: 'AI orchestrator (LLM routing via @idevconn/llm-router)',
+          options: [
+            { value: 'none', label: 'None — skip the AI orchestrator MS' },
+            {
+              value: 'llm-router',
+              label: 'llm-router (Gemini/Claude/ChatGPT registry + orchestrator + RAG)',
+            },
+          ],
+          initialValue: 'none' as AiProvider,
+        })) as AiProvider));
   if (p.isCancel(ai)) throw new Error('cancelled');
 
   const example: ExampleMode =
@@ -302,20 +341,22 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     authProvider === 'none' && upload === 'none' && payment === 'none' && ai === 'none';
   const transport: MsTransport =
     flags.transport ??
-    (noMicroservices
-      ? 'tcp'
-      : ((await p.select({
-          message: 'Microservice transport',
-          options: [
-            { value: 'tcp' as MsTransport, label: 'TCP (default, no broker required)' },
-            { value: 'redis' as MsTransport, label: 'Redis' },
-            { value: 'nats' as MsTransport, label: 'NATS' },
-            { value: 'mqtt' as MsTransport, label: 'MQTT' },
-            { value: 'rmq' as MsTransport, label: 'RabbitMQ' },
-            { value: 'kafka' as MsTransport, label: 'Kafka' },
-          ],
-          initialValue: 'tcp' as MsTransport,
-        })) as MsTransport));
+    (cf
+      ? 'local'
+      : noMicroservices
+        ? 'tcp'
+        : ((await p.select({
+            message: 'Microservice transport',
+            options: [
+              { value: 'tcp' as MsTransport, label: 'TCP (default, no broker required)' },
+              { value: 'redis' as MsTransport, label: 'Redis' },
+              { value: 'nats' as MsTransport, label: 'NATS' },
+              { value: 'mqtt' as MsTransport, label: 'MQTT' },
+              { value: 'rmq' as MsTransport, label: 'RabbitMQ' },
+              { value: 'kafka' as MsTransport, label: 'Kafka' },
+            ],
+            initialValue: 'tcp' as MsTransport,
+          })) as MsTransport));
   if (p.isCancel(transport)) throw new Error('cancelled');
 
   // No sessions at all without auth, so nothing to ask. Otherwise Redis stays the
@@ -325,20 +366,23 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     flags.session ??
     (authProvider === 'none'
       ? 'redis'
-      : ((await p.select({
-          message: 'Where should login sessions be stored?',
-          options: [
-            {
-              value: 'redis' as SessionStoreKind,
-              label: 'Redis (recommended — survives restarts, several gateway instances)',
-            },
-            {
-              value: 'memory' as SessionStoreKind,
-              label: 'In memory (no Redis service; a restart logs everyone out, one instance only)',
-            },
-          ],
-          initialValue: 'redis' as SessionStoreKind,
-        })) as SessionStoreKind));
+      : cf
+        ? 'durable-object'
+        : ((await p.select({
+            message: 'Where should login sessions be stored?',
+            options: [
+              {
+                value: 'redis' as SessionStoreKind,
+                label: 'Redis (recommended — survives restarts, several gateway instances)',
+              },
+              {
+                value: 'memory' as SessionStoreKind,
+                label:
+                  'In memory (no Redis service; a restart logs everyone out, one instance only)',
+              },
+            ],
+            initialValue: 'redis' as SessionStoreKind,
+          })) as SessionStoreKind));
   if (p.isCancel(session)) throw new Error('cancelled');
 
   const packageManager = flags.packageManager ?? detectPackageManager();
@@ -367,6 +411,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
 
   return {
     projectName,
+    host,
     targetDir: resolve(cwd, projectName),
     authProvider,
     dbProvider,

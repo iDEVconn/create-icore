@@ -12,6 +12,7 @@ import type {
   PackageManager,
   CreateIcoreOptions,
   SessionStoreKind,
+  HostKind,
 } from './options.js';
 
 export class ConfigFileError extends Error {
@@ -51,8 +52,17 @@ const JOBS_PROVIDERS: readonly JobsProvider[] = ['bullmq', 'none'];
 const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
 const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
 const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
-const MS_TRANSPORTS: readonly MsTransport[] = ['tcp', 'redis', 'nats', 'mqtt', 'rmq', 'kafka'];
-const SESSION_STORES: readonly SessionStoreKind[] = ['redis', 'memory'];
+const MS_TRANSPORTS: readonly MsTransport[] = [
+  'tcp',
+  'redis',
+  'nats',
+  'mqtt',
+  'rmq',
+  'kafka',
+  'local',
+];
+const SESSION_STORES: readonly SessionStoreKind[] = ['redis', 'memory', 'durable-object'];
+const HOSTS: readonly HostKind[] = ['node', 'cloudflare'];
 const PACKAGE_MANAGERS: readonly PackageManager[] = ['yarn', 'npm', 'pnpm'];
 
 function assertEnum<T extends string>(
@@ -92,6 +102,7 @@ export function validateConfig(raw: unknown, label = 'config field'): Partial<Cr
     }
     result.projectName = v;
   }
+  if ('host' in obj) result.host = assertEnum('host', obj['host'], HOSTS, label);
   if ('authProvider' in obj)
     result.authProvider = assertEnum('authProvider', obj['authProvider'], AUTH_PROVIDERS, label);
   if ('dbProvider' in obj)

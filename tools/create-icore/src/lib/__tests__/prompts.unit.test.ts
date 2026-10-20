@@ -313,3 +313,129 @@ describe('collectOptions — wizard provider options', () => {
     }
   });
 });
+
+describe('collectOptions — --host=cloudflare', () => {
+  const argv = (extra: string[]) => [
+    'my-app',
+    '--host=cloudflare',
+    '--ui=shadcn',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+    ...extra,
+  ];
+
+  it('parses --host', () => {
+    expect(parseFlags(['my-app', '--host=cloudflare']).host).toBe('cloudflare');
+    expect(parseFlags(['my-app', '--host', 'node']).host).toBe('node');
+  });
+
+  it('implies local transport, durable-object sessions, d1 and no payment/jobs/ai without asking', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'File upload provider'
+        ? 'r2'
+        : o.message.startsWith('Include notes')
+          ? 'notes'
+          : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({ argv: argv(['--auth=supabase']), cwd: '.' });
+      expect(opts).toMatchObject({
+        host: 'cloudflare',
+        authProvider: 'supabase',
+        dbProvider: 'd1',
+        upload: 'r2',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'none',
+        transport: 'local',
+        session: 'durable-object',
+      });
+      const asked = select.mock.calls.map(([o]) => (o as { message: string }).message);
+      for (const skipped of [
+        'Microservice transport',
+        'Where should login sessions be stored?',
+        'Payment provider',
+        'Database backend',
+      ])
+        expect(asked).not.toContain(skipped);
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('only offers the providers the Worker supports', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'File upload provider' ? 'none' : undefined) as unknown as typeof clack.select);
+    try {
+      await collectOptions({ argv: argv(['--auth=supabase', '--example=none']), cwd: '.' });
+      const options = (message: string) =>
+        (
+          select.mock.calls.find(([o]) => (o as { message: string }).message === message)?.[0] as {
+            options: { value: string }[];
+          }
+        ).options.map((o) => o.value);
+      expect(options('File upload provider')).toEqual(['r2', 'none']);
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('with auth=none there is no database and no sessions', async () => {
+    const opts = await collectOptions({ argv: argv(['--auth=none', '--upload=none']), cwd: '.' });
+    expect(opts).toMatchObject({
+      host: 'cloudflare',
+      dbProvider: 'none',
+      transport: 'local',
+      session: 'redis',
+    });
+  });
+
+  it('asks where the project runs when --host is absent', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'Where will the project run?'
+        ? 'cloudflare'
+        : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({
+        argv: [
+          'my-app',
+          '--auth=none',
+          '--upload=none',
+          '--ui=shadcn',
+          '--package-manager=yarn',
+          '--no-git',
+          '--no-install',
+        ],
+        cwd: '.',
+      });
+      expect(opts.host).toBe('cloudflare');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('defaults to node when the answer is not cloudflare', async () => {
+    const opts = await collectOptions({
+      argv: [
+        'my-app',
+        '--auth=none',
+        '--upload=none',
+        '--payment=none',
+        '--jobs=none',
+        '--ai=none',
+        '--ui=shadcn',
+        '--package-manager=yarn',
+        '--no-git',
+        '--no-install',
+      ],
+      cwd: '.',
+    });
+    expect(opts.host).toBe('node');
+  });
+});

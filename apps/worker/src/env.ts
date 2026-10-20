@@ -1,5 +1,5 @@
-import type { D1DatabaseLike } from '@icore/db-d1';
 import type {
+  D1DatabaseLike,
   DurableObjectNamespaceLike,
   SessionObjectStub,
   ThrottleObjectStub,

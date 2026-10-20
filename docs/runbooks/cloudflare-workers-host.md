@@ -1,7 +1,8 @@
 # Runbook: Cloudflare Workers host (`apps/worker`)
 
 Status: **not live-tested on Cloudflare** (the account used for the G0 measurement was deleted). Verified under `wrangler dev --local`
-(workerd + Miniflare Durable Objects) by `yarn nx run worker:smoke`, which CI runs. Not reachable through `create-icore` yet (`--host=cloudflare` is PR 6).
+(workerd + Miniflare Durable Objects and D1) by `yarn nx run worker:smoke`, which CI runs, and on freshly generated projects by the scaffold smoke.
+Generate one with `create-icore my-app --host=cloudflare` (see below).
 
 ## What it is
 
@@ -44,7 +45,29 @@ yarn nx run worker:serve    # wrangler dev --local on :8787
 - Each Durable Object / D1 round trip is ~70–80 ms from a distant colo; every authenticated request is one Durable Object request.
 - Workers Paid is required in practice (cold bootstrap uses ~70 ms CPU; the Free plan allows 10 ms).
 
+## Generating a project (`--host=cloudflare`)
+
+```
+npm init @idevconn/icore my-app -- --host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes
+```
+
+| Axis                | Allowed with `--host=cloudflare`                   | Why                                                        |
+| ------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| `--auth`            | `supabase`, `none`                                 | Supabase is auth-only; other providers need Node-only SDKs |
+| `--db`              | `d1`, `none` (the D1 binding, no REST credentials) | the Worker's database                                      |
+| `--upload`          | `r2`, `none`                                       | S3 API with R2 keys (presigned URLs need them)             |
+| payment / jobs / ai | `none`                                             | need a long-lived process (BullMQ, PayPal webhooks, RAG)   |
+| transport / session | implied: `local` / `durable-object`                | one isolate, state in Durable Objects                      |
+
+Anything else fails before a file is written, with a message naming the supported values. The project has no Dockerfiles,
+compose file or nginx; `yarn dev` runs `wrangler dev --local` (port 3001, where the client proxies `/api`) plus the client.
+`apps/worker/src/hosted-apps.ts` lists the hosted gateway modules and microservices for the features you picked: edit it when you
+add or remove a microservice. `apps/worker/wrangler.jsonc` holds the plain vars and the D1 binding (replace the placeholder
+database id after `wrangler d1 create <name>`); `apps/worker/.dev.vars.example` lists the secrets (`wrangler secret put <NAME>` when
+deployed). Deploying is manual for now (`yarn nx run worker:build`, then `wrangler deploy` from `apps/worker`); a generated deploy
+workflow and the SPA assets binding are the remaining part of the phase.
+
 ## Not done yet
 
-- Real deployment, Smart Placement and region hints, `--host=cloudflare` in `create-icore` (PR 6), SPA assets binding, R2/D1 bindings
-  wired into the notes/upload microservices by the generator (the repo's own notes microservice still selects Supabase).
+- Real deployment, Smart Placement and region hints, the generated deploy workflow and the SPA assets binding. Note the repo's own
+  notes microservice still selects Supabase; a generated `--db=d1` project wires it to the D1 binding.
