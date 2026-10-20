@@ -16,7 +16,7 @@
   "dependencies": {
     "@bull-board/api": "^9.10.2",
     "@bull-board/express": "^9.10.2",
-    "@bull-board/ui": "^9.10.2",
+    "@bull-board/ui": "9.10.2",
     "@casl/ability": "^7.0.1",
     "@icore/ai-client": "*",
     "@icore/auth-client": "*",

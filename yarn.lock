@@ -1715,25 +1715,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bull-board/api@npm:9.10.4":
-  version: 9.10.4
-  resolution: "@bull-board/api@npm:9.10.4"
-  dependencies:
-    redis-info: "npm:^3.1.0"
-    valibot: "npm:^1.5.0"
-  peerDependencies:
-    "@bull-board/ui": 9.10.4
-    bull: ^4.16.5
-    bullmq: ^5.56.0 || ^6.0.0
-  peerDependenciesMeta:
-    bull:
-      optional: true
-    bullmq:
-      optional: true
-  checksum: 10c0/4604fcf880d6fc724141e8b1287f29d7787794f27f0d503e0bb4564d8a4c450f55fb13311c368424a5d142179bc41511096b4a8b9e04d5b561a84461de156d5b
-  languageName: node
-  linkType: hard
-
 "@bull-board/express@npm:^9.10.2":
   version: 9.10.2
   resolution: "@bull-board/express@npm:9.10.2"
@@ -1752,15 +1733,6 @@ __metadata:
   dependencies:
     "@bull-board/api": "npm:9.10.2"
   checksum: 10c0/8d8021fd5c17f281918d5b0c9d6c476b673dc68e918470ed03819834aba9bd6d7eb1559596aceb48cd167b7e8e0a062de936172d68e1559584fd6e9094ba312b
-  languageName: node
-  linkType: hard
-
-"@bull-board/ui@npm:^9.10.2":
-  version: 9.10.4
-  resolution: "@bull-board/ui@npm:9.10.4"
-  dependencies:
-    "@bull-board/api": "npm:9.10.4"
-  checksum: 10c0/96d040f0ed38e66172f53446f486f77b5e0072b54bdbb0da83fb9136f8812df9a95ff608614b31b50dc8abc4181fa8f2d9afbdab03e6660b82a5fb637acba05f
   languageName: node
   linkType: hard
 
@@ -10867,7 +10839,7 @@ __metadata:
   dependencies:
     "@bull-board/api": "npm:^9.10.2"
     "@bull-board/express": "npm:^9.10.2"
-    "@bull-board/ui": "npm:^9.10.2"
+    "@bull-board/ui": "npm:9.10.2"
     "@casl/ability": "npm:^7.0.1"
     "@icore/ai-client": "npm:*"
     "@icore/auth-client": "npm:*"

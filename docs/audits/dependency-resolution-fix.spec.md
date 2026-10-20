@@ -385,3 +385,16 @@ If any unforeseen regressions occur during Phase 2 implementation:
 2. **Conditional Feature Dependencies**:
    _Risk_: `@bull-board/ui` in `apps/api` when `jobs=none`.  
    _Mitigation_: `cleanupUnusedFeatures()` already strips `@bull-board/*` keys from `apps/api/package.json` when `jobs=none` via `stripJsonKeys`. Adding `@bull-board/ui` to the manifest ensures it is cleanly retained when jobs is active, and pruned when jobs is disabled.
+
+---
+
+## 14. Follow-up (2026-10-20): repo lint was red after the PnP dependency declarations
+
+**Problem.** The PnP fix declared packages that no source file imports (they exist to satisfy peers: `reflect-metadata` / `rxjs` for `@nestjs/*`, `@bull-board/ui` / `bullmq` for `@bull-board/api`, `@tanstack/react-router` for `@idevconn/use-draft`) and dropped `tslib` from `libs/vite-plugins` peers. The repo's own `@nx/dependency-checks` lint rule flagged every one of them, so `Check (lint, test, format)` was red on `dev`. `apps/api` also needed `serverAdapter as any` because `@bull-board/ui` resolved to 9.10.4 while `@bull-board/api` / `@bull-board/express` are 9.10.2: the version skew made Yarn install a second, nested `@bull-board/api` under `express`, and the two `BaseAdapter` declarations were not assignable.
+
+**Solution.**
+
+- The peer-satisfying declarations are listed in each project's `@nx/dependency-checks` `ignoredDependencies` (`apps/api`, `libs/{ai,auth,jobs,notes,payment,upload}-client`, `libs/template-shared`, `libs/vite-plugins`) with a comment pointing here. The declarations stay: removing them would bring back the PnP runtime errors this spec fixes.
+- `@bull-board/ui` in `apps/api` is pinned to `9.10.2` (same as `@bull-board/api` / `@bull-board/express`), so there is one `@bull-board/api` copy and the `as any` cast is gone.
+
+**Test plan.** `yarn nx run-many -t lint` green for all 45 projects; `yarn nx run-many -t test build -p api jobs-client`; `yarn nx test create-icore`.
