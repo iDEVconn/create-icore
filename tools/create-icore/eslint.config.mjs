@@ -22,7 +22,15 @@ export default [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
           ],
-          ignoredDependencies: ['tsup', 'vitest', 'js-yaml', 'minimatch', '@changesets/parse'],
+          // `prettier` is used only by tools/create-icore/scripts (never published), from the repo root.
+          ignoredDependencies: [
+            'tsup',
+            'vitest',
+            'js-yaml',
+            'minimatch',
+            '@changesets/parse',
+            'prettier',
+          ],
         },
       ],
     },
