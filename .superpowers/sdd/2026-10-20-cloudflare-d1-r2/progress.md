@@ -30,3 +30,10 @@ Ruling: R1 — if `node:sqlite` fails to resolve under Vitest, load it with `cre
 Ruling: R2 — R2StorageStrategy gets NO MIME allowlist, matching MinioStorageStrategy (which has none; the AGENTS.md sentence is stale) — avoids behavior the sibling lacks and contract tests don't require — costs a later hardening task if a real allowlist is wanted.
 Ruling: R3 — commit .superpowers/sdd/* artifacts into the branch (user memory: feedback-commit-sdd-execution-record) — records the execution — costs repo noise.
 
+
+Task 1: implemented (commit 08cd04a), review: spec ✅, quality Needs fixes (2 Important). ⚠️ items resolved by controller: nx targets test/lint/build present, trailer present, templates untouched.
+Task 1: minor (deferred): d1-client retries any non-timeout thrown error (incl. non-network TypeError, mid-flight reset) — add comment or narrow
+Task 1: minor (deferred): Retry-After uncapped; HTTP-date Retry-After falls back to backoff
+Task 1: minor (deferred): success:true with no result[0] returns empty rows silently
+Task 1: minor (deferred): tests don't assert backoff values (250/500 ms) nor sleep in network-error test
+Task 1: minor (deferred): eslint ignoredDependencies hides @nestjs/common,config until Tasks 3+ use them (remove ignore then)

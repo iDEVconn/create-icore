@@ -90,7 +90,18 @@ export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
           continue;
         }
 
-        const body = (await res.json().catch(() => ({}))) as D1Envelope;
+        let body: D1Envelope;
+        try {
+          body = (await res.json()) as D1Envelope;
+        } catch (err) {
+          if (res.ok) {
+            throw new D1ApiError(
+              `D1 returned an unreadable response body (${res.status}): ${err instanceof Error ? err.message : String(err)}`,
+              res.status,
+            );
+          }
+          body = {};
+        }
         if (!res.ok || body.success === false) {
           const errors = body.errors ?? [];
           throw new D1ApiError(

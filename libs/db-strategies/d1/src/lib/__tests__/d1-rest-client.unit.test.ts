@@ -96,14 +96,25 @@ describe('createD1RestClient', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it('aborts and throws when the request exceeds timeoutMs', async () => {
+  it('rejects a 200 response with a non-JSON body instead of reporting success', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('<html>oops', { status: 200 }));
+    const { client } = make(fetchFn);
+    const err = await client.query('x').catch((e) => e);
+    expect(err).toBeInstanceOf(D1ApiError);
+    expect(err.status).toBe(200);
+  });
+
+  it('aborts on timeout without retrying', async () => {
     const fetchFn = vi.fn(
       (_u: unknown, init: RequestInit) =>
         new Promise<Response>((_res, rej) => {
           init.signal?.addEventListener('abort', () => rej(init.signal?.reason));
         }),
-    ) as unknown as typeof fetch;
-    const { client } = make(fetchFn, { timeoutMs: 20, maxRetries: 0 });
-    await expect(client.query('x')).rejects.toBeDefined();
+    );
+    const { client, sleep } = make(fetchFn as unknown as typeof fetch, { timeoutMs: 20 });
+    const err = await client.query('x').catch((e) => e);
+    expect(['TimeoutError', 'AbortError']).toContain(err.name);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
   });
 });
