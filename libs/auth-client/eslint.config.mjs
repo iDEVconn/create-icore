@@ -14,6 +14,8 @@ export default [
             '{projectRoot}/src/**/*.{spec,test}.{js,ts,jsx,tsx}',
             '{projectRoot}/src/**/__tests__/**/*.{js,ts,jsx,tsx}',
           ],
+          // Declared so Yarn PnP can satisfy @nestjs/* peers (see docs/audits/dependency-resolution-fix.spec.md); never imported here.
+          ignoredDependencies: ['reflect-metadata'],
         },
       ],
     },

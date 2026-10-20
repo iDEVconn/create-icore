@@ -12,6 +12,8 @@ export default [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
           ],
+          // Declared so Yarn PnP can satisfy @nestjs/* peers (see docs/audits/dependency-resolution-fix.spec.md); never imported here.
+          ignoredDependencies: ['reflect-metadata'],
         },
       ],
     },

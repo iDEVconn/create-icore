@@ -35,7 +35,7 @@ export class AdminModule implements NestModule, OnModuleInit {
       queues: Object.values(ICORE_QUEUES).map(
         (name) => new BullMQAdapter(this.jobsClient.getQueue(name as keyof JobsMap)),
       ),
-      serverAdapter: this.serverAdapter as any,
+      serverAdapter: this.serverAdapter,
     });
     this.logger.log(`bull-board mounted at /api${BOARD_ROUTE}`);
   }
