@@ -3217,6 +3217,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@icore/db-d1@workspace:libs/db-strategies/d1":
+  version: 0.0.0-use.local
+  resolution: "@icore/db-d1@workspace:libs/db-strategies/d1"
+  dependencies:
+    "@icore/shared": "npm:*"
+    "@nestjs/common": "npm:^11.2.7"
+    "@nestjs/config": "npm:^4.0.4"
+    "@nestjs/testing": "npm:^11.2.7"
+    "@nx/vite": "npm:23.2.1"
+    jsonc-eslint-parser: "npm:^3.3.0"
+    tslib: "npm:^2.8.1"
+    vite: "npm:^8.3.2"
+    vitest: "npm:~5.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@icore/db-firestore@npm:*, @icore/db-firestore@workspace:libs/db-strategies/firestore":
   version: 0.0.0-use.local
   resolution: "@icore/db-firestore@workspace:libs/db-strategies/firestore"

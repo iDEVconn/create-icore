@@ -40,7 +40,8 @@
       "@icore/storage-minio": ["./libs/storage-strategies/minio/src/index.ts"],
       "@icore/ai-client": ["./libs/ai-client/src/index.ts"],
       "@icore/db-sqlite": ["./libs/db-strategies/sqlite/src/index.ts"],
-      "@icore/workspace-plugin": ["./tools/workspace-plugin/src/index.ts"]
+      "@icore/workspace-plugin": ["./tools/workspace-plugin/src/index.ts"],
+      "@icore/db-d1": ["./libs/db-strategies/d1/src/index.ts"]
     },
     "noUncheckedSideEffectImports": false,
     "types": ["*"],
