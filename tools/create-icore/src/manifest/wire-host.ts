@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { hostOf, type CreateIcoreOptions } from '../lib/options.js';
 
@@ -94,6 +94,72 @@ export function workerSecrets(opts: CreateIcoreOptions): string[] {
   return secrets;
 }
 
+/** `.github/workflows/deploy-cloudflare.yml`: build the client + Worker and `wrangler deploy` on push to main. */
+export function renderDeployWorkflow(opts: CreateIcoreOptions): string {
+  const secrets = workerSecrets(opts);
+  const token =
+    opts.dbProvider === 'd1' ? 'Workers Scripts: Edit, D1: Edit' : 'Workers Scripts: Edit';
+  const header = [
+    '# Deploys the Worker (gateway + microservices + the built client as static assets) on every push to',
+    '# main. One-time setup, none of which belongs in git:',
+    `#   - repository secrets CLOUDFLARE_API_TOKEN (${token}) and CLOUDFLARE_ACCOUNT_ID`,
+    ...(secrets.length
+      ? [
+          '#   - Worker secrets, set once from apps/worker with: npx wrangler secret put <NAME>',
+          ...secrets.map((name) => `#       ${name}`),
+        ]
+      : []),
+    '#   - real values instead of the placeholders in apps/worker/wrangler.jsonc',
+    '# A deployed Worker runs with NODE_ENV=production, so the dev fakes are off: real credentials are required.',
+  ].join('\n');
+  return `name: Deploy to Cloudflare
+
+${header}
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: |
+          if [ -f yarn.lock ]; then
+            corepack enable
+            yarn install --immutable
+          elif [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      # Builds the client first (the Worker serves it as static assets), then compiles the Worker.
+      - name: Build client + Worker
+        run: npx nx run worker:build
+
+      - name: Deploy
+        working-directory: apps/worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+`;
+}
+
 function renderDevVars(opts: CreateIcoreOptions): string {
   const lines = [
     '# Local development secrets for `wrangler dev` (copy to .dev.vars, which is git-ignored).',
@@ -128,6 +194,12 @@ export async function writeHostWiring(targetDir: string, opts: CreateIcoreOption
       `\n  // Create it with \`wrangler d1 create ${opts.projectName}\` and paste the id here.\n  "d1_databases": [\n    { "binding": "DB", "database_name": "${opts.projectName}", "database_id": "<d1 database id>" },\n  ],\n  "vars": `,
     );
   }
+  // The built client is served by the Worker itself: `/api/*` runs the Worker first, every other
+  // path is a static asset or falls back to the SPA's index.html.
+  wrangler = wrangler.replace(
+    /\n {2}"durable_objects"/,
+    `\n  "assets": {\n    "directory": "../../dist/apps/client",\n    "not_found_handling": "single-page-application",\n    "run_worker_first": ["/api/*"],\n  },\n  "durable_objects"`,
+  );
   wrangler = wrangler.replace(/"name": "icore"/, `"name": ${JSON.stringify(opts.projectName)}`);
   await writeFile(wranglerPath, wrangler);
 
@@ -136,7 +208,16 @@ export async function writeHostWiring(targetDir: string, opts: CreateIcoreOption
   const project = await readFile(projectPath, 'utf8');
   await writeFile(
     projectPath,
-    project.replace('wrangler dev --local', 'wrangler dev --local --port 3001'),
+    project
+      .replace('wrangler dev --local', 'wrangler dev --local --port 3001')
+      // The client must be built before the Worker bundles it as static assets.
+      .replace('"dependsOn": []', '"dependsOn": ["client:vite:build"]'),
+  );
+
+  await mkdir(join(targetDir, '.github/workflows'), { recursive: true });
+  await writeFile(
+    join(targetDir, '.github/workflows/deploy-cloudflare.yml'),
+    renderDeployWorkflow(opts),
   );
 
   const pkgPath = join(targetDir, 'package.json');

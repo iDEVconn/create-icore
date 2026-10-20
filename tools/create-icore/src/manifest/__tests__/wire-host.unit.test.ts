@@ -4,7 +4,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CreateIcoreOptions } from '../../lib/options.js';
-import { renderHostedApps, workerSecrets, workerVars, writeHostWiring } from '../wire-host.js';
+import {
+  renderDeployWorkflow,
+  renderHostedApps,
+  workerSecrets,
+  workerVars,
+  writeHostWiring,
+} from '../wire-host.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 
@@ -157,5 +163,51 @@ describe('writeHostWiring', () => {
     expect(await readFile(join(dir, 'apps/worker/wrangler.jsonc'), 'utf8')).not.toContain(
       'd1_databases',
     );
+  });
+
+  it('serves the built client through the assets binding, API first, and builds it before the Worker', async () => {
+    const dir = await fixture();
+    await writeHostWiring(dir, opts);
+    const wrangler = await readFile(join(dir, 'apps/worker/wrangler.jsonc'), 'utf8');
+    expect(wrangler).toContain('"directory": "../../dist/apps/client"');
+    expect(wrangler).toContain('"not_found_handling": "single-page-application"');
+    expect(wrangler).toContain('"run_worker_first": ["/api/*"]');
+    const project = JSON.parse(await readFile(join(dir, 'apps/worker/project.json'), 'utf8'));
+    expect(project.targets.build.dependsOn).toEqual(['client:vite:build']);
+  });
+
+  it('writes the deploy workflow for the generated project', async () => {
+    const dir = await fixture();
+    await writeHostWiring(dir, opts);
+    const wf = await readFile(join(dir, '.github/workflows/deploy-cloudflare.yml'), 'utf8');
+    expect(wf).toBe(renderDeployWorkflow(opts));
+  });
+});
+
+describe('renderDeployWorkflow', () => {
+  const wf = renderDeployWorkflow(opts);
+
+  it('deploys on push to main with the Cloudflare credentials from repository secrets', () => {
+    expect(wf).toMatch(/push:\s+branches: \[main\]/);
+    expect(wf).toContain('CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}');
+    expect(wf).toContain('CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}');
+    expect(wf).toContain('wrangler deploy');
+  });
+
+  it('pins Node 24 actions and the project Node version', () => {
+    expect(wf).toContain('actions/checkout@v5');
+    expect(wf).toContain('actions/setup-node@v5');
+    expect(wf).not.toMatch(/@v[1-4]\b/);
+    expect(wf).toContain('node-version-file: .nvmrc');
+  });
+
+  it('builds the client and the worker before deploying, without a literal secret value', () => {
+    expect(wf.indexOf('nx run worker:build')).toBeGreaterThan(-1);
+    expect(wf.indexOf('nx run worker:build')).toBeLessThan(wf.indexOf('wrangler deploy'));
+    expect(wf).not.toMatch(/(token|key|secret)\s*[:=]\s*['"]?[A-Za-z0-9]{20,}/i);
+  });
+
+  it('documents the one-time secrets in a comment, from the project secret list', () => {
+    for (const name of workerSecrets(opts)) expect(wf).toContain(name);
   });
 });

@@ -64,10 +64,16 @@ compose file or nginx; `yarn dev` runs `wrangler dev --local` (port 3001, where 
 `apps/worker/src/hosted-apps.ts` lists the hosted gateway modules and microservices for the features you picked: edit it when you
 add or remove a microservice. `apps/worker/wrangler.jsonc` holds the plain vars and the D1 binding (replace the placeholder
 database id after `wrangler d1 create <name>`); `apps/worker/.dev.vars.example` lists the secrets (`wrangler secret put <NAME>` when
-deployed). Deploying is manual for now (`yarn nx run worker:build`, then `wrangler deploy` from `apps/worker`); a generated deploy
-workflow and the SPA assets binding are the remaining part of the phase.
+deployed).
+
+The Worker also serves the built client: `wrangler.jsonc` has an `assets` binding (`directory` = the client build, `run_worker_first: ["/api/*"]`,
+`not_found_handling: "single-page-application"`), so `/api/*` runs the Worker and every other path is a static file or the SPA's `index.html`.
+`yarn nx run worker:build` builds the client first. `.github/workflows/deploy-cloudflare.yml` deploys on push to `main`: add the repository secrets
+`CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, D1: Edit) and `CLOUDFLARE_ACCOUNT_ID`, set the Worker secrets once with `wrangler secret put <NAME>`
+(listed in the workflow header and `.dev.vars.example`), and replace the placeholders in `wrangler.jsonc` (`CLIENT_ORIGIN`, `SUPABASE_URL`, `R2_*`, the D1
+`database_id` from `wrangler d1 create <name>`). Local: `yarn dev` (Worker on :3001 with local D1/Durable Objects, plus the Vite client).
 
 ## Not done yet
 
-- Real deployment, Smart Placement and region hints, the generated deploy workflow and the SPA assets binding. Note the repo's own
+- A real deployment (the generated workflow and assets binding are verified only locally), Smart Placement and region hints. Note the repo's own
   notes microservice still selects Supabase; a generated `--db=d1` project wires it to the D1 binding.
