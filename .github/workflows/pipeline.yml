@@ -125,6 +125,15 @@ jobs:
       - name: Route integrity
         if: ${{ !cancelled() }}
         run: node tools/create-icore/scripts/check-route-integrity.mjs
+      - name: Template tarball dotfiles check
+        if: ${{ !cancelled() }}
+        # The underscore dotfiles (_yarnrc.yml, _gitignore, _github/) are not tracked: the
+        # snapshot-templates target generates them. `nx affected` only runs it when create-icore
+        # is affected, so a PR that does not touch create-icore (docs, other libs) would fail
+        # this check for a reason unrelated to the PR. Generate them here (Nx-cached, cheap).
+        run: |
+          yarn nx run create-icore:snapshot-templates
+          node tools/create-icore/scripts/check-tarball-dotfiles.mjs
 
   # Runs alongside `check` (not after it) and builds every affected project in
   # ONE job: Nx orders the graph and builds each shared lib once, instead of ~30
@@ -150,6 +159,10 @@ jobs:
           else
             yarn nx affected -t build --parallel
           fi
+      # The Cloudflare Workers host (apps/worker): the gateway + auth/upload/notes microservices in
+      # one workerd isolate with Durable Object sessions/throttling (wrangler dev --local, no account).
+      - name: Worker smoke (workerd)
+        run: yarn nx affected -t smoke --parallel=1
 
   # Layer A scaffold smoke — generate a real project from the templates snapshot
   # and TYPECHECK it (tsc --noEmit). Catches the "strip produced text that does
@@ -161,8 +174,8 @@ jobs:
   # least once. The client/ui variants need a real Vite build, so they're
   # covered by the heavier install+build+RUN matrix in scaffold-smoke-matrix.yml.
   #
-  # Two shards of four combos: the ~35s install + CLI build is paid twice
-  # instead of eight times. Each combo scaffolds into its own tmp dir.
+  # Two shards (four and five combos): the ~35s install + CLI build is paid
+  # twice instead of nine times. Each combo scaffolds into its own tmp dir.
   scaffold-smoke:
     name: Scaffold smoke (shard ${{ matrix.shard.name }})
     needs: [detect-affected]
@@ -184,6 +197,9 @@ jobs:
               mongodb-mixed|--auth=mongodb --db=firebase --upload=cloudinary --payment=none --jobs=none --example=notes --transport=redis
               postgres-direct|--auth=supabase --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
               postgres-auth|--auth=postgres --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
+              cloudflare-d1-r2|--auth=supabase --db=d1 --upload=r2 --payment=none --jobs=none --example=notes --transport=tcp
+              cloudflare-worker|--host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes
+              cloudflare-worker-minimal|--host=cloudflare --auth=none --db=none --upload=none --example=none
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup

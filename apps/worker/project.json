@@ -1,0 +1,47 @@
+{
+  "name": "worker",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/worker/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/apps/api/src/**/*",
+        "{workspaceRoot}/apps/microservices/{auth,upload,notes}/src/**/*"
+      ],
+      "outputs": ["{projectRoot}/build", "{workspaceRoot}/dist/apps/worker"],
+      "options": {
+        "cwd": "apps/worker",
+        "commands": [
+          "node scripts/build.mjs",
+          "npx wrangler deploy --dry-run --outdir ../../dist/apps/worker"
+        ],
+        "parallel": false
+      },
+      "dependsOn": []
+    },
+    "smoke": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "cache": false,
+      "options": {
+        "cwd": "apps/worker",
+        "command": "node scripts/smoke.mjs"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/worker",
+        "command": "npx wrangler dev --local --define 'process.env.NODE_ENV:\"development\"'"
+      }
+    }
+  }
+}

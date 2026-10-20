@@ -74,6 +74,10 @@ export function formatGatewayBanner(opts: {
       target = `redis  ${process.env[`${prefix}_REDIS_URL`] ?? '(REDIS_URL not set)'}`;
     } else if (kind === 'nats') {
       target = `nats  ${process.env[`${prefix}_NATS_URL`] ?? '(NATS_URL not set)'}`;
+    } else if (kind === 'http') {
+      target = `http  ${process.env[`${prefix}_URL`] ?? `http://127.0.0.1:${process.env[`${prefix}_PORT`] ?? '?'}`}`;
+    } else if (kind === 'grpc') {
+      target = `grpc  ${process.env[`${prefix}_URL`] ?? `127.0.0.1:${process.env[`${prefix}_PORT`] ?? '?'}`}`;
     } else {
       target = kind;
     }

@@ -63,4 +63,20 @@ describe('generated-project versions do not drift from this repo', () => {
       `scaffold-env.ts pins have drifted from the root package.json. ${HOW_TO_FIX}`,
     ).toEqual([]);
   });
+
+  it('_template-shell declares required peers of its own toolchain packages', () => {
+    const shell = allDeps(readPkg('tools/create-icore/_template-shell/package.json'));
+    const required: Record<string, string> = {
+      'webpack-cli': 'webpack',
+    };
+    const missing: string[] = [];
+    for (const [owner, peer] of Object.entries(required)) {
+      if (owner in shell && !(peer in shell)) {
+        missing.push(`${peer} (required by ${owner})`);
+      }
+    }
+    expect(missing, `_template-shell missing peers: ${missing.join(', ')}. ${HOW_TO_FIX}`).toEqual(
+      [],
+    );
+  });
 });

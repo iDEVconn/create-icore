@@ -1,0 +1,47 @@
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import {
+  <%= constantName %>_HTTP_OPTIONS,
+  type <%= className %>HttpOptions,
+} from './<%= fileName %>-client.tokens';
+
+export interface <%= className %>PingResponse {
+  status: 'ok';
+  service: '<%= fileName %>';
+  timestamp: string;
+}
+
+@Injectable()
+export class <%= className %>ClientService {
+  private readonly http: AxiosInstance;
+
+  constructor(
+    @Optional()
+    @Inject(<%= constantName %>_HTTP_OPTIONS)
+    options?: <%= className %>HttpOptions,
+  ) {
+    const rawUrl = options?.baseURL || process.env['<%= constantName %>_URL'];
+    const fallbackUrl = `http://${process.env['<%= constantName %>_HOST'] || '127.0.0.1'}:${
+      process.env['<%= constantName %>_PORT'] || '<%= port %>'
+    }`;
+    const baseURL = rawUrl || fallbackUrl;
+
+    this.http = axios.create({
+      baseURL,
+      timeout: options?.timeoutMs ?? 10_000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  async ping(): Promise<<%= className %>PingResponse> {
+    const response = await this.http.get<<%= className %>PingResponse>('/health');
+    return response.data;
+  }
+
+  async request<T = unknown>(config: AxiosRequestConfig): Promise<T> {
+    const response = await this.http.request<T>(config);
+    return response.data;
+  }
+}

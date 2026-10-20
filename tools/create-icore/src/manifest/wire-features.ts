@@ -100,8 +100,13 @@ export async function cleanupUnusedFeatures(
   for (const key of ['notes', 'payment', 'jobs', 'ai'] as FeatureKey[]) {
     if (chosen.has(key)) continue;
     const unit = FEATURES[key];
-    for (const dir of unit.libDirs)
+    for (const dir of unit.libDirs) {
+      if (dir === 'libs/db-strategies' && opts.dbProvider !== 'none') continue;
       await rm(join(targetDir, dir), { recursive: true, force: true });
+    }
+    for (const toolFile of unit.toolFiles ?? []) {
+      await rm(join(targetDir, toolFile), { force: true });
+    }
     const dropKeys = new Set([...Object.keys(unit.tsPaths), ...Object.keys(unit.deps)]);
     await stripJsonKeys(join(targetDir, API_PKG), (k) => dropKeys.has(k));
     await stripTsconfigKeys(targetDir, Object.keys(unit.tsPaths));
@@ -129,9 +134,16 @@ export async function cleanupUnusedFeatures(
       }
     }
   }
-  // Remove queries dir if emptied by feature removal (no-op when files remain)
+  // Never leave CLI internals under tools/create-icore in a generated project,
+  // and remove queries/tools dirs if emptied by feature removal (no-op when files remain).
+  await rm(join(targetDir, 'tools/create-icore'), { recursive: true, force: true });
   try {
     await rmdir(join(targetDir, 'apps/client/src/queries'));
+  } catch {
+    // ignore — not empty or doesn't exist
+  }
+  try {
+    await rmdir(join(targetDir, 'tools'));
   } catch {
     // ignore — not empty or doesn't exist
   }

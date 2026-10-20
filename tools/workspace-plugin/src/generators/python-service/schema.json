@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "IcorePythonServiceGenerator",
+  "title": "Create an iCore Python Microservice (FastAPI / gRPC)",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Microservice name in kebab-case (e.g. ml-inference, embeddings, webhooks).",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What name would you like to use for the Python microservice?",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9-]*$"
+    },
+    "framework": {
+      "type": "string",
+      "description": "Python server framework to scaffold (fastapi over HTTP or grpc over HTTP/2).",
+      "enum": ["fastapi", "grpc"],
+      "default": "fastapi",
+      "x-prompt": {
+        "message": "Which Python framework would you like to use?",
+        "type": "list",
+        "items": [
+          { "value": "fastapi", "label": "FastAPI (HTTP REST + OpenAPI + Axios BFF client)" },
+          { "value": "grpc", "label": "gRPC (Protobuf + grpc.aio + NestJS ClientGrpc)" }
+        ]
+      }
+    },
+    "port": {
+      "type": "number",
+      "description": "Port for the Python microservice (auto-incremented from existing services if omitted)."
+    },
+    "uvWorkspace": {
+      "type": "boolean",
+      "description": "Register apps/microservices/<name> in root pyproject.toml [tool.uv.workspace] members.",
+      "default": true
+    },
+    "skipBff": {
+      "type": "boolean",
+      "description": "Skip generating libs/<name>-client and wiring the service into apps/api.",
+      "default": false
+    },
+    "tags": {
+      "type": "string",
+      "description": "Comma-separated extra Nx tags to append to default tags (type:microservice, lang:python, scope:<name>)."
+    }
+  },
+  "required": ["name"]
+}

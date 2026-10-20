@@ -1,0 +1,5 @@
+import { <%= dbModuleSymbol %> } from '<%= dbImportPath %>';
+
+const ENV_PATH = 'apps/microservices/<%= fileName %>/.env';
+
+export const DbProviderModule = <%= dbModuleSymbol %>.forRoot(ENV_PATH);

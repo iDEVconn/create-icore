@@ -1,0 +1,9 @@
+import { Module } from '@nestjs/common';
+import { <%= className %>ClientModule } from '@icore/<%= fileName %>-client';
+import { <%= className %>Controller } from './<%= fileName %>.controller';
+
+@Module({
+  imports: [<%= className %>ClientModule.forRoot()],
+  controllers: [<%= className %>Controller],
+})
+export class <%= className %>Module {}

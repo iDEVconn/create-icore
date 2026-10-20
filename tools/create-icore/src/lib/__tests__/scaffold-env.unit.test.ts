@@ -3,7 +3,13 @@ import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeClientEnv, writeGatewayEnv } from '../scaffold-env.js';
+import {
+  writeClientEnv,
+  writeGatewayEnv,
+  writeUploadEnv,
+  writeNotesEnv,
+  pruneRootProviderDeps,
+} from '../scaffold-env.js';
 import type { CreateIcoreOptions } from '../options.js';
 
 // Mirrors the exact pattern already used in scaffold.unit.test.ts:976 for reading
@@ -154,5 +160,98 @@ describe('writeGatewayEnv — session store', () => {
     const redis = await mk('redis');
     expect(redis).toContain('SESSION_REDIS_URL=redis://localhost:6379');
     expect(redis).not.toContain('SESSION_STORE=');
+  });
+});
+
+describe('Cloudflare env blocks (writeUploadEnv r2 / writeNotesEnv d1)', () => {
+  const cfOpts = {
+    authProvider: 'supabase',
+    dbProvider: 'supabase',
+    upload: 'supabase',
+    example: 'notes',
+    transport: 'tcp',
+  } as CreateIcoreOptions;
+
+  async function msFixture(): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-cf-env-'));
+    await mkdir(join(dir, 'apps/microservices/upload'), { recursive: true });
+    await mkdir(join(dir, 'apps/microservices/notes'), { recursive: true });
+    await writeFile(
+      join(dir, 'apps/microservices/upload/.env.example'),
+      'UPLOAD_TRANSPORT=tcp\nSTORAGE_PROVIDER=supabase\n',
+    );
+    await writeFile(
+      join(dir, 'apps/microservices/notes/.env.example'),
+      'NOTES_TRANSPORT=tcp\nDB_PROVIDER=supabase\n',
+    );
+    return dir;
+  }
+
+  const R2_KEYS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'];
+  const D1_KEYS = ['D1_ACCOUNT_ID', 'D1_DATABASE_ID', 'D1_API_TOKEN'];
+
+  it('writeUploadEnv with upload=r2 selects r2 and appends the four R2_* keys', async () => {
+    const dir = await msFixture();
+    await writeUploadEnv(dir, { ...cfOpts, upload: 'r2' });
+    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
+    expect(env).toMatch(/^STORAGE_PROVIDER=r2$/m);
+    for (const k of R2_KEYS) expect(countAssignments(env, k)).toBe(1);
+  });
+
+  it('writeUploadEnv with another provider appends no R2_* keys', async () => {
+    const dir = await msFixture();
+    await writeUploadEnv(dir, { ...cfOpts, upload: 'supabase' });
+    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
+    expect(env).not.toContain('R2_');
+  });
+
+  it('writeNotesEnv with dbProvider=d1 appends the three D1_* keys', async () => {
+    const dir = await msFixture();
+    await writeNotesEnv(dir, { ...cfOpts, dbProvider: 'd1' });
+    const env = await readFile(join(dir, 'apps/microservices/notes/.env'), 'utf8');
+    for (const k of D1_KEYS) expect(countAssignments(env, k)).toBe(1);
+  });
+
+  it('writeNotesEnv with another db provider appends no D1_* keys', async () => {
+    const dir = await msFixture();
+    await writeNotesEnv(dir, { ...cfOpts, dbProvider: 'sqlite' });
+    const env = await readFile(join(dir, 'apps/microservices/notes/.env'), 'utf8');
+    expect(env).not.toContain('D1_');
+  });
+});
+
+describe('pruneRootProviderDeps — Cloudflare R2 AWS SDK', () => {
+  async function rootPkgFixture(): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-cf-prune-'));
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        dependencies: {
+          '@aws-sdk/client-s3': '^3.1153.0',
+          '@aws-sdk/s3-request-presigner': '^3.1153.0',
+          minio: '^8.0.6',
+        },
+      }),
+    );
+    return dir;
+  }
+  const opts = (upload: CreateIcoreOptions['upload']) =>
+    ({ authProvider: 'supabase', dbProvider: 'd1', upload }) as CreateIcoreOptions;
+
+  it('drops both AWS SDK packages when upload is not r2', async () => {
+    const dir = await rootPkgFixture();
+    await pruneRootProviderDeps(dir, opts('supabase'));
+    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+    expect(pkg.dependencies).not.toHaveProperty('@aws-sdk/client-s3');
+    expect(pkg.dependencies).not.toHaveProperty('@aws-sdk/s3-request-presigner');
+  });
+
+  it('keeps both AWS SDK packages (and drops minio) when upload is r2', async () => {
+    const dir = await rootPkgFixture();
+    await pruneRootProviderDeps(dir, opts('r2'));
+    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+    expect(pkg.dependencies['@aws-sdk/client-s3']).toBe('^3.1153.0');
+    expect(pkg.dependencies['@aws-sdk/s3-request-presigner']).toBe('^3.1153.0');
+    expect(pkg.dependencies).not.toHaveProperty('minio');
   });
 });

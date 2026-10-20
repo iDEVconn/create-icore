@@ -209,8 +209,11 @@ ${emailSetup}${sessionNote}## Commands
 ${nx} run <project>:serve   # start a single service
 ${nx} test <project>         # unit tests
 ${nx} lint <project>         # lint
-${nx} build <project>        # production build
-${pm === 'yarn' ? 'yarn remove-notes' : pm === 'pnpm' ? 'pnpm remove-notes' : 'npm run remove-notes'}                  # strip the notes sample feature
+${nx} build <project>        # production build${
+    opts.example !== 'none'
+      ? `\n${pm === 'yarn' ? 'yarn remove-notes' : pm === 'pnpm' ? 'pnpm remove-notes' : 'npm run remove-notes'}                  # strip the notes sample feature`
+      : ''
+  }
 \`\`\`
 
 ## Scaffolded by

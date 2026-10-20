@@ -9,6 +9,8 @@ export default [
         'error',
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
+          // tsconfig sets importHelpers but the plugin source is plain .mjs, so tslib is neither imported nor a peer.
+          ignoredDependencies: ['tslib'],
         },
       ],
     },

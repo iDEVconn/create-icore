@@ -12,6 +12,7 @@ import type {
   PackageManager,
   CreateIcoreOptions,
   SessionStoreKind,
+  HostKind,
 } from './options.js';
 
 export class ConfigFileError extends Error {
@@ -21,13 +22,28 @@ export class ConfigFileError extends Error {
   }
 }
 
-const AUTH_PROVIDERS: readonly AuthProvider[] = ['supabase', 'firebase', 'mongodb', 'none'];
-const DB_PROVIDERS: readonly DbProvider[] = ['supabase', 'firebase', 'mongodb', 'none'];
+const AUTH_PROVIDERS: readonly AuthProvider[] = [
+  'supabase',
+  'firebase',
+  'mongodb',
+  'postgres',
+  'none',
+];
+const DB_PROVIDERS: readonly DbProvider[] = [
+  'supabase',
+  'firebase',
+  'mongodb',
+  'postgres',
+  'sqlite',
+  'd1',
+  'none',
+];
 const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
   'supabase',
   'firebase',
   'cloudinary',
   'minio',
+  'r2',
   'mongodb',
   'none',
 ];
@@ -36,27 +52,41 @@ const JOBS_PROVIDERS: readonly JobsProvider[] = ['bullmq', 'none'];
 const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
 const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
 const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
-const MS_TRANSPORTS: readonly MsTransport[] = ['tcp', 'redis', 'nats', 'mqtt', 'rmq', 'kafka'];
-const SESSION_STORES: readonly SessionStoreKind[] = ['redis', 'memory'];
+const MS_TRANSPORTS: readonly MsTransport[] = [
+  'tcp',
+  'redis',
+  'nats',
+  'mqtt',
+  'rmq',
+  'kafka',
+  'local',
+];
+const SESSION_STORES: readonly SessionStoreKind[] = ['redis', 'memory', 'durable-object'];
+const HOSTS: readonly HostKind[] = ['node', 'cloudflare'];
 const PACKAGE_MANAGERS: readonly PackageManager[] = ['yarn', 'npm', 'pnpm'];
 
-function assertEnum<T extends string>(field: string, value: unknown, valid: readonly T[]): T {
+function assertEnum<T extends string>(
+  field: string,
+  value: unknown,
+  valid: readonly T[],
+  label: string,
+): T {
   if (typeof value !== 'string' || !valid.includes(value as T)) {
     throw new ConfigFileError(
-      `config field "${field}" got "${String(value)}", expected one of: ${valid.join(', ')}`,
+      `${label} "${field}" got "${String(value)}", expected one of: ${valid.join(', ')}`,
     );
   }
   return value as T;
 }
 
-function assertBoolean(field: string, value: unknown): boolean {
+function assertBoolean(field: string, value: unknown, label: string): boolean {
   if (typeof value !== 'boolean') {
-    throw new ConfigFileError(`config field "${field}" must be a boolean, got ${typeof value}`);
+    throw new ConfigFileError(`${label} "${field}" must be a boolean, got ${typeof value}`);
   }
   return value;
 }
 
-export function validateConfig(raw: unknown): Partial<CreateIcoreOptions> {
+export function validateConfig(raw: unknown, label = 'config field'): Partial<CreateIcoreOptions> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new ConfigFileError('config file must be a JSON object');
   }
@@ -67,28 +97,37 @@ export function validateConfig(raw: unknown): Partial<CreateIcoreOptions> {
     const v = obj['projectName'];
     if (typeof v !== 'string' || !/^[a-z0-9-]+$/i.test(v)) {
       throw new ConfigFileError(
-        `config field "projectName" must match /^[a-z0-9-]+$/i, got "${String(v)}"`,
+        `${label} "projectName" must match /^[a-z0-9-]+$/i, got "${String(v)}"`,
       );
     }
     result.projectName = v;
   }
+  if ('host' in obj) result.host = assertEnum('host', obj['host'], HOSTS, label);
   if ('authProvider' in obj)
-    result.authProvider = assertEnum('authProvider', obj['authProvider'], AUTH_PROVIDERS);
+    result.authProvider = assertEnum('authProvider', obj['authProvider'], AUTH_PROVIDERS, label);
   if ('dbProvider' in obj)
-    result.dbProvider = assertEnum('dbProvider', obj['dbProvider'], DB_PROVIDERS);
-  if ('upload' in obj) result.upload = assertEnum('upload', obj['upload'], UPLOAD_PROVIDERS);
-  if ('payment' in obj) result.payment = assertEnum('payment', obj['payment'], PAYMENT_PROVIDERS);
-  if ('jobs' in obj) result.jobs = assertEnum('jobs', obj['jobs'], JOBS_PROVIDERS);
-  if ('ai' in obj) result.ai = assertEnum('ai', obj['ai'], AI_PROVIDERS);
-  if ('example' in obj) result.example = assertEnum('example', obj['example'], EXAMPLE_MODES);
-  if ('ui' in obj) result.ui = assertEnum('ui', obj['ui'], UI_LIBRARIES);
+    result.dbProvider = assertEnum('dbProvider', obj['dbProvider'], DB_PROVIDERS, label);
+  if ('upload' in obj) result.upload = assertEnum('upload', obj['upload'], UPLOAD_PROVIDERS, label);
+  if ('payment' in obj)
+    result.payment = assertEnum('payment', obj['payment'], PAYMENT_PROVIDERS, label);
+  if ('jobs' in obj) result.jobs = assertEnum('jobs', obj['jobs'], JOBS_PROVIDERS, label);
+  if ('ai' in obj) result.ai = assertEnum('ai', obj['ai'], AI_PROVIDERS, label);
+  if ('example' in obj)
+    result.example = assertEnum('example', obj['example'], EXAMPLE_MODES, label);
+  if ('ui' in obj) result.ui = assertEnum('ui', obj['ui'], UI_LIBRARIES, label);
   if ('transport' in obj)
-    result.transport = assertEnum('transport', obj['transport'], MS_TRANSPORTS);
-  if ('session' in obj) result.session = assertEnum('session', obj['session'], SESSION_STORES);
+    result.transport = assertEnum('transport', obj['transport'], MS_TRANSPORTS, label);
+  if ('session' in obj)
+    result.session = assertEnum('session', obj['session'], SESSION_STORES, label);
   if ('packageManager' in obj)
-    result.packageManager = assertEnum('packageManager', obj['packageManager'], PACKAGE_MANAGERS);
-  if ('initGit' in obj) result.initGit = assertBoolean('initGit', obj['initGit']);
-  if ('install' in obj) result.install = assertBoolean('install', obj['install']);
+    result.packageManager = assertEnum(
+      'packageManager',
+      obj['packageManager'],
+      PACKAGE_MANAGERS,
+      label,
+    );
+  if ('initGit' in obj) result.initGit = assertBoolean('initGit', obj['initGit'], label);
+  if ('install' in obj) result.install = assertBoolean('install', obj['install'], label);
   // targetDir is always derived from projectName + cwd — ignored if present
 
   return result;

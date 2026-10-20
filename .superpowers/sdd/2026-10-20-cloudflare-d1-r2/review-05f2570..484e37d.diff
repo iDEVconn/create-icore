@@ -1,0 +1,307 @@
+# Review package: 05f2570..HEAD
+
+## Commits
+484e37d fix: cap Retry-After, R2 checksum options, correct rate-limit docs
+
+## Files changed
+ AGENTS.md                                           |  6 +++---
+ docs/runbooks/cloudflare-d1-r2.md                   |  8 ++++++--
+ .../src/lib/__tests__/d1-rest-client.unit.test.ts   | 21 +++++++++++++++++++++
+ libs/db-strategies/d1/src/lib/d1-client.ts          | 20 +++++++++++++++-----
+ .../r2/src/lib/__tests__/r2-s3-client.unit.test.ts  | 12 ++++++++++++
+ libs/storage-strategies/r2/src/lib/r2-s3-client.ts  |  3 +++
+ 6 files changed, 60 insertions(+), 10 deletions(-)
+
+## Diff
+diff --git a/AGENTS.md b/AGENTS.md
+index 8ed928c..af29318 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -248,43 +248,43 @@ STORAGE_PROVIDER=minio
+ MINIO_ENDPOINT=<host>            # e.g. localhost, minio.internal, s3.amazonaws.com
+ MINIO_PORT=9000                  # optional, default 9000
+ MINIO_USE_SSL=false              # optional, default false — set true for anything but local dev
+ MINIO_ACCESS_KEY=<key>
+ MINIO_SECRET_KEY=<secret>
+ MINIO_BUCKET=uploads
+ ```
+ 
+ **Setup:**
+ 
+-1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it.
++1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it (or use the dedicated `STORAGE_PROVIDER=r2`, see the R2 section).
+ 2. Create the bucket (`MINIO_BUCKET`) before first upload — the strategy does not auto-create it.
+-3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the same MIME allowlist + ownership-prefix convention as the other storage strategies, in code — not relying on bucket policy.
++3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the ownership-prefix convention in code — not relying on bucket policy. No storage strategy enforces a MIME allowlist today.
+ 4. This is the only storage strategy with zero mandatory external SaaS dependency — pick it when "no vendor lock-in" matters more than managed convenience.
+ 
+ ### Cloudflare D1 (db only)
+ 
+ **Env vars:**
+ 
+ ```
+ DB_PROVIDER=d1
+ D1_ACCOUNT_ID=<account id>
+ D1_DATABASE_ID=<database uuid>
+ D1_API_TOKEN=<token with D1 Edit permission>
+ ```
+ 
+ **Setup:**
+ 
+ 1. Create a D1 database in the Cloudflare dashboard; note the account id and database id.
+ 2. Create a custom API token with **Account → D1 → Edit**.
+ 3. `D1DBStrategy` (`libs/db-strategies/d1`, `@icore/db-d1`) talks to the D1 REST API (`POST /client/v4/accounts/{account}/d1/database/{db}/query`). Schema is `id TEXT PRIMARY KEY, data TEXT` (JSON), tables auto-created lazily per collection.
+ 
+-**Gotchas:** each call is an HTTPS round trip (slower than local SQLite); 10 s timeout, 429/503 + pre-response network errors retried max 2 (a timeout is NOT retried — a write may have been applied); max 100 bound params per statement (`too_many_params`); 2 MB per row. Numeric/boolean `==`/`!=`/`in` filters use `CAST(... AS NUMERIC)`, so `== 0` also matches non-numeric strings. With `ai` enabled, the `D1_*` vars reach `ai-orchestrator` via the root `.env` — no manual step. `--auth=supabase --db=d1 --upload=r2` keeps Supabase for identities only. See `docs/runbooks/cloudflare-d1-r2.md` (also lists what is deferred: Workers hosting, `--host=cloudflare`).
++**Gotchas:** each call is an HTTPS round trip (slower than local SQLite); 10 s timeout, 429/503 + pre-response network errors retried max 2 (a timeout is NOT retried — a write may have been applied); subject to Cloudflare's global API limit of 1,200 req/5 min (429; `Retry-After` > 30 s fails fast) — see the runbook; max 100 bound params per statement (`too_many_params`); 2 MB per row. Numeric/boolean `==`/`!=`/`in` filters use `CAST(... AS NUMERIC)`, so `== 0` also matches non-numeric strings. With `ai` enabled, the `D1_*` vars reach `ai-orchestrator` via the root `.env` — no manual step. `--auth=supabase --db=d1 --upload=r2` keeps Supabase for identities only. See `docs/runbooks/cloudflare-d1-r2.md` (also lists what is deferred: Workers hosting, `--host=cloudflare`).
+ 
+ ### Cloudflare R2 (storage only)
+ 
+ **Env vars:**
+ 
+ ```
+ STORAGE_PROVIDER=r2
+ R2_ACCOUNT_ID=<account id>
+ R2_ACCESS_KEY_ID=<key>
+ R2_SECRET_ACCESS_KEY=<secret>
+diff --git a/docs/runbooks/cloudflare-d1-r2.md b/docs/runbooks/cloudflare-d1-r2.md
+index a567444..42bbc32 100644
+--- a/docs/runbooks/cloudflare-d1-r2.md
++++ b/docs/runbooks/cloudflare-d1-r2.md
+@@ -18,21 +18,21 @@ This phase ships only two providers: `--db=d1` (`@icore/db-d1`) and `--upload=r2
+ # Supabase holds only identities; app data lives in D1, files in R2
+ npm init @idevconn/icore my-saas -- --auth=supabase --db=d1 --upload=r2 --ui=shadcn
+ ```
+ 
+ With this combo Supabase is used for auth only. The scaffold test `scaffold-cloudflare.unit.test.ts` covers this separation. `--db=d1` and `--upload=r2` can also be used independently of each other and of any `--auth` value.
+ 
+ ## D1 setup
+ 
+ 1. In the Cloudflare dashboard go to **Storage & Databases → D1 SQL Database → Create database**. Note the **Database ID** (UUID) and your **Account ID** (dashboard sidebar or URL).
+ 2. Create an API token: **My Profile → API Tokens → Create Token → Custom token**, permission **Account → D1 → Edit**, scoped to your account. Copy the token once — it is not shown again.
+-3. Set the env vars (for every microservice that uses the db provider, and for `ai-orchestrator` when `ai` is enabled):
++3. Fill in the env vars. The generator already writes these keys into the root `.env` (loaded by both notes and `ai-orchestrator`) and the notes `.env`; you only supply the values:
+ 
+ ```env
+ DB_PROVIDER=d1
+ D1_ACCOUNT_ID=<account id>
+ D1_DATABASE_ID=<database uuid>
+ D1_API_TOKEN=<token with D1 Edit>
+ ```
+ 
+ The strategy calls `POST https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{db}/query`.
+ 
+@@ -40,23 +40,27 @@ The strategy calls `POST https://api.cloudflare.com/client/v4/accounts/{account}
+ 
+ Each collection is one table: `id TEXT PRIMARY KEY, data TEXT` (the document as JSON). Tables are created lazily on first use of a collection — no migration files.
+ 
+ ### Limits and behaviour
+ 
+ - **Latency:** every call is an HTTPS round trip to Cloudflare, noticeably slower than local SQLite.
+ - **Timeout and retries:** the REST client times out after 10 s. It retries HTTP 429/503 and pre-response network errors, at most 2 times. A timeout is deliberately **not** retried — the write may already have been applied.
+ - **Bound parameters:** at most 100 per statement; exceeding it throws `too_many_params` (large `in` filters, bulk writes).
+ - **Row size:** 2 MB per row.
+ - **Database size:** 10 GB (Workers Paid) / 500 MB (Free).
+-- **Rate limit:** none documented for the REST API.
++- **Rate limit:** the D1 query endpoint lives under `api.cloudflare.com/client/v4`, so it is subject to Cloudflare's global API limit of 1,200 requests per 5 minutes per user (HTTP 429 for the rest of the window); see https://developers.cloudflare.com/fundamentals/api/reference/limits/. Every strategy operation is one REST round trip (plus two `ensureTable` calls per collection per process, plus one AI-usage row per LLM call when `ai` is on), so about 4 req/s sustained is the ceiling. A `Retry-After` above 30 s fails fast with `D1ApiError` instead of sleeping. This limit decides whether `--db=d1` is viable for a high-traffic backend until the binding-based client lands with the Workers phase.
+ - **Numeric/boolean filters:** `==`, `!=` and `in` on numbers and booleans compare via `CAST(... AS NUMERIC)` (booleans are stored and compared as 1/0). A filter `== 0` therefore also matches non-numeric strings, and `== 30` matches a stored `"30"`.
+ 
++### Verification status
++
++The strategies are covered by contract and unit tests against an in-memory SQLite stand-in and mocks. They have NOT yet been run against a real D1 database or R2 bucket. Open points to verify live: D1 REST handling of `null` params and `meta.changes` for writes, and R2 upload/presign with the AWS SDK defaults.
++
+ ### ai-orchestrator
+ 
+ With `ai` enabled and `db=d1`, AI usage rows (`ai_usage_records`) are also written to D1. The `D1_*` credentials reach `ai-orchestrator` through the **root `.env`** written by the generator (the same route as `POSTGRES_URL` / `MONGODB_URI`). No manual step is needed.
+ 
+ ## R2 setup
+ 
+ 1. In the dashboard go to **R2 Object Storage → Create bucket**. **Create the bucket yourself** — the strategy never creates buckets. A missing bucket surfaces as `NoSuchBucket` on the first upload.
+ 2. **R2 → Manage R2 API Tokens → Create API token** with **Object Read & Write** on that bucket. Copy the Access Key ID and Secret Access Key.
+ 3. Set the env vars on the upload microservice:
+ 
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
+index 5ef2e36..c597d9a 100644
+--- a/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
+@@ -70,20 +70,41 @@ describe('createD1RestClient', () => {
+     const fetchFn = vi
+       .fn()
+       .mockResolvedValueOnce(fail(429, [971], { 'Retry-After': '1' }))
+       .mockResolvedValueOnce(ok([{ a: 1 }]));
+     const { client, sleep } = make(fetchFn);
+     expect((await client.query('x')).rows).toEqual([{ a: 1 }]);
+     expect(fetchFn).toHaveBeenCalledTimes(2);
+     expect(sleep).toHaveBeenCalledWith(1000);
+   });
+ 
++  it('fails fast without sleeping when Retry-After exceeds the cap', async () => {
++    const fetchFn = vi.fn().mockResolvedValue(fail(429, [971], { 'Retry-After': '300' }));
++    const { client, sleep } = make(fetchFn);
++    const err = await client.query('x').catch((e) => e);
++    expect(err).toBeInstanceOf(D1ApiError);
++    expect(err.status).toBe(429);
++    expect(err.codes).toEqual([971]);
++    expect(fetchFn).toHaveBeenCalledTimes(1);
++    expect(sleep).not.toHaveBeenCalled();
++  });
++
++  it('still honours Retry-After at the cap', async () => {
++    const fetchFn = vi
++      .fn()
++      .mockResolvedValueOnce(fail(429, [971], { 'Retry-After': '30' }))
++      .mockResolvedValueOnce(ok([]));
++    const { client, sleep } = make(fetchFn);
++    await client.query('x');
++    expect(sleep).toHaveBeenCalledWith(30000);
++  });
++
+   it('gives up after maxRetries and throws D1ApiError', async () => {
+     const fetchFn = vi.fn().mockImplementation(async () => fail(503, [1]));
+     const { client } = make(fetchFn);
+     const err = await client.query('x').catch((e) => e);
+     expect(err).toBeInstanceOf(D1ApiError);
+     expect(err.status).toBe(503);
+     expect(fetchFn).toHaveBeenCalledTimes(3);
+   });
+ 
+   it('retries a pre-response network error then succeeds', async () => {
+diff --git a/libs/db-strategies/d1/src/lib/d1-client.ts b/libs/db-strategies/d1/src/lib/d1-client.ts
+index 89e6eb6..74de6fb 100644
+--- a/libs/db-strategies/d1/src/lib/d1-client.ts
++++ b/libs/db-strategies/d1/src/lib/d1-client.ts
+@@ -31,31 +31,36 @@ export interface D1RestClientOptions {
+ }
+ 
+ interface D1Envelope {
+   success?: boolean;
+   errors?: { code: number; message: string }[];
+   result?: { results?: unknown[]; meta?: { changes?: number } }[];
+ }
+ 
+ const RETRYABLE_STATUS = new Set([429, 503]);
+ const BASE_BACKOFF_MS = 250;
++// Cloudflare's 429 can mean a block of up to 5 minutes; beyond this cap fail fast.
++const MAX_RETRY_AFTER_MS = 30_000;
+ 
+ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+ 
+ function isTimeout(err: unknown): boolean {
+   return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+ }
+ 
+-function backoffMs(attempt: number, retryAfter: string | null): number {
++function retryAfterMs(retryAfter: string | null): number | null {
+   const seconds = retryAfter === null ? NaN : Number(retryAfter);
+-  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+-  return BASE_BACKOFF_MS * 2 ** attempt;
++  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null;
++}
++
++function backoffMs(attempt: number, retryAfter: string | null): number {
++  return retryAfterMs(retryAfter) ?? BASE_BACKOFF_MS * 2 ** attempt;
+ }
+ 
+ export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
+   const doFetch = opts.fetch ?? fetch;
+   const timeoutMs = opts.timeoutMs ?? 10_000;
+   const maxRetries = opts.maxRetries ?? 2;
+   const sleep = opts.sleep ?? defaultSleep;
+   const url = `https://api.cloudflare.com/client/v4/accounts/${opts.accountId}/d1/database/${opts.databaseId}/query`;
+ 
+   return {
+@@ -79,22 +84,27 @@ export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
+           // A timed-out request may already have been applied, so only
+           // errors that happened before any response are retried.
+           if (!isTimeout(err) && attempt < maxRetries) {
+             await sleep(backoffMs(attempt, null));
+             continue;
+           }
+           throw err;
+         }
+ 
+         if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
+-          await sleep(backoffMs(attempt, res.headers.get('Retry-After')));
+-          continue;
++          const retryAfter = res.headers.get('Retry-After');
++          const hinted = retryAfterMs(retryAfter);
++          if (hinted === null || hinted <= MAX_RETRY_AFTER_MS) {
++            await res.body?.cancel().catch(() => undefined);
++            await sleep(backoffMs(attempt, retryAfter));
++            continue;
++          }
+         }
+ 
+         let body: D1Envelope;
+         try {
+           body = (await res.json()) as D1Envelope;
+         } catch (err) {
+           if (res.ok) {
+             throw new D1ApiError(
+               `D1 returned an unreadable response body (${res.status}): ${err instanceof Error ? err.message : String(err)}`,
+               res.status,
+diff --git a/libs/storage-strategies/r2/src/lib/__tests__/r2-s3-client.unit.test.ts b/libs/storage-strategies/r2/src/lib/__tests__/r2-s3-client.unit.test.ts
+index 0875805..094bf29 100644
+--- a/libs/storage-strategies/r2/src/lib/__tests__/r2-s3-client.unit.test.ts
++++ b/libs/storage-strategies/r2/src/lib/__tests__/r2-s3-client.unit.test.ts
+@@ -6,20 +6,32 @@ const creds = { accountId: 'acc123', accessKeyId: 'AKID', secretAccessKey: 'secr
+ 
+ describe('createR2S3Client', () => {
+   it('presignGetObject targets <account>.r2.cloudflarestorage.com with X-Amz-Expires equal to the requested ttl', async () => {
+     const client = createR2S3Client(creds);
+     const url = new URL(await client.presignGetObject('bkt', 'u1/file.txt', 123));
+     expect(url.host).toContain('acc123.r2.cloudflarestorage.com');
+     expect(url.searchParams.get('X-Amz-Expires')).toBe('123');
+     expect(url.pathname).toContain('u1/file.txt');
+   });
+ 
++  it('builds the S3 client with WHEN_REQUIRED checksum settings (R2 interop)', async () => {
++    const spy = vi.spyOn(S3Client.prototype, 'send').mockResolvedValue({} as never);
++    try {
++      await createR2S3Client(creds).deleteObject('bkt', 'k');
++      const captured = spy.mock.contexts[0] as S3Client;
++      expect(await captured.config.requestChecksumCalculation()).toBe('WHEN_REQUIRED');
++      expect(await captured.config.responseChecksumValidation()).toBe('WHEN_REQUIRED');
++    } finally {
++      spy.mockRestore();
++    }
++  });
++
+   it('listKeys follows ContinuationToken until exhausted', async () => {
+     const calls: Array<Record<string, unknown>> = [];
+     const pages = [
+       {
+         Contents: [{ Key: 'u1/a' }, { Key: 'u1/b' }],
+         IsTruncated: true,
+         NextContinuationToken: 't1',
+       },
+       { Contents: [{ Key: 'u1/c' }], IsTruncated: true, NextContinuationToken: 't2' },
+       { Contents: [{ Key: 'u1/d' }], IsTruncated: false },
+diff --git a/libs/storage-strategies/r2/src/lib/r2-s3-client.ts b/libs/storage-strategies/r2/src/lib/r2-s3-client.ts
+index 5c0b7b0..b085f8f 100644
+--- a/libs/storage-strategies/r2/src/lib/r2-s3-client.ts
++++ b/libs/storage-strategies/r2/src/lib/r2-s3-client.ts
+@@ -11,20 +11,23 @@ import type { R2ClientLike } from './r2-storage.strategy';
+ export interface R2S3ClientOptions {
+   accountId: string;
+   accessKeyId: string;
+   secretAccessKey: string;
+ }
+ 
+ export function createR2S3Client(opts: R2S3ClientOptions): R2ClientLike {
+   const s3 = new S3Client({
+     region: 'auto',
+     endpoint: `https://${opts.accountId}.r2.cloudflarestorage.com`,
++    // AWS SDK >= 3.729 adds flexible checksums by default, which R2 does not fully support.
++    requestChecksumCalculation: 'WHEN_REQUIRED',
++    responseChecksumValidation: 'WHEN_REQUIRED',
+     credentials: { accessKeyId: opts.accessKeyId, secretAccessKey: opts.secretAccessKey },
+   });
+ 
+   return {
+     async putObject(bucket, key, body, contentType) {
+       await s3.send(
+         new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
+       );
+     },
+     async deleteObject(bucket, key) {

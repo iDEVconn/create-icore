@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1.7
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+WORKDIR /app
+
+COPY apps/microservices/<%= fileName %>/pyproject.toml ./pyproject.toml
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-install-project --no-dev
+
+COPY apps/microservices/<%= fileName %> .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev
+
+FROM python:3.12-slim-bookworm AS runtime
+WORKDIR /app
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    <%= constantName %>_PORT=<%= port %>
+EXPOSE <%= port %>
+<% if (framework === 'fastapi') { -%>
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "<%= port %>"]
+<% } else { -%>
+CMD ["python", "-m", "src.main"]
+<% } -%>

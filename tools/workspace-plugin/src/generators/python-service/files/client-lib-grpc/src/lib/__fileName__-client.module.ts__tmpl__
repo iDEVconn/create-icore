@@ -1,0 +1,36 @@
+import { join } from 'node:path';
+import { DynamicModule, Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { <%= className %>ClientService } from './<%= fileName %>-client.service';
+import { <%= constantName %>_CLIENT } from './<%= fileName %>-client.tokens';
+
+@Module({})
+export class <%= className %>ClientModule {
+  static forRoot(): DynamicModule {
+    const url =
+      process.env['<%= constantName %>_URL'] ||
+      `127.0.0.1:${process.env['<%= constantName %>_PORT'] || '<%= port %>'}`;
+
+    return {
+      module: <%= className %>ClientModule,
+      imports: [
+        ClientsModule.register([
+          {
+            name: <%= constantName %>_CLIENT,
+            transport: Transport.GRPC,
+            options: {
+              package: '<%= pythonModuleName %>',
+              protoPath: join(
+                process.cwd(),
+                'apps/microservices/<%= fileName %>/protos/<%= pythonModuleName %>.proto',
+              ),
+              url,
+            },
+          },
+        ]),
+      ],
+      providers: [<%= className %>ClientService],
+      exports: [<%= className %>ClientService],
+    };
+  }
+}

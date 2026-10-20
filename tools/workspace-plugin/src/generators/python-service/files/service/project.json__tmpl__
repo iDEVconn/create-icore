@@ -1,0 +1,79 @@
+{
+  "name": "<%= fileName %>",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/microservices/<%= fileName %>/src",
+  "targets": {
+    <% if (framework === 'grpc') { %>
+    "proto": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/protos/**/*.proto"],
+      "outputs": ["{projectRoot}/src/generated"],
+      "options": {
+        "cwd": "apps/microservices/<%= fileName %>",
+        "command": "uv run python -m grpc_tools.protoc -I./protos --python_out=./src/generated --pyi_out=./src/generated --grpc_python_out=./src/generated ./protos/<%= pythonModuleName %>.proto"
+      }
+    },
+    <% } %>
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      <% if (framework === 'grpc') { %>"dependsOn": ["proto"],<% } %>
+      "options": {
+        "cwd": "apps/microservices/<%= fileName %>",
+        "command": "<%= framework === 'fastapi' ? `uv run uvicorn src.main:app --reload --host 0.0.0.0 --port ${port}` : `uv run python -m src.main` %>"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/pyproject.toml",
+        "{projectRoot}/src/**/*.py",
+        "{projectRoot}/tests/**/*.py"
+      ],
+      "options": {
+        "cwd": "apps/microservices/<%= fileName %>",
+        "command": "uv run ruff check ."
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/microservices/<%= fileName %>",
+        "command": "uv run ruff format ."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      <% if (framework === 'grpc') { %>"dependsOn": ["proto"],<% } %>
+      "inputs": [
+        "{projectRoot}/pyproject.toml",
+        "{projectRoot}/src/**/*.py",
+        "{projectRoot}/tests/**/*.py"
+      ],
+      "outputs": ["{projectRoot}/.pytest_cache"],
+      "options": {
+        "cwd": "apps/microservices/<%= fileName %>",
+        "command": "uv run pytest"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      <% if (framework === 'grpc') { %>"dependsOn": ["proto"],<% } %>
+      "inputs": [
+        "{projectRoot}/pyproject.toml",
+        "{projectRoot}/src/**/*.py",
+        "{projectRoot}/tests/**/*.py"
+      ],
+      "options": {
+        "cwd": "apps/microservices/<%= fileName %>",
+        "command": "uv run mypy ."
+      }
+    }
+  },
+  "tags": <%- msTagsJson %>
+}

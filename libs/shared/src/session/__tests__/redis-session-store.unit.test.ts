@@ -14,8 +14,9 @@ describe('RedisSessionStore.withRefreshLock — bounded acquisition', () => {
     const store = new RedisSessionStore(redis, { lockMaxWaitMs: 150 });
     const fn = vi.fn();
 
+    // Exact message: the session id (a secret) must not appear in it.
     await expect(store.withRefreshLock('sid-1', fn)).rejects.toThrow(
-      /session_refresh_lock_timeout/,
+      /^session_refresh_lock_timeout$/,
     );
     expect(fn).not.toHaveBeenCalled();
     // Never acquired => must never run the release script (which would be

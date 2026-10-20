@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": false,
+    "strict": false,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "types": ["node", "multer"],
+    "noEmit": false,
+    "declaration": false,
+    "baseUrl": "../..",
+    "rootDir": "../..",
+    "outDir": "build"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/__tests__/**", "src/testing/**"]
+}

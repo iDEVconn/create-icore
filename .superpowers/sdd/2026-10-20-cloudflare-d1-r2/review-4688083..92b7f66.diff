@@ -1,0 +1,148 @@
+# Review package: 4688083..HEAD
+
+## Commits
+92b7f66 feat(db-d1): D1DbModule
+
+## Files changed
+ libs/db-strategies/d1/eslint.config.mjs            |  8 +---
+ libs/db-strategies/d1/src/index.ts                 |  1 +
+ .../d1/src/lib/__tests__/d1-db.module.unit.test.ts | 43 ++++++++++++++++++++++
+ libs/db-strategies/d1/src/lib/d1-db.module.ts      | 41 +++++++++++++++++++++
+ 4 files changed, 86 insertions(+), 7 deletions(-)
+
+## Diff
+diff --git a/libs/db-strategies/d1/eslint.config.mjs b/libs/db-strategies/d1/eslint.config.mjs
+index d582e04..5642061 100644
+--- a/libs/db-strategies/d1/eslint.config.mjs
++++ b/libs/db-strategies/d1/eslint.config.mjs
+@@ -5,25 +5,19 @@ export default [
+   {
+     files: ['**/*.json'],
+     rules: {
+       '@nx/dependency-checks': [
+         'error',
+         {
+           ignoredFiles: [
+             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
+             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
+           ],
+-          ignoredDependencies: [
+-            '@icore/shared',
+-            '@nestjs/common',
+-            '@nestjs/config',
+-            '@nestjs/testing',
+-            'vitest',
+-          ],
++          ignoredDependencies: ['@nestjs/testing', 'vitest'],
+         },
+       ],
+     },
+     languageOptions: {
+       parser: await import('jsonc-eslint-parser'),
+     },
+   },
+ ];
+diff --git a/libs/db-strategies/d1/src/index.ts b/libs/db-strategies/d1/src/index.ts
+index d37b650..12911d2 100644
+--- a/libs/db-strategies/d1/src/index.ts
++++ b/libs/db-strategies/d1/src/index.ts
+@@ -1,2 +1,3 @@
+ export * from './lib/d1-client';
+ export { D1DBStrategy, D1_MAX_BOUND_PARAMS } from './lib/d1-db.strategy';
++export * from './lib/d1-db.module';
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-db.module.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-db.module.unit.test.ts
+new file mode 100644
+index 0000000..7ee9ebf
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-db.module.unit.test.ts
+@@ -0,0 +1,43 @@
++import { describe, it, expect } from 'vitest';
++import { Global, Module } from '@nestjs/common';
++import { Test } from '@nestjs/testing';
++import { ConfigService } from '@nestjs/config';
++import { FakeDBStrategy } from '@icore/shared';
++import { D1DbModule, D1_DB_REQUIRED_ENV } from '../d1-db.module';
++import { D1DBStrategy } from '../d1-db.strategy';
++
++let ENV: Record<string, string | undefined> = {};
++@Global()
++@Module({
++  providers: [
++    {
++      provide: ConfigService,
++      useValue: { get: (k: string) => ENV[k], getOrThrow: (k: string) => ENV[k] },
++    },
++  ],
++  exports: [ConfigService],
++})
++class StubConfigModule {}
++
++const compile = () =>
++  Test.createTestingModule({
++    imports: [StubConfigModule, D1DbModule.forRoot('.env')],
++  }).compile();
++
++describe('D1DbModule', () => {
++  it('declares its required env', () => {
++    expect(D1_DB_REQUIRED_ENV).toEqual(['D1_ACCOUNT_ID', 'D1_DATABASE_ID', 'D1_API_TOKEN']);
++  });
++
++  it('provides a real D1DBStrategy when env present', async () => {
++    ENV = { D1_ACCOUNT_ID: 'acc', D1_DATABASE_ID: 'db', D1_API_TOKEN: 'tok' };
++    const ref = await compile();
++    expect(ref.get('DBStrategy')).toBeInstanceOf(D1DBStrategy);
++  });
++
++  it('falls back to FakeDBStrategy when env is missing outside production', async () => {
++    ENV = {};
++    const ref = await compile();
++    expect(ref.get('DBStrategy')).toBeInstanceOf(FakeDBStrategy);
++  });
++});
+diff --git a/libs/db-strategies/d1/src/lib/d1-db.module.ts b/libs/db-strategies/d1/src/lib/d1-db.module.ts
+new file mode 100644
+index 0000000..8f6836a
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/d1-db.module.ts
+@@ -0,0 +1,41 @@
++import { Module, DynamicModule } from '@nestjs/common';
++import { ConfigService } from '@nestjs/config';
++import { buildStrategyWithFallback, FakeDBStrategy } from '@icore/shared';
++import type { DBStrategy } from '@icore/shared';
++import { createD1RestClient } from './d1-client';
++import { D1DBStrategy } from './d1-db.strategy';
++
++export const D1_DB_REQUIRED_ENV: string[] = ['D1_ACCOUNT_ID', 'D1_DATABASE_ID', 'D1_API_TOKEN'];
++
++@Module({})
++export class D1DbModule {
++  static forRoot(envPath: string): DynamicModule {
++    return {
++      module: D1DbModule,
++      providers: [
++        {
++          provide: 'DBStrategy',
++          useFactory: (cfg: ConfigService): DBStrategy =>
++            buildStrategyWithFallback<DBStrategy>({
++              service: 'notes MS',
++              provider: 'd1',
++              requiredEnv: D1_DB_REQUIRED_ENV,
++              cfg,
++              envPath,
++              build: () =>
++                new D1DBStrategy(
++                  createD1RestClient({
++                    accountId: cfg.getOrThrow<string>('D1_ACCOUNT_ID'),
++                    databaseId: cfg.getOrThrow<string>('D1_DATABASE_ID'),
++                    apiToken: cfg.getOrThrow<string>('D1_API_TOKEN'),
++                  }),
++                ),
++              fake: () => new FakeDBStrategy(),
++            }),
++          inject: [ConfigService],
++        },
++      ],
++      exports: ['DBStrategy'],
++    };
++  }
++}

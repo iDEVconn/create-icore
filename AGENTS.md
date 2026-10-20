@@ -26,6 +26,8 @@ iCore is a bootstrap scaffold for Nx + NestJS + React projects. It ships infrast
   4. Update the relevant `.md` files in `docs/` (or `AGENTS.md`). Describe problem + solution + test plan. New runbooks go in `docs/runbooks/`, plans in `docs/superpowers/plans/`.
      No commit lands with a red lint, red build, or undocumented behavior change. The pre-commit hook backstops 1–3; step 4 is on you.
 - **Clean Code:** Actively remove unused imports, duplicated code, and deprecated APIs.
+- **MANDATORY — NX IN-PROCESS EXECUTION & DAEMON CONTROL:** In Nx 23, isolated plugin worker processes create Unix domain sockets under `/tmp/.nx/` which get refused (`connect EPERM`) in sandboxed shells and restricted terminals. Always maintain `"useDaemonProcess": false` in `nx.json`, and ensure `NX_DAEMON=false NX_ISOLATE_PLUGINS=false` is set in root `.env` and `package.json` scripts (`build`, `lint`, `test`). This runs plugin inference in-process and avoids 30-second worker socket connection timeouts.
+- **MANDATORY — TEMPLATE DOTFILES SHIP AS UNDERSCORES:** npm pack / publish drops leading dotfiles (`.yarnrc.yml`, `.gitignore`, `.github/`, `.husky/`). In `tools/create-icore/templates/`, all top-level dotfiles must be snapshotted with underscore prefixes (`_yarnrc.yml`, `_gitignore`, `_github/`, `_husky/`). The CLI's `copyTree` restores them to their dotfile names upon project scaffolding, and falls back to generating a minimal `.yarnrc.yml` (`nodeLinker: node-modules`) if missing. Never check in dotfiles under `tools/create-icore/templates/` directly; always run `node tools/create-icore/scripts/snapshot-templates.mjs` and verify with `node tools/create-icore/scripts/check-tarball-dotfiles.mjs`.
 
 ## Architecture
 
@@ -48,10 +50,13 @@ libs/
 │   ├── supabase/
 │   ├── firebase/
 │   ├── cloudinary/
+│   ├── minio/
+│   ├── r2/
 │   └── mongodb/
 ├── db-strategies/
 │   ├── supabase/
 │   ├── firebase/
+│   ├── d1/
 │   └── mongodb/
 ├── auth-client/          # gateway → auth MS client (NestJS module)
 └── upload-client/        # gateway → upload MS client (NestJS module)
@@ -65,7 +70,7 @@ Frontend never imports a provider SDK directly. All auth + storage traffic goes 
 
 - **Strategy-pattern auth + storage:** `libs/shared/src/strategies/{auth,storage,db}.ts` defines the `AuthStrategy`, `StorageStrategy`, and `DBStrategy` interfaces. Each MS module wires a factory provider that reads `AUTH_PROVIDER` / `STORAGE_PROVIDER` / `DB_PROVIDER` env and returns the concrete implementation. The contract test suite `runAuthContract(name, factory)` / `runStorageContract(name, factory)` runs against every concrete strategy and the in-memory `FakeAuthStrategy` / `FakeStorageStrategy`.
 - **Env layering (3 layers):**
-  - **Transport wiring** (gateway ↔ MS): `${PREFIX}_TRANSPORT` (`tcp` default | `redis` | `nats` | `mqtt` | `rmq` | `kafka`) + the matching host/port/url vars; read by `buildTransport(prefix)` in `libs/shared/src/transport.ts`. All six are message-pattern transports (work with `@MessagePattern` + `ClientProxy.send/emit`). gRPC is intentionally NOT offered — it needs `.proto` contracts + `@GrpcMethod` controllers + `ClientGrpc`, incompatible with the message-based gateway↔MS layer. Each broker transport's driver (`nats`, `mqtt`, `amqplib`+`amqp-connection-manager`, `kafkajs`) is an optional peer dep of `@nestjs/microservices`; `rewriteRootPackageJson` adds it to the generated `package.json` for the chosen transport.
+  - **Transport wiring** (gateway ↔ MS): `${PREFIX}_TRANSPORT` (`tcp` default | `redis` | `nats` | `mqtt` | `rmq` | `kafka`) + the matching host/port/url vars; read by `buildTransport(prefix)` in `libs/shared/src/transport.ts`. All six are message-pattern transports (work with `@MessagePattern` + `ClientProxy.send/emit`). gRPC is intentionally NOT offered — it needs `.proto` contracts + `@GrpcMethod` controllers + `ClientGrpc`, incompatible with the message-based gateway↔MS layer. Each broker transport's driver (`nats`, `mqtt`, `amqplib`+`amqp-connection-manager`, `kafkajs`) is an optional peer dep of `@nestjs/microservices`; `rewriteRootPackageJson` adds it to the generated `package.json` for the chosen transport. A seventh value, `local`, is an in-process transport (`LocalServer` + `LocalClientProxy` in `libs/shared/src/local-transport.ts`): the gateway's `ClientProxy` calls the microservice's `@MessagePattern` / `@EventPattern` handlers directly, so it only works when the gateway and the microservices run in the SAME process (the Cloudflare Workers host of the Workers phase, see `docs/superpowers/specs/2026-10-20-cloudflare-workers-design.md`). `create-icore` does not offer it yet; it needs no host/port/url vars, only `${PREFIX}_TRANSPORT=local` on both sides. Errors reach the client in the same `{ status: 'error', message }` shape as over TCP, and a microservice's global `APP_GUARD` still runs.
   - **Provider selection** (per MS): `AUTH_PROVIDER`, `STORAGE_PROVIDER`; read by the MS `useFactory`.
   - **Provider credentials** (per concrete strategy): `SUPABASE_*`, `FB_ADMIN_*`, `CLOUDINARY_*`; injected via `ConfigService`.
 
@@ -250,10 +255,49 @@ MINIO_BUCKET=uploads
 
 **Setup:**
 
-1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it.
+1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it (or use the dedicated `STORAGE_PROVIDER=r2`, see the R2 section).
 2. Create the bucket (`MINIO_BUCKET`) before first upload — the strategy does not auto-create it.
-3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the same MIME allowlist + ownership-prefix convention as the other storage strategies, in code — not relying on bucket policy.
+3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the ownership-prefix convention in code — not relying on bucket policy. No storage strategy enforces a MIME allowlist today.
 4. This is the only storage strategy with zero mandatory external SaaS dependency — pick it when "no vendor lock-in" matters more than managed convenience.
+
+### Cloudflare D1 (db only)
+
+**Env vars:**
+
+```
+DB_PROVIDER=d1
+D1_ACCOUNT_ID=<account id>
+D1_DATABASE_ID=<database uuid>
+D1_API_TOKEN=<token with D1 Edit permission>
+```
+
+**Setup:**
+
+1. Create a D1 database in the Cloudflare dashboard; note the account id and database id.
+2. Create a custom API token with **Account → D1 → Edit**.
+3. `D1DBStrategy` (`libs/db-strategies/d1`, `@icore/db-d1`) talks to the D1 REST API (`POST /client/v4/accounts/{account}/d1/database/{db}/query`). Schema is `id TEXT PRIMARY KEY, data TEXT` (JSON), tables auto-created lazily per collection.
+
+**Gotchas:** each call is an HTTPS round trip (slower than local SQLite); 10 s timeout, 429/503 + pre-response network errors retried max 2 (a timeout is NOT retried — a write may have been applied); subject to Cloudflare's global API limit of 1,200 req/5 min (429; `Retry-After` > 30 s fails fast) — see the runbook; max 100 bound params per statement (`too_many_params`); 2 MB per row. Numeric/boolean `==`/`!=`/`in` filters use `CAST(... AS NUMERIC)`, so `== 0` also matches non-numeric strings. With `ai` enabled, the `D1_*` vars reach `ai-orchestrator` via the root `.env` — no manual step. `--auth=supabase --db=d1 --upload=r2` keeps Supabase for identities only. Inside a Worker, a `D1_DATABASE_BINDING` provider (`env.DB`) makes `D1DbModule` use the binding (`createD1BindingClient`) instead of REST — no env, no REST rate limit; binding wins over REST env. See `docs/runbooks/cloudflare-d1-r2.md` (also lists what is deferred: Workers hosting, `--host=cloudflare`).
+
+### Cloudflare R2 (storage only)
+
+**Env vars:**
+
+```
+STORAGE_PROVIDER=r2
+R2_ACCOUNT_ID=<account id>
+R2_ACCESS_KEY_ID=<key>
+R2_SECRET_ACCESS_KEY=<secret>
+R2_BUCKET=<bucket>
+```
+
+**Setup:**
+
+1. Create the bucket yourself — the strategy never creates buckets (missing bucket = `NoSuchBucket` on first upload).
+2. Create an R2 API token (Object Read & Write) to get the S3 key pair.
+3. `R2StorageStrategy` (`libs/storage-strategies/r2`, `@icore/storage-r2`) uses the AWS SDK v3 S3 client against `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, region `auto`. Does not use the `minio` package.
+
+**Gotchas:** presigned GET URLs only work on the `*.r2.cloudflarestorage.com` domain (not custom domains); default TTL 900 s, max 7 days (clamped), invalid TTL throws `invalid_ttl`. Keys are `<userId>/<uuid>-<filename>` with `/`, `\` and control chars in filenames replaced by `_`. No MIME allowlist (same as MinIO). See `docs/runbooks/cloudflare-d1-r2.md`.
 
 ### AI Orchestrator (LLM routing, optional feature)
 
@@ -287,6 +331,7 @@ Since `LlmCallEvent` (llm-router's `onCall`/`onCost` payload) has no notion of _
 - `yarn nx test <project>` — run unit tests for a project
 - `yarn nx run-many -t lint test build` — full pre-merge check across affected projects
 - `yarn nx graph` — open the dependency graph in the browser
+- `yarn nx g @icore/workspace-plugin:microservice <name>` — scaffold a new NestJS microservice (`apps/microservices/<name>`), its `@icore/<name>-client` library (`libs/<name>-client`), and AST-wire it into `apps/api` (`features.module.ts`, `gateway-services.ts`, `package.json`, `.env.example`). Optional flags: `--transport=<tcp|redis|nats|mqtt|rmq|kafka>`, `--port=<number>`, `--inspectPort=<number>`, `--withDb`, `--withDocker`, `--skipBff`, `--tags=<csv>`.
 
 ## Testing
 
@@ -307,6 +352,7 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - Forgot password (Supabase + Firebase): `AuthStrategy.requestPasswordReset/confirmPasswordReset` → MS `auth.password.forgot|reset` → `POST /api/auth/password/forgot` (always 200, no enumeration, tighter 5/min throttle) and `/password/reset` (400 `password_too_short`/`invalid_reset_token`/`weak_password`; deletes the user's Redis sessions, starts a new one). **Session-kill semantics live in the strategies, not the gateway:** Supabase relies on GoTrue's admin password update deleting every session atomically (an explicit `signOut` afterwards 403s with `session_not_found` — don't add one back); Firebase's password change already invalidates refresh tokens and the explicit uid-wide `revokeRefreshTokens` is best-effort and must run BEFORE the new session is minted (it is uid-wide). Clients are gated by `VITE_AUTH_HAS_PASSWORD_RESET` (set by `create-icore` for supabase/firebase); `/reset-password` redirects to `/login` when off, forwards Firebase `mode=signIn` links to `/auth/callback` (the Firebase action URL is project-wide) and strips the token from the URL. See `docs/runbooks/auth-email-setup.md`.
 - `@Public()` decorator exempts routes from `AuthGuard` (login, register, refresh, webhooks).
 - `@Public()` does NOT exempt a route from `CsrfGuard` — add `@SkipCsrf()` (`apps/api/src/app/http/skip-csrf.decorator.ts`) too if the route is genuinely CSRF-exempt (it issues the CSRF cookie itself, or it's a provider webhook with no browser cookie jar). They are separate metadata keys on purpose: making a route public must never silently drop CSRF protection.
+- **Named throttlers are scoped, with a fail-closed floor.** `@nestjs/throttler` applies every named throttler to every route; `@Throttle({ '<name>': … })` only overrides its numbers. `apps/api/src/app/http/throttler.config.ts` therefore gives `auth-burst` and `ai-burst` `skipUnlessDeclared('<name>')` (a route is counted only when it, or its controller, declares that name) and adds a `default` throttler (120 requests/minute, no `skipIf`) so a route without a decorator is still limited, never unlimited. Every new LLM-backed or other costly route must declare its own `@Throttle`; any new named throttler must use `skipUnlessDeclared`; a webhook that must not be limited opts out with `@SkipThrottle({ default: true })`. Pinned by `throttler.config.unit.test.ts`.
 - `@CheckAbility(action, subject)` enforces CASL rules on admin endpoints — server is the source of truth, the client `<Can>` is UX only.
 - Build artifacts (`dist/`, `.vite/`, `.nx/`) are gitignored — do not commit them.
 - `.env` files are gitignored. Each MS ships a `.env.example` committed alongside its `.env`.
@@ -321,6 +367,8 @@ API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: 
 - Generated projects now ship `.github/workflows/ci.yml` (a thin `nx affected -t lint test build` pipeline) via `tools/create-icore/_template-shell/.github/workflows/ci.yml` — previously scaffolded projects had zero CI/CD (PR #281).
 - `Dockerfile.client` + `nginx.client.conf` (PR #282) give the React client a production multi-stage build (`node:24-alpine` → `nginx:1.27-alpine`, SPA fallback) — the client had no Docker path before. Uses the real Nx target `vite:build`, not `build`.
 - Redis is in every scaffold regardless of `--transport` unless `--session=memory` — by default it backs the BFF `SessionStore` (`SESSION_REDIS_URL`), not just the redis transport. `--session=memory` (gateway `SESSION_STORE=memory`) uses `InMemorySessionStore` instead: loud boot warning, in `NODE_ENV=production` it needs `SESSION_STORE_ALLOW_MEMORY=true`, one gateway instance only, a restart logs everyone out; the generator then drops Redis from compose unless `jobs=bullmq` or `transport=redis` (`rewriteComposeSession`). Unset `SESSION_STORE` = redis. `create-icore`'s `rewriteComposeTransport` rewrites the compose `*_TRANSPORT` values for tcp/broker transports (previously hardcoded `redis`); see `docs/runbooks/local-docker.md`.
+- **Durable Object stores (Workers phase, inert until `apps/worker`):** `DurableObjectSessionStore` and `DurableObjectThrottlerStorage` (`libs/shared/src/cloudflare/`) keep BFF sessions and throttle counters in Durable Objects (per user / per key) so they hold across Worker isolates. The object logic (`SessionObjectCore`, `ThrottleObjectCore`) is plain TS over a structural `DurableObjectStorageLike`; the Worker host wraps it in `DurableObject` subclasses. Session ids are `base64url(uid).<random>`; the Redis `SessionStore` invariants apply (atomic delete-and-return, `update` never resurrects). Not live-tested on Cloudflare.
+- **`apps/worker` (Cloudflare Workers host, Workers phase, inert until `--host=cloudflare`):** one Worker hosting the gateway's modules and the auth/upload/notes microservices in one isolate over `X_TRANSPORT=local`, with `SESSION_STORE=durable-object`, Durable Object throttler storage and an optional D1 binding. Build = `tsc` first (esbuild drops `emitDecoratorMetadata`; implicit DI would silently yield `undefined`), then Wrangler. `yarn nx run worker:smoke` (`wrangler dev --local`, no account) runs in the CI `build` job. `NODE_ENV` is forced to `production` on a deployed Worker, so the dev fakes only run under `--define`. `create-icore --host=cloudflare` (axis `host`, wizard question, config key `host`; `wire-host.ts`) ships it: implies `--transport=local` + `--session=durable-object`, supports `--auth=supabase|none`, `--db=d1|none`, `--upload=r2|none`, rejects payment/jobs/ai and other providers with an error, drops Dockerfiles/compose/nginx, and regenerates `apps/worker/src/hosted-apps.ts` + wrangler vars/D1 binding per chosen features (the one file importing other apps, so add/remove a microservice there). Scaffold smoke has cloudflare combos (typecheck in `pipeline.yml`, install + `worker:smoke` in the nightly matrix). It also writes `.github/workflows/deploy-cloudflare.yml` (push to main → `nx run worker:build` → `wrangler deploy`, secrets `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`) and an `assets` binding serving the built client (`run_worker_first: ["/api/*"]`, SPA fallback; `worker:build` depends on `client:vite:build`). See `docs/runbooks/cloudflare-workers-host.md`. Not live-tested on Cloudflare.
 - See `docs/runbooks/third-party-infra-audit-fixes.md` for the full rationale behind the above (source: third-party iCore infrastructure audit, 2026-09-07).
 - `create-icore`'s post-scaffold package-manager install (`tools/create-icore/src/lib/scaffold.ts`'s `runInstall`) checks the install's exit status — a failed install (e.g. npm's `EALLOWSCRIPTS` on project-scoped installs, caused by a global `allow-scripts` npm config that's only valid at user scope) now prints a warning + manual `cd <dir> && <pm> install` fallback instead of the normal "Project scaffolded / Done" success block.
 - `MongoDbDBStrategy.getModel()` (`libs/db-strategies/mongodb/src/lib/mongodb-db.strategy.ts`) casts the model through `Model<unknown>` before caching it — mongoose >=9.10.0 tightened `Model`'s generic variance, and the `^9.9.5` dependency range means every fresh scaffold install (npm/pnpm/yarn) resolves to whatever's newest, so an unqualified assignment there breaks the `db=mongodb` build regardless of package manager.

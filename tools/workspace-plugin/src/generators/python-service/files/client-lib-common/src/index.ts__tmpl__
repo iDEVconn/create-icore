@@ -1,0 +1,3 @@
+export * from './lib/<%= fileName %>-client.tokens';
+export * from './lib/<%= fileName %>-client.module';
+export * from './lib/<%= fileName %>-client.service';

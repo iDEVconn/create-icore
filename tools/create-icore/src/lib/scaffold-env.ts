@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CreateIcoreOptions } from './options.js';
 
@@ -76,8 +76,10 @@ const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
   supabase: ['@supabase/supabase-js'],
   cloudinary: ['cloudinary'],
   minio: ['minio'],
+  r2: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin'],
+  sqlite: ['better-sqlite3', '@types/better-sqlite3'],
 };
 
 /**
@@ -165,7 +167,20 @@ export async function rewriteRootPackageJson(
         pkg['packageManager'] = `yarn@${match[1]}`;
       }
     } catch {
-      // ignore — keep whatever the template had
+      // ignore — fallback below
+    }
+    // If packageManager is not set or points to old fallback, scan .yarn/releases
+    if (!pkg['packageManager'] || pkg['packageManager'] === 'yarn@4.5.0') {
+      try {
+        const releases = await readdir(join(targetDir, '.yarn', 'releases'));
+        const yarnBin = releases.find((f) => f.startsWith('yarn-') && f.endsWith('.cjs'));
+        const vMatch = yarnBin?.match(/^yarn-(\d+\.\d+\.\d+)\.cjs$/);
+        if (vMatch?.[1]) {
+          pkg['packageManager'] = `yarn@${vMatch[1]}`;
+        }
+      } catch {
+        // ignore — keep whatever the template had
+      }
     }
   }
   // pnpm 9+ no longer reads the "pnpm" key from package.json — settings now
@@ -209,6 +224,10 @@ export async function rewriteRootPackageJson(
   if (noMs) {
     delete rootDeps['@nestjs/microservices'];
   }
+  if (opts.example === 'none') {
+    const scripts = (pkg as { scripts?: Record<string, string> }).scripts;
+    if (scripts) delete scripts['remove-notes'];
+  }
 
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
@@ -242,6 +261,10 @@ export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions
   if (opts.upload === 'mongodb') {
     next += '\nMONGODB_URI=mongodb://localhost:27017/icore-upload\n';
   }
+  if (opts.upload === 'r2') {
+    next +=
+      '\nR2_ACCOUNT_ID=<cloudflare-account-id>\nR2_ACCESS_KEY_ID=<r2-access-key-id>\nR2_SECRET_ACCESS_KEY=<r2-secret-access-key>\nR2_BUCKET=icore-uploads\n';
+  }
   await writeFile(join(targetDir, 'apps/microservices/upload/.env'), next);
 }
 
@@ -252,6 +275,13 @@ export async function writeNotesEnv(targetDir: string, opts: CreateIcoreOptions)
     const env = await readFile(envExample, 'utf8');
     let next = env.replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`);
     next = uncommentTransportEnv(next, 'NOTES', opts.transport);
+    if (opts.dbProvider === 'sqlite') {
+      next += '\nSQLITE_DB_PATH=./sqlite/app.db\nSQLITE_WAL=true\nSQLITE_BUSY_TIMEOUT=5000\n';
+    }
+    if (opts.dbProvider === 'd1') {
+      next +=
+        '\nD1_ACCOUNT_ID=<cloudflare-account-id>\nD1_DATABASE_ID=<d1-database-id>\nD1_API_TOKEN=<cloudflare-api-token>\n';
+    }
     await writeFile(join(targetDir, 'apps/microservices/notes/.env'), next);
   } catch {
     // notes .env.example may not exist in older snapshots
@@ -295,6 +325,14 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
   }
   if (opts.dbProvider === 'postgres') {
     lines.push(`POSTGRES_URL=postgresql://user:pass@localhost:5432/icore`);
+    lines.push(``);
+  }
+  if (opts.dbProvider === 'd1') {
+    // Root .env is the fallback env file for notes AND ai-orchestrator (ai-usage
+    // tracking wires D1DbModule too), so the D1 credentials must live here.
+    lines.push(`D1_ACCOUNT_ID=<cloudflare-account-id>`);
+    lines.push(`D1_DATABASE_ID=<d1-database-id>`);
+    lines.push(`D1_API_TOKEN=<cloudflare-api-token>`);
     lines.push(``);
   }
   await writeFile(join(targetDir, '.env'), lines.join('\n'));

@@ -89,4 +89,70 @@ describe('validateOptions', () => {
       'memory',
     );
   });
+
+  describe('host', () => {
+    const cf: CreateIcoreOptions = {
+      ...base,
+      host: 'cloudflare',
+      dbProvider: 'd1',
+      upload: 'r2',
+      transport: 'local',
+      session: 'durable-object',
+    };
+
+    it('treats a missing host as node and has no errors', () => {
+      expect(validateOptions(base).errors).toEqual([]);
+    });
+
+    it('accepts the supported Cloudflare combination without errors or warnings', () => {
+      const r = validateOptions(cf);
+      expect(r.errors).toEqual([]);
+      expect(r.warnings).toEqual([]);
+    });
+
+    it('fills in transport=local and session=durable-object for host=cloudflare', () => {
+      const { corrected, errors } = validateOptions({ ...cf, transport: 'tcp', session: 'redis' });
+      expect(errors).toEqual([]);
+      expect(corrected.transport).toBe('local');
+      expect(corrected.session).toBe('durable-object');
+    });
+
+    it('rejects a transport or session that is not the Worker one', () => {
+      expect(validateOptions({ ...cf, transport: 'nats' }).errors.join()).toMatch(/transport/);
+      expect(validateOptions({ ...cf, session: 'memory' }).errors.join()).toMatch(/session/);
+    });
+
+    it.each([
+      ['authProvider', 'firebase'],
+      ['dbProvider', 'postgres'],
+      ['upload', 'minio'],
+      ['payment', 'paypal'],
+      ['jobs', 'bullmq'],
+      ['ai', 'llm-router'],
+    ])('rejects %s=%s on Cloudflare and names the supported values', (key, value) => {
+      const { errors } = validateOptions({ ...cf, [key]: value });
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain(value);
+      expect(errors[0]).toMatch(/--host=cloudflare/);
+    });
+
+    it('allows db=none and upload=none on Cloudflare', () => {
+      expect(
+        validateOptions({ ...cf, dbProvider: 'none', upload: 'none', example: 'none' }).errors,
+      ).toEqual([]);
+    });
+
+    it('rejects Cloudflare-only transport/session values on host=node', () => {
+      expect(validateOptions({ ...base, transport: 'local' }).errors.join()).toMatch(
+        /host=cloudflare/,
+      );
+      expect(validateOptions({ ...base, session: 'durable-object' }).errors.join()).toMatch(
+        /host=cloudflare/,
+      );
+    });
+
+    it('rejects d1/r2 nothing on node (they stay usable with the Node host)', () => {
+      expect(validateOptions({ ...base, dbProvider: 'd1', upload: 'r2' }).errors).toEqual([]);
+    });
+  });
 });

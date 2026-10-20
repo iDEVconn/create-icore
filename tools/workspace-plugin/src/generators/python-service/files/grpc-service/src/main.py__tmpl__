@@ -1,0 +1,39 @@
+import asyncio
+from datetime import datetime, timezone
+import logging
+import os
+import grpc
+
+try:
+    from src.generated import <%= pythonModuleName %>_pb2 as pb2
+    from src.generated import <%= pythonModuleName %>_pb2_grpc as pb2_grpc
+except ImportError:
+    pb2 = None  # type: ignore[assignment]
+    pb2_grpc = None  # type: ignore[assignment]
+
+
+class <%= className %>Servicer:
+    async def Ping(self, request: object, context: object) -> object:
+        if pb2 is None:
+            raise RuntimeError("Protobuf stubs not compiled. Run: nx proto <%= fileName %>")
+        return pb2.PingResponse(
+            status="ok",
+            service="<%= fileName %>",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+
+async def serve() -> None:
+    port = int(os.getenv("<%= constantName %>_PORT", "<%= port %>"))
+    server = grpc.aio.server()
+    if pb2_grpc is not None:
+        pb2_grpc.add_<%= className %>ServiceServicer_to_server(<%= className %>Servicer(), server)
+    server.add_insecure_port(f"0.0.0.0:{port}")
+    logging.info(f"Starting <%= className %> gRPC service on port {port}")
+    await server.start()
+    await server.wait_for_termination()
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(serve())

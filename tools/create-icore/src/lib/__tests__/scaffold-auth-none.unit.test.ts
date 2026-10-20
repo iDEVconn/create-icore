@@ -1,8 +1,50 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { removeAuthTsconfigPaths } from '../scaffold-auth-none.js';
+import { pruneBarrel, removeAuthTsconfigPaths } from '../scaffold-auth-none.js';
+
+describe('pruneBarrel', () => {
+  it('drops only export lines whose target is gone and keeps everything else', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-authnone-barrel-'));
+    const src = join(dir, 'libs/shared/src');
+    await mkdir(join(src, 'session'), { recursive: true });
+    await mkdir(join(src, 'strategies'), { recursive: true });
+    await writeFile(join(src, 'env.ts'), '');
+    await writeFile(join(src, 'session/session-store.ts'), '');
+    await writeFile(join(src, 'strategies/index.ts'), '');
+    await writeFile(join(src, 'create-api.ts'), '');
+    await writeFile(
+      join(src, 'index.ts'),
+      [
+        "export * from './env';",
+        "export * from './abilities';",
+        "export * from './strategies';",
+        "export * from './session/session-store';",
+        "export * from './create-api.js';",
+        "export { gone } from './removed';",
+        '',
+      ].join('\n'),
+    );
+
+    await pruneBarrel(dir, 'libs/shared/src/index.ts');
+
+    expect(await readFile(join(src, 'index.ts'), 'utf8')).toBe(
+      [
+        "export * from './env';",
+        "export * from './strategies';",
+        "export * from './session/session-store';",
+        "export * from './create-api.js';",
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('is a no-op when the barrel does not exist', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-authnone-barrel-'));
+    await expect(pruneBarrel(dir, 'libs/shared/src/index.ts')).resolves.toBeUndefined();
+  });
+});
 
 // removeAuthTsconfigPaths loops over 4 aliases in this order:
 //   @icore/auth-client, @icore/auth-supabase, @icore/auth-firebase, @icore/auth-mongodb

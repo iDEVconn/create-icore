@@ -1,9 +1,8 @@
 import { copyFile, mkdir, readdir, readFile, rmdir, stat, writeFile, rm } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import type { CreateIcoreOptions, AuthBackend } from './options.js';
-import { validateOptions } from './options.js';
+import { hostOf, type CreateIcoreOptions, type AuthBackend } from './options.js';
 import {
   rewriteRootPackageJson,
   pruneRootProviderDeps,
@@ -39,6 +38,8 @@ import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
 import { cleanupUnusedDb, writeDbProvider } from '../manifest/wire-db.js';
 import { cleanupUnusedAiUsageDb, writeAiUsageDbProvider } from '../manifest/wire-ai-usage-db.js';
+import { writeHostWiring } from '../manifest/wire-host.js';
+import { resolveBindings, type BindingDiagnostic } from '../manifest/resolve.js';
 import {
   writePnpmWorkspace,
   rewritePnpmWorkspaceDeps,
@@ -74,6 +75,8 @@ export {
   rewritePnpmWorkspaceDeps,
   patchGitignoreForPm,
   writeAiFiles,
+  resolveBindings,
+  type BindingDiagnostic,
 };
 
 const IGNORE_TOP = new Set([
@@ -90,15 +93,41 @@ const IGNORE_TOP = new Set([
   '.vscode',
 ]);
 
-export async function copyTree(src: string, dest: string): Promise<void> {
+const DOTFILE_RESTORES: Record<string, string> = {
+  '_yarnrc.yml': '.yarnrc.yml',
+  _gitignore: '.gitignore',
+  _github: '.github',
+  _husky: '.husky',
+};
+
+export interface CopyTreeOptions {
+  /** Template-relative POSIX paths (files or directories) to skip before writing to disk. */
+  excludedPaths?: ReadonlySet<string>;
+  /** Internal recursion prefix tracking the current template-relative path. */
+  relPrefix?: string;
+}
+
+export async function copyTree(
+  src: string,
+  dest: string,
+  options: CopyTreeOptions = {},
+): Promise<void> {
+  const { excludedPaths, relPrefix = '' } = options;
   await mkdir(dest, { recursive: true });
   const entries = await readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     if (IGNORE_TOP.has(entry.name)) continue;
+    const targetName = (relPrefix === '' && DOTFILE_RESTORES[entry.name]) || entry.name;
+    const relPath = relPrefix ? `${relPrefix}/${targetName}` : targetName;
+    if (excludedPaths?.has(relPath) || (relPrefix === '' && excludedPaths?.has(entry.name)))
+      continue;
     const s = join(src, entry.name);
-    const d = join(dest, entry.name);
-    if (entry.isDirectory()) await copyTree(s, d);
-    else if (entry.isFile()) await copyFile(s, d);
+    const d = join(dest, targetName);
+    if (entry.isDirectory()) {
+      await copyTree(s, d, { excludedPaths, relPrefix: relPath });
+    } else if (entry.isFile()) {
+      await copyFile(s, d);
+    }
     // symlinks skipped intentionally
   }
 }
@@ -173,7 +202,16 @@ function resolveYarnBin(cwd: string): string {
   } catch {
     // ignore — fallback below
   }
-  return join(cwd, '.yarn', 'releases', 'yarn-4.5.0.cjs');
+  // Fallback: scan .yarn/releases for the pinned binary rather than hardcoding a version
+  try {
+    const releasesDir = join(cwd, '.yarn', 'releases');
+    const files = readdirSync(releasesDir);
+    const yarnBinary = files.find((f) => f.startsWith('yarn-') && f.endsWith('.cjs'));
+    if (yarnBinary) return join(releasesDir, yarnBinary);
+  } catch {
+    // ignore
+  }
+  return join(cwd, '.yarn', 'releases', 'yarn-4.18.0.cjs');
 }
 
 function runInstall(cwd: string, pm: string): boolean {
@@ -193,10 +231,11 @@ export async function scaffold(
   rawOpts: CreateIcoreOptions,
   templatesDir: string,
 ): Promise<{ installOk: boolean }> {
-  const { warnings, corrected: opts } = validateOptions(rawOpts);
+  const bindings = resolveBindings(rawOpts);
+  const { warnings, options: opts, excludedPaths } = bindings;
   for (const w of warnings) process.stderr.write(`Warning: ${w}\n`);
 
-  await copyTree(templatesDir, opts.targetDir);
+  await copyTree(templatesDir, opts.targetDir, { excludedPaths });
   await rewriteRootPackageJson(opts.targetDir, opts);
   if (opts.authProvider !== 'none') await writeAuthEnv(opts.targetDir, opts);
   await writeUploadEnv(opts.targetDir, opts);
@@ -274,7 +313,9 @@ export async function scaffold(
     opts.upload === 'none' &&
     opts.dbProvider === 'none' &&
     opts.payment === 'none' &&
-    opts.ai === 'none'
+    opts.ai === 'none' &&
+    // The Worker's bootstrap starts microservices through buildTransportMS (transport.ts).
+    hostOf(opts) !== 'cloudflare'
   ) {
     await removeStrategiesLib(opts.targetDir);
   }
@@ -285,6 +326,10 @@ export async function scaffold(
   } catch {
     // ignore — not empty or doesn't exist
   }
+
+  // Specialise apps/worker (hosted modules, wrangler vars, D1 binding) for the features that
+  // survived the cleanup above. No-op for the Node host.
+  await writeHostWiring(opts.targetDir, opts);
 
   await writeBlueprintJson(opts.targetDir, opts);
   await writeServiceBlueprints(opts.targetDir, opts);
@@ -297,6 +342,24 @@ export async function scaffold(
   // Only needed when using yarn; for npm/pnpm it's harmless but we skip it to keep the
   // generated project tidy.
   if (opts.packageManager === 'yarn') {
+    const yarnrcPath = join(opts.targetDir, '.yarnrc.yml');
+    if (!existsSync(yarnrcPath)) {
+      const yarnBin = basename(resolveYarnBin(opts.targetDir));
+      await writeFile(
+        yarnrcPath,
+        [
+          'approvedGitRepositories:',
+          '  - "**"',
+          '',
+          'enableGlobalCache: true',
+          'enableScripts: true',
+          'nodeLinker: node-modules',
+          'npmMinimalAgeGate: 0',
+          `yarnPath: .yarn/releases/${yarnBin}`,
+          '',
+        ].join('\n'),
+      );
+    }
     await writeFile(join(opts.targetDir, 'yarn.lock'), '');
   } else {
     // npm/pnpm don't need the pinned yarn binary or .yarnrc.yml.

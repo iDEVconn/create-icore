@@ -1,11 +1,13 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CreateIcoreOptions } from '../lib/options.js';
+import { hostOf, type CreateIcoreOptions } from '../lib/options.js';
 import { readSelfVersion } from '../lib/prompts.js';
 
 export interface BlueprintJson {
   schemaVersion: 1;
   projectName: string;
+  /** Where the project runs (`node` | `cloudflare`); absent in blueprints written before the option existed. */
+  host?: string;
   authProvider: string;
   dbProvider: string;
   upload: string;
@@ -34,6 +36,7 @@ export async function writeBlueprintJson(
   const blueprint: BlueprintJson = {
     schemaVersion: 1,
     projectName: opts.projectName,
+    host: hostOf(opts),
     authProvider: opts.authProvider,
     dbProvider: opts.dbProvider,
     upload: opts.upload,

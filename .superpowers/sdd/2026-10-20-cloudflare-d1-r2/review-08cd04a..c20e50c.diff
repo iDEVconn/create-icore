@@ -1,0 +1,113 @@
+# Review package: 08cd04a..HEAD
+
+## Commits
+c20e50c fix(db-d1): reject unreadable 2xx bodies, tighten timeout test
+
+## Files changed
+ .../sdd/2026-10-20-cloudflare-d1-r2/progress.md       |  7 +++++++
+ .../d1/src/lib/__tests__/d1-rest-client.unit.test.ts  | 19 +++++++++++++++----
+ libs/db-strategies/d1/src/lib/d1-client.ts            | 13 ++++++++++++-
+ 3 files changed, 34 insertions(+), 5 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md b/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md
+index c847dc4..e6f40e2 100644
+--- a/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md
++++ b/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md
+@@ -23,10 +23,17 @@ Execution authority: user approved plan + subagent-driven (2026-10-20). Commits
+ | T4 self | 'clamp 604800' tested; mock returns 2500 keys → pagination test targets S3 client (stub send), strategy test targets mock listKeys | consistent; mock must return all keys |
+ | T5 self | tests list `writeStorageProvider` etc.; files exist | consistent |
+ | T6 self | asserts `ai-usage-db.provider.ts` imports `@icore/db-d1` | requires `ai: 'llm-router'` in scaffold opts; present |
+ | T7 self | runbook/AGENTS/changeset/gates | consistent |
+ | Plan vs spec | Spec: "MIME allowlist … as in other storage strategies" | Ruling R2 below |
+ 
+ Ruling: R1 — if `node:sqlite` fails to resolve under Vitest, load it with `createRequire(import.meta.url)('node:sqlite')` inside the test helper instead of changing the test-runner config — keeps the change local to the test-only file — costs a slightly uglier import if wrong.
+ Ruling: R2 — R2StorageStrategy gets NO MIME allowlist, matching MinioStorageStrategy (which has none; the AGENTS.md sentence is stale) — avoids behavior the sibling lacks and contract tests don't require — costs a later hardening task if a real allowlist is wanted.
+ Ruling: R3 — commit .superpowers/sdd/* artifacts into the branch (user memory: feedback-commit-sdd-execution-record) — records the execution — costs repo noise.
+ 
++
++Task 1: implemented (commit 08cd04a), review: spec ✅, quality Needs fixes (2 Important). ⚠️ items resolved by controller: nx targets test/lint/build present, trailer present, templates untouched.
++Task 1: minor (deferred): d1-client retries any non-timeout thrown error (incl. non-network TypeError, mid-flight reset) — add comment or narrow
++Task 1: minor (deferred): Retry-After uncapped; HTTP-date Retry-After falls back to backoff
++Task 1: minor (deferred): success:true with no result[0] returns empty rows silently
++Task 1: minor (deferred): tests don't assert backoff values (250/500 ms) nor sleep in network-error test
++Task 1: minor (deferred): eslint ignoredDependencies hides @nestjs/common,config until Tasks 3+ use them (remove ignore then)
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
+index fcf1ab9..5ef2e36 100644
+--- a/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
+@@ -89,21 +89,32 @@ describe('createD1RestClient', () => {
+   it('retries a pre-response network error then succeeds', async () => {
+     const fetchFn = vi
+       .fn()
+       .mockRejectedValueOnce(new TypeError('fetch failed'))
+       .mockResolvedValueOnce(ok([]));
+     const { client } = make(fetchFn);
+     await expect(client.query('x')).resolves.toEqual({ rows: [], changes: 0 });
+     expect(fetchFn).toHaveBeenCalledTimes(2);
+   });
+ 
+-  it('aborts and throws when the request exceeds timeoutMs', async () => {
++  it('rejects a 200 response with a non-JSON body instead of reporting success', async () => {
++    const fetchFn = vi.fn().mockResolvedValue(new Response('<html>oops', { status: 200 }));
++    const { client } = make(fetchFn);
++    const err = await client.query('x').catch((e) => e);
++    expect(err).toBeInstanceOf(D1ApiError);
++    expect(err.status).toBe(200);
++  });
++
++  it('aborts on timeout without retrying', async () => {
+     const fetchFn = vi.fn(
+       (_u: unknown, init: RequestInit) =>
+         new Promise<Response>((_res, rej) => {
+           init.signal?.addEventListener('abort', () => rej(init.signal?.reason));
+         }),
+-    ) as unknown as typeof fetch;
+-    const { client } = make(fetchFn, { timeoutMs: 20, maxRetries: 0 });
+-    await expect(client.query('x')).rejects.toBeDefined();
++    );
++    const { client, sleep } = make(fetchFn as unknown as typeof fetch, { timeoutMs: 20 });
++    const err = await client.query('x').catch((e) => e);
++    expect(['TimeoutError', 'AbortError']).toContain(err.name);
++    expect(fetchFn).toHaveBeenCalledTimes(1);
++    expect(sleep).not.toHaveBeenCalled();
+   });
+ });
+diff --git a/libs/db-strategies/d1/src/lib/d1-client.ts b/libs/db-strategies/d1/src/lib/d1-client.ts
+index 97f80ed..89e6eb6 100644
+--- a/libs/db-strategies/d1/src/lib/d1-client.ts
++++ b/libs/db-strategies/d1/src/lib/d1-client.ts
+@@ -83,21 +83,32 @@ export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
+             continue;
+           }
+           throw err;
+         }
+ 
+         if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
+           await sleep(backoffMs(attempt, res.headers.get('Retry-After')));
+           continue;
+         }
+ 
+-        const body = (await res.json().catch(() => ({}))) as D1Envelope;
++        let body: D1Envelope;
++        try {
++          body = (await res.json()) as D1Envelope;
++        } catch (err) {
++          if (res.ok) {
++            throw new D1ApiError(
++              `D1 returned an unreadable response body (${res.status}): ${err instanceof Error ? err.message : String(err)}`,
++              res.status,
++            );
++          }
++          body = {};
++        }
+         if (!res.ok || body.success === false) {
+           const errors = body.errors ?? [];
+           throw new D1ApiError(
+             errors.map((e) => e.message).join('; ') || `D1 request failed (${res.status})`,
+             res.status,
+             errors.map((e) => e.code),
+           );
+         }
+         const first = body.result?.[0];
+         return {

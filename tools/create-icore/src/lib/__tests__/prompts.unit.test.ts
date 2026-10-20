@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 // flags map to options correctly.
 // (If parseFlags is not exported, export it from prompts.ts for tests.)
 
+import * as clack from '@clack/prompts';
 import { parseFlags, collectOptions } from '../prompts.js';
 
 describe('parseFlags', () => {
@@ -198,5 +199,243 @@ describe('collectOptions — session store', () => {
       cwd: '.',
     });
     expect(opts.session).toBe('redis');
+  });
+});
+
+describe('collectOptions — flag validation', () => {
+  const valid = [
+    'my-app',
+    '--auth=none',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=bullmq',
+    '--ai=none',
+    '--ui=shadcn',
+    '--transport=redis',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+  const withFlag = (flag: string) =>
+    valid.map((a) => (a.startsWith(flag.split('=')[0] + '=') ? flag : a));
+
+  it.each([
+    ['--package-manager=yarn.', 'flag "packageManager" got "yarn."'],
+    ['--ui=', 'flag "ui" got ""'],
+    ['--transport=redsi', 'flag "transport" got "redsi"'],
+  ])('rejects %s before scaffolding', async (flag, message) => {
+    await expect(collectOptions({ argv: withFlag(flag), cwd: '.' })).rejects.toThrow(message);
+  });
+
+  it('rejects an unknown --db value', async () => {
+    await expect(collectOptions({ argv: [...valid, '--db=sqlit'], cwd: '.' })).rejects.toThrow(
+      'flag "dbProvider" got "sqlit"',
+    );
+  });
+
+  it('accepts a valid flag set unchanged', async () => {
+    const opts = await collectOptions({ argv: valid, cwd: '.' });
+    expect(opts.packageManager).toBe('yarn');
+    expect(opts.transport).toBe('redis');
+  });
+});
+
+describe('parseFlags — separators and unknown flags', () => {
+  it('skips the `--` that `yarn create <pkg> <name> -- …` forwards', () => {
+    const flags = parseFlags(['my-app', '--', '--db=sqlite', '--jobs=bullmq']);
+    expect(flags.projectName).toBe('my-app');
+    expect(flags.dbProvider).toBe('sqlite');
+    expect(flags.jobs).toBe('bullmq');
+  });
+
+  it('reads --db=d1 and --upload=r2', () => {
+    const flags = parseFlags(['my-app', '--db=d1', '--upload=r2']);
+    expect(flags.dbProvider).toBe('d1');
+    expect(flags.upload).toBe('r2');
+  });
+
+  it('warns on an unknown flag instead of silently ignoring it', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    parseFlags(['my-app', '--packge-manager=yarn']);
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('unknown flag --packge-manager'),
+    );
+    stderrSpy.mockRestore();
+  });
+});
+
+describe('collectOptions — wizard provider options', () => {
+  it('offers Cloudflare D1 as a database backend and Cloudflare R2 as an upload provider', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'Database backend'
+        ? 'd1'
+        : o.message === 'File upload provider'
+          ? 'r2'
+          : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({
+        argv: [
+          'my-app',
+          '--auth=supabase',
+          '--payment=none',
+          '--jobs=none',
+          '--ai=none',
+          '--example=notes',
+          '--ui=shadcn',
+          '--transport=tcp',
+          '--session=redis',
+          '--package-manager=yarn',
+          '--no-git',
+          '--no-install',
+        ],
+        cwd: '.',
+      });
+      const optionsFor = (message: string) =>
+        (
+          select.mock.calls.find(([o]) => o.message === message)?.[0] as {
+            options: { value: string; label: string }[];
+          }
+        ).options;
+      expect(optionsFor('Database backend')).toContainEqual({
+        value: 'd1',
+        label: 'Cloudflare D1 (SQLite over REST)',
+      });
+      expect(optionsFor('File upload provider')).toContainEqual({
+        value: 'r2',
+        label: 'Cloudflare R2 (S3-compatible)',
+      });
+      expect(opts.dbProvider).toBe('d1');
+      expect(opts.upload).toBe('r2');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+});
+
+describe('collectOptions — --host=cloudflare', () => {
+  const argv = (extra: string[]) => [
+    'my-app',
+    '--host=cloudflare',
+    '--ui=shadcn',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+    ...extra,
+  ];
+
+  it('parses --host', () => {
+    expect(parseFlags(['my-app', '--host=cloudflare']).host).toBe('cloudflare');
+    expect(parseFlags(['my-app', '--host', 'node']).host).toBe('node');
+  });
+
+  it('implies local transport, durable-object sessions, d1 and no payment/jobs/ai without asking', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'File upload provider'
+        ? 'r2'
+        : o.message.startsWith('Include notes')
+          ? 'notes'
+          : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({ argv: argv(['--auth=supabase']), cwd: '.' });
+      expect(opts).toMatchObject({
+        host: 'cloudflare',
+        authProvider: 'supabase',
+        dbProvider: 'd1',
+        upload: 'r2',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'none',
+        transport: 'local',
+        session: 'durable-object',
+      });
+      const asked = select.mock.calls.map(([o]) => (o as { message: string }).message);
+      for (const skipped of [
+        'Microservice transport',
+        'Where should login sessions be stored?',
+        'Payment provider',
+        'Database backend',
+      ])
+        expect(asked).not.toContain(skipped);
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('only offers the providers the Worker supports', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'File upload provider' ? 'none' : undefined) as unknown as typeof clack.select);
+    try {
+      await collectOptions({ argv: argv(['--auth=supabase', '--example=none']), cwd: '.' });
+      const options = (message: string) =>
+        (
+          select.mock.calls.find(([o]) => (o as { message: string }).message === message)?.[0] as {
+            options: { value: string }[];
+          }
+        ).options.map((o) => o.value);
+      expect(options('File upload provider')).toEqual(['r2', 'none']);
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('with auth=none there is no database and no sessions', async () => {
+    const opts = await collectOptions({ argv: argv(['--auth=none', '--upload=none']), cwd: '.' });
+    expect(opts).toMatchObject({
+      host: 'cloudflare',
+      dbProvider: 'none',
+      transport: 'local',
+      session: 'redis',
+    });
+  });
+
+  it('asks where the project runs when --host is absent', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'Where will the project run?'
+        ? 'cloudflare'
+        : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({
+        argv: [
+          'my-app',
+          '--auth=none',
+          '--upload=none',
+          '--ui=shadcn',
+          '--package-manager=yarn',
+          '--no-git',
+          '--no-install',
+        ],
+        cwd: '.',
+      });
+      expect(opts.host).toBe('cloudflare');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('defaults to node when the answer is not cloudflare', async () => {
+    const opts = await collectOptions({
+      argv: [
+        'my-app',
+        '--auth=none',
+        '--upload=none',
+        '--payment=none',
+        '--jobs=none',
+        '--ai=none',
+        '--ui=shadcn',
+        '--package-manager=yarn',
+        '--no-git',
+        '--no-install',
+      ],
+      cwd: '.',
+    });
+    expect(opts.host).toBe('node');
   });
 });

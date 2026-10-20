@@ -1,0 +1,6 @@
+export const <%= constantName %>_HTTP_OPTIONS = '<%= constantName %>_HTTP_OPTIONS';
+
+export interface <%= className %>HttpOptions {
+  baseURL?: string;
+  timeoutMs?: number;
+}

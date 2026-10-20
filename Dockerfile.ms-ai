@@ -2,6 +2,8 @@
 FROM node:24-alpine AS builder
 WORKDIR /workspace
 RUN corepack enable
+# Native addons (better-sqlite3, bcrypt, argon2) compile from source on musl when no prebuilt binary exists.
+RUN apk add --no-cache python3 make g++
 COPY . .
 RUN yarn install --immutable
 RUN yarn nx build ai-orchestrator

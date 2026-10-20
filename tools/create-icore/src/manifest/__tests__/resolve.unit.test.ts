@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUnits } from '../resolve.js';
+import { resolveUnits, resolveBindings } from '../resolve.js';
 import type { CreateIcoreOptions } from '../../lib/options.js';
 
 const base: CreateIcoreOptions = {
@@ -49,5 +49,47 @@ describe('resolveUnits', () => {
   it('ai=none contributes no ai unit', () => {
     const libs = resolveUnits(base).flatMap((u) => u.libDirs);
     expect(libs).not.toContain('apps/microservices/ai-orchestrator');
+  });
+});
+
+describe('resolveBindings', () => {
+  it('enables emitToolsDir and retains tools/remove-notes.mjs when example=notes', () => {
+    const diag = resolveBindings({ ...base, example: 'notes' });
+    expect(diag.emitToolsDir).toBe(true);
+    expect(diag.activeToolFiles.has('tools/remove-notes.mjs')).toBe(true);
+    expect(diag.excludedPaths.has('tools')).toBe(false);
+    expect(diag.excludedPaths.has('tools/remove-notes.mjs')).toBe(false);
+    expect(diag.excludedPaths.has('tools/create-icore')).toBe(true);
+    expect(diag.excludedPaths.has('apps/microservices/notes')).toBe(false);
+  });
+
+  it('disables emitToolsDir and excludes tools/ and notes nodes when example=none', () => {
+    const diag = resolveBindings({ ...base, example: 'none' });
+    expect(diag.emitToolsDir).toBe(false);
+    expect(diag.activeToolFiles.size).toBe(0);
+    expect(diag.excludedPaths.has('tools')).toBe(true);
+    expect(diag.excludedPaths.has('tools/remove-notes.mjs')).toBe(true);
+    expect(diag.excludedPaths.has('apps/microservices/notes')).toBe(true);
+    expect(diag.excludedPaths.has('libs/notes-client')).toBe(true);
+    expect(
+      diag.excludedPaths.has('apps/templates/client-shadcn/src/routes/_dashboard/notes.tsx'),
+    ).toBe(true);
+    // dbProvider is supabase, so libs/db-strategies directory itself stays active
+    expect(diag.excludedPaths.has('libs/db-strategies')).toBe(false);
+  });
+
+  it('auto-downgrades example=notes to none and suppresses tools/ when authProvider=none', () => {
+    const diag = resolveBindings({
+      ...base,
+      authProvider: 'none',
+      dbProvider: 'none',
+      example: 'notes',
+    });
+    expect(diag.options.example).toBe('none');
+    expect(diag.warnings.some((w) => w.includes('notes example requires auth'))).toBe(true);
+    expect(diag.emitToolsDir).toBe(false);
+    expect(diag.excludedPaths.has('tools')).toBe(true);
+    expect(diag.excludedPaths.has('tools/remove-notes.mjs')).toBe(true);
+    expect(diag.excludedPaths.has('libs/db-strategies')).toBe(true);
   });
 });

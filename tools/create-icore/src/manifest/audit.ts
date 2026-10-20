@@ -46,8 +46,10 @@ const PROVIDER_SDKS: Record<string, string[]> = {
   supabase: ['@supabase/supabase-js'],
   cloudinary: ['cloudinary'],
   minio: ['minio'],
+  r2: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   mongodb: ['mongoose'],
   firebase: ['firebase-admin', '@icore/firebase-admin'],
+  sqlite: ['better-sqlite3'],
 };
 
 async function readBlueprint(dir: string): Promise<Blueprint | null> {

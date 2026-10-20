@@ -1,0 +1,4 @@
+build/
+tsconfig.bundle.json
+.wrangler/
+.dev.vars

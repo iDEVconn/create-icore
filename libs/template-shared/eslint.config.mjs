@@ -12,7 +12,8 @@ export default [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
           ],
-          ignoredDependencies: ['react', 'react-dom', 'vitest'],
+          // @tanstack/react-router is a peer requested by @idevconn/use-draft (see docs/audits/dependency-resolution-fix.spec.md); never imported here.
+          ignoredDependencies: ['react', 'react-dom', 'vitest', '@tanstack/react-router'],
         },
       ],
     },

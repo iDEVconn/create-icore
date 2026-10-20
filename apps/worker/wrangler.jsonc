@@ -1,0 +1,36 @@
+{
+  "name": "icore",
+  "main": "build/apps/worker/src/index.js",
+  "tsconfig": "./tsconfig.bundle.json",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "SESSIONS", "class_name": "SessionDurableObject" },
+      { "name": "THROTTLE", "class_name": "ThrottleDurableObject" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SessionDurableObject", "ThrottleDurableObject"] },
+  ],
+  "vars": {
+    "SESSION_STORE": "durable-object",
+    "AUTH_TRANSPORT": "local",
+    "UPLOAD_TRANSPORT": "local",
+    "NOTES_TRANSPORT": "local",
+  },
+  // Nest `require`s its optional transports and class-transformer's storage inside try/catch,
+  // which a bundler must resolve statically: stub what a Worker never uses.
+  "alias": {
+    "class-transformer/storage": "../../node_modules/class-transformer/cjs/storage.js",
+    "amqp-connection-manager": "./stubs/empty.js",
+    "amqplib": "./stubs/empty.js",
+    "@grpc/grpc-js": "./stubs/empty.js",
+    "@grpc/proto-loader": "./stubs/empty.js",
+    "ioredis": "./stubs/empty.js",
+    "kafkajs": "./stubs/empty.js",
+    "mqtt": "./stubs/empty.js",
+    "nats": "./stubs/empty.js",
+    "@nestjs/platform-socket.io": "./stubs/empty.js",
+  },
+}

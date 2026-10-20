@@ -93,6 +93,19 @@ export const MANIFEST = {
         into: 'upload',
       },
     },
+    r2: {
+      libDirs: ['libs/storage-strategies/r2'],
+      deps: {
+        '@aws-sdk/client-s3': '^3.1153.0',
+        '@aws-sdk/s3-request-presigner': '^3.1153.0',
+      },
+      tsPaths: { '@icore/storage-r2': ['libs/storage-strategies/r2/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/storage-r2',
+        symbol: 'R2StorageModule',
+        into: 'upload',
+      },
+    },
     mongodb: {
       libDirs: ['libs/storage-strategies/mongodb'],
       deps: { mongoose: '^9.6.3' },
@@ -133,6 +146,22 @@ export const MANIFEST = {
         into: 'notes',
       },
     },
+    sqlite: {
+      libDirs: ['libs/db-strategies/sqlite'],
+      deps: { 'better-sqlite3': '^13.0.3', '@types/better-sqlite3': '^9.6.0' },
+      tsPaths: { '@icore/db-sqlite': ['libs/db-strategies/sqlite/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/db-sqlite',
+        symbol: 'SqliteDbModule',
+        into: 'notes',
+      },
+    },
+    d1: {
+      libDirs: ['libs/db-strategies/d1'],
+      deps: {},
+      tsPaths: { '@icore/db-d1': ['libs/db-strategies/d1/src/index.ts'] },
+      nestModule: { importFrom: '@icore/db-d1', symbol: 'D1DbModule', into: 'notes' },
+    },
   },
   feature: {
     notes: {
@@ -151,6 +180,7 @@ export const MANIFEST = {
       gatewayModule: { importFrom: './notes/notes.module', symbol: 'NotesModule' },
       gatewayService: { name: 'notes', prefix: 'NOTES' },
       clientNav: { route: '/notes', labelKey: 'nav.notes', iconName: 'notes' },
+      toolFiles: ['tools/remove-notes.mjs'],
     },
     payment: {
       libDirs: [
@@ -196,7 +226,24 @@ export const MANIFEST = {
     },
   },
   ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY },
-  transport: { tcp: EMPTY, redis: EMPTY, nats: EMPTY, mqtt: EMPTY, rmq: EMPTY, kafka: EMPTY },
+  transport: {
+    tcp: EMPTY,
+    redis: EMPTY,
+    nats: EMPTY,
+    mqtt: EMPTY,
+    rmq: EMPTY,
+    kafka: EMPTY,
+    local: EMPTY,
+  },
+  host: {
+    cloudflare: {
+      // The Worker app and nothing else: the Durable Object stores, the `local` transport and the
+      // D1 binding all live in libs that other units already ship.
+      libDirs: ['apps/worker'],
+      deps: {},
+      tsPaths: {},
+    },
+  },
   shared: {
     firebaseAdmin: {
       libDirs: ['libs/firebase-admin'],

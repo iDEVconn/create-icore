@@ -8,7 +8,7 @@
     "@icore/db-supabase": "*",
     "@icore/shared": "*",
     "@idevconn/ai-usage": "^0.4.0",
-    "@idevconn/llm-router": "^0.12.1",
+    "@idevconn/llm-router": "^0.13.0",
     "@nestjs/common": "^11.2.7",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.2.7",
@@ -22,6 +22,12 @@
   },
   "devDependencies": {
     "@icore/ai-client": "*",
-    "@types/pg": "^8.23.1"
+    "@nx/vite": "23.2.1",
+    "@nx/webpack": "23.2.1",
+    "@types/pg": "^8.23.1",
+    "tsconfig-paths-webpack-plugin": "^4.2.0",
+    "vite": "^8.3.2",
+    "vitest": "~5.0.3",
+    "webpack": "5.111.1"
   }
 }

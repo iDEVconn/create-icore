@@ -5,7 +5,29 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@icore/shared": "*",
+    "@icore/template-shared": "*",
+    "@idevconn/api-client": "^0.3.3",
+    "@idevconn/use-draft": "^0.2.3",
     "@mui/icons-material": "^9.4.0",
-    "@mui/material": "^9.4.0"
+    "@mui/material": "^9.4.0",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
+    "i18next": "^26.4.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-i18next": "^17.0.15",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@icore/vite-plugins": "*",
+    "@nx/vite": "23.2.1",
+    "@tanstack/router-plugin": "^1.168.42",
+    "@testing-library/react": "16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.2",
+    "vitest": "~5.0.3"
   }
 }

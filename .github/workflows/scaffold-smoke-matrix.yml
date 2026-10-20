@@ -45,6 +45,13 @@ jobs:
             flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
           - name: supabase-minimal-tcp-memory-shadcn
             flags: --auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --session=memory
+          - name: cloudflare-d1-r2-tcp-shadcn
+            flags: --auth=supabase --db=d1 --upload=r2 --ai=llm-router --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
+          # host=cloudflare: no services to boot; the run phase is the Worker's own wrangler-dev smoke.
+          - name: cloudflare-worker-shadcn
+            flags: --host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes --ui=shadcn
+          - name: cloudflare-worker-minimal-shadcn
+            flags: --host=cloudflare --auth=none --db=none --upload=none --example=none --ui=shadcn
     steps:
       - uses: actions/checkout@v5
         with:

@@ -5,6 +5,19 @@ import { join } from 'node:path';
 import { validateConfig, loadConfig, ConfigFileError } from '../config.js';
 
 describe('validateConfig', () => {
+  it('accepts host: node / cloudflare and rejects anything else', () => {
+    expect(validateConfig({ host: 'cloudflare' })).toEqual({ host: 'cloudflare' });
+    expect(validateConfig({ host: 'node' })).toEqual({ host: 'node' });
+    expect(() => validateConfig({ host: 'lambda' })).toThrow(/node, cloudflare/);
+  });
+
+  it('accepts the Cloudflare-only transport and session values', () => {
+    expect(validateConfig({ transport: 'local', session: 'durable-object' })).toEqual({
+      transport: 'local',
+      session: 'durable-object',
+    });
+  });
+
   it('accepts session: memory / redis and rejects anything else', () => {
     expect(validateConfig({ session: 'memory' })).toEqual({ session: 'memory' });
     expect(validateConfig({ session: 'redis' })).toEqual({ session: 'redis' });
@@ -71,16 +84,33 @@ describe('validateConfig', () => {
     expect(validateConfig({ dbProvider: 'none' })).toEqual({ dbProvider: 'none' });
   });
 
-  it('error message for invalid authProvider lists none as valid', () => {
+  it('accepts authProvider: "postgres" and dbProvider: "postgres" / "sqlite"', () => {
+    expect(validateConfig({ authProvider: 'postgres', dbProvider: 'sqlite' })).toEqual({
+      authProvider: 'postgres',
+      dbProvider: 'sqlite',
+    });
+    expect(validateConfig({ dbProvider: 'postgres' })).toEqual({ dbProvider: 'postgres' });
+  });
+
+  it('accepts dbProvider: "d1" and upload: "r2" (Cloudflare) and still rejects unknown values', () => {
+    expect(validateConfig({ dbProvider: 'd1', upload: 'r2' })).toEqual({
+      dbProvider: 'd1',
+      upload: 'r2',
+    });
+    expect(() => validateConfig({ dbProvider: 'd2' })).toThrowError(ConfigFileError);
+    expect(() => validateConfig({ upload: 'r3' })).toThrowError(ConfigFileError);
+  });
+
+  it('error message for invalid authProvider lists valid providers', () => {
     expect(() => validateConfig({ authProvider: 'oracle' })).toThrowError(
-      'expected one of: supabase, firebase, mongodb, none',
+      'expected one of: supabase, firebase, mongodb, postgres, none',
     );
   });
 
   it('throws ConfigFileError for invalid authProvider', () => {
-    expect(() => validateConfig({ authProvider: 'postgres' })).toThrowError(ConfigFileError);
-    expect(() => validateConfig({ authProvider: 'postgres' })).toThrowError(
-      'config field "authProvider" got "postgres", expected one of: supabase, firebase, mongodb, none',
+    expect(() => validateConfig({ authProvider: 'auth0' })).toThrowError(ConfigFileError);
+    expect(() => validateConfig({ authProvider: 'auth0' })).toThrowError(
+      'config field "authProvider" got "auth0", expected one of: supabase, firebase, mongodb, postgres, none',
     );
   });
 

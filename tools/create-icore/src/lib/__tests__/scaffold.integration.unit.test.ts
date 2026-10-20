@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { mkdtemp, readFile, readdir, mkdir, writeFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { scaffold } from '../scaffold.js';
 
 async function findPackageJsonFiles(dir: string): Promise<string[]> {
@@ -24,8 +25,21 @@ async function makeFakeTemplates(): Promise<string> {
   // minimal subset — root + the three apps + a stub libs dir + a stub client-shadcn
   await writeFile(
     join(tplDir, 'package.json'),
-    JSON.stringify({ name: 'icore', version: '0.1.0' }, null, 2),
+    JSON.stringify(
+      {
+        name: 'icore',
+        version: '0.1.0',
+        scripts: {
+          build: 'nx run-many -t build',
+          'remove-notes': 'node tools/remove-notes.mjs',
+        },
+      },
+      null,
+      2,
+    ),
   );
+  await mkdir(join(tplDir, 'tools'), { recursive: true });
+  await writeFile(join(tplDir, 'tools/remove-notes.mjs'), '#!/usr/bin/env node\n');
   await mkdir(join(tplDir, 'apps/api'), { recursive: true });
   await writeFile(
     join(tplDir, 'apps/api/.env.example'),
@@ -480,6 +494,71 @@ async function makeFakeTemplates(): Promise<string> {
   await mkdir(join(tplDir, 'libs/auth-client/src'), { recursive: true });
   await writeFile(join(tplDir, 'libs/auth-client/src/index.ts'), 'export {};');
 
+  // shared + template-shared barrels mirroring the real templates, so auth=none
+  // barrel pruning runs against realistic export lines
+  const sharedFiles = [
+    'env.ts',
+    'bootstrap.ts',
+    'abilities/index.ts',
+    'jobs.ts',
+    'strategies/index.ts',
+    'transport.ts',
+    'types/index.ts',
+    'security/hmac.ts',
+    'http/auth-cookies.ts',
+    'http/session-cookie.ts',
+    'session/session-store.ts',
+    'session/fakes/fake-session-store.ts',
+    'session/redis-session-store.ts',
+    'session/in-memory-session-store.ts',
+  ];
+  for (const f of sharedFiles) {
+    await mkdir(dirname(join(tplDir, 'libs/shared/src', f)), { recursive: true });
+    await writeFile(join(tplDir, 'libs/shared/src', f), 'export {};');
+  }
+  await writeFile(
+    join(tplDir, 'libs/shared/src/index.ts'),
+    [
+      "export * from './env';",
+      "export * from './bootstrap';",
+      "export * from './abilities';",
+      "export * from './jobs';",
+      "export * from './strategies';",
+      "export * from './transport';",
+      "export * from './types';",
+      "export * from './security/hmac';",
+      "export * from './http/auth-cookies';",
+      "export * from './http/session-cookie';",
+      "export * from './session/session-store';",
+      "export * from './session/fakes/fake-session-store';",
+      "export * from './session/redis-session-store';",
+      "export * from './session/in-memory-session-store';",
+      '',
+    ].join('\n'),
+  );
+  const templateSharedFiles = [
+    'lib/api/create-api.ts',
+    'lib/api/csrf.ts',
+    'lib/auth/email-action.ts',
+    'lib/stores/auth.store.ts',
+    'lib/abilities/ability-provider.tsx',
+  ];
+  for (const f of templateSharedFiles) {
+    await mkdir(dirname(join(tplDir, 'libs/template-shared/src', f)), { recursive: true });
+    await writeFile(join(tplDir, 'libs/template-shared/src', f), 'export {};');
+  }
+  await writeFile(
+    join(tplDir, 'libs/template-shared/src/index.ts'),
+    [
+      "export * from './lib/api/create-api.js';",
+      "export * from './lib/api/csrf.js';",
+      "export * from './lib/auth/email-action.js';",
+      "export * from './lib/stores/auth.store.js';",
+      "export * from './lib/abilities/ability-provider.js';",
+      '',
+    ].join('\n'),
+  );
+
   // generated-project CI workflow stub (see SHELL_OVERRIDES in snapshot-templates.mjs)
   await mkdir(join(tplDir, '.github/workflows'), { recursive: true });
   await writeFile(join(tplDir, '.github/workflows/ci.yml'), 'name: CI\n');
@@ -684,6 +763,10 @@ describe('scaffold (integration, dry-run)', () => {
       access(join(outputDir, 'apps/client/src/routes/_dashboard/notes.tsx')),
     ).rejects.toThrow();
 
+    // tools/ directory and tools/remove-notes.mjs must not be emitted when example=none
+    await expect(access(join(outputDir, 'tools'))).rejects.toThrow();
+    await expect(access(join(outputDir, 'tools/remove-notes.mjs'))).rejects.toThrow();
+
     // app.module.ts is static — it imports FeaturesModule, never a feature module directly
     const mod = await readFile(join(outputDir, 'apps/api/src/app/app.module.ts'), 'utf8');
     expect(mod).toContain('FeaturesModule');
@@ -696,11 +779,48 @@ describe('scaffold (integration, dry-run)', () => {
     expect(features).not.toContain('NotesModule');
     expect(features).toMatch(/imports:\s*\[\]/);
 
-    // rest of scaffold intact
+    // rest of scaffold intact, and remove-notes script + README entry omitted
     const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as {
       name: string;
+      scripts?: Record<string, string>;
     };
     expect(pkg.name).toBe('no-notes-app');
+    expect(pkg.scripts?.['remove-notes']).toBeUndefined();
+
+    const readme = await readFile(join(outputDir, 'README.md'), 'utf8');
+    expect(readme).not.toContain('remove-notes');
+  });
+
+  it('emits tools/remove-notes.mjs and remove-notes script when example=notes', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'with-notes-app');
+    await scaffold(
+      {
+        projectName: 'with-notes-app',
+        targetDir: outputDir,
+        authProvider: 'supabase',
+        dbProvider: 'supabase',
+        upload: 'supabase',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'none',
+        example: 'notes',
+        ui: 'shadcn',
+        transport: 'tcp',
+        session: 'redis',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      templatesDir,
+    );
+
+    await expect(access(join(outputDir, 'tools/remove-notes.mjs'))).resolves.toBeUndefined();
+    const pkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    expect(pkg.scripts?.['remove-notes']).toBe('node tools/remove-notes.mjs');
+    const readme = await readFile(join(outputDir, 'README.md'), 'utf8');
+    expect(readme).toContain('yarn remove-notes');
   });
 
   it('prunes unused strategies when auth=supabase, upload=supabase, db=supabase', async () => {
@@ -905,6 +1025,28 @@ describe('scaffold with authProvider=none', () => {
     await expect(access(join(outDir, 'apps/api/src/app/abilities'))).rejects.toThrow();
   });
 
+  it('shared barrel drops only abilities and keeps session/cookie/hmac exports', async () => {
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).not.toContain('abilities');
+    for (const kept of [
+      './security/hmac',
+      './http/auth-cookies',
+      './http/session-cookie',
+      './session/session-store',
+      './session/redis-session-store',
+      './session/in-memory-session-store',
+    ]) {
+      expect(idx).toContain(`'${kept}'`);
+    }
+  });
+
+  it('template-shared barrel drops only abilities and keeps csrf/auth exports', async () => {
+    const idx = await readFile(join(outDir, 'libs/template-shared/src/index.ts'), 'utf8');
+    expect(idx).not.toContain('abilities');
+    expect(idx).toContain("'./lib/api/csrf.js'");
+    expect(idx).toContain("'./lib/auth/email-action.js'");
+  });
+
   it('client _dashboard.tsx has no beforeLoad', async () => {
     const content = await readFile(join(outDir, 'apps/client/src/routes/_dashboard.tsx'), 'utf8');
     expect(content).not.toContain('beforeLoad');
@@ -1090,5 +1232,172 @@ describe('scaffold — pm-specific file generation', () => {
       templatesDir,
     );
     await expect(access(join(outputDir, '.npmrc'))).rejects.toThrow();
+  });
+
+  it('restores underscore-prefixed dotfiles (_yarnrc.yml, _gitignore, _github) to real dotfiles', async () => {
+    const customTpl = await makeFakeTemplates();
+    await writeFile(
+      join(customTpl, '_yarnrc.yml'),
+      'nodeLinker: node-modules\nyarnPath: .yarn/releases/yarn-4.18.0.cjs\n',
+    );
+    await writeFile(join(customTpl, '_gitignore'), 'node_modules\n.env\n');
+    await mkdir(join(customTpl, '_github/workflows'), { recursive: true });
+    await writeFile(join(customTpl, '_github/workflows/ci.yml'), 'name: CI\n');
+
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'my-app');
+    await scaffold(
+      {
+        projectName: 'my-app',
+        targetDir: outputDir,
+        authProvider: 'none',
+        dbProvider: 'none',
+        upload: 'none',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'none',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'tcp',
+        session: 'memory',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      customTpl,
+    );
+
+    const yarnrc = await readFile(join(outputDir, '.yarnrc.yml'), 'utf8');
+    expect(yarnrc).toContain('nodeLinker: node-modules');
+    const gitignore = await readFile(join(outputDir, '.gitignore'), 'utf8');
+    expect(gitignore).toContain('node_modules');
+    const ci = await readFile(join(outputDir, '.github/workflows/ci.yml'), 'utf8');
+    expect(ci).toContain('name: CI');
+
+    // Ensure underscore versions were not left behind
+    await expect(access(join(outputDir, '_yarnrc.yml'))).rejects.toThrow();
+    await expect(access(join(outputDir, '_gitignore'))).rejects.toThrow();
+  });
+
+  it('writes safety net .yarnrc.yml when template lacks one for yarn', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'my-app');
+    await scaffold(
+      {
+        projectName: 'my-app',
+        targetDir: outputDir,
+        authProvider: 'none',
+        dbProvider: 'none',
+        upload: 'none',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'none',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'tcp',
+        session: 'memory',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      templatesDir,
+    );
+
+    const yarnrc = await readFile(join(outputDir, '.yarnrc.yml'), 'utf8');
+    expect(yarnrc).toContain('nodeLinker: node-modules');
+  });
+
+  it('scaffolds workspace packages with required build and runtime dependencies for PnP', async () => {
+    const realTemplatesDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../templates');
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'pnp-app');
+    await scaffold(
+      {
+        projectName: 'pnp-app',
+        targetDir: outputDir,
+        authProvider: 'none',
+        dbProvider: 'none',
+        upload: 'none',
+        payment: 'none',
+        jobs: 'bullmq',
+        ai: 'none',
+        example: 'none',
+        ui: 'shadcn',
+        transport: 'redis',
+        session: 'memory',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      realTemplatesDir,
+    );
+
+    // 1. apps/api/package.json
+    const apiPkg = JSON.parse(await readFile(join(outputDir, 'apps/api/package.json'), 'utf8'));
+    expect(apiPkg.devDependencies['@nx/webpack']).toBeDefined();
+    expect(apiPkg.devDependencies['tsconfig-paths-webpack-plugin']).toBeDefined();
+    expect(apiPkg.devDependencies['vitest']).toBeDefined();
+    expect(apiPkg.devDependencies['@nx/vite']).toBeDefined();
+    expect(apiPkg.devDependencies['vite']).toBeDefined();
+    expect(apiPkg.devDependencies['webpack']).toBeDefined();
+    expect(apiPkg.dependencies['reflect-metadata']).toBeDefined();
+    expect(apiPkg.dependencies['rxjs']).toBeDefined();
+    expect(apiPkg.dependencies['bullmq']).toBeDefined();
+    expect(apiPkg.dependencies['@bull-board/ui']).toBeDefined();
+
+    // 2. apps/client/package.json
+    const clientPkg = JSON.parse(
+      await readFile(join(outputDir, 'apps/client/package.json'), 'utf8'),
+    );
+    expect(clientPkg.devDependencies['vite']).toBeDefined();
+    expect(clientPkg.devDependencies['@vitejs/plugin-react']).toBeDefined();
+    expect(clientPkg.devDependencies['@tanstack/router-plugin']).toBeDefined();
+    expect(clientPkg.devDependencies['@nx/vite']).toBeDefined();
+    expect(clientPkg.dependencies['react']).toBeDefined();
+    expect(clientPkg.dependencies['react-dom']).toBeDefined();
+    expect(clientPkg.dependencies['@tanstack/react-router']).toBeDefined();
+    expect(clientPkg.dependencies['@tanstack/react-query']).toBeDefined();
+
+    // 3. apps/microservices/jobs/package.json
+    const jobsPkg = JSON.parse(
+      await readFile(join(outputDir, 'apps/microservices/jobs/package.json'), 'utf8'),
+    );
+    expect(jobsPkg.devDependencies['@nx/webpack']).toBeDefined();
+    expect(jobsPkg.devDependencies['tsconfig-paths-webpack-plugin']).toBeDefined();
+    expect(jobsPkg.devDependencies['vitest']).toBeDefined();
+    expect(jobsPkg.devDependencies['@nx/vite']).toBeDefined();
+    expect(jobsPkg.devDependencies['vite']).toBeDefined();
+    expect(jobsPkg.devDependencies['webpack']).toBeDefined();
+    expect(jobsPkg.private).toBe(true);
+
+    // 4. libs/shared/package.json
+    const sharedPkg = JSON.parse(
+      await readFile(join(outputDir, 'libs/shared/package.json'), 'utf8'),
+    );
+    expect(sharedPkg.devDependencies['@nx/vite']).toBeDefined();
+    expect(sharedPkg.devDependencies['vitest']).toBeDefined();
+
+    // 5. libs/template-shared/package.json
+    const tmplSharedPkg = JSON.parse(
+      await readFile(join(outputDir, 'libs/template-shared/package.json'), 'utf8'),
+    );
+    expect(tmplSharedPkg.devDependencies['@nx/vite']).toBeDefined();
+    expect(tmplSharedPkg.devDependencies['vitest']).toBeDefined();
+    expect(tmplSharedPkg.peerDependencies['@tanstack/react-router']).toBeDefined();
+
+    // 6. libs/jobs-client/package.json
+    const jobsClientPkg = JSON.parse(
+      await readFile(join(outputDir, 'libs/jobs-client/package.json'), 'utf8'),
+    );
+    expect(jobsClientPkg.dependencies['rxjs']).toBeDefined();
+    expect(jobsClientPkg.dependencies['reflect-metadata']).toBeDefined();
+    expect(jobsClientPkg.devDependencies['jest']).toBeDefined();
+    expect(jobsClientPkg.devDependencies['ts-jest']).toBeDefined();
+
+    // 7. root package.json has webpack
+    const rootPkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8'));
+    expect(rootPkg.devDependencies['webpack']).toBeDefined();
+
+    const yarnrc = await readFile(join(outputDir, '.yarnrc.yml'), 'utf8');
+    expect(yarnrc).toContain('nodeLinker: node-modules');
+
+    await readFile(join(outputDir, 'jest.preset.js'), 'utf8');
   });
 });
