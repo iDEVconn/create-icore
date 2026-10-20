@@ -11,6 +11,7 @@ import { ProfileModule } from '../../../../apps/api/src/app/profile/profile.modu
 import { SessionModule } from '../../../../apps/api/src/app/session/session.module';
 import { CanaryDep, CanaryService, G0Controller } from './canary';
 import { SliceAuthClientModule } from './slice-auth-client.module';
+import { ProbesController } from './probes.controller';
 import { SliceProbesController } from './slice-probes.controller';
 
 // Mirrors apps/api's AppModule + AuthModule, minus everything the measured routes do not
@@ -32,7 +33,7 @@ import { SliceProbesController } from './slice-probes.controller';
     AbilitiesModule,
     ProfileModule,
   ],
-  controllers: [AuthController, G0Controller, SliceProbesController],
+  controllers: [AuthController, G0Controller, SliceProbesController, ProbesController],
   providers: [
     CanaryDep,
     CanaryService,

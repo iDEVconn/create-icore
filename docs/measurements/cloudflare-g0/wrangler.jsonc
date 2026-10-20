@@ -4,6 +4,15 @@
   "tsconfig": "./tsconfig.bundle.json",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": { "bindings": [{ "name": "PROBE", "class_name": "ProbeDurableObject" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProbeDurableObject"] }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "g0-probe",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
   "vars": { "SESSION_STORE": "memory", "G0_PROBE": "g0-env-ok" },
   "alias": {
     "class-transformer/storage": "./node_modules/class-transformer/cjs/storage.js",

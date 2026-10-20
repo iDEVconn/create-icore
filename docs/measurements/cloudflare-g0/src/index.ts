@@ -3,6 +3,8 @@ import 'reflect-metadata';
 import { httpServerHandler } from 'cloudflare:node';
 import { PORT, bootstrap } from './bootstrap';
 
+export { ProbeDurableObject } from './probe-do';
+
 const handler = httpServerHandler({ port: PORT });
 
 // Bootstrap lazily on the first request (memoized) so global scope stays cheap and inside
