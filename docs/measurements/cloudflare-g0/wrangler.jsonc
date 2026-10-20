@@ -4,7 +4,9 @@
   "tsconfig": "./tsconfig.bundle.json",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": { "SESSION_STORE": "memory", "G0_PROBE": "g0-env-ok" },
   "alias": {
+    "class-transformer/storage": "./node_modules/class-transformer/cjs/storage.js",
     "amqp-connection-manager": "./stubs/empty.js",
     "amqplib": "./stubs/empty.js",
     "@grpc/grpc-js": "./stubs/empty.js",

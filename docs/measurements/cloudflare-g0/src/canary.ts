@@ -1,4 +1,5 @@
 import { Controller, Get, Inject, Injectable } from '@nestjs/common';
+import { Public } from '../../../../apps/api/src/app/auth/public.decorator';
 
 @Injectable()
 export class CanaryDep {
@@ -16,6 +17,7 @@ export class CanaryService {
   }
 }
 
+@Public()
 @Controller('g0')
 export class G0Controller {
   // The controller itself uses an explicit token so the canary route can still answer
