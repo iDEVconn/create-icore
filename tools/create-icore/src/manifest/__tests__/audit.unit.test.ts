@@ -170,3 +170,50 @@ describe('auditProject blueprint-derived forbidden deps', () => {
     expect(await auditProject(dir)).toEqual([]);
   });
 });
+
+describe('auditProject — Cloudflare R2 SDK', () => {
+  const blueprint = (upload: string) =>
+    JSON.stringify({
+      schemaVersion: 1,
+      projectName: 'x',
+      authProvider: 'supabase',
+      dbProvider: 'd1',
+      upload,
+      payment: 'none',
+      jobs: 'none',
+      example: 'notes',
+      ui: 'shadcn',
+      transport: 'tcp',
+      packageManager: 'npm',
+    });
+  const awsDeps = JSON.stringify({
+    dependencies: {
+      '@supabase/supabase-js': '^2',
+      '@aws-sdk/client-s3': '^3.1153.0',
+      '@aws-sdk/s3-request-presigner': '^3.1153.0',
+    },
+  });
+
+  it('flags @aws-sdk/client-s3 as a forbidden dep when upload is not r2', async () => {
+    const dir = await scaffold({
+      'blueprint.json': blueprint('supabase'),
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
+      'package.json': awsDeps,
+    });
+    expect(await auditProject(dir)).toContainEqual(
+      expect.objectContaining({
+        kind: 'forbidden-dep',
+        detail: expect.stringContaining('@aws-sdk/client-s3'),
+      }),
+    );
+  });
+
+  it('reports nothing for the AWS SDK when upload is r2', async () => {
+    const dir = await scaffold({
+      'blueprint.json': blueprint('r2'),
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
+      'package.json': awsDeps,
+    });
+    expect(await auditProject(dir)).toEqual([]);
+  });
+});

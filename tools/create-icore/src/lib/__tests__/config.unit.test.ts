@@ -79,6 +79,15 @@ describe('validateConfig', () => {
     expect(validateConfig({ dbProvider: 'postgres' })).toEqual({ dbProvider: 'postgres' });
   });
 
+  it('accepts dbProvider: "d1" and upload: "r2" (Cloudflare) and still rejects unknown values', () => {
+    expect(validateConfig({ dbProvider: 'd1', upload: 'r2' })).toEqual({
+      dbProvider: 'd1',
+      upload: 'r2',
+    });
+    expect(() => validateConfig({ dbProvider: 'd2' })).toThrowError(ConfigFileError);
+    expect(() => validateConfig({ upload: 'r3' })).toThrowError(ConfigFileError);
+  });
+
   it('error message for invalid authProvider lists valid providers', () => {
     expect(() => validateConfig({ authProvider: 'oracle' })).toThrowError(
       'expected one of: supabase, firebase, mongodb, postgres, none',

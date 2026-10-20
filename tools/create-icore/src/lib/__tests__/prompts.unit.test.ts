@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 // flags map to options correctly.
 // (If parseFlags is not exported, export it from prompts.ts for tests.)
 
+import * as clack from '@clack/prompts';
 import { parseFlags, collectOptions } from '../prompts.js';
 
 describe('parseFlags', () => {
@@ -247,6 +248,12 @@ describe('parseFlags — separators and unknown flags', () => {
     expect(flags.jobs).toBe('bullmq');
   });
 
+  it('reads --db=d1 and --upload=r2', () => {
+    const flags = parseFlags(['my-app', '--db=d1', '--upload=r2']);
+    expect(flags.dbProvider).toBe('d1');
+    expect(flags.upload).toBe('r2');
+  });
+
   it('warns on an unknown flag instead of silently ignoring it', () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     parseFlags(['my-app', '--packge-manager=yarn']);
@@ -254,5 +261,55 @@ describe('parseFlags — separators and unknown flags', () => {
       expect.stringContaining('unknown flag --packge-manager'),
     );
     stderrSpy.mockRestore();
+  });
+});
+
+describe('collectOptions — wizard provider options', () => {
+  it('offers Cloudflare D1 as a database backend and Cloudflare R2 as an upload provider', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'Database backend'
+        ? 'd1'
+        : o.message === 'File upload provider'
+          ? 'r2'
+          : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({
+        argv: [
+          'my-app',
+          '--auth=supabase',
+          '--payment=none',
+          '--jobs=none',
+          '--ai=none',
+          '--example=notes',
+          '--ui=shadcn',
+          '--transport=tcp',
+          '--session=redis',
+          '--package-manager=yarn',
+          '--no-git',
+          '--no-install',
+        ],
+        cwd: '.',
+      });
+      const optionsFor = (message: string) =>
+        (
+          select.mock.calls.find(([o]) => o.message === message)?.[0] as {
+            options: { value: string; label: string }[];
+          }
+        ).options;
+      expect(optionsFor('Database backend')).toContainEqual({
+        value: 'd1',
+        label: 'Cloudflare D1 (SQLite over REST)',
+      });
+      expect(optionsFor('File upload provider')).toContainEqual({
+        value: 'r2',
+        label: 'Cloudflare R2 (S3-compatible)',
+      });
+      expect(opts.dbProvider).toBe('d1');
+      expect(opts.upload).toBe('r2');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
   });
 });
