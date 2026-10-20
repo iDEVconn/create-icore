@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { D1_DATABASE_BINDING } from '@icore/db-d1';
-import { SESSION_DO_NAMESPACE, THROTTLER_DO_NAMESPACE } from '@icore/shared';
+import { D1_DATABASE_BINDING, SESSION_DO_NAMESPACE, THROTTLER_DO_NAMESPACE } from '@icore/shared';
 import { WorkerBindingsModule } from '../bindings.module';
 import type { WorkerEnv } from '../env';
 

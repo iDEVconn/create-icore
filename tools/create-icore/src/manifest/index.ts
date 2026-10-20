@@ -226,7 +226,24 @@ export const MANIFEST = {
     },
   },
   ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY },
-  transport: { tcp: EMPTY, redis: EMPTY, nats: EMPTY, mqtt: EMPTY, rmq: EMPTY, kafka: EMPTY },
+  transport: {
+    tcp: EMPTY,
+    redis: EMPTY,
+    nats: EMPTY,
+    mqtt: EMPTY,
+    rmq: EMPTY,
+    kafka: EMPTY,
+    local: EMPTY,
+  },
+  host: {
+    cloudflare: {
+      // The Worker app and nothing else: the Durable Object stores, the `local` transport and the
+      // D1 binding all live in libs that other units already ship.
+      libDirs: ['apps/worker'],
+      deps: {},
+      tsPaths: {},
+    },
+  },
   shared: {
     firebaseAdmin: {
       libDirs: ['libs/firebase-admin'],

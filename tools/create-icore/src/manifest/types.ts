@@ -46,6 +46,8 @@ export interface Manifest {
   feature: { notes: Unit; payment: Unit; jobs: Unit; ai: Unit };
   ui: Record<UiLibrary, Unit>;
   transport: Record<MsTransport, Unit>;
+  /** Hosting targets other than the default Node deployment. */
+  host: { cloudflare: Unit };
   /** Shared units pulled in by a cross-axis rule (not a direct user choice). */
   shared: { firebaseAdmin: Unit };
 }

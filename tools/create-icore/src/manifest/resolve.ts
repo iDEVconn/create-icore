@@ -1,4 +1,4 @@
-import { validateOptions, type CreateIcoreOptions } from '../lib/options.js';
+import { hostOf, validateOptions, type CreateIcoreOptions } from '../lib/options.js';
 import type { Unit } from './types.js';
 import { MANIFEST } from './index.js';
 
@@ -12,6 +12,8 @@ const AUTH_NONE_EXCLUDED_PATHS = [
   'apps/api/src/app/auth',
   'apps/api/src/app/profile',
   'apps/api/src/app/abilities',
+  // Exercises AuthController, which does not exist without auth.
+  'apps/api/src/app/http/__tests__/csrf.guard.unit.test.ts',
   'libs/shared/src/abilities',
   'apps/client/src/components/auth',
   'apps/client/src/components/AccessDeniedPage.tsx',
@@ -20,6 +22,20 @@ const AUTH_NONE_EXCLUDED_PATHS = [
   'apps/client/src/routes/auth.oauth.callback.tsx',
   'apps/client/src/routes/_dashboard/profile.tsx',
   'libs/template-shared/src/lib/abilities',
+];
+
+/** Node-only deployment artifacts: a Worker project has no containers, compose file or nginx. */
+const CLOUDFLARE_EXCLUDED_PATHS = [
+  'Dockerfile.gateway',
+  'Dockerfile.ms-auth',
+  'Dockerfile.ms-upload',
+  'Dockerfile.ms-jobs',
+  'Dockerfile.ms-ai',
+  'Dockerfile.client',
+  'nginx.client.conf',
+  'docker-compose.yml',
+  '.env.docker.example',
+  '.dockerignore',
 ];
 
 const UPLOAD_NONE_EXCLUDED_PATHS = [
@@ -56,6 +72,7 @@ export function resolveUnits(opts: CreateIcoreOptions): Unit[] {
     MANIFEST.ui[opts.ui],
     MANIFEST.transport[opts.transport],
   ];
+  if (hostOf(opts) === 'cloudflare') units.push(MANIFEST.host.cloudflare);
   if (opts.upload !== 'none') units.push(MANIFEST.storage[opts.upload]);
   if (opts.payment !== 'none') units.push(MANIFEST.feature.payment);
   if (opts.jobs !== 'none') units.push(MANIFEST.feature.jobs);
@@ -80,7 +97,8 @@ export function resolveUnits(opts: CreateIcoreOptions): Unit[] {
  * and the `tools/` directory when no active unit requires a tool script.
  */
 export function resolveBindings(rawOpts: CreateIcoreOptions): BindingDiagnostic {
-  const { warnings, corrected: opts } = validateOptions(rawOpts);
+  const { warnings, errors, corrected: opts } = validateOptions(rawOpts);
+  if (errors.length > 0) throw new Error(errors.join('\n'));
   const activeUnits = resolveUnits(opts);
   const activeSet = new Set<Unit>(activeUnits);
 
@@ -89,6 +107,7 @@ export function resolveBindings(rawOpts: CreateIcoreOptions): BindingDiagnostic 
     ...Object.values(MANIFEST.storage),
     ...Object.values(MANIFEST.db),
     ...Object.values(MANIFEST.feature),
+    MANIFEST.host.cloudflare,
     MANIFEST.shared.firebaseAdmin,
   ];
   const inactiveUnits = allCandidateUnits.filter((u) => !activeSet.has(u));
@@ -135,6 +154,10 @@ export function resolveBindings(rawOpts: CreateIcoreOptions): BindingDiagnostic 
     for (const p of AUTH_NONE_EXCLUDED_PATHS) {
       addExcludedPath(p);
     }
+  }
+
+  if (hostOf(opts) === 'cloudflare') {
+    for (const p of CLOUDFLARE_EXCLUDED_PATHS) excludedPaths.add(p);
   }
 
   if (opts.upload === 'none') {

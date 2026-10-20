@@ -1,6 +1,6 @@
 import { Module, type Type } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import {
   DurableObjectThrottlerStorage,
   THROTTLER_DO_NAMESPACE,
@@ -9,14 +9,9 @@ import {
 } from '@icore/shared';
 import { WorkerBindingsModule } from './bindings.module';
 import type { WorkerEnv } from './env';
-import {
-  AbilitiesModule,
-  AuthModule,
-  NotesModule,
-  ProfileModule,
-  StorageModule,
-  throttlerOptions,
-} from './hosted-apps';
+import { APP_GUARD } from '@nestjs/core';
+import { FEATURES_REGISTER_THROTTLER_GUARD, GATEWAY_FEATURE_MODULES } from './hosted-apps';
+import { throttlerOptions } from '../../api/src/app/http/throttler.config';
 
 /**
  * The gateway as the Worker runs it: `apps/api`'s own modules, with throttler counters in
@@ -36,12 +31,11 @@ export function createGatewayModule(env: WorkerEnv): Type<unknown> {
           storage: new DurableObjectThrottlerStorage(namespace),
         }),
       }),
-      AuthModule,
-      AbilitiesModule,
-      ProfileModule,
-      StorageModule,
-      NotesModule,
+      ...GATEWAY_FEATURE_MODULES,
     ],
+    providers: FEATURES_REGISTER_THROTTLER_GUARD
+      ? []
+      : [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
   })
   class WorkerGatewayModule {}
   return WorkerGatewayModule;

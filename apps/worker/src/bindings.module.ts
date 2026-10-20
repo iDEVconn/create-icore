@@ -1,6 +1,5 @@
 import { Module, type DynamicModule, type Provider } from '@nestjs/common';
-import { D1_DATABASE_BINDING } from '@icore/db-d1';
-import { SESSION_DO_NAMESPACE, THROTTLER_DO_NAMESPACE } from '@icore/shared';
+import { D1_DATABASE_BINDING, SESSION_DO_NAMESPACE, THROTTLER_DO_NAMESPACE } from '@icore/shared';
 import type { WorkerEnv } from './env';
 
 /**

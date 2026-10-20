@@ -43,6 +43,7 @@ describe('writeBlueprintJson', () => {
     expect(bp).toEqual({
       schemaVersion: 1,
       projectName: 'my-app',
+      host: 'node',
       authProvider: 'firebase',
       dbProvider: 'mongodb',
       upload: 'cloudinary',
@@ -205,5 +206,11 @@ describe('writeServiceBlueprints', () => {
     // api features empty when all off
     const api = JSON.parse(await readFile(join(dir, 'apps/api/blueprint.json'), 'utf8'));
     expect(api.features).toEqual([]);
+  });
+
+  it('records host=cloudflare', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-bp-'));
+    await writeBlueprintJson(dir, { ...opts, host: 'cloudflare', targetDir: dir });
+    expect(JSON.parse(await readFile(join(dir, 'blueprint.json'), 'utf8')).host).toBe('cloudflare');
   });
 });

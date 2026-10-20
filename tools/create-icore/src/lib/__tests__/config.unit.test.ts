@@ -5,6 +5,19 @@ import { join } from 'node:path';
 import { validateConfig, loadConfig, ConfigFileError } from '../config.js';
 
 describe('validateConfig', () => {
+  it('accepts host: node / cloudflare and rejects anything else', () => {
+    expect(validateConfig({ host: 'cloudflare' })).toEqual({ host: 'cloudflare' });
+    expect(validateConfig({ host: 'node' })).toEqual({ host: 'node' });
+    expect(() => validateConfig({ host: 'lambda' })).toThrow(/node, cloudflare/);
+  });
+
+  it('accepts the Cloudflare-only transport and session values', () => {
+    expect(validateConfig({ transport: 'local', session: 'durable-object' })).toEqual({
+      transport: 'local',
+      session: 'durable-object',
+    });
+  });
+
   it('accepts session: memory / redis and rejects anything else', () => {
     expect(validateConfig({ session: 'memory' })).toEqual({ session: 'memory' });
     expect(validateConfig({ session: 'redis' })).toEqual({ session: 'redis' });

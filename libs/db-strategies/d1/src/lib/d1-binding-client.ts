@@ -1,19 +1,9 @@
+import { D1_DATABASE_BINDING, type D1DatabaseLike } from '@icore/shared';
 import type { D1ClientLike, D1Param } from './d1-client';
 
-/** Injection token for a Cloudflare Workers D1 binding (`env.DB`). */
-export const D1_DATABASE_BINDING = 'D1_DATABASE_BINDING';
-
-/**
- * Minimal structural view of the Workers `D1Database` binding, so this lib needs
- * no `@cloudflare/workers-types` dependency and stays loadable in Node.
- */
-export interface D1DatabaseLike {
-  prepare(sql: string): {
-    bind(...params: D1Param[]): {
-      all<T = Record<string, unknown>>(): Promise<{ results: T[]; meta: { changes?: number } }>;
-    };
-  };
-}
+// The token and the structural binding type live in @icore/shared so the Worker host can name them
+// without depending on this strategy lib (a project may ship no D1 at all).
+export { D1_DATABASE_BINDING, type D1DatabaseLike };
 
 /** `D1ClientLike` over a Workers D1 binding: no HTTPS hop, no REST rate limit. */
 export function createD1BindingClient(db: D1DatabaseLike): D1ClientLike {
