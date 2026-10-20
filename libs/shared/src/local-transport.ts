@@ -1,6 +1,5 @@
 import { BaseRpcContext, ClientProxy, Server } from '@nestjs/microservices';
 import type { CustomTransportStrategy, ReadPacket, WritePacket } from '@nestjs/microservices';
-import type { Subscription } from 'rxjs';
 
 // In-process transport: the gateway's ClientProxy calls a microservice's @MessagePattern /
 // @EventPattern handlers directly, inside the same process (a Cloudflare Worker has no TCP
@@ -82,7 +81,8 @@ export class LocalClientProxy extends ClientProxy {
   }
 
   protected publish(packet: ReadPacket, callback: (packet: WritePacket) => void): () => void {
-    let subscription: Subscription | undefined;
+    // Structural type: `@icore/shared` does not depend on rxjs directly.
+    let subscription: { unsubscribe(): void } | undefined;
     let cancelled = false;
     try {
       const { server, handler } = this.resolve(packet.pattern);

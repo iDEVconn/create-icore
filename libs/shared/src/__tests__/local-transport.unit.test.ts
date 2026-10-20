@@ -68,7 +68,7 @@ async function startServer(prefix: string) {
 
 afterEach(async () => {
   seen.length = 0;
-  while (started.length) await started.pop()!.close();
+  for (let app = started.pop(); app; app = started.pop()) await app.close();
 });
 
 describe('LocalServer + LocalClientProxy', () => {
