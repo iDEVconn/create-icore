@@ -127,7 +127,13 @@ jobs:
         run: node tools/create-icore/scripts/check-route-integrity.mjs
       - name: Template tarball dotfiles check
         if: ${{ !cancelled() }}
-        run: node tools/create-icore/scripts/check-tarball-dotfiles.mjs
+        # The underscore dotfiles (_yarnrc.yml, _gitignore, _github/) are not tracked: the
+        # snapshot-templates target generates them. `nx affected` only runs it when create-icore
+        # is affected, so a PR that does not touch create-icore (docs, other libs) would fail
+        # this check for a reason unrelated to the PR. Generate them here (Nx-cached, cheap).
+        run: |
+          yarn nx run create-icore:snapshot-templates
+          node tools/create-icore/scripts/check-tarball-dotfiles.mjs
 
   # Runs alongside `check` (not after it) and builds every affected project in
   # ONE job: Nx orders the graph and builds each shared lib once, instead of ~30
