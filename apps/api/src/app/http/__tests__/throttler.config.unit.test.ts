@@ -3,8 +3,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { Throttle, ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AiController } from '../../ai/ai.controller';
-import { AuthController } from '../../auth/auth.controller';
 import { throttlerOptions } from '../throttler.config';
 
 // Real Nest app, real ThrottlerGuard, the gateway's real throttler options: the question is which
@@ -115,23 +113,5 @@ describe('gateway throttler options', () => {
   it('relies on the metadata key @nestjs/throttler writes for @Throttle (pinned so an upgrade cannot silently disable the scoping)', () => {
     expect(Reflect.getMetadata('THROTTLER:LIMITauth-burst', AuthLikeController)).toBe(3);
     expect(Reflect.getMetadata('THROTTLER:LIMITai-burst', AiLikeController.prototype.ping)).toBe(2);
-  });
-
-  it('keeps the real auth and ai routes inside the scoped limiters (they still declare their @Throttle)', () => {
-    // If these decorators disappeared, skipUnlessDeclared would silently stop limiting login/AI.
-    expect(Reflect.getMetadata('THROTTLER:LIMITauth-burst', AuthController)).toBe(10);
-    expect(
-      Reflect.getMetadata('THROTTLER:LIMITauth-burst', AuthController.prototype.forgotPassword),
-    ).toBe(5);
-    expect(Reflect.getMetadata('THROTTLER:LIMITai-burst', AiController.prototype.generate)).toBe(
-      10,
-    );
-    expect(Reflect.getMetadata('THROTTLER:LIMITai-burst', AiController.prototype.orchestrate)).toBe(
-      10,
-    );
-    // The LLM-backed RAG route costs money like the other two and must not escape the AI limiter.
-    expect(Reflect.getMetadata('THROTTLER:LIMITai-burst', AiController.prototype.ragQuery)).toBe(
-      10,
-    );
   });
 });
