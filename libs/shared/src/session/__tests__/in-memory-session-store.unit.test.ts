@@ -105,9 +105,9 @@ describe('InMemorySessionStore — withRefreshLock', () => {
     store = new InMemorySessionStore({ sweepIntervalMs: 0, lockMaxWaitMs: 40 });
     const holder = store.withRefreshLock('s1', () => sleep(150));
     await sleep(5);
-    await expect(store.withRefreshLock('s1', async () => 'late')).rejects.toThrow(
-      'session_refresh_lock_timeout: s1',
-    );
+    const err = await store.withRefreshLock('s1', async () => 'late').catch((e: Error) => e);
+    // The session id is a secret (it is the cookie value): never put it in an error message.
+    expect((err as Error).message).toBe('session_refresh_lock_timeout');
     await holder;
     await expect(store.withRefreshLock('s1', async () => 'after')).resolves.toBe('after');
   });
@@ -125,7 +125,7 @@ describe('InMemorySessionStore — withRefreshLock', () => {
     const holder = store.withRefreshLock('s1', guarded);
     await sleep(5);
     const timedOut = store.withRefreshLock('s1', async () => 'late');
-    await expect(timedOut).rejects.toThrow('session_refresh_lock_timeout: s1');
+    await expect(timedOut).rejects.toThrow(/^session_refresh_lock_timeout$/);
     // holder is still inside fn(); a new caller must queue behind it, not run beside it
     const third = store.withRefreshLock('s1', guarded).catch(() => 'timeout');
     await Promise.all([holder, third]);

@@ -119,7 +119,7 @@ export class InMemorySessionStore implements SessionStore {
     this.locks.set(sessionId, tail);
     let acquired = false;
     try {
-      await this.waitFor(previous, sessionId);
+      await this.waitFor(previous);
       acquired = true;
       return await fn();
     } finally {
@@ -133,10 +133,10 @@ export class InMemorySessionStore implements SessionStore {
     }
   }
 
-  private waitFor(previous: Promise<void>, sessionId: string): Promise<void> {
+  private waitFor(previous: Promise<void>): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(
-        () => reject(new Error(`session_refresh_lock_timeout: ${sessionId}`)),
+        () => reject(new Error('session_refresh_lock_timeout')),
         this.lockMaxWaitMs,
       );
       void previous.then(() => {
