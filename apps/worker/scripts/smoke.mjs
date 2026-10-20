@@ -15,6 +15,7 @@ const base = `http://localhost:${port}`;
 // Which features this project hosts (create-icore generates the vars per project).
 const wranglerText = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
 const hasAuth = /"AUTH_TRANSPORT"/.test(wranglerText);
+const hasAssets = /"assets"/.test(wranglerText);
 const hasUpload = /"UPLOAD_TRANSPORT"/.test(wranglerText);
 const hasNotes = /"NOTES_TRANSPORT"/.test(wranglerText);
 
@@ -100,6 +101,20 @@ async function call(method, path, { body, csrf, cookie } = {}) {
 }
 
 try {
+  if (hasAssets) {
+    // The built SPA is served by the Worker's assets binding; /api/* still runs the Worker first.
+    for (const path of ['/', '/some/client/route']) {
+      const res = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(60_000) });
+      const body = await res.text();
+      check(
+        `SPA served for ${path} (index.html fallback)`,
+        res.status === 200 &&
+          /text\/html/.test(res.headers.get('content-type') ?? '') &&
+          /<div id="root"/.test(body),
+        `${res.status} ${res.headers.get('content-type')}`,
+      );
+    }
+  }
   if (!hasAuth) {
     // No auth: nothing is session-protected. Prove the gateway booted and the throttler guard runs.
     let r = await call('GET', '/api/does-not-exist');
