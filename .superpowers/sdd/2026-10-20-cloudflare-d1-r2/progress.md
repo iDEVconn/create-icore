@@ -80,3 +80,9 @@ Task 6: minor (deferred): packageJsons walk covers apps/ only, not libs/
 Task 6: minor (deferred): pipeline combo omits --ai (nightly matrix covers ai path)
 Task 6: complete (commits 7b03a55..8dc43da, review clean). sync-template-shell synced 0 deps (AWS packages ship in generated upload service package.json).
 Ruling: R6 — Task 7 dispatch excludes push/PR creation; controller does push + `gh pr create --base dev` only after the final whole-branch review, per AGENTS.md (never merge) — keeps outward-facing step behind the final review — costs nothing.
+
+Task 7: implemented (commit 22142e0), review: spec ✅, quality Approved, 0 Critical/Important.
+Task 7: minor (deferred): docs/runbooks/cloudflare-d1-r2.md:180 wording reads as a manual ai-orchestrator step, contradicting line 207 ("No manual step") — reword
+Task 7: minor (deferred): AGENTS.md MinIO step 1 still points at R2 via MINIO_* without mentioning STORAGE_PROVIDER=r2
+Task 7: minor (deferred): runbook 201-202 external facts (D1 size caps, rate limit) unverifiable — drop or date
+Task 7: complete (commits d085a98..22142e0, review clean)
