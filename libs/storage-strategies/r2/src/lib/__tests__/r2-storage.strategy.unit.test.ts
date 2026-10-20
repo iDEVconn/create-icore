@@ -63,4 +63,42 @@ describe('R2StorageStrategy', () => {
     const ref = await strategy.upload('u10', file);
     await expect(strategy.remove('u1', ref)).rejects.toThrow('forbidden');
   });
+
+  it.each([0, -1, NaN, Infinity])('getSignedUrl rejects ttl %s as invalid_ttl', async (ttl) => {
+    const { strategy, ttls } = setup();
+    const ref = await strategy.upload('u1', file);
+    await expect(strategy.getSignedUrl('u1', ref, ttl)).rejects.toThrow('invalid_ttl');
+    expect(ttls).toEqual([]);
+  });
+
+  it('clamps 604801 to 604800 and floors 90.7 to 90', async () => {
+    const { strategy, ttls } = setup();
+    const ref = await strategy.upload('u1', file);
+    await strategy.getSignedUrl('u1', ref, 604801);
+    await strategy.getSignedUrl('u1', ref, 90.7);
+    expect(ttls).toEqual([604800, 90]);
+  });
+
+  it.each([
+    'user-1/../user-2/x',
+    'user-1//x',
+    'user-1/./x',
+    'user-1\\x',
+    'user-1\\..\\x',
+    'user-1',
+  ])('rejects path %j for user-1 as forbidden', async (path) => {
+    const { strategy } = setup();
+    const ref = { bucket: BUCKET, path };
+    await expect(strategy.remove('user-1', ref)).rejects.toThrow('forbidden');
+    await expect(strategy.getSignedUrl('user-1', ref)).rejects.toThrow('forbidden');
+  });
+
+  it('neutralises separators and control chars in filenames', async () => {
+    const { strategy } = setup();
+    const ref = await strategy.upload('user-1', { ...file, filename: '../../evil\\x\n.txt' });
+    expect(ref.path.startsWith('user-1/')).toBe(true);
+    expect(ref.path.split('/')).toHaveLength(2);
+    expect(ref.path).not.toMatch(/[\\\n]/);
+    await expect(strategy.remove('user-1', ref)).resolves.toBeUndefined();
+  });
 });

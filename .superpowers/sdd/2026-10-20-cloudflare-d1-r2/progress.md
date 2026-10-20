@@ -53,3 +53,13 @@ Task 3: minor (deferred): production-throw path (NODE_ENV=production + missing e
 Task 3: minor (deferred): stub ConfigService.getOrThrow returns undefined instead of throwing
 Task 3: complete (commits 4688083..92b7f66, review clean)
 Note: controller accidentally ran `prettier --write docs/superpowers` (95 unrelated old plan/spec files reformatted); reverted with `git checkout -- docs/superpowers` before any commit — no unrelated change was committed. Only run prettier on specific files from now on.
+
+Task 4: implemented (commit 42f123e), review: spec ❌ (TTL lower/NaN guard missing), quality Needs fixes (1 Important). ⚠️ resolved by controller: yarn.lock workspace entry / lint / templates checked (see below).
+Task 4: minor (deferred): truncated listing without NextContinuationToken ends silently (should throw)
+Task 4: minor (deferred): inconsistent import extensions (.js in index.ts only)
+Task 4: minor (deferred): createMockR2.deleteObject throws not_found (S3 delete is idempotent)
+Task 4: minor (deferred): no test for FakeStorageStrategy fallback when env missing, nor NoSuchBucket propagation
+Task 4: minor (deferred): 2500-key strategy test only exercises the mock (redundant)
+Ruling: R4 — fold the automated security-review finding (path traversal / prefix check vs key normalization, r2-storage.strategy.ts) into fix round 1: sanitize filename separators in upload, and harden assertOwner to reject `.`/`..`/empty segments and backslashes — cheap defense in depth in the file under change — costs a small scope increase beyond the brief (tests added).
+Ruling: R5 — invalid TTL (NaN/non-finite/<=0) throws `invalid_ttl`, TTL above 604800 clamps, non-integer floors — spec says "clamped"; a silent default would hide caller bugs — costs a behavior choice the spec did not pin.
+Deferred observation (outside this PR): gateway `assertOwnership` and `MinioStorageStrategy.assertOwner` have the same prefix-only check; consider hardening all storage providers + gateway in a follow-up.

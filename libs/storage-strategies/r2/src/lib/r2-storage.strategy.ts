@@ -20,6 +20,15 @@ const DEFAULT_TTL_SEC = 900;
 // S3 SigV4 presigned URLs cannot outlive 7 days.
 const MAX_TTL_SEC = 604800;
 
+// Replaces path separators and control characters so a filename can never
+// add or traverse key segments.
+function sanitizeFilename(name: string): string {
+  return Array.from(name, (ch) => {
+    const code = ch.charCodeAt(0);
+    return ch === '/' || ch === '\\' || code < 0x20 || code === 0x7f ? '_' : ch;
+  }).join('');
+}
+
 export class R2StorageStrategy implements StorageStrategy {
   private readonly client: R2ClientLike;
   private readonly bucket: string;
@@ -33,7 +42,8 @@ export class R2StorageStrategy implements StorageStrategy {
   // Cloudflare dashboard, so a missing bucket surfaces as the provider's
   // own error on upload.
   async upload(userId: string, file: FileInput): Promise<StorageRef> {
-    const path = `${userId}/${randomUUID()}-${file.filename}`;
+    const filename = sanitizeFilename(file.filename);
+    const path = `${userId}/${randomUUID()}-${filename}`;
     await this.client.putObject(this.bucket, path, file.buffer, file.mimeType);
     return { bucket: this.bucket, path };
   }
@@ -49,7 +59,11 @@ export class R2StorageStrategy implements StorageStrategy {
     ttlSec: number = DEFAULT_TTL_SEC,
   ): Promise<string> {
     this.assertOwner(userId, ref);
-    return this.client.presignGetObject(this.bucket, ref.path, Math.min(ttlSec, MAX_TTL_SEC));
+    if (!Number.isFinite(ttlSec) || ttlSec <= 0) throw new Error('invalid_ttl');
+    // X-Amz-Expires must be an integer; floor can reach 0 for 0 < ttl < 1.
+    const ttl = Math.min(Math.floor(ttlSec), MAX_TTL_SEC);
+    if (ttl < 1) throw new Error('invalid_ttl');
+    return this.client.presignGetObject(this.bucket, ref.path, ttl);
   }
 
   async list(userId: string, prefix?: string): Promise<StorageRef[]> {
@@ -59,6 +73,12 @@ export class R2StorageStrategy implements StorageStrategy {
   }
 
   private assertOwner(userId: string, ref: StorageRef): void {
-    if (!ref.path.startsWith(`${userId}/`)) throw new Error('forbidden');
+    const segments = ref.path.split('/');
+    const valid =
+      !ref.path.includes('\\') &&
+      segments.length >= 2 &&
+      segments[0] === userId &&
+      segments.every((s) => s !== '' && s !== '.' && s !== '..');
+    if (!valid) throw new Error('forbidden');
   }
 }
