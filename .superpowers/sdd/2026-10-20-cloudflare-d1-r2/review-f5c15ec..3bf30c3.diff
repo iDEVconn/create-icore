@@ -1,0 +1,84 @@
+# Review package: f5c15ec..HEAD
+
+## Commits
+3bf30c3 fix(create-icore): write D1 credentials to root .env for ai-orchestrator
+
+## Files changed
+ .../create-icore/src/lib/__tests__/scaffold.unit.test.ts  | 15 +++++++++++++++
+ tools/create-icore/src/lib/scaffold-env.ts                |  8 ++++++++
+ 2 files changed, 23 insertions(+)
+
+## Diff
+diff --git a/tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts b/tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts
+index f15f998..f19df26 100644
+--- a/tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts
++++ b/tools/create-icore/src/lib/__tests__/scaffold.unit.test.ts
+@@ -139,20 +139,35 @@ describe('writeRootEnv', () => {
+     const env = await readFile(join(dir, '.env'), 'utf8');
+     expect(env).toContain('DB_PROVIDER=supabase');
+   });
+ 
+   it('appends POSTGRES_URL to .env when dbProvider=postgres', async () => {
+     await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'postgres' });
+     const env = await readFile(join(dir, '.env'), 'utf8');
+     expect(env).toContain('DB_PROVIDER=postgres');
+     expect(env).toContain('POSTGRES_URL=postgresql://user:pass@localhost:5432/icore');
+   });
++
++  it('appends the three D1_* keys to the root .env when dbProvider=d1 (ai-orchestrator/notes fallback)', async () => {
++    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'd1' });
++    const env = await readFile(join(dir, '.env'), 'utf8');
++    expect(env).toContain('DB_PROVIDER=d1');
++    for (const k of ['D1_ACCOUNT_ID', 'D1_DATABASE_ID', 'D1_API_TOKEN']) {
++      expect(env).toMatch(new RegExp(`^${k}=`, 'm'));
++    }
++  });
++
++  it('does not append D1_* keys to the root .env for a non-d1 db (sqlite)', async () => {
++    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'sqlite' });
++    const env = await readFile(join(dir, '.env'), 'utf8');
++    expect(env).not.toContain('D1_');
++  });
+ });
+ 
+ describe('removeUploadStack', () => {
+   it('removes upload MS, storage strategy libs, upload-client, and gateway storage dir', async () => {
+     // Pre-populate the paths that removeUploadStack should delete
+     await mkdir(join(dir, 'apps/microservices/upload-e2e'), { recursive: true });
+     await writeFile(join(dir, 'apps/microservices/upload-e2e/placeholder.ts'), '');
+     await mkdir(join(dir, 'libs/storage-strategies/supabase'), { recursive: true });
+     await writeFile(
+       join(dir, 'libs/storage-strategies/supabase/package.json'),
+diff --git a/tools/create-icore/src/lib/scaffold-env.ts b/tools/create-icore/src/lib/scaffold-env.ts
+index 758a99c..cf71bf2 100644
+--- a/tools/create-icore/src/lib/scaffold-env.ts
++++ b/tools/create-icore/src/lib/scaffold-env.ts
+@@ -320,20 +320,28 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
+     ``,
+   ];
+   if (opts.dbProvider === 'mongodb') {
+     lines.push(`MONGODB_URI=mongodb://localhost:27017/icore-data`);
+     lines.push(``);
+   }
+   if (opts.dbProvider === 'postgres') {
+     lines.push(`POSTGRES_URL=postgresql://user:pass@localhost:5432/icore`);
+     lines.push(``);
+   }
++  if (opts.dbProvider === 'd1') {
++    // Root .env is the fallback env file for notes AND ai-orchestrator (ai-usage
++    // tracking wires D1DbModule too), so the D1 credentials must live here.
++    lines.push(`D1_ACCOUNT_ID=<cloudflare-account-id>`);
++    lines.push(`D1_DATABASE_ID=<d1-database-id>`);
++    lines.push(`D1_API_TOKEN=<cloudflare-api-token>`);
++    lines.push(``);
++  }
+   await writeFile(join(targetDir, '.env'), lines.join('\n'));
+ }
+ 
+ // authProvider values that implement startOAuth/sendMagicLink/password reset.
+ // postgres and mongodb throw not_implemented for all of them, so their
+ // generated client must not surface the OAuth buttons, the magic-link toggle
+ // or the forgot-password link.
+ const OAUTH_MAGIC_LINK_PROVIDERS: ReadonlySet<CreateIcoreOptions['authProvider']> = new Set([
+   'supabase',
+   'firebase',

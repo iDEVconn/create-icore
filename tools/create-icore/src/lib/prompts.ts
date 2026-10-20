@@ -204,6 +204,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
             { value: 'mongodb', label: 'MongoDB' },
             { value: 'postgres', label: 'PostgreSQL (direct, postgres.js)' },
             { value: 'sqlite', label: 'SQLite (local file-based, WAL mode)' },
+            { value: 'd1', label: 'Cloudflare D1 (SQLite over REST)' },
           ],
           initialValue: authProvider as DbProvider,
         })) as DbProvider));
@@ -218,6 +219,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         { value: 'firebase', label: 'Firebase Cloud Storage' },
         { value: 'cloudinary', label: 'Cloudinary' },
         { value: 'minio', label: 'MinIO (self-hosted, S3-compatible)' },
+        { value: 'r2', label: 'Cloudflare R2 (S3-compatible)' },
         { value: 'mongodb', label: 'MongoDB GridFS' },
         { value: 'none', label: 'None — skip the upload microservice' },
       ],

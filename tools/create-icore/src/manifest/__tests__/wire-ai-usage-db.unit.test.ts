@@ -11,7 +11,7 @@ async function fixture(): Promise<string> {
     join(dir, 'apps/microservices/ai-orchestrator/src/app/ai-usage-db.provider.ts'),
     `import { SupabaseDbModule } from '@icore/db-supabase';\nexport const AiUsageDbProviderModule = SupabaseDbModule.forRoot('x');\n`,
   );
-  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres']) {
+  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres', 'd1']) {
     await mkdir(join(dir, `libs/db-strategies/${d}/src`), { recursive: true });
     await writeFile(join(dir, `libs/db-strategies/${d}/src/index.ts`), 'export {};');
   }
@@ -24,6 +24,7 @@ async function fixture(): Promise<string> {
         '@icore/db-firestore': '*',
         '@icore/db-mongodb': '*',
         '@icore/db-postgres': '*',
+        '@icore/db-d1': '*',
         '@supabase/supabase-js': '^2.106.2',
       },
     }),
@@ -37,6 +38,7 @@ async function fixture(): Promise<string> {
           '@icore/db-firestore': ['libs/db-strategies/firestore/src/index.ts'],
           '@icore/db-mongodb': ['libs/db-strategies/mongodb/src/index.ts'],
           '@icore/db-postgres': ['libs/db-strategies/postgres/src/index.ts'],
+          '@icore/db-d1': ['libs/db-strategies/d1/src/index.ts'],
         },
       },
     }),
@@ -59,6 +61,18 @@ describe('writeAiUsageDbProvider', () => {
     );
     expect(src).toContain("from '@icore/db-mongodb'");
     expect(src).toContain('MongoDbDbModule.forRoot');
+    expect(src).not.toContain('SupabaseDbModule');
+  });
+
+  it('wires D1DbModule for dbProvider=d1 (manifest-driven, no ai-usage-specific code)', async () => {
+    const dir = await fixture();
+    await writeAiUsageDbProvider(dir, 'd1');
+    const src = await readFile(
+      join(dir, 'apps/microservices/ai-orchestrator/src/app/ai-usage-db.provider.ts'),
+      'utf8',
+    );
+    expect(src).toContain("import { D1DbModule } from '@icore/db-d1'");
+    expect(src).toContain('D1DbModule.forRoot');
     expect(src).not.toContain('SupabaseDbModule');
   });
 
@@ -90,6 +104,22 @@ describe('cleanupUnusedAiUsageDb', () => {
     );
     expect(pkg.dependencies['@icore/db-postgres']).toBe('*');
     expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+    expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js');
+  });
+
+  it('keeps d1 and strips the other db providers when d1 is chosen', async () => {
+    const dir = await fixture();
+    await cleanupUnusedAiUsageDb(dir, 'd1');
+
+    expect(await exists(join(dir, 'libs/db-strategies/d1'))).toBe(true);
+    expect(await exists(join(dir, 'libs/db-strategies/supabase'))).toBe(false);
+    expect(await exists(join(dir, 'libs/db-strategies/postgres'))).toBe(false);
+
+    const pkg = JSON.parse(
+      await readFile(join(dir, 'apps/microservices/ai-orchestrator/package.json'), 'utf8'),
+    );
+    expect(pkg.dependencies['@icore/db-d1']).toBe('*');
+    expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
     expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js');
   });
 });

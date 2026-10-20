@@ -1,0 +1,171 @@
+# Review package: 42f123e..HEAD
+
+## Commits
+5f07a45 fix(storage-r2): validate ttl and harden key ownership checks
+
+## Files changed
+ .../sdd/2026-10-20-cloudflare-d1-r2/progress.md    | 10 ++++++
+ .../lib/__tests__/r2-storage.strategy.unit.test.ts | 38 ++++++++++++++++++++++
+ .../r2/src/lib/r2-storage.strategy.ts              | 26 +++++++++++++--
+ 3 files changed, 71 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md b/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md
+index d7cac05..859c87a 100644
+--- a/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md
++++ b/.superpowers/sdd/2026-10-20-cloudflare-d1-r2/progress.md
+@@ -46,10 +46,20 @@ Task 2: minor (deferred): CAST(... AS NUMERIC) false positives (== 0 / == false
+ Task 2: minor (deferred): no tests for `in []`, mixed-type `in`, exactly-100 params allowed
+ Task 2: fix round 1/5 (1 addressed, 0 open; commits 1129ab5..9864353)
+ Task 2: complete (commits e34c82d..9864353, review clean)
+ 
+ Task 3: implemented (commit 92b7f66), review: spec ✅, quality Approved, 0 Critical/Important. ⚠️ lint green verified by controller (nx cache hit).
+ Task 3: minor (deferred): fallback test emits console.warn banner noise — spy on console.warn
+ Task 3: minor (deferred): production-throw path (NODE_ENV=production + missing env) untested; belongs to buildStrategyWithFallback
+ Task 3: minor (deferred): stub ConfigService.getOrThrow returns undefined instead of throwing
+ Task 3: complete (commits 4688083..92b7f66, review clean)
+ Note: controller accidentally ran `prettier --write docs/superpowers` (95 unrelated old plan/spec files reformatted); reverted with `git checkout -- docs/superpowers` before any commit — no unrelated change was committed. Only run prettier on specific files from now on.
++
++Task 4: implemented (commit 42f123e), review: spec ❌ (TTL lower/NaN guard missing), quality Needs fixes (1 Important). ⚠️ resolved by controller: yarn.lock workspace entry / lint / templates checked (see below).
++Task 4: minor (deferred): truncated listing without NextContinuationToken ends silently (should throw)
++Task 4: minor (deferred): inconsistent import extensions (.js in index.ts only)
++Task 4: minor (deferred): createMockR2.deleteObject throws not_found (S3 delete is idempotent)
++Task 4: minor (deferred): no test for FakeStorageStrategy fallback when env missing, nor NoSuchBucket propagation
++Task 4: minor (deferred): 2500-key strategy test only exercises the mock (redundant)
++Ruling: R4 — fold the automated security-review finding (path traversal / prefix check vs key normalization, r2-storage.strategy.ts) into fix round 1: sanitize filename separators in upload, and harden assertOwner to reject `.`/`..`/empty segments and backslashes — cheap defense in depth in the file under change — costs a small scope increase beyond the brief (tests added).
++Ruling: R5 — invalid TTL (NaN/non-finite/<=0) throws `invalid_ttl`, TTL above 604800 clamps, non-integer floors — spec says "clamped"; a silent default would hide caller bugs — costs a behavior choice the spec did not pin.
++Deferred observation (outside this PR): gateway `assertOwnership` and `MinioStorageStrategy.assertOwner` have the same prefix-only check; consider hardening all storage providers + gateway in a follow-up.
+diff --git a/libs/storage-strategies/r2/src/lib/__tests__/r2-storage.strategy.unit.test.ts b/libs/storage-strategies/r2/src/lib/__tests__/r2-storage.strategy.unit.test.ts
+index 4b6915b..4f8fd70 100644
+--- a/libs/storage-strategies/r2/src/lib/__tests__/r2-storage.strategy.unit.test.ts
++++ b/libs/storage-strategies/r2/src/lib/__tests__/r2-storage.strategy.unit.test.ts
+@@ -56,11 +56,49 @@ describe('R2StorageStrategy', () => {
+     const ref = await strategy.upload('u1', file);
+     await expect(strategy.remove('u2', ref)).rejects.toThrow('forbidden');
+     await expect(strategy.getSignedUrl('u2', ref)).rejects.toThrow('forbidden');
+   });
+ 
+   it('does not treat a user id that is a prefix of another as the owner', async () => {
+     const { strategy } = setup();
+     const ref = await strategy.upload('u10', file);
+     await expect(strategy.remove('u1', ref)).rejects.toThrow('forbidden');
+   });
++
++  it.each([0, -1, NaN, Infinity])('getSignedUrl rejects ttl %s as invalid_ttl', async (ttl) => {
++    const { strategy, ttls } = setup();
++    const ref = await strategy.upload('u1', file);
++    await expect(strategy.getSignedUrl('u1', ref, ttl)).rejects.toThrow('invalid_ttl');
++    expect(ttls).toEqual([]);
++  });
++
++  it('clamps 604801 to 604800 and floors 90.7 to 90', async () => {
++    const { strategy, ttls } = setup();
++    const ref = await strategy.upload('u1', file);
++    await strategy.getSignedUrl('u1', ref, 604801);
++    await strategy.getSignedUrl('u1', ref, 90.7);
++    expect(ttls).toEqual([604800, 90]);
++  });
++
++  it.each([
++    'user-1/../user-2/x',
++    'user-1//x',
++    'user-1/./x',
++    'user-1\\x',
++    'user-1\\..\\x',
++    'user-1',
++  ])('rejects path %j for user-1 as forbidden', async (path) => {
++    const { strategy } = setup();
++    const ref = { bucket: BUCKET, path };
++    await expect(strategy.remove('user-1', ref)).rejects.toThrow('forbidden');
++    await expect(strategy.getSignedUrl('user-1', ref)).rejects.toThrow('forbidden');
++  });
++
++  it('neutralises separators and control chars in filenames', async () => {
++    const { strategy } = setup();
++    const ref = await strategy.upload('user-1', { ...file, filename: '../../evil\\x\n.txt' });
++    expect(ref.path.startsWith('user-1/')).toBe(true);
++    expect(ref.path.split('/')).toHaveLength(2);
++    expect(ref.path).not.toMatch(/[\\\n]/);
++    await expect(strategy.remove('user-1', ref)).resolves.toBeUndefined();
++  });
+ });
+diff --git a/libs/storage-strategies/r2/src/lib/r2-storage.strategy.ts b/libs/storage-strategies/r2/src/lib/r2-storage.strategy.ts
+index 4ecec0c..a9f906a 100644
+--- a/libs/storage-strategies/r2/src/lib/r2-storage.strategy.ts
++++ b/libs/storage-strategies/r2/src/lib/r2-storage.strategy.ts
+@@ -13,52 +13,72 @@ export interface R2ClientLike {
+ 
+ export interface R2StorageStrategyOptions {
+   client: R2ClientLike;
+   bucket: string;
+ }
+ 
+ const DEFAULT_TTL_SEC = 900;
+ // S3 SigV4 presigned URLs cannot outlive 7 days.
+ const MAX_TTL_SEC = 604800;
+ 
++// Replaces path separators and control characters so a filename can never
++// add or traverse key segments.
++function sanitizeFilename(name: string): string {
++  return Array.from(name, (ch) => {
++    const code = ch.charCodeAt(0);
++    return ch === '/' || ch === '\\' || code < 0x20 || code === 0x7f ? '_' : ch;
++  }).join('');
++}
++
+ export class R2StorageStrategy implements StorageStrategy {
+   private readonly client: R2ClientLike;
+   private readonly bucket: string;
+ 
+   constructor(opts: R2StorageStrategyOptions) {
+     this.client = opts.client;
+     this.bucket = opts.bucket;
+   }
+ 
+   // The bucket is never created here: R2 buckets are provisioned in the
+   // Cloudflare dashboard, so a missing bucket surfaces as the provider's
+   // own error on upload.
+   async upload(userId: string, file: FileInput): Promise<StorageRef> {
+-    const path = `${userId}/${randomUUID()}-${file.filename}`;
++    const filename = sanitizeFilename(file.filename);
++    const path = `${userId}/${randomUUID()}-${filename}`;
+     await this.client.putObject(this.bucket, path, file.buffer, file.mimeType);
+     return { bucket: this.bucket, path };
+   }
+ 
+   async remove(userId: string, ref: StorageRef): Promise<void> {
+     this.assertOwner(userId, ref);
+     await this.client.deleteObject(this.bucket, ref.path);
+   }
+ 
+   async getSignedUrl(
+     userId: string,
+     ref: StorageRef,
+     ttlSec: number = DEFAULT_TTL_SEC,
+   ): Promise<string> {
+     this.assertOwner(userId, ref);
+-    return this.client.presignGetObject(this.bucket, ref.path, Math.min(ttlSec, MAX_TTL_SEC));
++    if (!Number.isFinite(ttlSec) || ttlSec <= 0) throw new Error('invalid_ttl');
++    // X-Amz-Expires must be an integer; floor can reach 0 for 0 < ttl < 1.
++    const ttl = Math.min(Math.floor(ttlSec), MAX_TTL_SEC);
++    if (ttl < 1) throw new Error('invalid_ttl');
++    return this.client.presignGetObject(this.bucket, ref.path, ttl);
+   }
+ 
+   async list(userId: string, prefix?: string): Promise<StorageRef[]> {
+     const folder = prefix ? `${userId}/${prefix}` : userId;
+     const keys = await this.client.listKeys(this.bucket, `${folder}/`);
+     return keys.map((path) => ({ bucket: this.bucket, path }));
+   }
+ 
+   private assertOwner(userId: string, ref: StorageRef): void {
+-    if (!ref.path.startsWith(`${userId}/`)) throw new Error('forbidden');
++    const segments = ref.path.split('/');
++    const valid =
++      !ref.path.includes('\\') &&
++      segments.length >= 2 &&
++      segments[0] === userId &&
++      segments.every((s) => s !== '' && s !== '.' && s !== '..');
++    if (!valid) throw new Error('forbidden');
+   }
+ }

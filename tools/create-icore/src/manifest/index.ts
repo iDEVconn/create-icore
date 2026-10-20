@@ -93,6 +93,19 @@ export const MANIFEST = {
         into: 'upload',
       },
     },
+    r2: {
+      libDirs: ['libs/storage-strategies/r2'],
+      deps: {
+        '@aws-sdk/client-s3': '^3.1153.0',
+        '@aws-sdk/s3-request-presigner': '^3.1153.0',
+      },
+      tsPaths: { '@icore/storage-r2': ['libs/storage-strategies/r2/src/index.ts'] },
+      nestModule: {
+        importFrom: '@icore/storage-r2',
+        symbol: 'R2StorageModule',
+        into: 'upload',
+      },
+    },
     mongodb: {
       libDirs: ['libs/storage-strategies/mongodb'],
       deps: { mongoose: '^9.6.3' },
@@ -142,6 +155,12 @@ export const MANIFEST = {
         symbol: 'SqliteDbModule',
         into: 'notes',
       },
+    },
+    d1: {
+      libDirs: ['libs/db-strategies/d1'],
+      deps: {},
+      tsPaths: { '@icore/db-d1': ['libs/db-strategies/d1/src/index.ts'] },
+      nestModule: { importFrom: '@icore/db-d1', symbol: 'D1DbModule', into: 'notes' },
     },
   },
   feature: {

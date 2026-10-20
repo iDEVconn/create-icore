@@ -50,10 +50,13 @@ libs/
 │   ├── supabase/
 │   ├── firebase/
 │   ├── cloudinary/
+│   ├── minio/
+│   ├── r2/
 │   └── mongodb/
 ├── db-strategies/
 │   ├── supabase/
 │   ├── firebase/
+│   ├── d1/
 │   └── mongodb/
 ├── auth-client/          # gateway → auth MS client (NestJS module)
 └── upload-client/        # gateway → upload MS client (NestJS module)
@@ -252,10 +255,49 @@ MINIO_BUCKET=uploads
 
 **Setup:**
 
-1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it.
+1. Self-hosted: run the `minio` service already added to `docker-compose.yml` (and the generated project's copy). Cloud: any S3-compatible provider works the same way — MinIO, Backblaze B2, Cloudflare R2, Amazon S3 — point `MINIO_ENDPOINT`/`MINIO_PORT`/`MINIO_USE_SSL` at it (or use the dedicated `STORAGE_PROVIDER=r2`, see the R2 section).
 2. Create the bucket (`MINIO_BUCKET`) before first upload — the strategy does not auto-create it.
-3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the same MIME allowlist + ownership-prefix convention as the other storage strategies, in code — not relying on bucket policy.
+3. `MinioStorageStrategy` (`libs/storage-strategies/minio`) applies the ownership-prefix convention in code — not relying on bucket policy. No storage strategy enforces a MIME allowlist today.
 4. This is the only storage strategy with zero mandatory external SaaS dependency — pick it when "no vendor lock-in" matters more than managed convenience.
+
+### Cloudflare D1 (db only)
+
+**Env vars:**
+
+```
+DB_PROVIDER=d1
+D1_ACCOUNT_ID=<account id>
+D1_DATABASE_ID=<database uuid>
+D1_API_TOKEN=<token with D1 Edit permission>
+```
+
+**Setup:**
+
+1. Create a D1 database in the Cloudflare dashboard; note the account id and database id.
+2. Create a custom API token with **Account → D1 → Edit**.
+3. `D1DBStrategy` (`libs/db-strategies/d1`, `@icore/db-d1`) talks to the D1 REST API (`POST /client/v4/accounts/{account}/d1/database/{db}/query`). Schema is `id TEXT PRIMARY KEY, data TEXT` (JSON), tables auto-created lazily per collection.
+
+**Gotchas:** each call is an HTTPS round trip (slower than local SQLite); 10 s timeout, 429/503 + pre-response network errors retried max 2 (a timeout is NOT retried — a write may have been applied); subject to Cloudflare's global API limit of 1,200 req/5 min (429; `Retry-After` > 30 s fails fast) — see the runbook; max 100 bound params per statement (`too_many_params`); 2 MB per row. Numeric/boolean `==`/`!=`/`in` filters use `CAST(... AS NUMERIC)`, so `== 0` also matches non-numeric strings. With `ai` enabled, the `D1_*` vars reach `ai-orchestrator` via the root `.env` — no manual step. `--auth=supabase --db=d1 --upload=r2` keeps Supabase for identities only. See `docs/runbooks/cloudflare-d1-r2.md` (also lists what is deferred: Workers hosting, `--host=cloudflare`).
+
+### Cloudflare R2 (storage only)
+
+**Env vars:**
+
+```
+STORAGE_PROVIDER=r2
+R2_ACCOUNT_ID=<account id>
+R2_ACCESS_KEY_ID=<key>
+R2_SECRET_ACCESS_KEY=<secret>
+R2_BUCKET=<bucket>
+```
+
+**Setup:**
+
+1. Create the bucket yourself — the strategy never creates buckets (missing bucket = `NoSuchBucket` on first upload).
+2. Create an R2 API token (Object Read & Write) to get the S3 key pair.
+3. `R2StorageStrategy` (`libs/storage-strategies/r2`, `@icore/storage-r2`) uses the AWS SDK v3 S3 client against `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, region `auto`. Does not use the `minio` package.
+
+**Gotchas:** presigned GET URLs only work on the `*.r2.cloudflarestorage.com` domain (not custom domains); default TTL 900 s, max 7 days (clamped), invalid TTL throws `invalid_ttl`. Keys are `<userId>/<uuid>-<filename>` with `/`, `\` and control chars in filenames replaced by `_`. No MIME allowlist (same as MinIO). See `docs/runbooks/cloudflare-d1-r2.md`.
 
 ### AI Orchestrator (LLM routing, optional feature)
 

@@ -34,6 +34,7 @@ const DB_PROVIDERS: readonly DbProvider[] = [
   'mongodb',
   'postgres',
   'sqlite',
+  'd1',
   'none',
 ];
 const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
@@ -41,6 +42,7 @@ const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
   'firebase',
   'cloudinary',
   'minio',
+  'r2',
   'mongodb',
   'none',
 ];

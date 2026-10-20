@@ -1,0 +1,45 @@
+# Review package: 1129ab5..HEAD
+
+## Commits
+9864353 test(db-d1): make too_many_params guard-ordering test detect regressions
+
+## Files changed
+ .../db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+## Diff
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts
+index ada880f..f088685 100644
+--- a/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts
+@@ -52,28 +52,25 @@ describe.each(modes)('D1DBStrategy where semantics (%s)', (_name, stringifyParam
+ 
+   it('where on id compares plain text', async () => {
+     const db = await make();
+     const rows = await db.list('users', { where: [{ field: 'id', op: '==', value: 'b' }] });
+     expect(ids(rows)).toEqual(['b']);
+   });
+ });
+ 
+ describe('D1DBStrategy guards', () => {
+   it('list with 101 in-values rejects with too_many_params and issues no query', async () => {
+-    const inner = createSqliteD1Client();
+-    const spy = vi.fn(inner.query.bind(inner));
++    const spy = vi.fn(createSqliteD1Client().query);
+     const db = new D1DBStrategy({ query: spy } as D1ClientLike);
+-    await db.set('users', 'a', { n: 1 });
+-    spy.mockClear();
+     const values = Array.from({ length: D1_MAX_BOUND_PARAMS + 1 }, (_, i) => i);
+     await expect(
+-      db.list('users', { where: [{ field: 'n', op: 'in', value: values }] }),
++      db.list('fresh_collection', { where: [{ field: 'n', op: 'in', value: values }] }),
+     ).rejects.toThrow(/too_many_params/);
+     expect(spy).not.toHaveBeenCalled();
+   });
+ 
+   it('update on a missing id rejects with not_found: users/nope', async () => {
+     const db = new D1DBStrategy(createSqliteD1Client());
+     await expect(db.update('users', 'nope', { a: 1 })).rejects.toThrow('not_found: users/nope');
+   });
+ 
+   it('delete on a missing id rejects with not_found', async () => {
