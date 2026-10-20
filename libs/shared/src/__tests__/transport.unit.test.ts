@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { Transport } from '@nestjs/microservices';
-import { buildTransport } from '../transport';
+import { buildTransport, buildTransportMS } from '../transport';
+import { LocalClientProxy, LocalServer } from '../local-transport';
 
 const ORIG = { ...process.env };
 
@@ -111,5 +112,38 @@ describe('buildTransport', () => {
   it('throws when a required env var is missing', () => {
     process.env['AUTH_TRANSPORT'] = 'redis';
     expect(() => buildTransport('AUTH')).toThrow(/AUTH_REDIS_URL/);
+  });
+});
+
+describe('local transport selection', () => {
+  afterEach(() => {
+    delete process.env['LOC_TRANSPORT'];
+  });
+
+  it('buildTransport returns the local client options when X_TRANSPORT=local', () => {
+    process.env['LOC_TRANSPORT'] = 'local';
+    expect(buildTransport('LOC')).toEqual({
+      customClass: LocalClientProxy,
+      options: { prefix: 'LOC' },
+    });
+  });
+
+  it('buildTransportMS returns a LocalServer strategy for the same prefix', () => {
+    process.env['LOC_TRANSPORT'] = 'local';
+    const opts = buildTransportMS('LOC') as unknown as { strategy: unknown };
+    expect(opts.strategy).toBeInstanceOf(LocalServer);
+  });
+
+  it('local needs no host, port or url env', () => {
+    process.env['LOC_TRANSPORT'] = 'local';
+    for (const k of Object.keys(process.env))
+      if (k.startsWith('LOC_') && k !== 'LOC_TRANSPORT') delete process.env[k];
+    expect(() => buildTransport('LOC')).not.toThrow();
+    expect(() => buildTransportMS('LOC')).not.toThrow();
+  });
+
+  it('an unknown transport still throws', () => {
+    process.env['LOC_TRANSPORT'] = 'carrier-pigeon';
+    expect(() => buildTransport('LOC')).toThrow(/Unknown transport: carrier-pigeon/);
   });
 });

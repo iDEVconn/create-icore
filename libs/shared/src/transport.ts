@@ -1,5 +1,6 @@
 import { Transport, type ClientOptions, type MicroserviceOptions } from '@nestjs/microservices';
 import { formatEnvBanner } from './env';
+import { LocalClientProxy, LocalServer } from './local-transport';
 
 // Transport vars each kind needs (besides ${prefix}_TRANSPORT itself).
 function transportKeys(prefix: string, kind: string): string[] {
@@ -16,6 +17,9 @@ function transportKeys(prefix: string, kind: string): string[] {
       return [`${prefix}_RMQ_URL`, `${prefix}_RMQ_QUEUE`];
     case 'kafka':
       return [`${prefix}_KAFKA_BROKERS`];
+    case 'local':
+      // In-process: the gateway and the microservice share one process, nothing to connect to.
+      return [];
     default:
       return [];
   }
@@ -152,6 +156,9 @@ export function buildTransport(prefix: string): ClientOptions {
           consumer: { groupId: `${prefix.toLowerCase()}-consumer` },
         },
       } as unknown as ClientOptions;
+    case 'local':
+      // `ClientsModule` builds the proxy with `new customClass(options)`.
+      return { customClass: LocalClientProxy, options: { prefix } } as unknown as ClientOptions;
     default:
       throw new Error(`Unknown transport: ${kind}`);
   }
@@ -164,5 +171,8 @@ export function buildTransport(prefix: string): ClientOptions {
  * bootstrap site.
  */
 export function buildTransportMS(prefix: string): MicroserviceOptions {
+  if ((process.env[`${prefix}_TRANSPORT`] ?? 'tcp').toLowerCase() === 'local') {
+    return { strategy: new LocalServer(prefix) };
+  }
   return buildTransport(prefix) as unknown as MicroserviceOptions;
 }
