@@ -39,3 +39,10 @@ Task 1: minor (deferred): tests don't assert backoff values (250/500 ms) nor sle
 Task 1: minor (deferred): eslint ignoredDependencies hides @nestjs/common,config until Tasks 3+ use them (remove ignore then)
 Task 1: fix round 1/5 (2 addressed, 0 open; commits 08cd04a..c20e50c)
 Task 1: complete (commits 6d580af..c20e50c, review clean)
+
+Task 2: implemented (commit 1129ab5), review: spec ✅, quality Needs fixes (1 Important: guard-ordering test can't fail on ordering)
+Task 2: minor (deferred): too_many_params check duplicated in run() and list() — extract assertParamCount
+Task 2: minor (deferred): CAST(... AS NUMERIC) false positives (== 0 / == false match non-numeric strings; == 30 matches "30") — spec-mandated; add comment
+Task 2: minor (deferred): no tests for `in []`, mixed-type `in`, exactly-100 params allowed
+Task 2: fix round 1/5 (1 addressed, 0 open; commits 1129ab5..9864353)
+Task 2: complete (commits e34c82d..9864353, review clean)

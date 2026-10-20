@@ -1,0 +1,384 @@
+# Review package: e34c82d..HEAD
+
+## Commits
+1129ab5 feat(db-d1): D1DBStrategy with sqlite-backed contract tests
+
+## Files changed
+ libs/db-strategies/d1/src/index.ts                 |   1 +
+ .../src/lib/__tests__/d1-db.contract.unit.test.ts  |  10 ++
+ .../src/lib/__tests__/d1-db.strategy.unit.test.ts  | 105 +++++++++++++
+ libs/db-strategies/d1/src/lib/d1-db.strategy.ts    | 165 +++++++++++++++++++++
+ .../d1/src/lib/testing/sqlite-d1-client.ts         |  32 ++++
+ libs/db-strategies/d1/tsconfig.lib.json            |   1 +
+ 6 files changed, 314 insertions(+)
+
+## Diff
+diff --git a/libs/db-strategies/d1/src/index.ts b/libs/db-strategies/d1/src/index.ts
+index 4cf0ad0..d37b650 100644
+--- a/libs/db-strategies/d1/src/index.ts
++++ b/libs/db-strategies/d1/src/index.ts
+@@ -1 +1,2 @@
+ export * from './lib/d1-client';
++export { D1DBStrategy, D1_MAX_BOUND_PARAMS } from './lib/d1-db.strategy';
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-db.contract.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-db.contract.unit.test.ts
+new file mode 100644
+index 0000000..11ebc72
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-db.contract.unit.test.ts
+@@ -0,0 +1,10 @@
++import { runDBContract } from '@icore/shared/testing';
++import { D1DBStrategy } from '../d1-db.strategy';
++import { createSqliteD1Client } from '../testing/sqlite-d1-client';
++
++runDBContract('D1DBStrategy (typed params)', () => new D1DBStrategy(createSqliteD1Client()));
++
++runDBContract(
++  'D1DBStrategy (stringified params)',
++  () => new D1DBStrategy(createSqliteD1Client({ stringifyParams: true })),
++);
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts
+new file mode 100644
+index 0000000..ada880f
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-db.strategy.unit.test.ts
+@@ -0,0 +1,105 @@
++import { describe, expect, it, vi } from 'vitest';
++import type { D1ClientLike } from '../d1-client';
++import { D1_MAX_BOUND_PARAMS, D1DBStrategy } from '../d1-db.strategy';
++import { createSqliteD1Client } from '../testing/sqlite-d1-client';
++
++const modes = [
++  ['typed params', false],
++  ['stringified params', true],
++] as const;
++
++describe.each(modes)('D1DBStrategy where semantics (%s)', (_name, stringifyParams) => {
++  const make = async () => {
++    const db = new D1DBStrategy(createSqliteD1Client({ stringifyParams }));
++    await db.set('users', 'a', { name: 'a', age: 30, active: true, tag: 'x' });
++    await db.set('users', 'b', { name: 'b', age: 25, active: false, tag: 'y' });
++    await db.set('users', 'c', { name: 'c', age: 1, active: true, tag: 'z' });
++    return db;
++  };
++  const ids = (rows: { id: string }[]) => rows.map((r) => r.id).sort();
++
++  it('where == true matches stored boolean', async () => {
++    const db = await make();
++    const rows = await db.list('users', { where: [{ field: 'active', op: '==', value: true }] });
++    expect(ids(rows)).toEqual(['a', 'c']);
++  });
++
++  it('where == 30 matches stored number', async () => {
++    const db = await make();
++    const rows = await db.list('users', { where: [{ field: 'age', op: '==', value: 30 }] });
++    expect(ids(rows)).toEqual(['a']);
++  });
++
++  it('where != 30 excludes stored number', async () => {
++    const db = await make();
++    const rows = await db.list('users', { where: [{ field: 'age', op: '!=', value: 30 }] });
++    expect(ids(rows)).toEqual(['b', 'c']);
++  });
++
++  it('where in [1,2] matches numbers', async () => {
++    const db = await make();
++    const rows = await db.list('users', { where: [{ field: 'age', op: 'in', value: [1, 2] }] });
++    expect(ids(rows)).toEqual(['c']);
++  });
++
++  it("where in ['a','b'] matches text", async () => {
++    const db = await make();
++    const rows = await db.list('users', {
++      where: [{ field: 'name', op: 'in', value: ['a', 'b'] }],
++    });
++    expect(ids(rows)).toEqual(['a', 'b']);
++  });
++
++  it('where on id compares plain text', async () => {
++    const db = await make();
++    const rows = await db.list('users', { where: [{ field: 'id', op: '==', value: 'b' }] });
++    expect(ids(rows)).toEqual(['b']);
++  });
++});
++
++describe('D1DBStrategy guards', () => {
++  it('list with 101 in-values rejects with too_many_params and issues no query', async () => {
++    const inner = createSqliteD1Client();
++    const spy = vi.fn(inner.query.bind(inner));
++    const db = new D1DBStrategy({ query: spy } as D1ClientLike);
++    await db.set('users', 'a', { n: 1 });
++    spy.mockClear();
++    const values = Array.from({ length: D1_MAX_BOUND_PARAMS + 1 }, (_, i) => i);
++    await expect(
++      db.list('users', { where: [{ field: 'n', op: 'in', value: values }] }),
++    ).rejects.toThrow(/too_many_params/);
++    expect(spy).not.toHaveBeenCalled();
++  });
++
++  it('update on a missing id rejects with not_found: users/nope', async () => {
++    const db = new D1DBStrategy(createSqliteD1Client());
++    await expect(db.update('users', 'nope', { a: 1 })).rejects.toThrow('not_found: users/nope');
++  });
++
++  it('delete on a missing id rejects with not_found', async () => {
++    const db = new D1DBStrategy(createSqliteD1Client());
++    await expect(db.delete('users', 'nope')).rejects.toThrow('not_found: users/nope');
++  });
++
++  it('rejects an invalid collection name', async () => {
++    const db = new D1DBStrategy(createSqliteD1Client());
++    await expect(db.get('us"ers', 'a')).rejects.toThrow(/Invalid SQL identifier/);
++  });
++
++  it('rejects an invalid where field name', async () => {
++    const db = new D1DBStrategy(createSqliteD1Client());
++    await expect(
++      db.list('users', { where: [{ field: "a'; --", op: '==', value: 1 }] }),
++    ).rejects.toThrow(/Invalid SQL identifier/);
++  });
++
++  it('limit is inlined as a validated integer (limit -1 or 1.5 rejects)', async () => {
++    const db = new D1DBStrategy(createSqliteD1Client());
++    await db.set('users', 'a', { n: 1 });
++    await db.set('users', 'b', { n: 2 });
++    expect(await db.list('users', { limit: 1 })).toHaveLength(1);
++    await expect(db.list('users', { limit: -1 })).rejects.toThrow(/limit/);
++    await expect(db.list('users', { limit: 1.5 })).rejects.toThrow(/limit/);
++    await expect(db.list('users', { limit: NaN })).rejects.toThrow(/limit/);
++  });
++});
+diff --git a/libs/db-strategies/d1/src/lib/d1-db.strategy.ts b/libs/db-strategies/d1/src/lib/d1-db.strategy.ts
+new file mode 100644
+index 0000000..a2dee4e
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/d1-db.strategy.ts
+@@ -0,0 +1,165 @@
++import type { DBDocument, DBStrategy, QueryOptions, WhereClause } from '@icore/shared';
++import type { D1ClientLike, D1Param } from './d1-client';
++
++export const D1_MAX_BOUND_PARAMS = 100;
++
++function assertValidIdentifier(name: string): void {
++  if (!/^[a-zA-Z0-9_]+$/.test(name)) {
++    throw new Error(`Invalid SQL identifier: "${name}"`);
++  }
++}
++
++function isNumeric(v: unknown): v is number | boolean {
++  return typeof v === 'number' || typeof v === 'boolean';
++}
++
++function toParam(v: unknown): D1Param {
++  if (v === null || v === undefined) return null;
++  if (typeof v === 'boolean') return v ? 1 : 0;
++  if (typeof v === 'number' || typeof v === 'string') return v;
++  return JSON.stringify(v);
++}
++
++function fieldExpr(field: string): string {
++  assertValidIdentifier(field);
++  return field === 'id' ? 'id' : `json_extract(data, '$.${field}')`;
++}
++
++/** Turns one WhereClause into a SQL fragment plus its bound params. */
++function whereToSql(c: WhereClause): { sql: string; params: D1Param[] } {
++  const expr = fieldExpr(c.field);
++  const isId = c.field === 'id';
++
++  switch (c.op) {
++    case '<':
++    case '<=':
++    case '>':
++    case '>=':
++      return { sql: `CAST(${expr} AS NUMERIC) ${c.op} ?`, params: [Number(c.value)] };
++    case '==':
++    case '!=': {
++      if (!isId && isNumeric(c.value)) {
++        return {
++          sql: `CAST(${expr} AS NUMERIC) ${c.op} CAST(? AS NUMERIC)`,
++          params: [toParam(c.value)],
++        };
++      }
++      return { sql: `${expr} ${c.op} ?`, params: [toParam(c.value)] };
++    }
++    case 'in': {
++      const arr = Array.isArray(c.value) ? c.value : [c.value];
++      if (arr.length === 0) return { sql: '1 = 0', params: [] };
++      if (!isId && arr.every(isNumeric)) {
++        const ph = arr.map(() => 'CAST(? AS NUMERIC)').join(', ');
++        return { sql: `CAST(${expr} AS NUMERIC) IN (${ph})`, params: arr.map(toParam) };
++      }
++      const ph = arr.map((v) => (!isId && isNumeric(v) ? 'CAST(? AS NUMERIC)' : '?')).join(', ');
++      return { sql: `${expr} IN (${ph})`, params: arr.map(toParam) };
++    }
++  }
++}
++
++export class D1DBStrategy implements DBStrategy {
++  private readonly initialized = new Map<string, Promise<void>>();
++
++  constructor(private readonly client: D1ClientLike) {}
++
++  private run(sql: string, params: D1Param[] = []) {
++    if (params.length > D1_MAX_BOUND_PARAMS) {
++      throw new Error(
++        `too_many_params: ${params.length} bound params exceeds the D1 limit of ${D1_MAX_BOUND_PARAMS}`,
++      );
++    }
++    return this.client.query<{ id: string; data: string }>(sql, params);
++  }
++
++  private ensureTable(collection: string): Promise<void> {
++    assertValidIdentifier(collection);
++    let pending = this.initialized.get(collection);
++    if (!pending) {
++      pending = (async () => {
++        await this.client.query(
++          `CREATE TABLE IF NOT EXISTS "${collection}" (id TEXT PRIMARY KEY, data TEXT NOT NULL)`,
++        );
++        await this.client.query(
++          `CREATE INDEX IF NOT EXISTS "${collection}_id_idx" ON "${collection}" (id)`,
++        );
++      })();
++      this.initialized.set(collection, pending);
++      // Do not memoize a failed init, so a later call can retry.
++      pending.catch(() => this.initialized.delete(collection));
++    }
++    return pending;
++  }
++
++  async get<T>(collection: string, id: string): Promise<DBDocument<T> | null> {
++    await this.ensureTable(collection);
++    const { rows } = await this.run(`SELECT id, data FROM "${collection}" WHERE id = ?`, [id]);
++    const row = rows[0];
++    return row ? { id: row.id, data: JSON.parse(row.data) as T } : null;
++  }
++
++  async set<T>(collection: string, id: string, data: T): Promise<void> {
++    await this.ensureTable(collection);
++    await this.run(
++      `INSERT INTO "${collection}" (id, data) VALUES (?, ?)
++       ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
++      [id, JSON.stringify(data)],
++    );
++  }
++
++  async update<T>(collection: string, id: string, patch: Partial<T>): Promise<void> {
++    await this.ensureTable(collection);
++    const { changes } = await this.run(
++      `UPDATE "${collection}" SET data = json_patch(data, ?) WHERE id = ?`,
++      [JSON.stringify(patch), id],
++    );
++    if (changes === 0) throw new Error(`not_found: ${collection}/${id}`);
++  }
++
++  async delete(collection: string, id: string): Promise<void> {
++    await this.ensureTable(collection);
++    const { changes } = await this.run(`DELETE FROM "${collection}" WHERE id = ?`, [id]);
++    if (changes === 0) throw new Error(`not_found: ${collection}/${id}`);
++  }
++
++  async list<T>(collection: string, opts?: QueryOptions): Promise<DBDocument<T>[]> {
++    assertValidIdentifier(collection);
++
++    const conditions: string[] = [];
++    const params: D1Param[] = [];
++    for (const c of opts?.where ?? []) {
++      const w = whereToSql(c);
++      conditions.push(w.sql);
++      params.push(...w.params);
++    }
++
++    let orderClause = '';
++    if (opts?.orderBy) {
++      const dir = opts.orderBy.direction === 'desc' ? 'DESC' : 'ASC';
++      orderClause = `ORDER BY ${fieldExpr(opts.orderBy.field)} ${dir}`;
++    }
++
++    let limitClause = '';
++    if (opts?.limit != null) {
++      if (!Number.isInteger(opts.limit) || opts.limit < 0) {
++        throw new Error(`Invalid limit: ${String(opts.limit)} (must be a non-negative integer)`);
++      }
++      limitClause = `LIMIT ${opts.limit}`;
++    }
++
++    if (params.length > D1_MAX_BOUND_PARAMS) {
++      throw new Error(
++        `too_many_params: ${params.length} bound params exceeds the D1 limit of ${D1_MAX_BOUND_PARAMS}`,
++      );
++    }
++
++    await this.ensureTable(collection);
++    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
++    const { rows } = await this.run(
++      `SELECT id, data FROM "${collection}" ${where} ${orderClause} ${limitClause}`,
++      params,
++    );
++    return rows.map((row) => ({ id: row.id, data: JSON.parse(row.data) as T }));
++  }
++}
+diff --git a/libs/db-strategies/d1/src/lib/testing/sqlite-d1-client.ts b/libs/db-strategies/d1/src/lib/testing/sqlite-d1-client.ts
+new file mode 100644
+index 0000000..9620c09
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/testing/sqlite-d1-client.ts
+@@ -0,0 +1,32 @@
++import { createRequire } from 'node:module';
++import type { D1ClientLike, D1Param, D1QueryResult } from '../d1-client';
++
++// Test-only helper: loaded through createRequire so Vite never tries to
++// resolve the `node:sqlite` builtin (Node 24+).
++const { DatabaseSync } = createRequire(import.meta.url)(
++  'node:sqlite',
++) as typeof import('node:sqlite');
++
++const READ_STATEMENT = /^\s*(SELECT|PRAGMA|WITH)\b/i;
++
++/**
++ * In-memory SQLite stand-in for the D1 REST client. With `stringifyParams`
++ * every non-null bound param is sent as a string, mimicking the REST worst case.
++ */
++export function createSqliteD1Client(opts: { stringifyParams?: boolean } = {}): D1ClientLike {
++  const db = new DatabaseSync(':memory:');
++  return {
++    async query<T = Record<string, unknown>>(
++      sql: string,
++      params: D1Param[] = [],
++    ): Promise<D1QueryResult<T>> {
++      const bound = params.map((p) => (p !== null && opts.stringifyParams ? String(p) : p));
++      const stmt = db.prepare(sql);
++      if (READ_STATEMENT.test(sql)) {
++        return { rows: stmt.all(...bound) as T[], changes: 0 };
++      }
++      const info = stmt.run(...bound);
++      return { rows: [], changes: Number(info.changes) };
++    },
++  };
++}
+diff --git a/libs/db-strategies/d1/tsconfig.lib.json b/libs/db-strategies/d1/tsconfig.lib.json
+index 190d53f..7c7dcce 100644
+--- a/libs/db-strategies/d1/tsconfig.lib.json
++++ b/libs/db-strategies/d1/tsconfig.lib.json
+@@ -4,20 +4,21 @@
+     "outDir": "../../../dist/out-tsc",
+     "declaration": true,
+     "types": ["node"]
+   },
+   "include": ["src/**/*.ts"],
+   "exclude": [
+     "vite.config.ts",
+     "vite.config.mts",
+     "vitest.config.ts",
+     "vitest.config.mts",
++    "src/**/testing/**",
+     "src/**/*.test.ts",
+     "src/**/*.spec.ts",
+     "src/**/*.test.tsx",
+     "src/**/*.spec.tsx",
+     "src/**/*.test.js",
+     "src/**/*.spec.js",
+     "src/**/*.test.jsx",
+     "src/**/*.spec.jsx"
+   ]
+ }
