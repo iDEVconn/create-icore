@@ -1,0 +1,9 @@
+node_modules
+build
+.wrangler
+dist-dry
+.dev.vars
+tsconfig.bundle.json
+results.json
+package-lock.json
+wrangler.deploy.jsonc
