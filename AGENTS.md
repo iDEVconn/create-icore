@@ -293,7 +293,7 @@ R2_BUCKET=<bucket>
 
 **Setup:**
 
-1. Create the bucket yourself — the strategy never creates buckets (missing bucket = `NoSuchBucket` on first upload).
+1. Create the bucket yourself — the strategy never creates buckets (a missing bucket fails on first upload with `NoSuchBucket`, or `AccessDenied` for a bucket-scoped token).
 2. Create an R2 API token (Object Read & Write) to get the S3 key pair.
 3. `R2StorageStrategy` (`libs/storage-strategies/r2`, `@icore/storage-r2`) uses the AWS SDK v3 S3 client against `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, region `auto`. Does not use the `minio` package.
 

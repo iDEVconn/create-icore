@@ -52,7 +52,11 @@ Each collection is one table: `id TEXT PRIMARY KEY, data TEXT` (the document as 
 
 ### Verification status
 
-The strategies are covered by contract and unit tests against an in-memory SQLite stand-in and mocks. They have NOT yet been run against a real D1 database or R2 bucket. Open points to verify live: D1 REST handling of `null` params and `meta.changes` for writes, and R2 upload/presign with the AWS SDK defaults.
+The strategies are covered by contract and unit tests against an in-memory SQLite stand-in and mocks, **and were run once against a real D1 database and a real R2 bucket on 2026-10-20** (a throwaway script, not part of CI): 18 of 18 steps passed.
+
+- **D1:** `null` params round-trip as `null`; `meta.changes` is accurate, so `update` / `delete` of a missing id reject with `not_found`; `set` / `get` / `update` (`json_patch`) / `delete`; `list` with numeric `==`, boolean `==` (true and false), numeric `in`, `>`, `orderBy` and `limit` all match what the SQLite strategy returns. Latency was about 100-550 ms per call, so budget for it (see "Limits and behaviour").
+- **R2:** upload, list, a presigned GET that downloads the same bytes (virtual-hosted host `<bucket>.<account>.r2.cloudflarestorage.com`), foreign-user rejection, remove, and the AWS SDK defaults pinned to `WHEN_REQUIRED` checksums all work. A filename containing `../` produces a single-segment key.
+- **Not covered by the live run:** payloads near the 2 MB row limit, more than 1000 R2 objects (pagination is covered by unit tests only), the global 1,200 requests / 5 min API limit, and the nightly `--run` boot of a generated project.
 
 ### ai-orchestrator
 
@@ -60,7 +64,7 @@ With `ai` enabled and `db=d1`, AI usage rows (`ai_usage_records`) are also writt
 
 ## R2 setup
 
-1. In the dashboard go to **R2 Object Storage → Create bucket**. **Create the bucket yourself** — the strategy never creates buckets. A missing bucket surfaces as `NoSuchBucket` on the first upload.
+1. In the dashboard go to **R2 Object Storage → Create bucket**. **Create the bucket yourself** — the strategy never creates buckets. A missing bucket surfaces as an S3 error on the first upload: `NoSuchBucket`, or `AccessDenied` when the token is scoped to specific buckets (observed live).
 2. **R2 → Manage R2 API Tokens → Create API token** with **Object Read & Write** on that bucket. Copy the Access Key ID and Secret Access Key.
 3. Set the env vars on the upload microservice:
 
