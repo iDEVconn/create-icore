@@ -1,10 +1,12 @@
 import { Logger, type FactoryProvider } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
-import { InMemorySessionStore, type SessionStore } from '@icore/shared';
+import { DurableObjectSessionStore, InMemorySessionStore, type SessionStore } from '@icore/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { sessionStoreProvider } from '../session-store.provider';
 
-const factory = (sessionStoreProvider as FactoryProvider<SessionStore>).useFactory;
+const rawFactory = (sessionStoreProvider as FactoryProvider<SessionStore>).useFactory;
+const factory = (config: ConfigService, namespace?: unknown) =>
+  (rawFactory as (c: ConfigService, n?: unknown) => SessionStore)(config, namespace);
 const cfg = (env: Record<string, string | undefined>) =>
   ({ get: (key: string) => env[key] }) as unknown as ConfigService;
 
@@ -54,5 +56,27 @@ describe('sessionStoreProvider', () => {
     expect(store).toBeInstanceOf(InMemorySessionStore);
     expect(warn).toHaveBeenCalled();
     (store as InMemorySessionStore).close();
+  });
+
+  describe('durable-object (Cloudflare Workers host)', () => {
+    const namespace = { idFromName: (n: string) => n, get: () => ({}) };
+
+    it('builds a DurableObjectSessionStore over the provided namespace', () => {
+      expect(factory(cfg({ SESSION_STORE: 'durable-object' }), namespace)).toBeInstanceOf(
+        DurableObjectSessionStore,
+      );
+    });
+
+    it('refuses to boot without the namespace binding, naming it', () => {
+      expect(() => factory(cfg({ SESSION_STORE: 'durable-object' }))).toThrow(
+        /SESSION_DO_NAMESPACE|Durable Object/,
+      );
+    });
+
+    it('does not need Redis or the memory acknowledgment', () => {
+      expect(() =>
+        factory(cfg({ SESSION_STORE: 'durable-object', NODE_ENV: 'production' }), namespace),
+      ).not.toThrow();
+    });
   });
 });

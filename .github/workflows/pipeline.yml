@@ -159,6 +159,10 @@ jobs:
           else
             yarn nx affected -t build --parallel
           fi
+      # The Cloudflare Workers host (apps/worker): the gateway + auth/upload/notes microservices in
+      # one workerd isolate with Durable Object sessions/throttling (wrangler dev --local, no account).
+      - name: Worker smoke (workerd)
+        run: yarn nx affected -t smoke --parallel=1
 
   # Layer A scaffold smoke — generate a real project from the templates snapshot
   # and TYPECHECK it (tsc --noEmit). Catches the "strip produced text that does

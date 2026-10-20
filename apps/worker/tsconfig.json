@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "strict": false,
+    "noEmit": true,
+    "types": ["node", "multer", "vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"]
+}

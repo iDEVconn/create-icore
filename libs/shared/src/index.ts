@@ -18,3 +18,4 @@ export * from './cloudflare/session-object-core';
 export * from './cloudflare/durable-object-session-store';
 export * from './cloudflare/throttle-object-core';
 export * from './cloudflare/durable-object-throttler-storage';
+export * from './cloudflare/binding-tokens';
