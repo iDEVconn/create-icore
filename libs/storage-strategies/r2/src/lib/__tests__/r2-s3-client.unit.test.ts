@@ -13,6 +13,18 @@ describe('createR2S3Client', () => {
     expect(url.pathname).toContain('u1/file.txt');
   });
 
+  it('builds the S3 client with WHEN_REQUIRED checksum settings (R2 interop)', async () => {
+    const spy = vi.spyOn(S3Client.prototype, 'send').mockResolvedValue({} as never);
+    try {
+      await createR2S3Client(creds).deleteObject('bkt', 'k');
+      const captured = spy.mock.contexts[0] as S3Client;
+      expect(await captured.config.requestChecksumCalculation()).toBe('WHEN_REQUIRED');
+      expect(await captured.config.responseChecksumValidation()).toBe('WHEN_REQUIRED');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('listKeys follows ContinuationToken until exhausted', async () => {
     const calls: Array<Record<string, unknown>> = [];
     const pages = [

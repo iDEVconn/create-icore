@@ -18,6 +18,9 @@ export function createR2S3Client(opts: R2S3ClientOptions): R2ClientLike {
   const s3 = new S3Client({
     region: 'auto',
     endpoint: `https://${opts.accountId}.r2.cloudflarestorage.com`,
+    // AWS SDK >= 3.729 adds flexible checksums by default, which R2 does not fully support.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
     credentials: { accessKeyId: opts.accessKeyId, secretAccessKey: opts.secretAccessKey },
   });
 

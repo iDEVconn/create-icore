@@ -25,7 +25,7 @@ With this combo Supabase is used for auth only. The scaffold test `scaffold-clou
 
 1. In the Cloudflare dashboard go to **Storage & Databases → D1 SQL Database → Create database**. Note the **Database ID** (UUID) and your **Account ID** (dashboard sidebar or URL).
 2. Create an API token: **My Profile → API Tokens → Create Token → Custom token**, permission **Account → D1 → Edit**, scoped to your account. Copy the token once — it is not shown again.
-3. Set the env vars (for every microservice that uses the db provider, and for `ai-orchestrator` when `ai` is enabled):
+3. Fill in the env vars. The generator already writes these keys into the root `.env` (loaded by both notes and `ai-orchestrator`) and the notes `.env`; you only supply the values:
 
 ```env
 DB_PROVIDER=d1
@@ -47,8 +47,12 @@ Each collection is one table: `id TEXT PRIMARY KEY, data TEXT` (the document as 
 - **Bound parameters:** at most 100 per statement; exceeding it throws `too_many_params` (large `in` filters, bulk writes).
 - **Row size:** 2 MB per row.
 - **Database size:** 10 GB (Workers Paid) / 500 MB (Free).
-- **Rate limit:** none documented for the REST API.
+- **Rate limit:** the D1 query endpoint lives under `api.cloudflare.com/client/v4`, so it is subject to Cloudflare's global API limit of 1,200 requests per 5 minutes per user (HTTP 429 for the rest of the window); see https://developers.cloudflare.com/fundamentals/api/reference/limits/. Every strategy operation is one REST round trip (plus two `ensureTable` calls per collection per process, plus one AI-usage row per LLM call when `ai` is on), so about 4 req/s sustained is the ceiling. A `Retry-After` above 30 s fails fast with `D1ApiError` instead of sleeping. This limit decides whether `--db=d1` is viable for a high-traffic backend until the binding-based client lands with the Workers phase.
 - **Numeric/boolean filters:** `==`, `!=` and `in` on numbers and booleans compare via `CAST(... AS NUMERIC)` (booleans are stored and compared as 1/0). A filter `== 0` therefore also matches non-numeric strings, and `== 30` matches a stored `"30"`.
+
+### Verification status
+
+The strategies are covered by contract and unit tests against an in-memory SQLite stand-in and mocks. They have NOT yet been run against a real D1 database or R2 bucket. Open points to verify live: D1 REST handling of `null` params and `meta.changes` for writes, and R2 upload/presign with the AWS SDK defaults.
 
 ### ai-orchestrator
 

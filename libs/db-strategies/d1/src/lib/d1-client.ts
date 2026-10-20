@@ -38,6 +38,8 @@ interface D1Envelope {
 
 const RETRYABLE_STATUS = new Set([429, 503]);
 const BASE_BACKOFF_MS = 250;
+// Cloudflare's 429 can mean a block of up to 5 minutes; beyond this cap fail fast.
+const MAX_RETRY_AFTER_MS = 30_000;
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -45,10 +47,13 @@ function isTimeout(err: unknown): boolean {
   return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
 }
 
-function backoffMs(attempt: number, retryAfter: string | null): number {
+function retryAfterMs(retryAfter: string | null): number | null {
   const seconds = retryAfter === null ? NaN : Number(retryAfter);
-  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
-  return BASE_BACKOFF_MS * 2 ** attempt;
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null;
+}
+
+function backoffMs(attempt: number, retryAfter: string | null): number {
+  return retryAfterMs(retryAfter) ?? BASE_BACKOFF_MS * 2 ** attempt;
 }
 
 export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
@@ -86,8 +91,13 @@ export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
         }
 
         if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
-          await sleep(backoffMs(attempt, res.headers.get('Retry-After')));
-          continue;
+          const retryAfter = res.headers.get('Retry-After');
+          const hinted = retryAfterMs(retryAfter);
+          if (hinted === null || hinted <= MAX_RETRY_AFTER_MS) {
+            await res.body?.cancel().catch(() => undefined);
+            await sleep(backoffMs(attempt, retryAfter));
+            continue;
+          }
         }
 
         let body: D1Envelope;

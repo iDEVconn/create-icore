@@ -77,6 +77,27 @@ describe('createD1RestClient', () => {
     expect(sleep).toHaveBeenCalledWith(1000);
   });
 
+  it('fails fast without sleeping when Retry-After exceeds the cap', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(fail(429, [971], { 'Retry-After': '300' }));
+    const { client, sleep } = make(fetchFn);
+    const err = await client.query('x').catch((e) => e);
+    expect(err).toBeInstanceOf(D1ApiError);
+    expect(err.status).toBe(429);
+    expect(err.codes).toEqual([971]);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('still honours Retry-After at the cap', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(fail(429, [971], { 'Retry-After': '30' }))
+      .mockResolvedValueOnce(ok([]));
+    const { client, sleep } = make(fetchFn);
+    await client.query('x');
+    expect(sleep).toHaveBeenCalledWith(30000);
+  });
+
   it('gives up after maxRetries and throws D1ApiError', async () => {
     const fetchFn = vi.fn().mockImplementation(async () => fail(503, [1]));
     const { client } = make(fetchFn);
