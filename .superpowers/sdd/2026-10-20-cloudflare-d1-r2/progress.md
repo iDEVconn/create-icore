@@ -37,3 +37,5 @@ Task 1: minor (deferred): Retry-After uncapped; HTTP-date Retry-After falls back
 Task 1: minor (deferred): success:true with no result[0] returns empty rows silently
 Task 1: minor (deferred): tests don't assert backoff values (250/500 ms) nor sleep in network-error test
 Task 1: minor (deferred): eslint ignoredDependencies hides @nestjs/common,config until Tasks 3+ use them (remove ignore then)
+Task 1: fix round 1/5 (2 addressed, 0 open; commits 08cd04a..c20e50c)
+Task 1: complete (commits 6d580af..c20e50c, review clean)

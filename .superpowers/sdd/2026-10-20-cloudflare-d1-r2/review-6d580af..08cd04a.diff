@@ -1,0 +1,522 @@
+# Review package: 6d580af..HEAD
+
+## Commits
+08cd04a feat(db-d1): D1 REST client
+
+## Files changed
+ libs/db-strategies/d1/eslint.config.mjs            |  29 ++++++
+ libs/db-strategies/d1/package.json                 |  21 ++++
+ libs/db-strategies/d1/project.json                 |  19 ++++
+ libs/db-strategies/d1/src/index.ts                 |   1 +
+ .../src/lib/__tests__/d1-rest-client.unit.test.ts  | 109 ++++++++++++++++++++
+ libs/db-strategies/d1/src/lib/d1-client.ts         | 110 +++++++++++++++++++++
+ libs/db-strategies/d1/tsconfig.json                |  20 ++++
+ libs/db-strategies/d1/tsconfig.lib.json            |  23 +++++
+ libs/db-strategies/d1/tsconfig.spec.json           |  22 +++++
+ libs/db-strategies/d1/vitest.config.mts            |  21 ++++
+ tsconfig.base.json                                 |   3 +-
+ yarn.lock                                          |  16 +++
+ 12 files changed, 393 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/libs/db-strategies/d1/eslint.config.mjs b/libs/db-strategies/d1/eslint.config.mjs
+new file mode 100644
+index 0000000..d582e04
+--- /dev/null
++++ b/libs/db-strategies/d1/eslint.config.mjs
+@@ -0,0 +1,29 @@
++import baseConfig from '../../../eslint.config.mjs';
++
++export default [
++  ...baseConfig,
++  {
++    files: ['**/*.json'],
++    rules: {
++      '@nx/dependency-checks': [
++        'error',
++        {
++          ignoredFiles: [
++            '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
++            '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
++          ],
++          ignoredDependencies: [
++            '@icore/shared',
++            '@nestjs/common',
++            '@nestjs/config',
++            '@nestjs/testing',
++            'vitest',
++          ],
++        },
++      ],
++    },
++    languageOptions: {
++      parser: await import('jsonc-eslint-parser'),
++    },
++  },
++];
+diff --git a/libs/db-strategies/d1/package.json b/libs/db-strategies/d1/package.json
+new file mode 100644
+index 0000000..79020a9
+--- /dev/null
++++ b/libs/db-strategies/d1/package.json
+@@ -0,0 +1,21 @@
++{
++  "name": "@icore/db-d1",
++  "version": "0.0.1",
++  "private": true,
++  "type": "commonjs",
++  "main": "./src/index.js",
++  "types": "./src/index.ts",
++  "dependencies": {
++    "@icore/shared": "*",
++    "@nestjs/common": "^11.2.7",
++    "@nestjs/config": "^4.0.4",
++    "tslib": "^2.8.1"
++  },
++  "devDependencies": {
++    "@nestjs/testing": "^11.2.7",
++    "@nx/vite": "23.2.1",
++    "jsonc-eslint-parser": "^3.3.0",
++    "vite": "^8.3.2",
++    "vitest": "~5.0.3"
++  }
++}
+diff --git a/libs/db-strategies/d1/project.json b/libs/db-strategies/d1/project.json
+new file mode 100644
+index 0000000..a4c948d
+--- /dev/null
++++ b/libs/db-strategies/d1/project.json
+@@ -0,0 +1,19 @@
++{
++  "name": "db-d1",
++  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "libs/db-strategies/d1/src",
++  "projectType": "library",
++  "tags": [],
++  "targets": {
++    "build": {
++      "executor": "@nx/js:tsc",
++      "outputs": ["{options.outputPath}"],
++      "options": {
++        "outputPath": "dist/libs/db-strategies/d1",
++        "main": "libs/db-strategies/d1/src/index.ts",
++        "tsConfig": "libs/db-strategies/d1/tsconfig.lib.json",
++        "assets": ["libs/db-strategies/d1/*.md"]
++      }
++    }
++  }
++}
+diff --git a/libs/db-strategies/d1/src/index.ts b/libs/db-strategies/d1/src/index.ts
+new file mode 100644
+index 0000000..4cf0ad0
+--- /dev/null
++++ b/libs/db-strategies/d1/src/index.ts
+@@ -0,0 +1 @@
++export * from './lib/d1-client';
+diff --git a/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts b/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
+new file mode 100644
+index 0000000..fcf1ab9
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/__tests__/d1-rest-client.unit.test.ts
+@@ -0,0 +1,109 @@
++import { createD1RestClient, D1ApiError } from '../d1-client';
++
++const URL_ = 'https://api.cloudflare.com/client/v4/accounts/acc/d1/database/db/query';
++
++const ok = (results: unknown[], changes = 0) =>
++  new Response(
++    JSON.stringify({ success: true, errors: [], result: [{ results, meta: { changes } }] }),
++    {
++      status: 200,
++    },
++  );
++
++const fail = (status: number, codes: number[], headers: Record<string, string> = {}) =>
++  new Response(
++    JSON.stringify({
++      success: false,
++      errors: codes.map((code) => ({ code, message: 'x' })),
++      result: [],
++    }),
++    { status, headers },
++  );
++
++const make = (fetchFn: typeof fetch, extra: Record<string, unknown> = {}) => {
++  const sleep = vi.fn().mockResolvedValue(undefined);
++  const client = createD1RestClient({
++    accountId: 'acc',
++    databaseId: 'db',
++    apiToken: 'tok',
++    fetch: fetchFn,
++    sleep,
++    ...extra,
++  });
++  return { client, sleep };
++};
++
++describe('createD1RestClient', () => {
++  it('posts sql and params to the account/database query URL with a Bearer token', async () => {
++    const fetchFn = vi.fn().mockResolvedValue(ok([]));
++    const { client } = make(fetchFn);
++    await client.query('SELECT ?', ['a']);
++    const [url, init] = fetchFn.mock.calls[0];
++    expect(url).toBe(URL_);
++    expect(init.method).toBe('POST');
++    expect(init.headers.Authorization).toBe('Bearer tok');
++    expect(JSON.parse(init.body)).toEqual({ sql: 'SELECT ?', params: ['a'] });
++  });
++
++  it('returns rows and changes from result[0].results and result[0].meta.changes', async () => {
++    const { client } = make(vi.fn().mockResolvedValue(ok([{ id: '1' }], 3)));
++    expect(await client.query('x')).toEqual({ rows: [{ id: '1' }], changes: 3 });
++  });
++
++  it('throws D1ApiError with status and Cloudflare error codes on success:false', async () => {
++    const { client } = make(vi.fn().mockResolvedValue(fail(400, [7500, 7501])));
++    const err = await client.query('x').catch((e) => e);
++    expect(err).toBeInstanceOf(D1ApiError);
++    expect(err.status).toBe(400);
++    expect(err.codes).toEqual([7500, 7501]);
++  });
++
++  it.each([400, 401, 403, 500])('does not retry a %i', async (status) => {
++    const fetchFn = vi.fn().mockResolvedValue(fail(status, [1]));
++    const { client, sleep } = make(fetchFn);
++    await expect(client.query('x')).rejects.toBeInstanceOf(D1ApiError);
++    expect(fetchFn).toHaveBeenCalledTimes(1);
++    expect(sleep).not.toHaveBeenCalled();
++  });
++
++  it('retries 429 then succeeds, honouring Retry-After', async () => {
++    const fetchFn = vi
++      .fn()
++      .mockResolvedValueOnce(fail(429, [971], { 'Retry-After': '1' }))
++      .mockResolvedValueOnce(ok([{ a: 1 }]));
++    const { client, sleep } = make(fetchFn);
++    expect((await client.query('x')).rows).toEqual([{ a: 1 }]);
++    expect(fetchFn).toHaveBeenCalledTimes(2);
++    expect(sleep).toHaveBeenCalledWith(1000);
++  });
++
++  it('gives up after maxRetries and throws D1ApiError', async () => {
++    const fetchFn = vi.fn().mockImplementation(async () => fail(503, [1]));
++    const { client } = make(fetchFn);
++    const err = await client.query('x').catch((e) => e);
++    expect(err).toBeInstanceOf(D1ApiError);
++    expect(err.status).toBe(503);
++    expect(fetchFn).toHaveBeenCalledTimes(3);
++  });
++
++  it('retries a pre-response network error then succeeds', async () => {
++    const fetchFn = vi
++      .fn()
++      .mockRejectedValueOnce(new TypeError('fetch failed'))
++      .mockResolvedValueOnce(ok([]));
++    const { client } = make(fetchFn);
++    await expect(client.query('x')).resolves.toEqual({ rows: [], changes: 0 });
++    expect(fetchFn).toHaveBeenCalledTimes(2);
++  });
++
++  it('aborts and throws when the request exceeds timeoutMs', async () => {
++    const fetchFn = vi.fn(
++      (_u: unknown, init: RequestInit) =>
++        new Promise<Response>((_res, rej) => {
++          init.signal?.addEventListener('abort', () => rej(init.signal?.reason));
++        }),
++    ) as unknown as typeof fetch;
++    const { client } = make(fetchFn, { timeoutMs: 20, maxRetries: 0 });
++    await expect(client.query('x')).rejects.toBeDefined();
++  });
++});
+diff --git a/libs/db-strategies/d1/src/lib/d1-client.ts b/libs/db-strategies/d1/src/lib/d1-client.ts
+new file mode 100644
+index 0000000..97f80ed
+--- /dev/null
++++ b/libs/db-strategies/d1/src/lib/d1-client.ts
+@@ -0,0 +1,110 @@
++export type D1Param = string | number | null;
++
++export interface D1QueryResult<T> {
++  rows: T[];
++  changes: number;
++}
++
++export interface D1ClientLike {
++  query<T = Record<string, unknown>>(sql: string, params?: D1Param[]): Promise<D1QueryResult<T>>;
++}
++
++export class D1ApiError extends Error {
++  constructor(
++    message: string,
++    public readonly status: number,
++    public readonly codes: number[] = [],
++  ) {
++    super(message);
++    this.name = 'D1ApiError';
++  }
++}
++
++export interface D1RestClientOptions {
++  accountId: string;
++  databaseId: string;
++  apiToken: string;
++  fetch?: typeof fetch;
++  timeoutMs?: number;
++  maxRetries?: number;
++  sleep?: (ms: number) => Promise<void>;
++}
++
++interface D1Envelope {
++  success?: boolean;
++  errors?: { code: number; message: string }[];
++  result?: { results?: unknown[]; meta?: { changes?: number } }[];
++}
++
++const RETRYABLE_STATUS = new Set([429, 503]);
++const BASE_BACKOFF_MS = 250;
++
++const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
++
++function isTimeout(err: unknown): boolean {
++  return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
++}
++
++function backoffMs(attempt: number, retryAfter: string | null): number {
++  const seconds = retryAfter === null ? NaN : Number(retryAfter);
++  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
++  return BASE_BACKOFF_MS * 2 ** attempt;
++}
++
++export function createD1RestClient(opts: D1RestClientOptions): D1ClientLike {
++  const doFetch = opts.fetch ?? fetch;
++  const timeoutMs = opts.timeoutMs ?? 10_000;
++  const maxRetries = opts.maxRetries ?? 2;
++  const sleep = opts.sleep ?? defaultSleep;
++  const url = `https://api.cloudflare.com/client/v4/accounts/${opts.accountId}/d1/database/${opts.databaseId}/query`;
++
++  return {
++    async query<T = Record<string, unknown>>(
++      sql: string,
++      params: D1Param[] = [],
++    ): Promise<D1QueryResult<T>> {
++      for (let attempt = 0; ; attempt++) {
++        let res: Response;
++        try {
++          res = await doFetch(url, {
++            method: 'POST',
++            headers: {
++              Authorization: `Bearer ${opts.apiToken}`,
++              'Content-Type': 'application/json',
++            },
++            body: JSON.stringify({ sql, params }),
++            signal: AbortSignal.timeout(timeoutMs),
++          });
++        } catch (err) {
++          // A timed-out request may already have been applied, so only
++          // errors that happened before any response are retried.
++          if (!isTimeout(err) && attempt < maxRetries) {
++            await sleep(backoffMs(attempt, null));
++            continue;
++          }
++          throw err;
++        }
++
++        if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
++          await sleep(backoffMs(attempt, res.headers.get('Retry-After')));
++          continue;
++        }
++
++        const body = (await res.json().catch(() => ({}))) as D1Envelope;
++        if (!res.ok || body.success === false) {
++          const errors = body.errors ?? [];
++          throw new D1ApiError(
++            errors.map((e) => e.message).join('; ') || `D1 request failed (${res.status})`,
++            res.status,
++            errors.map((e) => e.code),
++          );
++        }
++        const first = body.result?.[0];
++        return {
++          rows: (first?.results ?? []) as T[],
++          changes: first?.meta?.changes ?? 0,
++        };
++      }
++    },
++  };
++}
+diff --git a/libs/db-strategies/d1/tsconfig.json b/libs/db-strategies/d1/tsconfig.json
+new file mode 100644
+index 0000000..e3376d2
+--- /dev/null
++++ b/libs/db-strategies/d1/tsconfig.json
+@@ -0,0 +1,20 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "module": "node16",
++    "moduleResolution": "node16",
++    "experimentalDecorators": true,
++    "emitDecoratorMetadata": true,
++    "forceConsistentCasingInFileNames": true,
++    "strict": true,
++    "importHelpers": true,
++    "noImplicitOverride": true,
++    "noImplicitReturns": true,
++    "noFallthroughCasesInSwitch": true,
++    "noPropertyAccessFromIndexSignature": true,
++    "ignoreDeprecations": "6.0"
++  },
++  "files": [],
++  "include": [],
++  "references": [{ "path": "./tsconfig.lib.json" }, { "path": "./tsconfig.spec.json" }]
++}
+diff --git a/libs/db-strategies/d1/tsconfig.lib.json b/libs/db-strategies/d1/tsconfig.lib.json
+new file mode 100644
+index 0000000..190d53f
+--- /dev/null
++++ b/libs/db-strategies/d1/tsconfig.lib.json
+@@ -0,0 +1,23 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "declaration": true,
++    "types": ["node"]
++  },
++  "include": ["src/**/*.ts"],
++  "exclude": [
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.ts",
++    "src/**/*.spec.ts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx"
++  ]
++}
+diff --git a/libs/db-strategies/d1/tsconfig.spec.json b/libs/db-strategies/d1/tsconfig.spec.json
+new file mode 100644
+index 0000000..eb111c7
+--- /dev/null
++++ b/libs/db-strategies/d1/tsconfig.spec.json
+@@ -0,0 +1,22 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"]
++  },
++  "include": [
++    "vite.config.ts",
++    "vite.config.mts",
++    "vitest.config.ts",
++    "vitest.config.mts",
++    "src/**/*.test.ts",
++    "src/**/*.spec.ts",
++    "src/**/*.test.tsx",
++    "src/**/*.spec.tsx",
++    "src/**/*.test.js",
++    "src/**/*.spec.js",
++    "src/**/*.test.jsx",
++    "src/**/*.spec.jsx",
++    "src/**/*.d.ts"
++  ]
++}
+diff --git a/libs/db-strategies/d1/vitest.config.mts b/libs/db-strategies/d1/vitest.config.mts
+new file mode 100644
+index 0000000..5d89f7d
+--- /dev/null
++++ b/libs/db-strategies/d1/vitest.config.mts
+@@ -0,0 +1,21 @@
++import { defineConfig } from 'vitest/config';
++import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
++import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
++
++export default defineConfig(() => ({
++  root: import.meta.dirname,
++  cacheDir: '../../../node_modules/.vite/libs/db-strategies/d1',
++  plugins: [nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
++  test: {
++    name: 'db-d1',
++    watch: false,
++    globals: true,
++    environment: 'node',
++    include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
++    reporters: ['default'],
++    coverage: {
++      reportsDirectory: '../../../coverage/libs/db-strategies/d1',
++      provider: 'v8' as const,
++    },
++  },
++}));
+diff --git a/tsconfig.base.json b/tsconfig.base.json
+index 6474502..29d4251 100644
+--- a/tsconfig.base.json
++++ b/tsconfig.base.json
+@@ -33,18 +33,19 @@
+       "@icore/jobs-client": ["./libs/jobs-client/src/index.ts"],
+       "@icore/vite-plugins": ["./libs/vite-plugins/src/index.d.mts"],
+       "@icore/firebase-admin": ["./libs/firebase-admin/src/index.ts"],
+       "@icore/db-mongodb": ["./libs/db-strategies/mongodb/src/index.ts"],
+       "@icore/storage-mongodb": ["./libs/storage-strategies/mongodb/src/index.ts"],
+       "@icore/auth-mongodb": ["./libs/auth-strategies/mongodb/src/index.ts"],
+       "@icore/auth-postgres": ["./libs/auth-strategies/postgres/src/index.ts"],
+       "@icore/storage-minio": ["./libs/storage-strategies/minio/src/index.ts"],
+       "@icore/ai-client": ["./libs/ai-client/src/index.ts"],
+       "@icore/db-sqlite": ["./libs/db-strategies/sqlite/src/index.ts"],
+-      "@icore/workspace-plugin": ["./tools/workspace-plugin/src/index.ts"]
++      "@icore/workspace-plugin": ["./tools/workspace-plugin/src/index.ts"],
++      "@icore/db-d1": ["./libs/db-strategies/d1/src/index.ts"]
+     },
+     "noUncheckedSideEffectImports": false,
+     "types": ["*"],
+     "ignoreDeprecations": "6.0"
+   },
+   "exclude": ["node_modules", "dist", ".nx", "tools/create-icore/templates"]
+ }
+diff --git a/yarn.lock b/yarn.lock
+index 664d4df..64e433f 100644
+--- a/yarn.lock
++++ b/yarn.lock
+@@ -3210,20 +3210,36 @@ __metadata:
+     "@nestjs/testing": "npm:^11.2.7"
+     "@nx/vite": "npm:23.2.1"
+     "@supabase/supabase-js": "npm:^2.117.2"
+     jsonc-eslint-parser: "npm:^3.3.0"
+     tslib: "npm:^2.8.1"
+     vite: "npm:^8.3.2"
+     vitest: "npm:~5.0.3"
+   languageName: unknown
+   linkType: soft
+ 
++"@icore/db-d1@workspace:libs/db-strategies/d1":
++  version: 0.0.0-use.local
++  resolution: "@icore/db-d1@workspace:libs/db-strategies/d1"
++  dependencies:
++    "@icore/shared": "npm:*"
++    "@nestjs/common": "npm:^11.2.7"
++    "@nestjs/config": "npm:^4.0.4"
++    "@nestjs/testing": "npm:^11.2.7"
++    "@nx/vite": "npm:23.2.1"
++    jsonc-eslint-parser: "npm:^3.3.0"
++    tslib: "npm:^2.8.1"
++    vite: "npm:^8.3.2"
++    vitest: "npm:~5.0.3"
++  languageName: unknown
++  linkType: soft
++
+ "@icore/db-firestore@npm:*, @icore/db-firestore@workspace:libs/db-strategies/firestore":
+   version: 0.0.0-use.local
+   resolution: "@icore/db-firestore@workspace:libs/db-strategies/firestore"
+   dependencies:
+     "@icore/firebase-admin": "npm:*"
+     "@icore/shared": "npm:*"
+     "@nestjs/common": "npm:^11.2.7"
+     "@nestjs/config": "npm:^4.0.4"
+     "@nestjs/testing": "npm:^11.2.7"
+     "@nx/vite": "npm:23.2.1"
