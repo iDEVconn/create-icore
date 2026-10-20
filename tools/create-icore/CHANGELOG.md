@@ -1,5 +1,33 @@
 # @idevconn/create-icore
 
+## 0.21.0
+
+### Minor Changes
+
+- 22142e0: Add Cloudflare D1 (`--db=d1`) and Cloudflare R2 (`--upload=r2`) providers.
+- 680c24c: New `--host=cloudflare` option: generate a project that runs as one Cloudflare Worker (Durable Object sessions, D1, R2; Supabase for auth only).
+
+### Patch Changes
+
+- ba2c769: Bump `@idevconn/llm-router` to ^0.13.0 (ai-orchestrator + ai-client).
+- fee0db2: Document the Cloudflare Workers G0 measurement: harness, live results and what they imply for the Workers phase.
+- a30953d: D1 strategy can use a Workers D1 binding (`D1_DATABASE_BINDING`) instead of the REST API.
+- fee3da2: Durable Object session store and throttler storage (inert until the Workers host lands).
+- e88d911: Dockerfiles install python3/make/g++ in the builder stage so native addons (better-sqlite3) compile on Alpine.
+- 0468ea4: Fix the repo lint that went red after the PnP dependency declarations: ignore peer-satisfying packages in `@nx/dependency-checks` and pin `@bull-board/ui` to the version of `@bull-board/api`, which removes the duplicate nested copy and the `as any` cast in `admin.module.ts`.
+
+  Also drain antd's leaked 10 ms Form.Item debounce timers after every `client-antd` test, which was failing CI with `ReferenceError: window is not defined`.
+
+- 0aff046: Restore generated-project `.yarnrc.yml` (node-modules linker), declare workspace-local build/runtime deps in every template manifest, and add ownership tests plus a migrate codemod for legacy projects. Validate CLI flag values (a typo like `--package-manager=yarn.` used to silently produce a PnP project), stop the `--` separator from swallowing the next flag, and prune the auth=none `@icore/shared` / `@icore/template-shared` barrels from the template instead of hardcoding them (fixes `api:build` TS2305 on the session-store exports).
+- 0aff046: Ship template dotfiles with underscore prefix to prevent npm publish dropping .yarnrc.yml and forcing Yarn PnP mode.
+- b7a80fa: Record the requester's decision on the Durable Object latency and that Smart Placement was not tested in the Workers G0 results.
+- fd4a499: Add an in-process `local` microservice transport (`X_TRANSPORT=local`) to `@icore/shared`, the first building block for running the gateway and microservices in one Cloudflare Worker. Not offered by `create-icore` yet.
+- dd30220: Session stores no longer put the session id (a secret) in the refresh-lock timeout error.
+- cf87f53: The migration registry is written prettier-formatted, so regenerating it no longer fails the CI format check.
+- 62ebfdf: Fix the gateway rate limiter: the named throttlers `auth-burst` and `ai-burst` (10 requests a minute) applied to every route, so profile, notes and storage were limited too. They now count only the routes that declare `@Throttle` for their name, `rag/query` declares its own, and a generous `default` limiter (120/min) keeps every other route limited.
+- 88b6c40: Cloudflare Workers host app (`apps/worker`) with a workerd smoke test; inert until `--host=cloudflare`.
+- cf2922d: `--host=cloudflare` projects serve the built client from the Worker (assets binding) and ship a deploy workflow.
+
 ## 0.20.0
 
 ### Minor Changes
