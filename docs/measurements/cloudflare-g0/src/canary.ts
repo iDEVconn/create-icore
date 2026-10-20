@@ -28,6 +28,8 @@ export class G0Controller {
   health() {
     return {
       ok: true,
+      // Set by `wrangler deploy --var G0_RUN:<n>`; lets measure.mjs prove a cold run is fresh.
+      run: process.env['G0_RUN'] ?? null,
       runtime: typeof (globalThis as any).WebSocketPair !== 'undefined' ? 'workerd' : 'other',
     };
   }

@@ -88,3 +88,51 @@ test('tally counts statuses and reports the share of 200s', async () => {
   });
   assert.deepEqual(tally([]), { total: 0, ok: 0, okRate: 0, byStatus: {} });
 });
+
+test('findTailEvent matches the exact path and query, not a prefix of it', async () => {
+  const { findTailEvent } = await import('./measure.mjs');
+  const ev = (url) => ({ event: { request: { url } }, cpuTime: 1 });
+  const events = [
+    ev('https://w.example/api/profile?w=10'),
+    ev('https://w.example/api/profile?w=100'),
+  ];
+  assert.equal(findTailEvent(events, '/api/profile?w=1'), undefined);
+  assert.equal(findTailEvent(events, '/api/profile?w=10'), events[0]);
+  assert.equal(findTailEvent(events, '/api/profile?w=100'), events[1]);
+});
+
+test('checkCanary accepts only { implicitInjection: true }', async () => {
+  const { checkCanary } = await import('./measure.mjs');
+  assert.doesNotThrow(() => checkCanary(200, '{"implicitInjection":true}'));
+  assert.throws(() => checkCanary(200, '{"implicitInjection":false}'), /canary/i);
+  assert.throws(() => checkCanary(500, '{}'), /canary/i);
+  assert.throws(() => checkCanary(200, 'not json'), /canary/i);
+});
+
+test('isFreshRun requires the health response to report the deployed run number', async () => {
+  const { isFreshRun } = await import('./measure.mjs');
+  assert.equal(isFreshRun('{"ok":true,"run":"3"}', 3), true);
+  assert.equal(isFreshRun('{"ok":true,"run":"2"}', 3), false);
+  assert.equal(isFreshRun('{"ok":true,"run":null}', 3), false);
+  assert.equal(isFreshRun('not json', 3), false);
+});
+
+test('redactorFromArgv scrubs the token and account id read from the --creds file', async () => {
+  const { redactorFromArgv } = await import('./measure.mjs');
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'g0-creds-'));
+  const file = join(dir, 'creds');
+  writeFileSync(
+    file,
+    'Workers token: tok_SECRET_VALUE\nAccount ID: 0123456789abcdef0123456789abcdef\n',
+  );
+  const redact = redactorFromArgv(['--url', 'https://x', '--creds', file]);
+  const out = redact(
+    'failed: tok_SECRET_VALUE at 0123456789abcdef0123456789abcdef via w.sub.workers.dev',
+  );
+  assert.ok(!out.includes('tok_SECRET_VALUE') && !out.includes('0123456789abcdef0123456789abcdef'));
+  assert.ok(out.includes('<account-subdomain>'));
+  assert.equal(typeof redactorFromArgv([])('plain'), 'string');
+});

@@ -2,6 +2,7 @@
 // G0 measurement: cold starts, warm latency, CPU (from `wrangler tail`), Durable Object round trip.
 // All output goes through the redactor; credentials are only handed to wrangler child processes.
 import { spawn, spawnSync } from 'node:child_process';
+import http from 'node:http';
 import https from 'node:https';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -101,6 +102,55 @@ export function extractJsonObjects(buffer) {
   return { objects, rest: buffer.slice(consumed) };
 }
 
+// Exact match on pathname + query: a plain substring would let `?w=1` match `?w=10` and `?w=100`.
+export function findTailEvent(events, pathAndQuery) {
+  return events.find((e) => {
+    try {
+      const u = new URL(e?.event?.request?.url ?? '');
+      return u.pathname + u.search === pathAndQuery;
+    } catch {
+      return false;
+    }
+  });
+}
+
+// The canary proves implicit constructor injection survived the build (plan Review Focus 1).
+export function checkCanary(status, text) {
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = undefined;
+  }
+  if (status !== 200 || body?.implicitInjection !== true) {
+    throw new Error(
+      `canary FAILED (status ${status}, body ${String(text).slice(0, 120)}): decorator metadata is missing from the deployed build`,
+    );
+  }
+}
+
+// A cold run is only cold if the request was served by the version this run just deployed.
+export function isFreshRun(text, run) {
+  try {
+    return JSON.parse(text)?.run === String(run);
+  } catch {
+    return false;
+  }
+}
+
+// The entry point builds its redactor before main() runs so even a failure before/while
+// parsing arguments cannot print a token, an account id or a workers.dev subdomain.
+export function redactorFromArgv(argv) {
+  const i = argv.indexOf('--creds');
+  let creds = {};
+  try {
+    if (i >= 0 && argv[i + 1]) creds = loadCreds(argv[i + 1]);
+  } catch {
+    /* unreadable creds file: still redact the subdomain pattern */
+  }
+  return buildRedactor({ secrets: [creds.token, creds.accountId] });
+}
+
 export function loadCreds(path) {
   const out = {};
   for (const line of readFileSync(path, 'utf8').split('\n')) {
@@ -180,24 +230,25 @@ export async function main(argv) {
     tail.on('error', () => undefined);
     await sleep(4000);
   }
-  const eventFor = (needle) => events.find((e) => (e?.event?.request?.url ?? '').includes(needle));
+  const eventFor = (pathAndQuery) => findTailEvent(events, pathAndQuery);
 
   // One keep-alive connection at a time: the fake auth and the memory session store live inside a
   // single isolate, and separate connections can be served by different isolates (register would
   // land on one and login on another). A fresh agent per cold run also gives a fresh TLS connection.
   const target = new URL(args.url);
-  let agent = new https.Agent({ keepAlive: true, maxSockets: 1 });
+  const transport = target.protocol === 'http:' ? http : https;
+  let agent = new transport.Agent({ keepAlive: true, maxSockets: 1 });
   const resetConnection = () => {
     agent.destroy();
-    agent = new https.Agent({ keepAlive: true, maxSockets: 1 });
+    agent = new transport.Agent({ keepAlive: true, maxSockets: 1 });
   };
   const request = (method, path, { body, cookie }) =>
     new Promise((resolvePromise, reject) => {
       const payload = body === undefined ? undefined : JSON.stringify(body);
-      const req = https.request(
+      const req = transport.request(
         {
           host: target.hostname,
-          port: target.port || 443,
+          port: target.port || (target.protocol === 'http:' ? 80 : 443),
           path,
           method,
           agent,
@@ -241,6 +292,11 @@ export async function main(argv) {
       }
     }
   };
+
+  // Self-check required by the plan: the deployed build must still inject implicit dependencies.
+  const canary = await call('GET', '/g0/canary');
+  checkCanary(canary.res.status, canary.text);
+  log('canary ok: implicit constructor injection works in the deployed build');
 
   // ---- warm: login (with retries: the fake auth and the memory session store live in one
   // isolate, so a fresh version or a different isolate can lose them), then N profile reads and
@@ -294,24 +350,31 @@ export async function main(argv) {
   const startups = [];
   const colos = new Set();
   for (let i = 1; i <= args.coldRuns; i++) {
-    resetConnection();
-    const dep = spawnSync(
-      wranglerBin,
-      ['deploy', '--config', args.config, '--var', `G0_RUN:${i}`],
-      {
-        cwd: root,
-        env: childEnv,
-        encoding: 'utf8',
-      },
-    );
-    const startup = Number(
-      (/Worker Startup Time:\s*([\d.]+)\s*ms/.exec(`${dep.stdout}${dep.stderr}`) ?? [])[1],
-    );
-    if (dep.status !== 0)
-      throw new Error(`deploy ${i} failed: ${redact(`${dep.stderr}`.slice(0, 400))}`);
+    let first;
+    let startup;
+    for (let attempt = 1; ; attempt++) {
+      resetConnection();
+      const dep = spawnSync(
+        wranglerBin,
+        ['deploy', '--config', args.config, '--var', `G0_RUN:${i}`],
+        { cwd: root, env: childEnv, encoding: 'utf8' },
+      );
+      if (dep.status !== 0)
+        throw new Error(`deploy ${i} failed: ${redact(`${dep.stderr}`.slice(0, 400))}`);
+      startup = Number(
+        (/Worker Startup Time:\s*([\d.]+)\s*ms/.exec(`${dep.stdout}${dep.stderr}`) ?? [])[1],
+      );
+      await sleep(3000);
+      first = await call('GET', `/g0/health?cold=${i}`);
+      // Only a response that reports this run's number came from the version just deployed.
+      if (isFreshRun(first.text, i)) break;
+      if (attempt >= 3)
+        throw new Error(
+          `cold run ${i}: the first request was never served by the version just deployed`,
+        );
+      log(`cold ${i}: response came from an older version, redeploying (attempt ${attempt + 1}/3)`);
+    }
     if (Number.isFinite(startup)) startups.push(startup);
-    await sleep(3000);
-    const first = await call('GET', `/g0/health?cold=${i}`);
     const ray = first.res.headers.get('cf-ray') ?? '';
     if (ray.includes('-')) colos.add(ray.split('-')[1]);
     const warmAfter = [];
@@ -331,7 +394,7 @@ export async function main(argv) {
     const e = eventFor(needle);
     return e && typeof e.cpuTime === 'number' ? e.cpuTime : undefined;
   };
-  const coldCpu = cold.map((c) => cpuOf(`cold=${c.run}`)).filter((v) => v !== undefined);
+  const coldCpu = cold.map((c) => cpuOf(`/g0/health?cold=${c.run}`)).filter((v) => v !== undefined);
   const warmCpu = Array.from({ length: args.warmRequests }, (_, k) =>
     cpuOf(`/api/profile?w=${k}`),
   ).filter((v) => v !== undefined);
@@ -383,13 +446,17 @@ export async function main(argv) {
   ]);
   log(`\n${table}\n`);
   log(
+    `profile statuses ${JSON.stringify(results.profileStatuses.byStatus)}, DO statuses ${JSON.stringify(results.doStatuses.byStatus)}, relogins ${relogins}`,
+  );
+  log(
     `colos seen: ${results.colos.join(', ') || 'n/a'}; cold CPU samples: ${coldCpu.length}; warm CPU samples: ${warmCpu.length}`,
   );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const redactError = redactorFromArgv(process.argv.slice(2));
   main(process.argv.slice(2)).catch((e) => {
-    console.error(`measure failed: ${e.message}`);
+    console.error(redactError(`measure failed: ${e.message}`));
     process.exit(1);
   });
 }

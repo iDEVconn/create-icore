@@ -1,16 +1,48 @@
 # Cloudflare Workers G0 measurement harness
 
 Throwaway harness for gate G0 of `docs/superpowers/specs/2026-10-20-cloudflare-workers-design.md`.
-It is **not** a Yarn workspace member: install and run it with `npm` from this folder.
+It is **not** a Yarn workspace member: install its dependencies with `npm` from this folder. The build
+also needs the repo's own `node_modules` (`scripts/build.mjs` runs the TypeScript compiler of the repo
+root and compiles the real gateway sources), so run `yarn install` at the repo root first.
+
+Results of the live measurement are in `RESULTS.md`.
+
+## Run it locally (no Cloudflare account)
 
 ```
 npm install
-npm run build        # tsc (decorator metadata) → build/, writes tsconfig.bundle.json
-npm run dev          # wrangler dev --local --port 8787
-npm run check:canary # proves implicit constructor injection survives the build
+npm run build          # tsc with emitDecoratorMetadata → build/, writes tsconfig.bundle.json
+printf 'AUTH_TCP_SECRET=local-only\n' > .dev.vars
+npm run dev            # wrangler dev --local --port 8787 (local D1 and Durable Object)
+npm run check:canary   # implicit constructor injection survives the build
+npm run check:slice    # real guards, sessions, CSRF, presign, supabase-js, process.env
+npm run check:probes   # Durable Object and D1 probes
+npm test               # unit tests of the measurement script (no network)
 ```
 
-Results of the live measurement are in `RESULTS.md`.
+`tsc` reports 0 type errors for the whole compiled slice (`build/tsc-errors.txt`).
+
+## Repeat the live measurement
+
+Needs a Cloudflare account on **Workers Paid** and an API token with Workers Scripts Edit, Workers
+Tail Read and D1 Edit. Put the credentials in a local file outside the repo, one `Label: value` per line:
+`Workers token: …` and `Account ID: …`. Pass it with `--creds`; `scripts/wr.mjs` and `measure.mjs` hand
+it only to the `wrangler` child process and scrub the token, the account id and the `workers.dev`
+subdomain from everything they print.
+
+```
+node scripts/wr.mjs --creds <file> -- d1 create g0-probe          # note the printed database_id
+cp wrangler.jsonc wrangler.deploy.jsonc                            # gitignored; put the real database_id in it
+npm run build && npx wrangler deploy --dry-run --outdir dist-dry   # writes the bundle size row
+node scripts/wr.mjs --creds <file> -- deploy --config wrangler.deploy.jsonc
+node scripts/wr.mjs --creds <file> --stdin-random-hex 16 -- secret put AUTH_TCP_SECRET --config wrangler.deploy.jsonc
+node scripts/measure.mjs --url https://<worker>.<subdomain>.workers.dev --cold-runs 5 --warm-requests 200 \
+  --config wrangler.deploy.jsonc --creds <file>
+```
+
+The first request to a brand-new `workers.dev` subdomain can fail TLS for several minutes. Clean up
+afterwards: `wr.mjs … -- delete icore-g0-harness --force`, delete the D1 database by its uuid, and revoke the
+token. `/__g0/diag` and the per-request `console.log` lines exist only for this harness.
 
 ## The gateway slice (Task 2)
 
