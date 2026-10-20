@@ -18,6 +18,14 @@ class PlainController {
   }
 }
 
+@Controller('plain-default')
+class PlainDefaultController {
+  @Get()
+  ping() {
+    return { ok: true };
+  }
+}
+
 @Controller('auth-like')
 @Throttle({ 'auth-burst': { limit: 3, ttl: seconds(60) } })
 class AuthLikeController {
@@ -52,7 +60,13 @@ describe('gateway throttler options', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ThrottlerModule.forRoot(throttlerOptions)],
-      controllers: [PlainController, AuthLikeController, AiLikeController, AiHighController],
+      controllers: [
+        PlainController,
+        PlainDefaultController,
+        AuthLikeController,
+        AiLikeController,
+        AiHighController,
+      ],
       providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
     }).compile();
     app = moduleRef.createNestApplication();
@@ -70,6 +84,14 @@ describe('gateway throttler options', () => {
     const statuses: number[] = [];
     for (let i = 0; i < 15; i++) statuses.push(await status('/plain'));
     expect(statuses.every((s) => s === 200)).toBe(true);
+  });
+
+  it('still rate limits a route that declares nothing, through a generous default (fail closed)', async () => {
+    // Fresh route so no other test's requests count: 120 allowed per minute, the 121st is rejected.
+    const statuses: number[] = [];
+    for (let i = 0; i < 121; i++) statuses.push(await status('/plain-default'));
+    expect(statuses.slice(0, 120).every((s) => s === 200)).toBe(true);
+    expect(statuses[120]).toBe(429);
   });
 
   it('limits a route that declares @Throttle for auth-burst at its own limit', async () => {
@@ -105,6 +127,10 @@ describe('gateway throttler options', () => {
       10,
     );
     expect(Reflect.getMetadata('THROTTLER:LIMITai-burst', AiController.prototype.orchestrate)).toBe(
+      10,
+    );
+    // The LLM-backed RAG route costs money like the other two and must not escape the AI limiter.
+    expect(Reflect.getMetadata('THROTTLER:LIMITai-burst', AiController.prototype.ragQuery)).toBe(
       10,
     );
   });

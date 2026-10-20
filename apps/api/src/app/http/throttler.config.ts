@@ -19,9 +19,15 @@ export function skipUnlessDeclared(name: string): (context: ExecutionContext) =>
     Reflect.getMetadata(key, context.getClass()) === undefined;
 }
 
-// The named throttlers of the gateway. Their module-level limits are only the defaults for the
-// routes that declare `@Throttle({ '<name>': … })`; every other route is not rate limited by them.
+// The named throttlers of the gateway.
+// - `auth-burst` and `ai-burst` are tight, targeted limits: they count only the routes that declare
+//   `@Throttle({ '<name>': … })` (login, password reset, LLM calls).
+// - `default` has no `skipIf`: it is the fail-closed floor. Every route without its own decorator
+//   (storage, payment, notes, a new LLM route someone forgets to decorate…) still gets a generous
+//   limit instead of none. Raise or lower it here; a webhook can opt out with
+//   `@SkipThrottle({ default: true })`.
 export const throttlerOptions: ThrottlerOptions[] = [
+  { name: 'default', ttl: seconds(60), limit: 120 },
   { name: 'auth-burst', ttl: seconds(60), limit: 10, skipIf: skipUnlessDeclared('auth-burst') },
   { name: 'ai-burst', ttl: seconds(60), limit: 10, skipIf: skipUnlessDeclared('ai-burst') },
 ];

@@ -58,6 +58,7 @@ export class AiController {
   }
 
   @Post('rag/query')
+  @Throttle({ 'ai-burst': { limit: 10, ttl: seconds(60) } })
   @ApiOperation({ summary: 'Retrieve the top-K sanitized chunks for a query' })
   @ApiBody({
     schema: {
