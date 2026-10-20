@@ -2,6 +2,7 @@
 // G0 measurement: cold starts, warm latency, CPU (from `wrangler tail`), Durable Object round trip.
 // All output goes through the redactor; credentials are only handed to wrangler child processes.
 import { spawn, spawnSync } from 'node:child_process';
+import https from 'node:https';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -34,6 +35,18 @@ export function summarize(values) {
   };
 }
 
+export function tally(statuses) {
+  const byStatus = {};
+  for (const st of statuses) byStatus[st] = (byStatus[st] ?? 0) + 1;
+  const ok = byStatus[200] ?? 0;
+  return {
+    total: statuses.length,
+    ok,
+    okRate: statuses.length ? ok / statuses.length : 0,
+    byStatus,
+  };
+}
+
 export function renderTable(rows) {
   const lines = ['| Check | Value | Threshold | Result |', '|---|---|---|---|'];
   for (const { name, value, unit, max } of rows) {
@@ -44,13 +57,57 @@ export function renderTable(rows) {
   return lines.join('\n');
 }
 
+// `wrangler tail --format json` prints pretty-printed objects, not one per line. Pull every
+// complete top-level {...} out of a text buffer (string-aware) and return the unparsed rest.
+export function extractJsonObjects(buffer) {
+  const objects = [];
+  let i = 0;
+  let consumed = 0;
+  while (i < buffer.length) {
+    const start = buffer.indexOf('{', i);
+    if (start < 0) {
+      consumed = buffer.length;
+      break;
+    }
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = -1;
+    for (let k = start; k < buffer.length; k++) {
+      const ch = buffer[k];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+      } else if (ch === '"') inString = true;
+      else if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) {
+        end = k;
+        break;
+      }
+    }
+    if (end < 0) {
+      consumed = start;
+      break;
+    }
+    try {
+      objects.push(JSON.parse(buffer.slice(start, end + 1)));
+    } catch {
+      /* not JSON: skip it */
+    }
+    i = end + 1;
+    consumed = i;
+  }
+  return { objects, rest: buffer.slice(consumed) };
+}
+
 export function loadCreds(path) {
   const out = {};
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     const i = line.indexOf(':');
     const label = (i > 0 ? line.slice(0, i) : '').trim().toLowerCase();
     const value = i > 0 ? line.slice(i + 1).trim() : '';
-    if (/workers token/.test(label)) out.token = value;
+    if (/^workers( token)?$/.test(label)) out.token = value;
     else if (/account id/.test(label)) out.accountId = value;
     else if (!out.accountId && label.startsWith('http'))
       out.accountId = (line.match(/[0-9a-f]{32}/) ?? [])[0];
@@ -96,6 +153,7 @@ export async function main(argv) {
   if (args.help) return console.log(USAGE);
   if (!args.url) throw new Error('--url is required');
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const wranglerBin = join(root, 'node_modules/.bin/wrangler');
   const creds = args.creds ? loadCreds(args.creds) : {};
   const redact = buildRedactor({ secrets: [creds.token, creds.accountId] });
   const log = (...a) => console.log(redact(a.join(' ')));
@@ -109,49 +167,137 @@ export async function main(argv) {
   const events = [];
   let tail;
   if (args.tail) {
-    tail = spawn('npx', ['wrangler', 'tail', '--config', args.config, '--format', 'json'], {
+    tail = spawn(wranglerBin, ['tail', '--config', args.config, '--format', 'json'], {
       cwd: root,
       env: childEnv,
     });
     let buf = '';
     tail.stdout.on('data', (d) => {
-      buf += d;
-      let i;
-      while ((i = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, i);
-        buf = buf.slice(i + 1);
-        try {
-          events.push(JSON.parse(line));
-        } catch {
-          /* not an event line */
-        }
-      }
+      const { objects, rest } = extractJsonObjects(buf + d);
+      buf = rest;
+      events.push(...objects);
     });
     tail.on('error', () => undefined);
     await sleep(4000);
   }
   const eventFor = (needle) => events.find((e) => (e?.event?.request?.url ?? '').includes(needle));
 
-  const call = async (method, path, { body, cookie } = {}) => {
-    const t0 = performance.now();
-    const res = await fetch(`${args.url}${path}`, {
-      method,
-      headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
-    });
-    const text = await res.text();
-    return { res, text, ms: performance.now() - t0 };
+  // One keep-alive connection at a time: the fake auth and the memory session store live inside a
+  // single isolate, and separate connections can be served by different isolates (register would
+  // land on one and login on another). A fresh agent per cold run also gives a fresh TLS connection.
+  const target = new URL(args.url);
+  let agent = new https.Agent({ keepAlive: true, maxSockets: 1 });
+  const resetConnection = () => {
+    agent.destroy();
+    agent = new https.Agent({ keepAlive: true, maxSockets: 1 });
   };
+  const request = (method, path, { body, cookie }) =>
+    new Promise((resolvePromise, reject) => {
+      const payload = body === undefined ? undefined : JSON.stringify(body);
+      const req = https.request(
+        {
+          host: target.hostname,
+          port: target.port || 443,
+          path,
+          method,
+          agent,
+          timeout: 60_000,
+          headers: {
+            'content-type': 'application/json',
+            ...(payload ? { 'content-length': Buffer.byteLength(payload) } : {}),
+            ...(cookie ? { cookie } : {}),
+          },
+        },
+        (res) => {
+          const chunks = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () =>
+            resolvePromise({
+              status: res.statusCode,
+              headers: {
+                get: (name) => [].concat(res.headers[name.toLowerCase()] ?? [])[0] ?? null,
+                getSetCookie: () => [].concat(res.headers['set-cookie'] ?? []),
+              },
+              text: Buffer.concat(chunks).toString('utf8'),
+            }),
+          );
+        },
+      );
+      req.on('timeout', () => req.destroy(new Error('request timeout')));
+      req.on('error', reject);
+      req.end(payload);
+    });
+  const call = async (method, path, opts = {}) => {
+    for (let attempt = 0; ; attempt++) {
+      const t0 = performance.now();
+      try {
+        const res = await request(method, path, opts);
+        return { res, text: res.text, ms: performance.now() - t0 };
+      } catch (err) {
+        // Right after a deploy the edge may reset connections: retry network errors only.
+        if (attempt >= 2) throw err;
+        resetConnection();
+        await sleep(1500);
+      }
+    }
+  };
+
+  // ---- warm: login (with retries: the fake auth and the memory session store live in one
+  // isolate, so a fresh version or a different isolate can lose them), then N profile reads and
+  // N Durable Object round trips. Statuses are tallied: a 401 means the session was lost.
+  const creds2 = { email: `g0-${Date.now()}@example.com`, password: 'g0-password-123!' };
+  let sid;
+  let relogins = 0;
+  let lastLogin = 'no attempt';
+  const startSession = async () => {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await call('POST', '/api/auth/register', { body: creds2 });
+      const login = await call('POST', '/api/auth/login', { body: creds2 });
+      lastLogin = `status ${login.res.status} ${login.text.slice(0, 120)}`;
+      sid = (login.res.headers.getSetCookie?.() ?? [])
+        .map((c) => c.split(';')[0])
+        .find((c) => c.startsWith('icore_sid='));
+      if (sid) return;
+      await sleep(1500);
+    }
+    throw new Error(`login never set a session cookie after 6 attempts (last: ${lastLogin})`);
+  };
+  await startSession();
+  const profileMs = [];
+  const profileStatuses = [];
+  const doWall = [];
+  const doInWorker = [];
+  const doStatuses = [];
+  for (let k = 0; k < args.warmRequests; k++) {
+    let p = await call('GET', `/api/profile?w=${k}`, { cookie: sid });
+    if (p.res.status === 401) {
+      relogins++;
+      await startSession();
+      p = await call('GET', `/api/profile?w=${k}`, { cookie: sid });
+    }
+    profileStatuses.push(p.res.status);
+    if (p.res.status === 200) profileMs.push(p.ms);
+    const d = await call('GET', `/g0/do?id=measure&w=${k}`);
+    doStatuses.push(d.res.status);
+    if (d.res.status === 200) {
+      doWall.push(d.ms);
+      try {
+        doInWorker.push(JSON.parse(d.text).doMs);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 
   // ---- cold runs: a fresh version per run means fresh isolates ----
   const cold = [];
   const startups = [];
   const colos = new Set();
   for (let i = 1; i <= args.coldRuns; i++) {
+    resetConnection();
     const dep = spawnSync(
-      'npx',
-      ['wrangler', 'deploy', '--config', args.config, '--var', `G0_RUN:${i}`],
+      wranglerBin,
+      ['deploy', '--config', args.config, '--var', `G0_RUN:${i}`],
       {
         cwd: root,
         env: childEnv,
@@ -177,28 +323,6 @@ export async function main(argv) {
     );
   }
 
-  // ---- warm: login once, then N profile reads and N Durable Object round trips ----
-  const creds2 = { email: `g0-${Date.now()}@example.com`, password: 'g0-password-123!' };
-  await call('POST', '/api/auth/register', { body: creds2 });
-  const login = await call('POST', '/api/auth/login', { body: creds2 });
-  const sid = (login.res.headers.getSetCookie?.() ?? [])
-    .map((c) => c.split(';')[0])
-    .find((c) => c.startsWith('icore_sid='));
-  if (!sid) throw new Error(`login did not set a session cookie (status ${login.res.status})`);
-  const profileMs = [];
-  const doWall = [];
-  const doInWorker = [];
-  for (let k = 0; k < args.warmRequests; k++) {
-    profileMs.push((await call('GET', `/api/profile?w=${k}`, { cookie: sid })).ms);
-    const d = await call('GET', `/g0/do?id=measure&w=${k}`);
-    doWall.push(d.ms);
-    try {
-      doInWorker.push(JSON.parse(d.text).doMs);
-    } catch {
-      /* ignore */
-    }
-  }
-
   if (tail) {
     await sleep(4000);
     tail.kill();
@@ -221,6 +345,9 @@ export async function main(argv) {
     coldCpu,
     profileWallMs: summarize(profileMs),
     profileCpuMs: summarize(warmCpu),
+    profileStatuses: tally(profileStatuses),
+    doStatuses: tally(doStatuses),
+    relogins,
     doWallMs: summarize(doWall),
     doInWorkerMs: summarize(doInWorker),
     bundleMiB,

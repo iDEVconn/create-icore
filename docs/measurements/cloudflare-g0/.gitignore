@@ -6,3 +6,4 @@ dist-dry
 tsconfig.bundle.json
 results.json
 package-lock.json
+wrangler.deploy.jsonc

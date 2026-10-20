@@ -8,9 +8,10 @@ import { Public } from '../../../../apps/api/src/app/auth/public.decorator';
 @Controller('g0')
 export class ProbesController {
   @Get('do')
-  async durableObject(@Query('id') id = 'default') {
+  async durableObject(@Query('id') id = 'default', @Query('hint') hint?: string) {
     const ns = (env as any).PROBE;
-    const stub = ns.get(ns.idFromName(id));
+    // `hint` (e.g. me, eeur, weur) is a Durable Object location hint, used to test placement.
+    const stub = ns.get(ns.idFromName(id), hint ? { locationHint: hint } : undefined);
     const t0 = performance.now();
     const res = await stub.fetch('https://probe.invalid/touch');
     const doMs = performance.now() - t0;

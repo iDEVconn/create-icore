@@ -59,3 +59,32 @@ test('renderTable marks a value above its maximum threshold as FAIL and at-or-be
     /NOT MEASURED/,
   );
 });
+
+test('extractJsonObjects finds pretty-printed objects, keeps a partial tail, ignores braces inside strings', async () => {
+  const { extractJsonObjects } = await import('./measure.mjs');
+  const a = JSON.stringify(
+    { cpuTime: 3, url: 'https://x/?a={b}', note: 'quote " and \\ slash' },
+    null,
+    4,
+  );
+  const b = JSON.stringify({ cpuTime: 5 }, null, 4);
+  const first = extractJsonObjects(`noise\n${a}\n${b.slice(0, 10)}`);
+  assert.equal(first.objects.length, 1);
+  assert.equal(first.objects[0].cpuTime, 3);
+  assert.equal(first.objects[0].url, 'https://x/?a={b}');
+  const second = extractJsonObjects(first.rest + b.slice(10));
+  assert.equal(second.objects.length, 1);
+  assert.equal(second.objects[0].cpuTime, 5);
+  assert.equal(second.rest.trim(), '');
+});
+
+test('tally counts statuses and reports the share of 200s', async () => {
+  const { tally } = await import('./measure.mjs');
+  assert.deepEqual(tally([200, 200, 401, 200, 500]), {
+    total: 5,
+    ok: 3,
+    okRate: 0.6,
+    byStatus: { 200: 3, 401: 1, 500: 1 },
+  });
+  assert.deepEqual(tally([]), { total: 0, ok: 0, okRate: 0, byStatus: {} });
+});

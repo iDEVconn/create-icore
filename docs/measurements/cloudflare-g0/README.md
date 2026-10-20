@@ -35,6 +35,15 @@ Routes: `POST /api/auth/register|login|logout`, `GET /api/auth/session`, `GET /a
   `G0_THROTTLE_LIMIT` (wrangler var, `1000000` for measurement runs, `10` is the real value): both
   named throttlers apply to **every** route in `apps/api` (there is no `@SkipThrottle`), so the real
   10/min limit would reject the measurement requests. The guard code still runs and counts.
+- `NODE_ENV` is replaced with `"development"` at bundle time (`define` in `wrangler.jsonc`). On a
+  deployed Worker `process.env.NODE_ENV` is forced to `production`: it ignores the `NODE_ENV` var
+  (the binding keeps the var's value, `process.env` does not) and assigning to it has no effect. In
+  production the repo's own code refuses the fake auth strategy (`buildStrategyWithFallback`) and
+  the in-memory session store without `SESSION_STORE_ALLOW_MEMORY=true`; a real deployment
+  therefore needs real Supabase credentials and a real session store (the Durable Object store of
+  PR 3). Nest's default `abortOnError` also turns a failed bootstrap into `process.exit(1)`, which
+  Workers reports as a canceled request and leaves the memoized bootstrap promise pending forever, so
+  the harness passes `abortOnError: false` and clears the memoized promise on failure.
 - Feature modules (storage, notes, payment, jobs, ai) are not part of the slice.
 
 ### Build notes
