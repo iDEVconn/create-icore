@@ -103,5 +103,14 @@ change that. The Hono-gateway contingency in the spec addresses Nest viability a
 Choices for the requester (none implemented): (a) accept about 80 ms per authenticated request for
 users in Israel; (b) a short per-isolate session read cache, which trades revocation immediacy
 for latency; (c) signed stateless session cookies with a Durable Object check only for sensitive
-operations; (d) test Smart Placement, which was not tried. Users in regions close to the Durable
-Object region were not measured.
+operations; (d) Smart Placement or a `placement.region` hint. **Decision of the requester (2026-10-20):**
+the ~80 ms is accepted for sessions (option (a)); the Smart Placement check was requested but could not be
+run, because the Cloudflare account used for this measurement was deleted before the experiment.
+**Not measured.** Prediction, not a result: Smart Placement and region hints move the Worker next to its data,
+so a request that touches storage once (a session check) would pay the same ~75 ms between the client and the
+moved Worker, while a request that touches storage several times in a row (several D1 statements at ~72 ms each)
+would pay it once. Smart Placement also needs steady traffic from several locations and up to 15 minutes of
+analysis, which a single-location test may not give (`INSUFFICIENT_INVOCATIONS`). Users in regions close to the
+Durable Object region were not measured either. Anyone repeating the run can follow `README.md`; the useful
+additions would be reporting the Worker's, the Durable Object's and D1's colo (`cdn-cgi/trace`, D1
+`meta.served_by_region`) and comparing a default, a smart and a region-pinned Worker.

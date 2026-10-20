@@ -230,7 +230,9 @@ Full numbers and method: `docs/measurements/cloudflare-g0/RESULTS.md`. Summary:
   the TLV colo, and D1 about 72 ms per statement. Location hints do not help from Israel. This is
   geography, not Nest, so the Hono contingency does not address it. Requester decisions are listed
   in `RESULTS.md` (accept it, a bounded read cache, stateless signed cookies plus a Durable Object check
-  for sensitive operations, or test Smart Placement).
+  for sensitive operations, or test Smart Placement). The requester accepted the latency
+  (option (a)); Smart Placement could not be tested because the measurement account was deleted, so its
+  effect is a prediction only (see `RESULTS.md`).
 - **Free plan:** not viable for a cold request (about 70 ms CPU against 10 ms).
 - **Design changes already implied:** (1) never call `process.exit` during bootstrap on Workers:
   create Nest apps with `abortOnError: false` and clear a memoized bootstrap promise when it fails;
