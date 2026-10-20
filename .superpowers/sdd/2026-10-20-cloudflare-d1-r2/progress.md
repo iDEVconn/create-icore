@@ -46,3 +46,10 @@ Task 2: minor (deferred): CAST(... AS NUMERIC) false positives (== 0 / == false 
 Task 2: minor (deferred): no tests for `in []`, mixed-type `in`, exactly-100 params allowed
 Task 2: fix round 1/5 (1 addressed, 0 open; commits 1129ab5..9864353)
 Task 2: complete (commits e34c82d..9864353, review clean)
+
+Task 3: implemented (commit 92b7f66), review: spec ✅, quality Approved, 0 Critical/Important. ⚠️ lint green verified by controller (nx cache hit).
+Task 3: minor (deferred): fallback test emits console.warn banner noise — spy on console.warn
+Task 3: minor (deferred): production-throw path (NODE_ENV=production + missing env) untested; belongs to buildStrategyWithFallback
+Task 3: minor (deferred): stub ConfigService.getOrThrow returns undefined instead of throwing
+Task 3: complete (commits 4688083..92b7f66, review clean)
+Note: controller accidentally ran `prettier --write docs/superpowers` (95 unrelated old plan/spec files reformatted); reverted with `git checkout -- docs/superpowers` before any commit — no unrelated change was committed. Only run prettier on specific files from now on.
