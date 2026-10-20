@@ -66,3 +66,10 @@ Deferred observation (outside this PR): gateway `assertOwnership` and `MinioStor
 Task 4: fix round 1/5 (2 addressed, 0 open; commits 42f123e..5f07a45) — implementer also made TTL flooring below 1 (e.g. 0.5) throw invalid_ttl; re-reviewer judged it sound.
 Task 4: minor (deferred): `list(userId, prefix)` does not sanitize prefix; omitted-TTL=900 assertion not in fix diff (may be covered earlier)
 Task 4: complete (commits d277346..5f07a45, review clean). AWS SDK versions: @aws-sdk/client-s3 ^3.1153.0, @aws-sdk/s3-request-presigner ^3.1153.0 (root + lib).
+
+Task 5: implemented (commit f5c15ec), review: spec ❌ (ai-orchestrator env misread), quality Needs fixes (1 Important; confirmed by controller: ai-orchestrator and notes ENV_PATHS fall back to root .env; writeRootEnv carries POSTGRES_URL/MONGODB_URI)
+Task 5: minor (deferred): placeholder `<cloudflare-…>` values defeat fail-fast (getOrThrow passes on any non-undefined)
+Task 5: minor (deferred): wire-storage cleanup test doesn't explicitly assert minio dir existence in supabase-chosen case; prompts test finds call by message without mockClear
+Task 5: minor (deferred): tools/create-icore/README.md:26 upload provider list stale (no minio) — Task 7 docs
+Task 5: fix round 1/5 (1 addressed, 0 open; commits f5c15ec..3bf30c3)
+Task 5: complete (commits ec1960d..3bf30c3, review clean). CARRY TO TASK 7: NO manual `D1_*` step for ai-orchestrator — writeRootEnv puts D1_* in root .env which ai-orchestrator and notes both load; ignore stale lines 56/116 of task-5-report.md. CARRY TO TASK 6: `_template-shell/package.json` lacks the two AWS SDK packages (^3.1153.0) — run sync-template-shell.mjs; `tools/create-icore/templates/` gets dirtied by build — discard.

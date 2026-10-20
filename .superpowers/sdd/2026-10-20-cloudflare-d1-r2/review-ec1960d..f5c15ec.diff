@@ -1,0 +1,1088 @@
+# Review package: ec1960d..HEAD
+
+## Commits
+f5c15ec feat(create-icore): d1 db and r2 upload providers
+
+## Files changed
+ apps/microservices/ai-orchestrator/.env.example    |   6 ++
+ apps/microservices/notes/.env.example              |   6 ++
+ apps/microservices/upload/.env.example             |   8 ++
+ .../src/lib/__tests__/config.unit.test.ts          |   9 ++
+ .../src/lib/__tests__/prompts.unit.test.ts         |  57 ++++++++++++
+ .../src/lib/__tests__/scaffold-env.unit.test.ts    | 101 ++++++++++++++++++++-
+ tools/create-icore/src/lib/config.ts               |   2 +
+ tools/create-icore/src/lib/options.ts              |   6 +-
+ tools/create-icore/src/lib/prompts.ts              |   2 +
+ tools/create-icore/src/lib/scaffold-env.ts         |   9 ++
+ .../src/manifest/__tests__/audit.unit.test.ts      |  47 ++++++++++
+ .../__tests__/wire-ai-usage-db.unit.test.ts        |  32 ++++++-
+ .../src/manifest/__tests__/wire-db.unit.test.ts    |  38 +++++++-
+ .../manifest/__tests__/wire-storage.unit.test.ts   |  54 ++++++++++-
+ tools/create-icore/src/manifest/audit.ts           |   1 +
+ tools/create-icore/src/manifest/index.ts           |  19 ++++
+ 16 files changed, 391 insertions(+), 6 deletions(-)
+
+## Diff
+diff --git a/apps/microservices/ai-orchestrator/.env.example b/apps/microservices/ai-orchestrator/.env.example
+index 1b487ad..e03bab4 100644
+--- a/apps/microservices/ai-orchestrator/.env.example
++++ b/apps/microservices/ai-orchestrator/.env.example
+@@ -33,10 +33,16 @@ OPENAI_API_KEY=
+ #     collection, via the same DBStrategy contract notes uses (see
+ #     ai-usage-db.provider.ts). Independent of the notes demo's own db axis —
+ #     this file exists whenever the `ai` feature is chosen, even with
+ #     example=none. Falls back to an in-memory FakeDBStrategy (usage lost on
+ #     restart, no crash) when DB_PROVIDER=none. ---
+ DB_PROVIDER=supabase
+ 
+ # --- Credentials (mirror the auth/notes MS) ---
+ SUPABASE_URL=
+ SUPABASE_SERVICE_ROLE_KEY=
++
++# --- Cloudflare D1 credentials (when DB_PROVIDER=d1) ---
++# D1 is reached over the Cloudflare REST API; the token needs D1 Edit permission.
++# D1_ACCOUNT_ID=<cloudflare-account-id>
++# D1_DATABASE_ID=<d1-database-id>
++# D1_API_TOKEN=<cloudflare-api-token>
+diff --git a/apps/microservices/notes/.env.example b/apps/microservices/notes/.env.example
+index fb6f66a..f22df78 100644
+--- a/apps/microservices/notes/.env.example
++++ b/apps/microservices/notes/.env.example
+@@ -14,10 +14,16 @@ NOTES_PORT=4004
+ # Supabase Postgres or Firestore. Both honored by NotesController via DBStrategy.
+ DB_PROVIDER=supabase
+ 
+ # --- Credentials (mirror the auth MS) ---
+ SUPABASE_URL=
+ SUPABASE_SERVICE_ROLE_KEY=
+ 
+ FB_ADMIN_PROJECT_ID=
+ FB_ADMIN_CLIENT_EMAIL=
+ FB_ADMIN_PRIVATE_KEY=
++
++# --- Cloudflare D1 credentials (when DB_PROVIDER=d1) ---
++# D1 is reached over the Cloudflare REST API; the token needs D1 Edit permission.
++# D1_ACCOUNT_ID=<cloudflare-account-id>
++# D1_DATABASE_ID=<d1-database-id>
++# D1_API_TOKEN=<cloudflare-api-token>
+diff --git a/apps/microservices/upload/.env.example b/apps/microservices/upload/.env.example
+index 351bf1b..1bbbd43 100644
+--- a/apps/microservices/upload/.env.example
++++ b/apps/microservices/upload/.env.example
+@@ -8,20 +8,21 @@ UPLOAD_PORT=4002
+ # UPLOAD_RMQ_URL=amqp://localhost:5672
+ # UPLOAD_RMQ_QUEUE=upload_queue
+ # UPLOAD_KAFKA_BROKERS=localhost:9092
+ # UPLOAD_KAFKA_CLIENT_ID=upload
+ 
+ # Which concrete StorageStrategy to instantiate
+ STORAGE_PROVIDER=supabase
+ # STORAGE_PROVIDER=firebase
+ # STORAGE_PROVIDER=cloudinary
+ # STORAGE_PROVIDER=minio
++# STORAGE_PROVIDER=r2
+ 
+ # --- Supabase credentials (when STORAGE_PROVIDER=supabase) ---
+ SUPABASE_URL=https://<your-project-ref>.supabase.co
+ SUPABASE_SERVICE_ROLE_KEY=eyJ...
+ SUPABASE_STORAGE_BUCKET=icore-uploads
+ 
+ # --- Firebase Cloud Storage credentials (when STORAGE_PROVIDER=firebase) ---
+ FB_ADMIN_TYPE=service_account
+ FB_ADMIN_PROJECT_ID=<your-project-id>
+ FB_ADMIN_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n'
+@@ -37,10 +38,17 @@ CLOUDINARY_API_SECRET=<secret>
+ 
+ # --- MinIO / S3-compatible credentials (when STORAGE_PROVIDER=minio) ---
+ # Also works unmodified against Backblaze B2, Cloudflare R2, or Amazon S3 —
+ # just point MINIO_ENDPOINT at that provider's S3-compatible endpoint.
+ MINIO_ENDPOINT=localhost
+ MINIO_PORT=9000
+ MINIO_USE_SSL=false
+ MINIO_ACCESS_KEY=icore
+ MINIO_SECRET_KEY=<change-me>
+ MINIO_BUCKET=icore-uploads
++
++# --- Cloudflare R2 credentials (when STORAGE_PROVIDER=r2) ---
++# R2 API token (Access Key ID + Secret) from Cloudflare dashboard → R2 → Manage API tokens.
++# R2_ACCOUNT_ID=<cloudflare-account-id>
++# R2_ACCESS_KEY_ID=<r2-access-key-id>
++# R2_SECRET_ACCESS_KEY=<r2-secret-access-key>
++# R2_BUCKET=icore-uploads
+diff --git a/tools/create-icore/src/lib/__tests__/config.unit.test.ts b/tools/create-icore/src/lib/__tests__/config.unit.test.ts
+index 5068430..fb289ec 100644
+--- a/tools/create-icore/src/lib/__tests__/config.unit.test.ts
++++ b/tools/create-icore/src/lib/__tests__/config.unit.test.ts
+@@ -72,20 +72,29 @@ describe('validateConfig', () => {
+   });
+ 
+   it('accepts authProvider: "postgres" and dbProvider: "postgres" / "sqlite"', () => {
+     expect(validateConfig({ authProvider: 'postgres', dbProvider: 'sqlite' })).toEqual({
+       authProvider: 'postgres',
+       dbProvider: 'sqlite',
+     });
+     expect(validateConfig({ dbProvider: 'postgres' })).toEqual({ dbProvider: 'postgres' });
+   });
+ 
++  it('accepts dbProvider: "d1" and upload: "r2" (Cloudflare) and still rejects unknown values', () => {
++    expect(validateConfig({ dbProvider: 'd1', upload: 'r2' })).toEqual({
++      dbProvider: 'd1',
++      upload: 'r2',
++    });
++    expect(() => validateConfig({ dbProvider: 'd2' })).toThrowError(ConfigFileError);
++    expect(() => validateConfig({ upload: 'r3' })).toThrowError(ConfigFileError);
++  });
++
+   it('error message for invalid authProvider lists valid providers', () => {
+     expect(() => validateConfig({ authProvider: 'oracle' })).toThrowError(
+       'expected one of: supabase, firebase, mongodb, postgres, none',
+     );
+   });
+ 
+   it('throws ConfigFileError for invalid authProvider', () => {
+     expect(() => validateConfig({ authProvider: 'auth0' })).toThrowError(ConfigFileError);
+     expect(() => validateConfig({ authProvider: 'auth0' })).toThrowError(
+       'config field "authProvider" got "auth0", expected one of: supabase, firebase, mongodb, postgres, none',
+diff --git a/tools/create-icore/src/lib/__tests__/prompts.unit.test.ts b/tools/create-icore/src/lib/__tests__/prompts.unit.test.ts
+index 9c2a0d5..da40e8b 100644
+--- a/tools/create-icore/src/lib/__tests__/prompts.unit.test.ts
++++ b/tools/create-icore/src/lib/__tests__/prompts.unit.test.ts
+@@ -1,17 +1,18 @@
+ import { describe, expect, it, vi } from 'vitest';
+ 
+ // Re-import the parser via a back-door — tests should exercise the public
+ // surface where possible. For Plan 7 v0.1.0 we only need to confirm CLI
+ // flags map to options correctly.
+ // (If parseFlags is not exported, export it from prompts.ts for tests.)
+ 
++import * as clack from '@clack/prompts';
+ import { parseFlags, collectOptions } from '../prompts.js';
+ 
+ describe('parseFlags', () => {
+   it('reads project name from the first positional arg', () => {
+     expect(parseFlags(['my-app']).projectName).toBe('my-app');
+   });
+ 
+   it('reads --auth=firebase', () => {
+     expect(parseFlags(['my-app', '--auth=firebase']).authProvider).toBe('firebase');
+   });
+@@ -240,19 +241,75 @@ describe('collectOptions — flag validation', () => {
+ });
+ 
+ describe('parseFlags — separators and unknown flags', () => {
+   it('skips the `--` that `yarn create <pkg> <name> -- …` forwards', () => {
+     const flags = parseFlags(['my-app', '--', '--db=sqlite', '--jobs=bullmq']);
+     expect(flags.projectName).toBe('my-app');
+     expect(flags.dbProvider).toBe('sqlite');
+     expect(flags.jobs).toBe('bullmq');
+   });
+ 
++  it('reads --db=d1 and --upload=r2', () => {
++    const flags = parseFlags(['my-app', '--db=d1', '--upload=r2']);
++    expect(flags.dbProvider).toBe('d1');
++    expect(flags.upload).toBe('r2');
++  });
++
+   it('warns on an unknown flag instead of silently ignoring it', () => {
+     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+     parseFlags(['my-app', '--packge-manager=yarn']);
+     expect(stderrSpy).toHaveBeenCalledWith(
+       expect.stringContaining('unknown flag --packge-manager'),
+     );
+     stderrSpy.mockRestore();
+   });
+ });
++
++describe('collectOptions — wizard provider options', () => {
++  it('offers Cloudflare D1 as a database backend and Cloudflare R2 as an upload provider', async () => {
++    const select = vi.mocked(clack.select);
++    select.mockImplementation((async (o: { message: string }) =>
++      o.message === 'Database backend'
++        ? 'd1'
++        : o.message === 'File upload provider'
++          ? 'r2'
++          : undefined) as unknown as typeof clack.select);
++    try {
++      const opts = await collectOptions({
++        argv: [
++          'my-app',
++          '--auth=supabase',
++          '--payment=none',
++          '--jobs=none',
++          '--ai=none',
++          '--example=notes',
++          '--ui=shadcn',
++          '--transport=tcp',
++          '--session=redis',
++          '--package-manager=yarn',
++          '--no-git',
++          '--no-install',
++        ],
++        cwd: '.',
++      });
++      const optionsFor = (message: string) =>
++        (
++          select.mock.calls.find(([o]) => o.message === message)?.[0] as {
++            options: { value: string; label: string }[];
++          }
++        ).options;
++      expect(optionsFor('Database backend')).toContainEqual({
++        value: 'd1',
++        label: 'Cloudflare D1 (SQLite over REST)',
++      });
++      expect(optionsFor('File upload provider')).toContainEqual({
++        value: 'r2',
++        label: 'Cloudflare R2 (S3-compatible)',
++      });
++      expect(opts.dbProvider).toBe('d1');
++      expect(opts.upload).toBe('r2');
++    } finally {
++      select.mockReset();
++      select.mockResolvedValue(undefined);
++    }
++  });
++});
+diff --git a/tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts b/tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts
+index fbbbe68..59c4978 100644
+--- a/tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts
++++ b/tools/create-icore/src/lib/__tests__/scaffold-env.unit.test.ts
+@@ -1,16 +1,22 @@
+ import { describe, expect, it } from 'vitest';
+ import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
+ import { tmpdir } from 'node:os';
+ import { join, resolve, dirname } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+-import { writeClientEnv, writeGatewayEnv } from '../scaffold-env.js';
++import {
++  writeClientEnv,
++  writeGatewayEnv,
++  writeUploadEnv,
++  writeNotesEnv,
++  pruneRootProviderDeps,
++} from '../scaffold-env.js';
+ import type { CreateIcoreOptions } from '../options.js';
+ 
+ // Mirrors the exact pattern already used in scaffold.unit.test.ts:976 for reading
+ // real repo files from a test (not a synthetic fixture).
+ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
+ 
+ async function fixture(): Promise<string> {
+   const dir = await mkdtemp(join(tmpdir(), 'icore-clientenv-'));
+   await mkdir(join(dir, 'apps/client'), { recursive: true });
+   // Mirrors the real apps/templates/client-shadcn/.env.example shape: the
+@@ -149,10 +155,103 @@ describe('writeGatewayEnv — session store', () => {
+ 
+   it('session=memory swaps SESSION_REDIS_URL for SESSION_STORE=memory; redis leaves it', async () => {
+     const mem = await mk('memory');
+     expect(mem).toContain('SESSION_STORE=memory');
+     expect(mem).not.toContain('SESSION_REDIS_URL');
+     const redis = await mk('redis');
+     expect(redis).toContain('SESSION_REDIS_URL=redis://localhost:6379');
+     expect(redis).not.toContain('SESSION_STORE=');
+   });
+ });
++
++describe('Cloudflare env blocks (writeUploadEnv r2 / writeNotesEnv d1)', () => {
++  const cfOpts = {
++    authProvider: 'supabase',
++    dbProvider: 'supabase',
++    upload: 'supabase',
++    example: 'notes',
++    transport: 'tcp',
++  } as CreateIcoreOptions;
++
++  async function msFixture(): Promise<string> {
++    const dir = await mkdtemp(join(tmpdir(), 'icore-cf-env-'));
++    await mkdir(join(dir, 'apps/microservices/upload'), { recursive: true });
++    await mkdir(join(dir, 'apps/microservices/notes'), { recursive: true });
++    await writeFile(
++      join(dir, 'apps/microservices/upload/.env.example'),
++      'UPLOAD_TRANSPORT=tcp\nSTORAGE_PROVIDER=supabase\n',
++    );
++    await writeFile(
++      join(dir, 'apps/microservices/notes/.env.example'),
++      'NOTES_TRANSPORT=tcp\nDB_PROVIDER=supabase\n',
++    );
++    return dir;
++  }
++
++  const R2_KEYS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'];
++  const D1_KEYS = ['D1_ACCOUNT_ID', 'D1_DATABASE_ID', 'D1_API_TOKEN'];
++
++  it('writeUploadEnv with upload=r2 selects r2 and appends the four R2_* keys', async () => {
++    const dir = await msFixture();
++    await writeUploadEnv(dir, { ...cfOpts, upload: 'r2' });
++    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
++    expect(env).toMatch(/^STORAGE_PROVIDER=r2$/m);
++    for (const k of R2_KEYS) expect(countAssignments(env, k)).toBe(1);
++  });
++
++  it('writeUploadEnv with another provider appends no R2_* keys', async () => {
++    const dir = await msFixture();
++    await writeUploadEnv(dir, { ...cfOpts, upload: 'supabase' });
++    const env = await readFile(join(dir, 'apps/microservices/upload/.env'), 'utf8');
++    expect(env).not.toContain('R2_');
++  });
++
++  it('writeNotesEnv with dbProvider=d1 appends the three D1_* keys', async () => {
++    const dir = await msFixture();
++    await writeNotesEnv(dir, { ...cfOpts, dbProvider: 'd1' });
++    const env = await readFile(join(dir, 'apps/microservices/notes/.env'), 'utf8');
++    for (const k of D1_KEYS) expect(countAssignments(env, k)).toBe(1);
++  });
++
++  it('writeNotesEnv with another db provider appends no D1_* keys', async () => {
++    const dir = await msFixture();
++    await writeNotesEnv(dir, { ...cfOpts, dbProvider: 'sqlite' });
++    const env = await readFile(join(dir, 'apps/microservices/notes/.env'), 'utf8');
++    expect(env).not.toContain('D1_');
++  });
++});
++
++describe('pruneRootProviderDeps — Cloudflare R2 AWS SDK', () => {
++  async function rootPkgFixture(): Promise<string> {
++    const dir = await mkdtemp(join(tmpdir(), 'icore-cf-prune-'));
++    await writeFile(
++      join(dir, 'package.json'),
++      JSON.stringify({
++        dependencies: {
++          '@aws-sdk/client-s3': '^3.1153.0',
++          '@aws-sdk/s3-request-presigner': '^3.1153.0',
++          minio: '^8.0.6',
++        },
++      }),
++    );
++    return dir;
++  }
++  const opts = (upload: CreateIcoreOptions['upload']) =>
++    ({ authProvider: 'supabase', dbProvider: 'd1', upload }) as CreateIcoreOptions;
++
++  it('drops both AWS SDK packages when upload is not r2', async () => {
++    const dir = await rootPkgFixture();
++    await pruneRootProviderDeps(dir, opts('supabase'));
++    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
++    expect(pkg.dependencies).not.toHaveProperty('@aws-sdk/client-s3');
++    expect(pkg.dependencies).not.toHaveProperty('@aws-sdk/s3-request-presigner');
++  });
++
++  it('keeps both AWS SDK packages (and drops minio) when upload is r2', async () => {
++    const dir = await rootPkgFixture();
++    await pruneRootProviderDeps(dir, opts('r2'));
++    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
++    expect(pkg.dependencies['@aws-sdk/client-s3']).toBe('^3.1153.0');
++    expect(pkg.dependencies['@aws-sdk/s3-request-presigner']).toBe('^3.1153.0');
++    expect(pkg.dependencies).not.toHaveProperty('minio');
++  });
++});
+diff --git a/tools/create-icore/src/lib/config.ts b/tools/create-icore/src/lib/config.ts
+index 0f4a60b..6e95638 100644
+--- a/tools/create-icore/src/lib/config.ts
++++ b/tools/create-icore/src/lib/config.ts
+@@ -27,27 +27,29 @@ const AUTH_PROVIDERS: readonly AuthProvider[] = [
+   'mongodb',
+   'postgres',
+   'none',
+ ];
+ const DB_PROVIDERS: readonly DbProvider[] = [
+   'supabase',
+   'firebase',
+   'mongodb',
+   'postgres',
+   'sqlite',
++  'd1',
+   'none',
+ ];
+ const UPLOAD_PROVIDERS: readonly UploadProvider[] = [
+   'supabase',
+   'firebase',
+   'cloudinary',
+   'minio',
++  'r2',
+   'mongodb',
+   'none',
+ ];
+ const PAYMENT_PROVIDERS: readonly PaymentProvider[] = ['paypal', 'none'];
+ const JOBS_PROVIDERS: readonly JobsProvider[] = ['bullmq', 'none'];
+ const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
+ const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
+ const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
+ const MS_TRANSPORTS: readonly MsTransport[] = ['tcp', 'redis', 'nats', 'mqtt', 'rmq', 'kafka'];
+ const SESSION_STORES: readonly SessionStoreKind[] = ['redis', 'memory'];
+diff --git a/tools/create-icore/src/lib/options.ts b/tools/create-icore/src/lib/options.ts
+index 66129e7..d548418 100644
+--- a/tools/create-icore/src/lib/options.ts
++++ b/tools/create-icore/src/lib/options.ts
+@@ -1,14 +1,16 @@
+ export type AuthBackend = 'supabase' | 'firebase' | 'mongodb' | 'postgres';
+ export type AuthProvider = AuthBackend | 'none';
+-export type DbProvider = 'supabase' | 'firebase' | 'mongodb' | 'postgres' | 'sqlite' | 'none';
+-export type UploadProvider = 'supabase' | 'firebase' | 'cloudinary' | 'minio' | 'mongodb' | 'none';
++export type DbProvider =
++  'supabase' | 'firebase' | 'mongodb' | 'postgres' | 'sqlite' | 'd1' | 'none';
++export type UploadProvider =
++  'supabase' | 'firebase' | 'cloudinary' | 'minio' | 'r2' | 'mongodb' | 'none';
+ export type PaymentProvider = 'paypal' | 'none';
+ export type JobsProvider = 'bullmq' | 'none';
+ export type AiProvider = 'llm-router' | 'none';
+ export type ExampleMode = 'notes' | 'none';
+ export type UiLibrary = 'shadcn' | 'antd' | 'mui';
+ export type MsTransport = 'tcp' | 'redis' | 'nats' | 'mqtt' | 'rmq' | 'kafka';
+ export type SessionStoreKind = 'redis' | 'memory';
+ export type PackageManager = 'yarn' | 'npm' | 'pnpm';
+ 
+ /**
+diff --git a/tools/create-icore/src/lib/prompts.ts b/tools/create-icore/src/lib/prompts.ts
+index 1378921..4db2244 100644
+--- a/tools/create-icore/src/lib/prompts.ts
++++ b/tools/create-icore/src/lib/prompts.ts
+@@ -197,34 +197,36 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
+     (authProvider === 'none'
+       ? 'none'
+       : ((await p.select({
+           message: 'Database backend',
+           options: [
+             { value: 'supabase', label: 'Supabase Postgres' },
+             { value: 'firebase', label: 'Firestore' },
+             { value: 'mongodb', label: 'MongoDB' },
+             { value: 'postgres', label: 'PostgreSQL (direct, postgres.js)' },
+             { value: 'sqlite', label: 'SQLite (local file-based, WAL mode)' },
++            { value: 'd1', label: 'Cloudflare D1 (SQLite over REST)' },
+           ],
+           initialValue: authProvider as DbProvider,
+         })) as DbProvider));
+   if (p.isCancel(dbProvider)) throw new Error('cancelled');
+ 
+   const upload =
+     flags.upload ??
+     ((await p.select({
+       message: 'File upload provider',
+       options: [
+         { value: 'supabase', label: 'Supabase Storage' },
+         { value: 'firebase', label: 'Firebase Cloud Storage' },
+         { value: 'cloudinary', label: 'Cloudinary' },
+         { value: 'minio', label: 'MinIO (self-hosted, S3-compatible)' },
++        { value: 'r2', label: 'Cloudflare R2 (S3-compatible)' },
+         { value: 'mongodb', label: 'MongoDB GridFS' },
+         { value: 'none', label: 'None — skip the upload microservice' },
+       ],
+     })) as UploadProvider);
+   if (p.isCancel(upload)) throw new Error('cancelled');
+ 
+   const payment =
+     flags.payment ??
+     ((await p.select({
+       message: 'Payment provider',
+diff --git a/tools/create-icore/src/lib/scaffold-env.ts b/tools/create-icore/src/lib/scaffold-env.ts
+index 57dd7e7..758a99c 100644
+--- a/tools/create-icore/src/lib/scaffold-env.ts
++++ b/tools/create-icore/src/lib/scaffold-env.ts
+@@ -69,20 +69,21 @@ export async function stripGatewayTransport(targetDir: string, prefix: string):
+ /**
+  * A provider's raw marker SDK(s) in the ROOT package.json. Kept in sync with the
+  * audit's `PROVIDER_SDKS` (manifest/audit.ts). The shared `@icore/firebase-admin`
+  * workspace alias is NOT a raw SDK and is owned by `removeFirebaseAdminLib`, so it
+  * is intentionally excluded here.
+  */
+ const ROOT_PROVIDER_SDKS: Record<string, string[]> = {
+   supabase: ['@supabase/supabase-js'],
+   cloudinary: ['cloudinary'],
+   minio: ['minio'],
++  r2: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+   mongodb: ['mongoose'],
+   firebase: ['firebase-admin'],
+   sqlite: ['better-sqlite3', '@types/better-sqlite3'],
+ };
+ 
+ /**
+  * Prune the raw provider SDK(s) of every provider NOT chosen from the generated
+  * ROOT package.json. Uses the SAME chosen-set as the audit gate
+  * (`{ authProvider, dbProvider, upload }`). The chosen provider's SDK and all
+  * transport driver deps (nats/mqtt/amqplib/kafkajs) are left untouched — this
+@@ -253,33 +254,41 @@ export async function writeUploadEnv(targetDir: string, opts: CreateIcoreOptions
+   if (opts.upload === 'none') return;
+   const envExample = join(targetDir, 'apps/microservices/upload/.env.example');
+   const env = await readFile(envExample, 'utf8');
+   let next = env
+     .replace(/^STORAGE_PROVIDER=.*$/m, `STORAGE_PROVIDER=${opts.upload}`)
+     .replace(/^UPLOAD_TRANSPORT=.*$/m, `UPLOAD_TRANSPORT=${opts.transport}`);
+   next = uncommentTransportEnv(next, 'UPLOAD', opts.transport);
+   if (opts.upload === 'mongodb') {
+     next += '\nMONGODB_URI=mongodb://localhost:27017/icore-upload\n';
+   }
++  if (opts.upload === 'r2') {
++    next +=
++      '\nR2_ACCOUNT_ID=<cloudflare-account-id>\nR2_ACCESS_KEY_ID=<r2-access-key-id>\nR2_SECRET_ACCESS_KEY=<r2-secret-access-key>\nR2_BUCKET=icore-uploads\n';
++  }
+   await writeFile(join(targetDir, 'apps/microservices/upload/.env'), next);
+ }
+ 
+ export async function writeNotesEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+   if (opts.example === 'none') return;
+   const envExample = join(targetDir, 'apps/microservices/notes/.env.example');
+   try {
+     const env = await readFile(envExample, 'utf8');
+     let next = env.replace(/^NOTES_TRANSPORT=.*$/m, `NOTES_TRANSPORT=${opts.transport}`);
+     next = uncommentTransportEnv(next, 'NOTES', opts.transport);
+     if (opts.dbProvider === 'sqlite') {
+       next += '\nSQLITE_DB_PATH=./sqlite/app.db\nSQLITE_WAL=true\nSQLITE_BUSY_TIMEOUT=5000\n';
+     }
++    if (opts.dbProvider === 'd1') {
++      next +=
++        '\nD1_ACCOUNT_ID=<cloudflare-account-id>\nD1_DATABASE_ID=<d1-database-id>\nD1_API_TOKEN=<cloudflare-api-token>\n';
++    }
+     await writeFile(join(targetDir, 'apps/microservices/notes/.env'), next);
+   } catch {
+     // notes .env.example may not exist in older snapshots
+   }
+ }
+ 
+ export async function writeGatewayEnv(targetDir: string, opts: CreateIcoreOptions): Promise<void> {
+   const envExample = join(targetDir, 'apps/api/.env.example');
+   const env = await readFile(envExample, 'utf8');
+   let next = env
+diff --git a/tools/create-icore/src/manifest/__tests__/audit.unit.test.ts b/tools/create-icore/src/manifest/__tests__/audit.unit.test.ts
+index d86e19d..52ea3c8 100644
+--- a/tools/create-icore/src/manifest/__tests__/audit.unit.test.ts
++++ b/tools/create-icore/src/manifest/__tests__/audit.unit.test.ts
+@@ -163,10 +163,57 @@ describe('auditProject blueprint-derived forbidden deps', () => {
+         ui: 'shadcn',
+         transport: 'tcp',
+         packageManager: 'npm',
+       }),
+       'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
+       'package.json': JSON.stringify({ dependencies: { mongoose: '^9', cloudinary: '^2' } }),
+     });
+     expect(await auditProject(dir)).toEqual([]);
+   });
+ });
++
++describe('auditProject — Cloudflare R2 SDK', () => {
++  const blueprint = (upload: string) =>
++    JSON.stringify({
++      schemaVersion: 1,
++      projectName: 'x',
++      authProvider: 'supabase',
++      dbProvider: 'd1',
++      upload,
++      payment: 'none',
++      jobs: 'none',
++      example: 'notes',
++      ui: 'shadcn',
++      transport: 'tcp',
++      packageManager: 'npm',
++    });
++  const awsDeps = JSON.stringify({
++    dependencies: {
++      '@supabase/supabase-js': '^2',
++      '@aws-sdk/client-s3': '^3.1153.0',
++      '@aws-sdk/s3-request-presigner': '^3.1153.0',
++    },
++  });
++
++  it('flags @aws-sdk/client-s3 as a forbidden dep when upload is not r2', async () => {
++    const dir = await scaffold({
++      'blueprint.json': blueprint('supabase'),
++      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
++      'package.json': awsDeps,
++    });
++    expect(await auditProject(dir)).toContainEqual(
++      expect.objectContaining({
++        kind: 'forbidden-dep',
++        detail: expect.stringContaining('@aws-sdk/client-s3'),
++      }),
++    );
++  });
++
++  it('reports nothing for the AWS SDK when upload is r2', async () => {
++    const dir = await scaffold({
++      'blueprint.json': blueprint('r2'),
++      'tsconfig.base.json': JSON.stringify({ compilerOptions: { paths: {} } }),
++      'package.json': awsDeps,
++    });
++    expect(await auditProject(dir)).toEqual([]);
++  });
++});
+diff --git a/tools/create-icore/src/manifest/__tests__/wire-ai-usage-db.unit.test.ts b/tools/create-icore/src/manifest/__tests__/wire-ai-usage-db.unit.test.ts
+index addc932..aefda84 100644
+--- a/tools/create-icore/src/manifest/__tests__/wire-ai-usage-db.unit.test.ts
++++ b/tools/create-icore/src/manifest/__tests__/wire-ai-usage-db.unit.test.ts
+@@ -4,46 +4,48 @@ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import { writeAiUsageDbProvider, cleanupUnusedAiUsageDb } from '../wire-ai-usage-db.js';
+ 
+ async function fixture(): Promise<string> {
+   const dir = await mkdtemp(join(tmpdir(), 'icore-wire-ai-usage-db-'));
+   await mkdir(join(dir, 'apps/microservices/ai-orchestrator/src/app'), { recursive: true });
+   await writeFile(
+     join(dir, 'apps/microservices/ai-orchestrator/src/app/ai-usage-db.provider.ts'),
+     `import { SupabaseDbModule } from '@icore/db-supabase';\nexport const AiUsageDbProviderModule = SupabaseDbModule.forRoot('x');\n`,
+   );
+-  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres']) {
++  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres', 'd1']) {
+     await mkdir(join(dir, `libs/db-strategies/${d}/src`), { recursive: true });
+     await writeFile(join(dir, `libs/db-strategies/${d}/src/index.ts`), 'export {};');
+   }
+   await writeFile(
+     join(dir, 'apps/microservices/ai-orchestrator/package.json'),
+     JSON.stringify({
+       name: 'ai-orchestrator',
+       dependencies: {
+         '@icore/db-supabase': '*',
+         '@icore/db-firestore': '*',
+         '@icore/db-mongodb': '*',
+         '@icore/db-postgres': '*',
++        '@icore/db-d1': '*',
+         '@supabase/supabase-js': '^2.106.2',
+       },
+     }),
+   );
+   await writeFile(
+     join(dir, 'tsconfig.base.json'),
+     JSON.stringify({
+       compilerOptions: {
+         paths: {
+           '@icore/db-supabase': ['libs/db-strategies/supabase/src/index.ts'],
+           '@icore/db-firestore': ['libs/db-strategies/firestore/src/index.ts'],
+           '@icore/db-mongodb': ['libs/db-strategies/mongodb/src/index.ts'],
+           '@icore/db-postgres': ['libs/db-strategies/postgres/src/index.ts'],
++          '@icore/db-d1': ['libs/db-strategies/d1/src/index.ts'],
+         },
+       },
+     }),
+   );
+   return dir;
+ }
+ 
+ const exists = (p: string) =>
+   access(p)
+     .then(() => true)
+@@ -55,20 +57,32 @@ describe('writeAiUsageDbProvider', () => {
+     await writeAiUsageDbProvider(dir, 'mongodb');
+     const src = await readFile(
+       join(dir, 'apps/microservices/ai-orchestrator/src/app/ai-usage-db.provider.ts'),
+       'utf8',
+     );
+     expect(src).toContain("from '@icore/db-mongodb'");
+     expect(src).toContain('MongoDbDbModule.forRoot');
+     expect(src).not.toContain('SupabaseDbModule');
+   });
+ 
++  it('wires D1DbModule for dbProvider=d1 (manifest-driven, no ai-usage-specific code)', async () => {
++    const dir = await fixture();
++    await writeAiUsageDbProvider(dir, 'd1');
++    const src = await readFile(
++      join(dir, 'apps/microservices/ai-orchestrator/src/app/ai-usage-db.provider.ts'),
++      'utf8',
++    );
++    expect(src).toContain("import { D1DbModule } from '@icore/db-d1'");
++    expect(src).toContain('D1DbModule.forRoot');
++    expect(src).not.toContain('SupabaseDbModule');
++  });
++
+   it('falls back to a FakeDBStrategy-backed NullDbModule when dbProvider=none', async () => {
+     const dir = await fixture();
+     await writeAiUsageDbProvider(dir, 'none');
+     const src = await readFile(
+       join(dir, 'apps/microservices/ai-orchestrator/src/app/ai-usage-db.provider.ts'),
+       'utf8',
+     );
+     expect(src).toContain('FakeDBStrategy');
+     expect(src).toContain("from '@icore/shared'");
+     expect(src).not.toContain('SupabaseDbModule');
+@@ -85,11 +99,27 @@ describe('cleanupUnusedAiUsageDb', () => {
+     expect(await exists(join(dir, 'libs/db-strategies/firestore'))).toBe(false);
+     expect(await exists(join(dir, 'libs/db-strategies/mongodb'))).toBe(false);
+ 
+     const pkg = JSON.parse(
+       await readFile(join(dir, 'apps/microservices/ai-orchestrator/package.json'), 'utf8'),
+     );
+     expect(pkg.dependencies['@icore/db-postgres']).toBe('*');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+     expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js');
+   });
++
++  it('keeps d1 and strips the other db providers when d1 is chosen', async () => {
++    const dir = await fixture();
++    await cleanupUnusedAiUsageDb(dir, 'd1');
++
++    expect(await exists(join(dir, 'libs/db-strategies/d1'))).toBe(true);
++    expect(await exists(join(dir, 'libs/db-strategies/supabase'))).toBe(false);
++    expect(await exists(join(dir, 'libs/db-strategies/postgres'))).toBe(false);
++
++    const pkg = JSON.parse(
++      await readFile(join(dir, 'apps/microservices/ai-orchestrator/package.json'), 'utf8'),
++    );
++    expect(pkg.dependencies['@icore/db-d1']).toBe('*');
++    expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
++    expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js');
++  });
+ });
+diff --git a/tools/create-icore/src/manifest/__tests__/wire-db.unit.test.ts b/tools/create-icore/src/manifest/__tests__/wire-db.unit.test.ts
+index a710d36..72cbb3e 100644
+--- a/tools/create-icore/src/manifest/__tests__/wire-db.unit.test.ts
++++ b/tools/create-icore/src/manifest/__tests__/wire-db.unit.test.ts
+@@ -4,49 +4,51 @@ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import { writeDbProvider, cleanupUnusedDb } from '../wire-db.js';
+ 
+ async function fixture(): Promise<string> {
+   const dir = await mkdtemp(join(tmpdir(), 'icore-wire-db-'));
+   await mkdir(join(dir, 'apps/microservices/notes/src/app'), { recursive: true });
+   await writeFile(
+     join(dir, 'apps/microservices/notes/src/app/db.provider.ts'),
+     `import { SupabaseDbModule } from '@icore/db-supabase';\nexport const DbProviderModule = SupabaseDbModule.forRoot('x');\n`,
+   );
+-  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres', 'sqlite']) {
++  for (const d of ['supabase', 'firestore', 'mongodb', 'postgres', 'sqlite', 'd1']) {
+     await mkdir(join(dir, `libs/db-strategies/${d}/src`), { recursive: true });
+     await writeFile(join(dir, `libs/db-strategies/${d}/src/index.ts`), 'export {};');
+   }
+   await writeFile(
+     join(dir, 'apps/microservices/notes/package.json'),
+     JSON.stringify({
+       name: 'notes',
+       dependencies: {
+         '@icore/db-supabase': '*',
+         '@icore/db-firestore': '*',
+         '@icore/db-mongodb': '*',
+         '@icore/db-postgres': '*',
+         '@icore/db-sqlite': '*',
++        '@icore/db-d1': '*',
+         '@supabase/supabase-js': '^2.106.2',
+         'better-sqlite3': '^11.8.1',
+       },
+     }),
+   );
+   await writeFile(
+     join(dir, 'tsconfig.base.json'),
+     JSON.stringify({
+       compilerOptions: {
+         paths: {
+           '@icore/db-supabase': ['libs/db-strategies/supabase/src/index.ts'],
+           '@icore/db-firestore': ['libs/db-strategies/firestore/src/index.ts'],
+           '@icore/db-mongodb': ['libs/db-strategies/mongodb/src/index.ts'],
+           '@icore/db-postgres': ['libs/db-strategies/postgres/src/index.ts'],
+           '@icore/db-sqlite': ['libs/db-strategies/sqlite/src/index.ts'],
++          '@icore/db-d1': ['libs/db-strategies/d1/src/index.ts'],
+         },
+       },
+     }),
+   );
+   return dir;
+ }
+ 
+ const exists = (p: string) =>
+   access(p)
+     .then(() => true)
+@@ -81,32 +83,45 @@ describe('writeDbProvider', () => {
+     const dir = await fixture();
+     await writeDbProvider(dir, 'sqlite');
+     const src = await readFile(
+       join(dir, 'apps/microservices/notes/src/app/db.provider.ts'),
+       'utf8',
+     );
+     expect(src).toContain("from '@icore/db-sqlite'");
+     expect(src).toContain('SqliteDbModule.forRoot');
+     expect(src).not.toContain('SupabaseDbModule');
+   });
++
++  it('wires the chosen db module (d1)', async () => {
++    const dir = await fixture();
++    await writeDbProvider(dir, 'd1');
++    const src = await readFile(
++      join(dir, 'apps/microservices/notes/src/app/db.provider.ts'),
++      'utf8',
++    );
++    expect(src).toContain("import { D1DbModule } from '@icore/db-d1'");
++    expect(src).toContain('D1DbModule.forRoot');
++    expect(src).not.toContain('SupabaseDbModule');
++  });
+ });
+ 
+ describe('cleanupUnusedDb', () => {
+   it('removes unchosen db libs (firebase→firestore dir), tsconfig paths, workspace+raw deps; keeps chosen', async () => {
+     const dir = await fixture();
+     await cleanupUnusedDb(dir, 'firebase'); // chosen = firebase → keep firestore lib
+ 
+     expect(await exists(join(dir, 'libs/db-strategies/firestore'))).toBe(true);
+     expect(await exists(join(dir, 'libs/db-strategies/supabase'))).toBe(false);
+     expect(await exists(join(dir, 'libs/db-strategies/mongodb'))).toBe(false);
+     expect(await exists(join(dir, 'libs/db-strategies/postgres'))).toBe(false);
+     expect(await exists(join(dir, 'libs/db-strategies/sqlite'))).toBe(false);
++    expect(await exists(join(dir, 'libs/db-strategies/d1'))).toBe(false);
+ 
+     const pkg = JSON.parse(
+       await readFile(join(dir, 'apps/microservices/notes/package.json'), 'utf8'),
+     );
+     expect(pkg.dependencies['@icore/db-firestore']).toBe('*');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-sqlite');
+     expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js'); // supabase raw dep stripped
+     expect(pkg.dependencies).not.toHaveProperty('better-sqlite3');
+@@ -129,11 +144,32 @@ describe('cleanupUnusedDb', () => {
+       await readFile(join(dir, 'apps/microservices/notes/package.json'), 'utf8'),
+     );
+     expect(pkg.dependencies['@icore/db-sqlite']).toBe('*');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-supabase');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-firestore');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/db-postgres');
+ 
+     const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
+     expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/db-sqlite']);
+   });
++
++  it('cleans up unchosen and keeps d1 when d1 is chosen', async () => {
++    const dir = await fixture();
++    await cleanupUnusedDb(dir, 'd1');
++
++    expect(await exists(join(dir, 'libs/db-strategies/d1'))).toBe(true);
++    for (const d of ['supabase', 'firestore', 'mongodb', 'postgres', 'sqlite']) {
++      expect(await exists(join(dir, `libs/db-strategies/${d}`))).toBe(false);
++    }
++
++    const pkg = JSON.parse(
++      await readFile(join(dir, 'apps/microservices/notes/package.json'), 'utf8'),
++    );
++    expect(pkg.dependencies['@icore/db-d1']).toBe('*');
++    expect(pkg.dependencies).not.toHaveProperty('@icore/db-sqlite');
++    expect(pkg.dependencies).not.toHaveProperty('better-sqlite3');
++    expect(pkg.dependencies).not.toHaveProperty('@supabase/supabase-js');
++
++    const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
++    expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/db-d1']);
++  });
+ });
+diff --git a/tools/create-icore/src/manifest/__tests__/wire-storage.unit.test.ts b/tools/create-icore/src/manifest/__tests__/wire-storage.unit.test.ts
+index 553cfc8..48c9bca 100644
+--- a/tools/create-icore/src/manifest/__tests__/wire-storage.unit.test.ts
++++ b/tools/create-icore/src/manifest/__tests__/wire-storage.unit.test.ts
+@@ -4,47 +4,54 @@ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import { writeStorageProvider, cleanupUnusedStorage } from '../wire-storage.js';
+ 
+ async function fixture(): Promise<string> {
+   const dir = await mkdtemp(join(tmpdir(), 'icore-wire-storage-'));
+   await mkdir(join(dir, 'apps/microservices/upload/src/app'), { recursive: true });
+   await writeFile(
+     join(dir, 'apps/microservices/upload/src/app/storage.provider.ts'),
+     `import { SupabaseStorageModule } from '@icore/storage-supabase';\nexport const StorageProviderModule = SupabaseStorageModule.forRoot('x');\n`,
+   );
+-  for (const p of ['supabase', 'firebase', 'cloudinary', 'mongodb']) {
++  for (const p of ['supabase', 'firebase', 'cloudinary', 'mongodb', 'minio', 'r2']) {
+     await mkdir(join(dir, `libs/storage-strategies/${p}/src`), { recursive: true });
+     await writeFile(join(dir, `libs/storage-strategies/${p}/src/index.ts`), 'export {};');
+   }
+   await writeFile(
+     join(dir, 'apps/microservices/upload/package.json'),
+     JSON.stringify({
+       name: 'upload',
+       dependencies: {
+         '@icore/storage-supabase': '*',
+         '@icore/storage-firebase': '*',
+         '@icore/storage-cloudinary': '*',
+         '@icore/storage-mongodb': '*',
++        '@icore/storage-minio': '*',
++        '@icore/storage-r2': '*',
+         '@supabase/supabase-js': '^2.106.2',
+         cloudinary: '^2.0.0',
++        minio: '^8.0.6',
++        '@aws-sdk/client-s3': '^3.1153.0',
++        '@aws-sdk/s3-request-presigner': '^3.1153.0',
+       },
+     }),
+   );
+   await writeFile(
+     join(dir, 'tsconfig.base.json'),
+     JSON.stringify({
+       compilerOptions: {
+         paths: {
+           '@icore/storage-supabase': ['libs/storage-strategies/supabase/src/index.ts'],
+           '@icore/storage-firebase': ['libs/storage-strategies/firebase/src/index.ts'],
+           '@icore/storage-cloudinary': ['libs/storage-strategies/cloudinary/src/index.ts'],
+           '@icore/storage-mongodb': ['libs/storage-strategies/mongodb/src/index.ts'],
++          '@icore/storage-minio': ['libs/storage-strategies/minio/src/index.ts'],
++          '@icore/storage-r2': ['libs/storage-strategies/r2/src/index.ts'],
+         },
+       },
+     }),
+   );
+   return dir;
+ }
+ 
+ const exists = (p: string) =>
+   access(p)
+     .then(() => true)
+@@ -55,36 +62,81 @@ describe('writeStorageProvider', () => {
+     const dir = await fixture();
+     await writeStorageProvider(dir, 'cloudinary');
+     const src = await readFile(
+       join(dir, 'apps/microservices/upload/src/app/storage.provider.ts'),
+       'utf8',
+     );
+     expect(src).toContain("from '@icore/storage-cloudinary'");
+     expect(src).toContain('CloudinaryStorageModule.forRoot');
+     expect(src).not.toContain('SupabaseStorageModule');
+   });
++
++  it('wires R2StorageModule from @icore/storage-r2 and declares its AWS SDK deps', async () => {
++    const dir = await fixture();
++    await writeStorageProvider(dir, 'r2');
++    const src = await readFile(
++      join(dir, 'apps/microservices/upload/src/app/storage.provider.ts'),
++      'utf8',
++    );
++    expect(src).toContain("import { R2StorageModule } from '@icore/storage-r2'");
++    expect(src).toContain('R2StorageModule.forRoot');
++    expect(src).not.toContain('SupabaseStorageModule');
++
++    const pkg = JSON.parse(
++      await readFile(join(dir, 'apps/microservices/upload/package.json'), 'utf8'),
++    );
++    expect(pkg.dependencies['@icore/storage-r2']).toBe('*');
++    expect(pkg.dependencies['@aws-sdk/client-s3']).toBe('^3.1153.0');
++    expect(pkg.dependencies['@aws-sdk/s3-request-presigner']).toBe('^3.1153.0');
++  });
+ });
+ 
+ describe('cleanupUnusedStorage', () => {
+   it('removes unchosen libs, their tsconfig paths, workspace+raw deps; keeps chosen', async () => {
+     const dir = await fixture();
+     await cleanupUnusedStorage(dir, 'supabase');
+ 
+     expect(await exists(join(dir, 'libs/storage-strategies/firebase'))).toBe(false);
+     expect(await exists(join(dir, 'libs/storage-strategies/cloudinary'))).toBe(false);
+     expect(await exists(join(dir, 'libs/storage-strategies/mongodb'))).toBe(false);
++    expect(await exists(join(dir, 'libs/storage-strategies/r2'))).toBe(false);
+     expect(await exists(join(dir, 'libs/storage-strategies/supabase'))).toBe(true);
+ 
+     const pkg = JSON.parse(
+       await readFile(join(dir, 'apps/microservices/upload/package.json'), 'utf8'),
+     );
+     // chosen workspace dep + its raw SDK kept; unchosen workspace + raw cloudinary gone
+     expect(pkg.dependencies['@icore/storage-supabase']).toBe('*');
+     expect(pkg.dependencies['@supabase/supabase-js']).toBe('^2.106.2');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/storage-cloudinary');
+     expect(pkg.dependencies).not.toHaveProperty('@icore/storage-firebase');
+     expect(pkg.dependencies).not.toHaveProperty('cloudinary');
++    expect(pkg.dependencies).not.toHaveProperty('@icore/storage-r2');
++    expect(pkg.dependencies).not.toHaveProperty('@aws-sdk/client-s3');
++    expect(pkg.dependencies).not.toHaveProperty('@aws-sdk/s3-request-presigner');
+ 
+     const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
+     expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/storage-supabase']);
+   });
++
++  it('keeps r2 (and its AWS SDK deps) and removes minio + the minio dep when r2 is chosen', async () => {
++    const dir = await fixture();
++    await cleanupUnusedStorage(dir, 'r2');
++
++    expect(await exists(join(dir, 'libs/storage-strategies/r2'))).toBe(true);
++    for (const p of ['supabase', 'firebase', 'cloudinary', 'mongodb', 'minio']) {
++      expect(await exists(join(dir, `libs/storage-strategies/${p}`))).toBe(false);
++    }
++
++    const pkg = JSON.parse(
++      await readFile(join(dir, 'apps/microservices/upload/package.json'), 'utf8'),
++    );
++    expect(pkg.dependencies['@icore/storage-r2']).toBe('*');
++    expect(pkg.dependencies['@aws-sdk/client-s3']).toBe('^3.1153.0');
++    expect(pkg.dependencies['@aws-sdk/s3-request-presigner']).toBe('^3.1153.0');
++    expect(pkg.dependencies).not.toHaveProperty('@icore/storage-minio');
++    expect(pkg.dependencies).not.toHaveProperty('minio');
++
++    const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
++    expect(Object.keys(ts.compilerOptions.paths)).toEqual(['@icore/storage-r2']);
++  });
+ });
+diff --git a/tools/create-icore/src/manifest/audit.ts b/tools/create-icore/src/manifest/audit.ts
+index 2671c31..c699b44 100644
+--- a/tools/create-icore/src/manifest/audit.ts
++++ b/tools/create-icore/src/manifest/audit.ts
+@@ -39,20 +39,21 @@ interface Blueprint {
+   authProvider?: string;
+   dbProvider?: string;
+   upload?: string;
+ }
+ 
+ /** A provider's raw marker dep(s) that must be ABSENT when the provider is unchosen. */
+ const PROVIDER_SDKS: Record<string, string[]> = {
+   supabase: ['@supabase/supabase-js'],
+   cloudinary: ['cloudinary'],
+   minio: ['minio'],
++  r2: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+   mongodb: ['mongoose'],
+   firebase: ['firebase-admin', '@icore/firebase-admin'],
+   sqlite: ['better-sqlite3'],
+ };
+ 
+ async function readBlueprint(dir: string): Promise<Blueprint | null> {
+   try {
+     return JSON.parse(await readFile(join(dir, 'blueprint.json'), 'utf8')) as Blueprint;
+   } catch {
+     return null;
+diff --git a/tools/create-icore/src/manifest/index.ts b/tools/create-icore/src/manifest/index.ts
+index 3082d69..e5bb8b0 100644
+--- a/tools/create-icore/src/manifest/index.ts
++++ b/tools/create-icore/src/manifest/index.ts
+@@ -86,20 +86,33 @@ export const MANIFEST = {
+     minio: {
+       libDirs: ['libs/storage-strategies/minio'],
+       deps: { minio: '^8.0.6' },
+       tsPaths: { '@icore/storage-minio': ['libs/storage-strategies/minio/src/index.ts'] },
+       nestModule: {
+         importFrom: '@icore/storage-minio',
+         symbol: 'MinioStorageModule',
+         into: 'upload',
+       },
+     },
++    r2: {
++      libDirs: ['libs/storage-strategies/r2'],
++      deps: {
++        '@aws-sdk/client-s3': '^3.1153.0',
++        '@aws-sdk/s3-request-presigner': '^3.1153.0',
++      },
++      tsPaths: { '@icore/storage-r2': ['libs/storage-strategies/r2/src/index.ts'] },
++      nestModule: {
++        importFrom: '@icore/storage-r2',
++        symbol: 'R2StorageModule',
++        into: 'upload',
++      },
++    },
+     mongodb: {
+       libDirs: ['libs/storage-strategies/mongodb'],
+       deps: { mongoose: '^9.6.3' },
+       tsPaths: { '@icore/storage-mongodb': ['libs/storage-strategies/mongodb/src/index.ts'] },
+       nestModule: {
+         importFrom: '@icore/storage-mongodb',
+         symbol: 'MongoDbStorageModule',
+         into: 'upload',
+       },
+     },
+@@ -136,20 +149,26 @@ export const MANIFEST = {
+     sqlite: {
+       libDirs: ['libs/db-strategies/sqlite'],
+       deps: { 'better-sqlite3': '^13.0.3', '@types/better-sqlite3': '^9.6.0' },
+       tsPaths: { '@icore/db-sqlite': ['libs/db-strategies/sqlite/src/index.ts'] },
+       nestModule: {
+         importFrom: '@icore/db-sqlite',
+         symbol: 'SqliteDbModule',
+         into: 'notes',
+       },
+     },
++    d1: {
++      libDirs: ['libs/db-strategies/d1'],
++      deps: {},
++      tsPaths: { '@icore/db-d1': ['libs/db-strategies/d1/src/index.ts'] },
++      nestModule: { importFrom: '@icore/db-d1', symbol: 'D1DbModule', into: 'notes' },
++    },
+   },
+   feature: {
+     notes: {
+       libDirs: [
+         'apps/microservices/notes',
+         'apps/microservices/notes-e2e',
+         'libs/notes-client',
+         'libs/db-strategies',
+         'apps/api/src/app/notes',
+         'apps/client/src/components/notes',
