@@ -63,3 +63,6 @@ Task 4: minor (deferred): 2500-key strategy test only exercises the mock (redund
 Ruling: R4 — fold the automated security-review finding (path traversal / prefix check vs key normalization, r2-storage.strategy.ts) into fix round 1: sanitize filename separators in upload, and harden assertOwner to reject `.`/`..`/empty segments and backslashes — cheap defense in depth in the file under change — costs a small scope increase beyond the brief (tests added).
 Ruling: R5 — invalid TTL (NaN/non-finite/<=0) throws `invalid_ttl`, TTL above 604800 clamps, non-integer floors — spec says "clamped"; a silent default would hide caller bugs — costs a behavior choice the spec did not pin.
 Deferred observation (outside this PR): gateway `assertOwnership` and `MinioStorageStrategy.assertOwner` have the same prefix-only check; consider hardening all storage providers + gateway in a follow-up.
+Task 4: fix round 1/5 (2 addressed, 0 open; commits 42f123e..5f07a45) — implementer also made TTL flooring below 1 (e.g. 0.5) throw invalid_ttl; re-reviewer judged it sound.
+Task 4: minor (deferred): `list(userId, prefix)` does not sanitize prefix; omitted-TTL=900 assertion not in fix diff (may be covered earlier)
+Task 4: complete (commits d277346..5f07a45, review clean). AWS SDK versions: @aws-sdk/client-s3 ^3.1153.0, @aws-sdk/s3-request-presigner ^3.1153.0 (root + lib).
