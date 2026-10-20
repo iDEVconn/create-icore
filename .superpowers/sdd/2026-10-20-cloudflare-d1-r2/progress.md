@@ -86,3 +86,12 @@ Task 7: minor (deferred): docs/runbooks/cloudflare-d1-r2.md:180 wording reads as
 Task 7: minor (deferred): AGENTS.md MinIO step 1 still points at R2 via MINIO_* without mentioning STORAGE_PROVIDER=r2
 Task 7: minor (deferred): runbook 201-202 external facts (D1 size caps, rate limit) unverifiable — drop or date
 Task 7: complete (commits d085a98..22142e0, review clean)
+
+FINAL REVIEW (fable, 0aff046..f6df4fa): Ready to merge: WITH FIXES. 0 Critical, 3 Important:
+ F1 d1-client Retry-After unbounded (CF 429 = up to 5 min block) → cap/fail fast
+ F2 docs claim "no rate limit" — wrong: global CF API limit 1,200 req / 5 min per user (https://developers.cloudflare.com/fundamentals/api/reference/limits/)
+ F3 no live verification (D1 REST null params / meta.changes; R2 AWS SDK flexible-checksum interop hazard) → PR must say "not live-tested"
+Final-fix triage: fix F1, F2, runbook line 29 vs 55 wording, AGENTS MinIO step 1 + stale MIME allowlist sentence (:260), response-body cancel on 429/503 retry, R2 S3Client checksum options. Everything else ships as-is.
+Ruling: R7 — Retry-After above 30 s is NOT slept: throw D1ApiError(429) immediately (fail fast); <= 30 s honoured — Cloudflare's 429 is a 5-minute block, sleeping defeats the 10 s timeout policy — costs a caller-visible 429 where a patient retry might have worked.
+Ruling: R8 — S3Client gets requestChecksumCalculation/responseChecksumValidation 'WHEN_REQUIRED' (known AWS SDK >=3.729 vs R2 interop hazard; harmless when R2 accepts defaults) — unverified without live R2 — costs nothing if wrong beyond skipping optional checksums.
+Controller TODO: PR description must state "not live-tested against real D1/R2"; never stage docs/live-testing-supabase-accounts.md.
