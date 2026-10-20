@@ -87,8 +87,15 @@ the bundle size of the full iCore API.
 - Nothing in the worker bundle may import a Node-only transport driver or `fs` at runtime.
 - Secrets (Supabase keys, R2 keys, `AUTH_TCP_SECRET`, session secrets) only through
   `wrangler secret`, never in `wrangler.jsonc`.
-- Workers Paid plan is assumed (the Free plan's 10 ms CPU limit cannot run Nest); to be
-  confirmed by gate G0.
+- **Workers Paid ($5/month minimum per account) is required in practice.** Facts from
+  Cloudflare's pricing pages (2026-10-20): the Free plan allows 10 ms of CPU per invocation and
+  100,000 requests/day, Paid allows 30 s by default (up to 5 min) with 10 M requests and 30 M CPU-ms
+  per month included. Bootstrapping four Nest applications on the first request takes far more than
+  10 ms of CPU, so the Free plan cannot serve a cold request. Everything else the design needs is on
+  Free (D1, R2, SQLite-backed Durable Objects), so a Free-plan deployment is possible only if
+  gate G0 shows that bootstrapping in global scope (outside the per-request budget, within the 1 s
+  startup limit) and a warm request under 10 ms both hold, which is not expected. The runbook states
+  the Paid requirement and the cost model; `create-icore --host=cloudflare` prints it.
 
 ## Design
 
@@ -152,6 +159,25 @@ they were at deletion (the GETDEL invariant). `update` resolves `false` when the
 bounded polling, matching the Redis semantics. Expiry uses a Durable Object alarm. The class must pass
 `runSessionStoreContract` and the refresh-race tests that exist for the Redis store.
 
+Why one object per user, and what was rejected (the deciding requirement is that
+`deleteAllForUser` — admin revoke and password reset — must be atomic and immediately
+consistent, because a half-revoked user is a security bug):
+
+| Option                                           | Atomic revoke-all                                                              | Cookie reveals                              | Cost per authenticated request | Verdict                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------- |
+| One DO **per user** (chosen)                     | yes, one object                                                                | the user id (a Supabase UUID, not a secret) | 1 DO request                   | chosen                                                                           |
+| One DO **per session** + D1 index of session ids | no: list in D1, then delete N objects                                          | nothing                                     | 1 DO request (+ D1 for revoke) | rejected: revoke is not atomic                                                   |
+| KV                                               | no: eventually consistent, so a revoked session can stay valid for up to ~60 s | nothing                                     | 1 KV read                      | rejected: security                                                               |
+| D1 only                                          | yes, but no per-session lock and no alarm                                      | nothing                                     | 1 D1 query                     | fallback if Durable Objects are unavailable; refresh-lock would need a lease row |
+
+Costs and limits to carry into the runbook (from the pricing and limits pages): every
+authenticated request is one Durable Object request, so Paid's 1 M included requests/month and then
+$0.15 per million apply, and the Free plan's 100,000 DO requests/day is a hard cap; one object soft-limits
+at 1,000 requests/s, which a single user will not reach. Where an object lives and whether it moves
+is not documented, so a user travelling far from the colo that created their object pays extra
+latency per request; G0 measures it. If the session id must not carry the user id, the
+alternative is an HMAC-derived routing prefix instead of the raw id; that is the builder's call.
+
 ### Rate limiting
 
 `ThrottlerStorage` implemented on a Durable Object keyed by throttle key, so `auth-burst`
@@ -198,12 +224,14 @@ services, Redis) are removed. The generated deploy workflow runs `wrangler deplo
   gateway (auth module, AuthGuard, CSRF, throttler, Supabase client) to a Workers Paid
   account and record: cold start, startup-limit headroom, CPU per request (p50/p99), bundle
   size. Proceed only if startup stays well under 1 s and a cold request is acceptable.
+  Also record whether global-scope bootstrap plus a warm request fits the Free plan's 10 ms CPU
+  (expected: no) and the Durable Object request/duration usage of one login → read → logout flow.
   Contingency if G0 fails: replace the Nest gateway with a thin Hono gateway that calls the
   same strategies (a separate, much larger spec) — not part of this one.
 - Durable Object ids/latency: every authenticated request does one DO call; measure the added
   latency in G0 and consider a short per-isolate read cache only if it is safe with revocation.
 - The AWS SDK and `supabase-js` bundling on workerd (expected fine, verify in G0).
-- Workers Paid plan and Durable Object pricing are a client-side cost to state in the runbook.
+- Workers Paid and Durable Object request billing are a client-side cost to state in the runbook (see Constraints).
 - `process.env` population and `ConfigModule` behaviour on workerd (verify in G0).
 
 ## Testing
@@ -220,11 +248,30 @@ services, Redis) are removed. The generated deploy workflow runs `wrangler deplo
   smoke combo in both smoke workflows.
 - A live check (like phase 1) against a real account before the PR is marked ready.
 
+## Delivery: several PRs, each mergeable on its own
+
+Nothing becomes user-visible until the `--host` option lands, so every earlier PR is inert for
+existing Node users and can merge as soon as it is green (each carries its own changeset, docs and
+tests, per the repo rules). Order and dependencies:
+
+| PR                                  | Contents                                                                                                                                                    | Depends on                    | Gate                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------- |
+| 1. G0 measurement                   | throwaway worker + measurement script and a short results doc under `docs/` (no product code in `apps/`/`libs/`)                                            | none                          | go/no-go for everything below |
+| 2. `local` transport                | `LocalServer`, `LocalClientProxy`, `buildTransport`/`buildTransportMS` `local`, contract tests, `MsTransport` gains `local` (create-icore still rejects it) | 1                             | none                          |
+| 3. Durable Object stores            | `DurableObjectSessionStore`, session DO, `ThrottlerStorage` DO, tests on `@cloudflare/vitest-pool-workers`                                                  | 1                             | none                          |
+| 4. D1 binding client                | `createD1BindingClient`, `D1DbModule` binding selection, D1 contract on a real Miniflare D1                                                                 | none (can run beside 2 and 3) | none                          |
+| 5. `apps/worker`                    | entrypoint, lazy bootstrap, build with decorator metadata + canary test, `wrangler.jsonc`, assets, `wrangler dev` smoke                                     | 2, 3, 4                       | CI smoke green                |
+| 6. create-icore `--host=cloudflare` | axis, wizard, validation, manifest unit, deploy workflow (both pipelines), scaffold integration test, smoke combos, runbook                                 | 5                             | live check on a real account  |
+
+PRs 2, 3 and 4 are independent and can be built in parallel. If G0 fails, PR 1 is the only one
+that has merged and nothing else is wasted. Splitting differently (for example one PR for 2-5) is
+acceptable if the reviewer prefers it, as long as each merge is green and inert.
+
 ## Left to the builder
 
 Project and package names (`apps/worker`, DO libs), exact build tool (`tsc` vs SWC), how
 bindings are exposed to providers, DO class layout details, wizard wording, docs structure,
-whether the per-milestone work is split into several PRs.
+the HMAC-prefix alternative for session ids.
 
 ## Decisions made by the assistant (not by the requester)
 
@@ -232,10 +279,12 @@ whether the per-milestone work is split into several PRs.
   separate Workers or a rewritten Hono gateway.
 - `host` is a new axis; `host=cloudflare` pins transport, session, db and disables jobs,
   payment and AI for this phase.
-- Durable Object keyed by user, session id carries the (non-secret) uid.
+- Durable Object keyed by user, session id carries the (non-secret) uid; per-session DO, KV
+  and D1-only were compared and rejected or kept as fallback (see Sessions).
 - Throttling on Durable Objects rather than the Rate Limiting binding.
 - SPA served by the same Worker; Swagger off on Workers.
 - D1 binding preferred over REST on Workers; R2 stays on the S3 client in v1.
-- Workers Paid plan assumed; gate G0 decides, with a Hono-gateway contingency.
-- Several PRs are expected (G0 measurement, worker + local transport, sessions/throttling,
-  create-icore option), not one.
+- Workers Paid is required for a cold request (10 ms Free CPU limit vs Nest bootstrap); stated
+  in the docs rather than hidden; gate G0 confirms, with a Hono-gateway contingency.
+- Six PRs, each inert for Node users until the `--host` option lands (see Delivery); PRs 2, 3
+  and 4 can be built in parallel.
