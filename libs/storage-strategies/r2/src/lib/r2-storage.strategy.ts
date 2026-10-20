@@ -1,0 +1,64 @@
+import { randomUUID } from 'node:crypto';
+import type { FileInput, StorageRef, StorageStrategy } from '@icore/shared';
+
+// Narrowed surface over Cloudflare R2 (S3 API). The upload MS wires the real
+// `createR2S3Client(...)`; tests wire an in-memory fake. `listKeys` must
+// return EVERY matching key (the real client follows ContinuationToken).
+export interface R2ClientLike {
+  putObject(bucket: string, key: string, body: Buffer, contentType: string): Promise<void>;
+  deleteObject(bucket: string, key: string): Promise<void>;
+  presignGetObject(bucket: string, key: string, expiresInSec: number): Promise<string>;
+  listKeys(bucket: string, prefix: string): Promise<string[]>;
+}
+
+export interface R2StorageStrategyOptions {
+  client: R2ClientLike;
+  bucket: string;
+}
+
+const DEFAULT_TTL_SEC = 900;
+// S3 SigV4 presigned URLs cannot outlive 7 days.
+const MAX_TTL_SEC = 604800;
+
+export class R2StorageStrategy implements StorageStrategy {
+  private readonly client: R2ClientLike;
+  private readonly bucket: string;
+
+  constructor(opts: R2StorageStrategyOptions) {
+    this.client = opts.client;
+    this.bucket = opts.bucket;
+  }
+
+  // The bucket is never created here: R2 buckets are provisioned in the
+  // Cloudflare dashboard, so a missing bucket surfaces as the provider's
+  // own error on upload.
+  async upload(userId: string, file: FileInput): Promise<StorageRef> {
+    const path = `${userId}/${randomUUID()}-${file.filename}`;
+    await this.client.putObject(this.bucket, path, file.buffer, file.mimeType);
+    return { bucket: this.bucket, path };
+  }
+
+  async remove(userId: string, ref: StorageRef): Promise<void> {
+    this.assertOwner(userId, ref);
+    await this.client.deleteObject(this.bucket, ref.path);
+  }
+
+  async getSignedUrl(
+    userId: string,
+    ref: StorageRef,
+    ttlSec: number = DEFAULT_TTL_SEC,
+  ): Promise<string> {
+    this.assertOwner(userId, ref);
+    return this.client.presignGetObject(this.bucket, ref.path, Math.min(ttlSec, MAX_TTL_SEC));
+  }
+
+  async list(userId: string, prefix?: string): Promise<StorageRef[]> {
+    const folder = prefix ? `${userId}/${prefix}` : userId;
+    const keys = await this.client.listKeys(this.bucket, `${folder}/`);
+    return keys.map((path) => ({ bucket: this.bucket, path }));
+  }
+
+  private assertOwner(userId: string, ref: StorageRef): void {
+    if (!ref.path.startsWith(`${userId}/`)) throw new Error('forbidden');
+  }
+}
