@@ -1,0 +1,18 @@
+{
+  "name": "icore-g0-harness",
+  "main": "build/docs/measurements/cloudflare-g0/src/index.js",
+  "tsconfig": "./tsconfig.bundle.json",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "alias": {
+    "amqp-connection-manager": "./stubs/empty.js",
+    "amqplib": "./stubs/empty.js",
+    "@grpc/grpc-js": "./stubs/empty.js",
+    "@grpc/proto-loader": "./stubs/empty.js",
+    "ioredis": "./stubs/empty.js",
+    "kafkajs": "./stubs/empty.js",
+    "mqtt": "./stubs/empty.js",
+    "nats": "./stubs/empty.js",
+    "@nestjs/platform-socket.io": "./stubs/empty.js",
+  },
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": false,
+    "strict": false,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "types": ["node"],
+    "noEmit": false,
+    "declaration": false,
+    "baseUrl": "../../..",
+    "rootDir": "../../..",
+    "outDir": "build"
+  },
+  "include": ["src/**/*.ts"]
+}
