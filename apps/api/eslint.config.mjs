@@ -23,6 +23,8 @@ export default [
             '{projectRoot}/vitest.config.{js,ts,mjs,mts}',
             '{projectRoot}/webpack.config.{js,ts}',
           ],
+          // Declared so Yarn PnP can satisfy @nestjs/* and @bull-board/api peers (see docs/audits/dependency-resolution-fix.spec.md); never imported here.
+          ignoredDependencies: ['@bull-board/ui', 'bullmq', 'reflect-metadata', 'rxjs'],
         },
       ],
     },
