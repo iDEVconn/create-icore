@@ -327,6 +327,14 @@ export async function writeRootEnv(targetDir: string, opts: CreateIcoreOptions):
     lines.push(`POSTGRES_URL=postgresql://user:pass@localhost:5432/icore`);
     lines.push(``);
   }
+  if (opts.dbProvider === 'd1') {
+    // Root .env is the fallback env file for notes AND ai-orchestrator (ai-usage
+    // tracking wires D1DbModule too), so the D1 credentials must live here.
+    lines.push(`D1_ACCOUNT_ID=<cloudflare-account-id>`);
+    lines.push(`D1_DATABASE_ID=<d1-database-id>`);
+    lines.push(`D1_API_TOKEN=<cloudflare-api-token>`);
+    lines.push(``);
+  }
   await writeFile(join(targetDir, '.env'), lines.join('\n'));
 }
 

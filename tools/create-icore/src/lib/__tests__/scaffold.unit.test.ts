@@ -146,6 +146,21 @@ describe('writeRootEnv', () => {
     expect(env).toContain('DB_PROVIDER=postgres');
     expect(env).toContain('POSTGRES_URL=postgresql://user:pass@localhost:5432/icore');
   });
+
+  it('appends the three D1_* keys to the root .env when dbProvider=d1 (ai-orchestrator/notes fallback)', async () => {
+    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'd1' });
+    const env = await readFile(join(dir, '.env'), 'utf8');
+    expect(env).toContain('DB_PROVIDER=d1');
+    for (const k of ['D1_ACCOUNT_ID', 'D1_DATABASE_ID', 'D1_API_TOKEN']) {
+      expect(env).toMatch(new RegExp(`^${k}=`, 'm'));
+    }
+  });
+
+  it('does not append D1_* keys to the root .env for a non-d1 db (sqlite)', async () => {
+    await writeRootEnv(dir, { ...baseOpts, targetDir: dir, dbProvider: 'sqlite' });
+    const env = await readFile(join(dir, '.env'), 'utf8');
+    expect(env).not.toContain('D1_');
+  });
 });
 
 describe('removeUploadStack', () => {
