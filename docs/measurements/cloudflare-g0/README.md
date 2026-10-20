@@ -31,6 +31,10 @@ Routes: `POST /api/auth/register|login|logout`, `GET /api/auth/session`, `GET /a
 - `SESSION_STORE=memory` (`InMemorySessionStore`) instead of Redis or a Durable Object.
 - The auth microservice runs with the fake auth strategy (no Supabase credentials in G0).
 - `AUTH_TCP_SECRET` is a throwaway value from `.dev.vars` (local) or `wrangler secret` (deployed).
+- `ThrottlerModule` keeps the two named throttlers of `apps/api` but the limit comes from
+  `G0_THROTTLE_LIMIT` (wrangler var, `1000000` for measurement runs, `10` is the real value): both
+  named throttlers apply to **every** route in `apps/api` (there is no `@SkipThrottle`), so the real
+  10/min limit would reject the measurement requests. The guard code still runs and counts.
 - Feature modules (storage, notes, payment, jobs, ai) are not part of the slice.
 
 ### Build notes

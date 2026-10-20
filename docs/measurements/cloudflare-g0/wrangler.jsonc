@@ -13,7 +13,7 @@
       "database_id": "00000000-0000-0000-0000-000000000000",
     },
   ],
-  "vars": { "SESSION_STORE": "memory", "G0_PROBE": "g0-env-ok" },
+  "vars": { "SESSION_STORE": "memory", "G0_PROBE": "g0-env-ok", "G0_THROTTLE_LIMIT": "1000000" },
   "alias": {
     "class-transformer/storage": "./node_modules/class-transformer/cjs/storage.js",
     "amqp-connection-manager": "./stubs/empty.js",

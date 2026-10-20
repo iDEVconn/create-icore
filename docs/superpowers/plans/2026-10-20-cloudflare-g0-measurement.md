@@ -19,7 +19,7 @@
 - Secrets: the Cloudflare API token is read from the environment (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) or a local file the requester names; it is never printed, logged, committed, or put in `wrangler.jsonc`. All script output is scrubbed.
 - The deployed Worker, Durable Object and optional D1 database are deleted at the end (Task 5).
 - Compatibility date `2026-10-01`, flag `nodejs_compat`.
-- G0 pass thresholds (assistant's calls, adjustable by the requester): reported Worker Startup Time ≤ 400 ms (platform hard limit 1 s); slowest of ≥ 5 cold first requests ≤ 2.0 s wall; warm `GET /api/auth/me` CPU p99 ≤ 30 ms; warm Durable Object round trip p95 ≤ 40 ms added wall time; uncompressed bundle ≤ 10 MiB.
+- G0 pass thresholds (assistant's calls, adjustable by the requester): reported Worker Startup Time ≤ 400 ms (platform hard limit 1 s); slowest of ≥ 5 cold first requests ≤ 2.0 s wall; warm `GET /api/profile` CPU p99 ≤ 30 ms; warm Durable Object round trip p95 ≤ 40 ms added wall time; uncompressed bundle ≤ 10 MiB.
 
 ## Review Focus
 

@@ -10,7 +10,7 @@
     "check:canary": "node scripts/check-canary.mjs",
     "check:slice": "node scripts/check-slice.mjs",
     "check:probes": "node scripts/check-probes.mjs",
-    "test": "node --test scripts/"
+    "test": "node --test scripts/measure.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1153.0",

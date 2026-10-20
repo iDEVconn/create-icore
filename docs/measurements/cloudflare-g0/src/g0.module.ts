@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { AuthController } from '../../../../apps/api/src/app/auth/auth.controller';
@@ -24,10 +24,19 @@ import { SliceProbesController } from './slice-probes.controller';
       isGlobal: true,
       envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],
     }),
-    ThrottlerModule.forRoot([
-      { name: 'auth-burst', ttl: seconds(60), limit: 10 },
-      { name: 'ai-burst', ttl: seconds(60), limit: 10 },
-    ]),
+    // Same two named throttlers as apps/api. G0_THROTTLE_LIMIT (default 10, the real value) is
+    // raised through a wrangler var for measurement runs only, because both named throttlers
+    // apply to every route and would otherwise answer 429 after 10 requests a minute.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (cfg: ConfigService) => {
+        const limit = Number(cfg.get('G0_THROTTLE_LIMIT') ?? 10);
+        return [
+          { name: 'auth-burst', ttl: seconds(60), limit },
+          { name: 'ai-burst', ttl: seconds(60), limit },
+        ];
+      },
+    }),
     SliceAuthClientModule,
     SessionModule,
     AbilitiesModule,
