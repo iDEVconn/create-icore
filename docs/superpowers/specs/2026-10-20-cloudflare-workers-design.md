@@ -1,6 +1,6 @@
 # Cloudflare Workers hosting (phase 2 of `--host=cloudflare`)
 
-Date: 2026-10-20 · Status: draft for approval · Branch: `feature/cloudflare-workers-spec`
+Date: 2026-10-20 · Status: draft for approval · G0 measured 2026-10-20: **Nest on Workers is viable, one threshold fails** (see "G0 outcome" below) · Branch: `feature/cloudflare-g0-measurement`
 Builds on: `2026-10-20-cloudflare-d1-r2-design.md` (phase 1, merged in PR #357).
 
 ## Intent
@@ -217,6 +217,28 @@ unsupported combinations with a message that links the "Non-goals" list. For
 `auth=supabase|none`, `jobs/payment/ai=none`. Node-only artifacts (Dockerfiles, compose
 services, Redis) are removed. The generated deploy workflow runs `wrangler deploy` with
 `CLOUDFLARE_API_TOKEN`.
+
+## G0 outcome (measured 2026-10-20, Workers Paid, colo TLV)
+
+Full numbers and method: `docs/measurements/cloudflare-g0/RESULTS.md`. Summary:
+
+- **Pass:** Worker Startup Time 75-187 ms (limit 1 s); cold first request at most 347 ms from the
+  client; warm request CPU about 1 ms; bundle 6.2 MiB; the real `AuthGuard`, `CsrfGuard` and
+  `ThrottlerGuard`, the real `AuthController` and the real auth microservice (fake strategy) run in
+  one isolate over an in-process transport; implicit constructor injection survives the `tsc` build.
+- **Fail (threshold 40 ms):** a Durable Object round trip costs 81 ms p50 / 88 ms p95 from a Worker in
+  the TLV colo, and D1 about 72 ms per statement. Location hints do not help from Israel. This is
+  geography, not Nest, so the Hono contingency does not address it. Requester decisions are listed
+  in `RESULTS.md` (accept it, a bounded read cache, stateless signed cookies plus a Durable Object check
+  for sensitive operations, or test Smart Placement).
+- **Free plan:** not viable for a cold request (about 70 ms CPU against 10 ms).
+- **Design changes already implied:** (1) never call `process.exit` during bootstrap on Workers:
+  create Nest apps with `abortOnError: false` and clear a memoized bootstrap promise when it fails;
+  (2) `process.env.NODE_ENV` is forced to `production` on Workers, so the dev fallbacks (fake
+  strategies, in-memory sessions) are unavailable and real credentials plus the Durable Object
+  stores are mandatory; (3) per-isolate memory is not shared, which confirms the Durable Object
+  session and throttler storage of PR 3; (4) the `AuthController` and the module-level named
+  throttlers need a look (both named throttlers apply to every route).
 
 ## Gates and risks
 
