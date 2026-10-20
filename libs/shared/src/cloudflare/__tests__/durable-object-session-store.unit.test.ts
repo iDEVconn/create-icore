@@ -146,9 +146,9 @@ describe('DurableObjectSessionStore', () => {
         () => new Promise<void>((r) => (release = r)),
       );
       await new Promise((r) => setTimeout(r, 5));
-      await expect(store.withRefreshLock(s.sessionId, async () => 1)).rejects.toThrow(
-        'session_refresh_lock_timeout',
-      );
+      const err = await store.withRefreshLock(s.sessionId, async () => 1).catch((e: Error) => e);
+      expect((err as Error).message).toBe('session_refresh_lock_timeout');
+      expect((err as Error).message).not.toContain(s.sessionId);
       release();
       await holder;
     });

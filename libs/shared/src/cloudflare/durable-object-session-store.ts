@@ -99,7 +99,7 @@ export class DurableObjectSessionStore implements SessionStore {
     const token = globalThis.crypto.randomUUID();
     const deadline = Date.now() + this.lockMaxWaitMs;
     while (!(await stub.tryLock(sessionId, token, this.lockTtlMs))) {
-      if (Date.now() >= deadline) throw new Error(`session_refresh_lock_timeout: ${sessionId}`);
+      if (Date.now() >= deadline) throw new Error('session_refresh_lock_timeout');
       await this.sleep(this.lockPollMs);
     }
     try {
