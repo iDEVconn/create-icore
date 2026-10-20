@@ -135,7 +135,7 @@ export class RedisSessionStore implements SessionStore {
       const acquired = await this.redis.set(key, token, 'PX', this.lockTtlMs, 'NX');
       if (acquired === 'OK') break;
       if (Date.now() >= deadline) {
-        throw new Error(`session_refresh_lock_timeout: ${sessionId}`);
+        throw new Error('session_refresh_lock_timeout');
       }
       await new Promise((r) => setTimeout(r, LOCK_POLL_MS));
     }
