@@ -73,3 +73,10 @@ Task 5: minor (deferred): wire-storage cleanup test doesn't explicitly assert mi
 Task 5: minor (deferred): tools/create-icore/README.md:26 upload provider list stale (no minio) — Task 7 docs
 Task 5: fix round 1/5 (1 addressed, 0 open; commits f5c15ec..3bf30c3)
 Task 5: complete (commits ec1960d..3bf30c3, review clean). CARRY TO TASK 7: NO manual `D1_*` step for ai-orchestrator — writeRootEnv puts D1_* in root .env which ai-orchestrator and notes both load; ignore stale lines 56/116 of task-5-report.md. CARRY TO TASK 6: `_template-shell/package.json` lacks the two AWS SDK packages (^3.1153.0) — run sync-template-shell.mjs; `tools/create-icore/templates/` gets dirtied by build — discard.
+
+Task 6: implemented (commit 8dc43da), review: spec ✅, quality Approved, 0 Critical/Important. Smoke (link mode, with and without --ai=llm-router): green; install mode and --run boot phase NOT run locally (nightly will).
+Task 6: minor (deferred): scaffold-cloudflare.unit.test.ts mkdtemp dir never removed (add afterAll rm)
+Task 6: minor (deferred): packageJsons walk covers apps/ only, not libs/
+Task 6: minor (deferred): pipeline combo omits --ai (nightly matrix covers ai path)
+Task 6: complete (commits 7b03a55..8dc43da, review clean). sync-template-shell synced 0 deps (AWS packages ship in generated upload service package.json).
+Ruling: R6 — Task 7 dispatch excludes push/PR creation; controller does push + `gh pr create --base dev` only after the final whole-branch review, per AGENTS.md (never merge) — keeps outward-facing step behind the final review — costs nothing.
