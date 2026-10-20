@@ -13,3 +13,8 @@ export * from './session/session-store';
 export * from './session/fakes/fake-session-store';
 export * from './session/redis-session-store';
 export * from './session/in-memory-session-store';
+export * from './cloudflare/durable-object-types';
+export * from './cloudflare/session-object-core';
+export * from './cloudflare/durable-object-session-store';
+export * from './cloudflare/throttle-object-core';
+export * from './cloudflare/durable-object-throttler-storage';
