@@ -59,14 +59,11 @@ describe.each(modes)('D1DBStrategy where semantics (%s)', (_name, stringifyParam
 
 describe('D1DBStrategy guards', () => {
   it('list with 101 in-values rejects with too_many_params and issues no query', async () => {
-    const inner = createSqliteD1Client();
-    const spy = vi.fn(inner.query.bind(inner));
+    const spy = vi.fn(createSqliteD1Client().query);
     const db = new D1DBStrategy({ query: spy } as D1ClientLike);
-    await db.set('users', 'a', { n: 1 });
-    spy.mockClear();
     const values = Array.from({ length: D1_MAX_BOUND_PARAMS + 1 }, (_, i) => i);
     await expect(
-      db.list('users', { where: [{ field: 'n', op: 'in', value: values }] }),
+      db.list('fresh_collection', { where: [{ field: 'n', op: 'in', value: values }] }),
     ).rejects.toThrow(/too_many_params/);
     expect(spy).not.toHaveBeenCalled();
   });
