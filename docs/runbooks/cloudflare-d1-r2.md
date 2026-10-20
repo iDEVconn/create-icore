@@ -50,6 +50,15 @@ Each collection is one table: `id TEXT PRIMARY KEY, data TEXT` (the document as 
 - **Rate limit:** the D1 query endpoint lives under `api.cloudflare.com/client/v4`, so it is subject to Cloudflare's global API limit of 1,200 requests per 5 minutes per user (HTTP 429 for the rest of the window); see https://developers.cloudflare.com/fundamentals/api/reference/limits/. Every strategy operation is one REST round trip (plus two `ensureTable` calls per collection per process, plus one AI-usage row per LLM call when `ai` is on), so about 4 req/s sustained is the ceiling. A `Retry-After` above 30 s fails fast with `D1ApiError` instead of sleeping. This limit decides whether `--db=d1` is viable for a high-traffic backend until the binding-based client lands with the Workers phase.
 - **Numeric/boolean filters:** `==`, `!=` and `in` on numbers and booleans compare via `CAST(... AS NUMERIC)` (booleans are stored and compared as 1/0). A filter `== 0` therefore also matches non-numeric strings, and `== 30` matches a stored `"30"`.
 
+### Workers binding (no REST)
+
+Inside a Cloudflare Worker the strategy can use the D1 binding instead of the REST API: no HTTPS hop to
+`api.cloudflare.com`, no 1,200 req/5 min limit, no `D1_ACCOUNT_ID`/`D1_API_TOKEN`. The Worker host provides the
+`D1_DATABASE_BINDING` token (value: `env.DB`); `D1DbModule.forRoot` then builds `D1DBStrategy(createD1BindingClient(binding))`
+and requires no env. If both a binding and REST env exist, the binding wins. Without the token nothing changes (REST
+client, or the fake outside production). Tests use a `node:sqlite` fake binding and the shared DB contract; the
+adapter was **not live-tested on Cloudflare** (the G0 probe did use the D1 binding on a real Worker, ~72 ms per statement).
+
 ### Verification status
 
 The strategies are covered by contract and unit tests against an in-memory SQLite stand-in and mocks. They have NOT yet been run against a real D1 database or R2 bucket. Open points to verify live: D1 REST handling of `null` params and `meta.changes` for writes, and R2 upload/presign with the AWS SDK defaults.
