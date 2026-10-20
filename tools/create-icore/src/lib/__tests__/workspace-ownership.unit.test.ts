@@ -78,6 +78,8 @@ function packageNameFromImport(spec: string): string | null {
     spec.startsWith('.') ||
     spec.startsWith('/') ||
     spec.startsWith('node:') ||
+    // Modules provided by the Cloudflare workerd runtime (apps/worker).
+    spec.startsWith('cloudflare:') ||
     spec.startsWith('@/') ||
     spec.startsWith('virtual:')
   ) {

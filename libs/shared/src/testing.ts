@@ -13,3 +13,4 @@ export {
 export { runStorageContract } from './strategies/__tests__/storage.contract.unit.test';
 export { runDBContract } from './strategies/__tests__/db.contract.unit.test';
 export { runSessionStoreContract } from './session/__tests__/session-store.contract';
+export * from './cloudflare/__tests__/fake-durable-object';

@@ -1,14 +1,26 @@
 import { Logger, Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import IORedis from 'ioredis';
-import { InMemorySessionStore, RedisSessionStore, type SessionStore } from '@icore/shared';
+import {
+  DurableObjectSessionStore,
+  InMemorySessionStore,
+  RedisSessionStore,
+  SESSION_DO_NAMESPACE,
+  type DurableObjectNamespaceLike,
+  type SessionObjectStub,
+  type SessionStore,
+} from '@icore/shared';
 
 export const SESSION_STORE = Symbol('SESSION_STORE');
 
 export const sessionStoreProvider: Provider = {
   provide: SESSION_STORE,
-  inject: [ConfigService],
-  useFactory: (cfg: ConfigService): SessionStore => {
+  // The Durable Object namespace is provided only by the Cloudflare Workers host.
+  inject: [ConfigService, { token: SESSION_DO_NAMESPACE, optional: true }],
+  useFactory: (
+    cfg: ConfigService,
+    sessionNamespace?: DurableObjectNamespaceLike<SessionObjectStub>,
+  ): SessionStore => {
     const logger = new Logger('SessionStore');
     const kind = (cfg.get<string>('SESSION_STORE') ?? 'redis').toLowerCase();
 
@@ -29,8 +41,18 @@ export const sessionStoreProvider: Provider = {
       );
       return new InMemorySessionStore();
     }
+    if (kind === 'durable-object') {
+      if (!sessionNamespace) {
+        throw new Error(
+          'SESSION_STORE=durable-object needs the SESSION_DO_NAMESPACE Durable Object binding — it is only available when the gateway runs on the Cloudflare Workers host (apps/worker).',
+        );
+      }
+      return new DurableObjectSessionStore(sessionNamespace);
+    }
     if (kind !== 'redis') {
-      throw new Error(`Unknown SESSION_STORE "${kind}" — expected "redis" (default) or "memory".`);
+      throw new Error(
+        `Unknown SESSION_STORE "${kind}" — expected "redis" (default), "memory" or "durable-object".`,
+      );
     }
 
     const url = cfg.get<string>('SESSION_REDIS_URL');
