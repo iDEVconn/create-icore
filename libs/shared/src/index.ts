@@ -4,6 +4,7 @@ export * from './abilities';
 export * from './jobs';
 export * from './strategies';
 export * from './transport';
+export * from './local-transport';
 export * from './types';
 export * from './security/hmac';
 export * from './http/auth-cookies';
