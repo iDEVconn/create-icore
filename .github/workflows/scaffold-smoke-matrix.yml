@@ -45,6 +45,8 @@ jobs:
             flags: --auth=mongodb --db=mongodb --upload=mongodb --payment=paypal --jobs=bullmq --example=notes --transport=tcp --ui=shadcn
           - name: supabase-minimal-tcp-memory-shadcn
             flags: --auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --session=memory
+          - name: cloudflare-d1-r2-tcp-shadcn
+            flags: --auth=supabase --db=d1 --upload=r2 --ai=llm-router --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
     steps:
       - uses: actions/checkout@v5
         with:

@@ -164,8 +164,8 @@ jobs:
   # least once. The client/ui variants need a real Vite build, so they're
   # covered by the heavier install+build+RUN matrix in scaffold-smoke-matrix.yml.
   #
-  # Two shards of four combos: the ~35s install + CLI build is paid twice
-  # instead of eight times. Each combo scaffolds into its own tmp dir.
+  # Two shards (four and five combos): the ~35s install + CLI build is paid
+  # twice instead of nine times. Each combo scaffolds into its own tmp dir.
   scaffold-smoke:
     name: Scaffold smoke (shard ${{ matrix.shard.name }})
     needs: [detect-affected]
@@ -187,6 +187,7 @@ jobs:
               mongodb-mixed|--auth=mongodb --db=firebase --upload=cloudinary --payment=none --jobs=none --example=notes --transport=redis
               postgres-direct|--auth=supabase --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
               postgres-auth|--auth=postgres --db=postgres --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp
+              cloudflare-d1-r2|--auth=supabase --db=d1 --upload=r2 --payment=none --jobs=none --example=notes --transport=tcp
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
