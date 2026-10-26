@@ -343,6 +343,25 @@ async function makeFakeTemplates(): Promise<string> {
   );
   await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/queries'), { recursive: true });
   await writeFile(join(tplDir, 'apps/templates/client-shadcn/src/queries/notes.ts'), 'export {};');
+  await writeFile(
+    join(tplDir, 'apps/templates/client-shadcn/src/routes/reset-password.tsx'),
+    [
+      "import { AuthBrandPanel } from '../components/auth/AuthBrandPanel';",
+      "import { ResetPasswordForm } from '../components/auth/ResetPasswordForm';",
+      'export const Route = {};',
+    ].join('\n'),
+  );
+  await mkdir(join(tplDir, 'apps/templates/client-shadcn/src/components/auth'), {
+    recursive: true,
+  });
+  await writeFile(
+    join(tplDir, 'apps/templates/client-shadcn/src/components/auth/AuthBrandPanel.tsx'),
+    'export function AuthBrandPanel() { return null; }',
+  );
+  await writeFile(
+    join(tplDir, 'apps/templates/client-shadcn/src/components/auth/ResetPasswordForm.tsx'),
+    'export function ResetPasswordForm() { return null; }',
+  );
 
   // Auth strategy stubs
   for (const s of ['supabase', 'firebase']) {
@@ -503,6 +522,7 @@ async function makeFakeTemplates(): Promise<string> {
     'jobs.ts',
     'strategies/index.ts',
     'transport.ts',
+    'local-transport.ts',
     'types/index.ts',
     'security/hmac.ts',
     'http/auth-cookies.ts',
@@ -525,6 +545,7 @@ async function makeFakeTemplates(): Promise<string> {
       "export * from './jobs';",
       "export * from './strategies';",
       "export * from './transport';",
+      "export * from './local-transport';",
       "export * from './types';",
       "export * from './security/hmac';",
       "export * from './http/auth-cookies';",
@@ -620,6 +641,40 @@ describe('scaffold (integration, dry-run)', () => {
     // special-case for it, and it must not be silently dropped.
     const ci = await readFile(join(outputDir, '.github/workflows/ci.yml'), 'utf8');
     expect(ci).toContain('name: CI');
+  });
+
+  it('keeps the reset-password route and its auth components when auth is enabled', async () => {
+    const outputDir = join(await mkdtemp(join(tmpdir(), 'icore-out-')), 'auth-reset-app');
+    await scaffold(
+      {
+        projectName: 'auth-reset-app',
+        targetDir: outputDir,
+        authProvider: 'firebase',
+        dbProvider: 'supabase',
+        upload: 'cloudinary',
+        payment: 'none',
+        jobs: 'none',
+        ai: 'none',
+        example: 'notes',
+        ui: 'shadcn',
+        transport: 'redis',
+        session: 'redis',
+        initGit: false,
+        packageManager: 'yarn',
+        install: false,
+      },
+      templatesDir,
+    );
+
+    await expect(
+      access(join(outputDir, 'apps/client/src/routes/reset-password.tsx')),
+    ).resolves.toBeUndefined();
+    await expect(
+      access(join(outputDir, 'apps/client/src/components/auth/AuthBrandPanel.tsx')),
+    ).resolves.toBeUndefined();
+    await expect(
+      access(join(outputDir, 'apps/client/src/components/auth/ResetPasswordForm.tsx')),
+    ).resolves.toBeUndefined();
   });
 
   it('removes upload stack when upload=none', async () => {
@@ -1083,6 +1138,29 @@ describe('scaffold with authProvider=none', () => {
     expect(ts.compilerOptions.paths['@icore/auth-supabase']).toBeUndefined();
     expect(ts.compilerOptions.paths['@icore/auth-firebase']).toBeUndefined();
   });
+
+  it('removes local-transport.ts and its re-export (no microservices use it)', async () => {
+    await expect(access(join(outDir, 'libs/shared/src/local-transport.ts'))).rejects.toThrow();
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).not.toContain("'./local-transport'");
+  });
+
+  it('removes the reset-password route and leaves no client reference to it or to components/auth', async () => {
+    await expect(
+      access(join(outDir, 'apps/client/src/routes/reset-password.tsx')),
+    ).rejects.toThrow();
+    await expect(access(join(outDir, 'apps/client/src/components/auth'))).rejects.toThrow();
+
+    const clientSrc = join(outDir, 'apps/client/src');
+    const entries = await readdir(clientSrc, { recursive: true, withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const content = await readFile(join(entry.parentPath, entry.name), 'utf8');
+      expect(content).not.toContain('components/auth');
+      expect(content).not.toContain("'/reset-password'");
+      expect(content).not.toContain('./routes/reset-password');
+    }
+  });
 });
 
 describe('scaffold with authProvider=none + payment=paypal', () => {
@@ -1125,6 +1203,14 @@ describe('scaffold with authProvider=none + payment=paypal', () => {
     const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
     expect(idx).toContain("'./strategies'");
   });
+
+  it('keeps local-transport.ts and its re-export (transport.ts imports it)', async () => {
+    await expect(
+      access(join(outDir, 'libs/shared/src/local-transport.ts')),
+    ).resolves.toBeUndefined();
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).toContain("'./local-transport'");
+  });
 });
 
 describe('scaffold with authProvider=none + ai=llm-router', () => {
@@ -1161,6 +1247,14 @@ describe('scaffold with authProvider=none + ai=llm-router', () => {
     // imports buildTransport from @icore/shared, so transport.ts must stay.
     const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
     expect(idx).toContain("'./transport'");
+  });
+
+  it('keeps local-transport.ts and its re-export (transport.ts imports it)', async () => {
+    await expect(
+      access(join(outDir, 'libs/shared/src/local-transport.ts')),
+    ).resolves.toBeUndefined();
+    const idx = await readFile(join(outDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(idx).toContain("'./local-transport'");
   });
 
   it('keeps the ai-orchestrator MS and ai-client lib', async () => {
