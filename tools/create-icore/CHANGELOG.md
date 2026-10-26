@@ -1,5 +1,12 @@
 # @idevconn/create-icore
 
+## 0.21.1
+
+### Patch Changes
+
+- 4ec5f20: Projects generated with `auth=none` no longer keep the `/reset-password` route, which imported the removed `components/auth` files, so the client's `vite build` succeeds.
+- 4ec5f20: Projects generated without microservices no longer keep `libs/shared/src/local-transport.ts`, its tests, or its `index.ts` re-export, so they build after `@nestjs/microservices` is removed.
+
 ## 0.21.0
 
 ### Minor Changes
