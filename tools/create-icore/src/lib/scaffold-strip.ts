@@ -81,6 +81,14 @@ export async function removeStrategiesLib(targetDir: string): Promise<void> {
   // transport.ts only wires MS client options — dead when no microservices exist
   await rm(join(targetDir, 'libs/shared/src/transport.ts'), { force: true });
   await rm(join(targetDir, 'libs/shared/src/__tests__/transport.unit.test.ts'), { force: true });
+  // local-transport.ts imports @nestjs/microservices (removed below) and is only used by transport.ts
+  await rm(join(targetDir, 'libs/shared/src/local-transport.ts'), { force: true });
+  await rm(join(targetDir, 'libs/shared/src/__tests__/local-transport.unit.test.ts'), {
+    force: true,
+  });
+  await rm(join(targetDir, 'libs/shared/src/__tests__/local-transport.e2e.unit.test.ts'), {
+    force: true,
+  });
 
   const indexPath = join(targetDir, 'libs/shared/src/index.ts');
   try {
@@ -89,7 +97,8 @@ export async function removeStrategiesLib(targetDir: string): Promise<void> {
       indexPath,
       src
         .replace(/^export \* from '\.\/strategies';\n/m, '')
-        .replace(/^export \* from '\.\/transport';\n?/m, ''),
+        .replace(/^export \* from '\.\/transport';\n?/m, '')
+        .replace(/^export \* from '\.\/local-transport';\n?/m, ''),
     );
   } catch {
     // ignore — may be absent in test scaffolds

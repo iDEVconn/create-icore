@@ -39,6 +39,7 @@ const AUTH_ONLY_PATHS = [
   'apps/client/src/components/auth',
   'apps/client/src/components/AccessDeniedPage.tsx',
   'apps/client/src/routes/login.tsx',
+  'apps/client/src/routes/reset-password.tsx',
   'apps/client/src/routes/auth.callback.tsx',
   'apps/client/src/routes/auth.oauth.callback.tsx',
   'apps/client/src/routes/_dashboard/profile.tsx',

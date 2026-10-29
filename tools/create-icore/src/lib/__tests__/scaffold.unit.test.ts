@@ -340,6 +340,10 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     );
     await mkdir(join(authDir, 'apps/client/src/routes/_dashboard'), { recursive: true });
     await writeFile(join(authDir, 'apps/client/src/routes/login.tsx'), '');
+    await writeFile(
+      join(authDir, 'apps/client/src/routes/reset-password.tsx'),
+      "import { ResetPasswordForm } from '../components/auth/ResetPasswordForm';",
+    );
     await writeFile(join(authDir, 'apps/client/src/routes/auth.callback.tsx'), '');
     await writeFile(join(authDir, 'apps/client/src/routes/auth.oauth.callback.tsx'), '');
     await writeFile(join(authDir, 'apps/client/src/routes/_dashboard/profile.tsx'), '');
@@ -585,6 +589,9 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     await expect(access(join(authDir, 'apps/client/src/components/auth'))).rejects.toThrow();
     await expect(access(join(authDir, 'apps/client/src/routes/login.tsx'))).rejects.toThrow();
     await expect(
+      access(join(authDir, 'apps/client/src/routes/reset-password.tsx')),
+    ).rejects.toThrow();
+    await expect(
       access(join(authDir, 'apps/client/src/routes/auth.callback.tsx')),
     ).rejects.toThrow();
     await expect(
@@ -779,11 +786,24 @@ describe('removeStrategiesLib', () => {
       "import '../transport';",
     );
     await writeFile(
+      join(stratDir, 'libs/shared/src/local-transport.ts'),
+      "import { Server } from '@nestjs/microservices'; export class LocalServer {}",
+    );
+    await writeFile(
+      join(stratDir, 'libs/shared/src/__tests__/local-transport.unit.test.ts'),
+      "import '../local-transport';",
+    );
+    await writeFile(
+      join(stratDir, 'libs/shared/src/__tests__/local-transport.e2e.unit.test.ts'),
+      "import '../local-transport';",
+    );
+    await writeFile(
       join(stratDir, 'libs/shared/src/index.ts'),
       [
         "export * from './env';",
         "export * from './strategies';",
         "export * from './transport';",
+        "export * from './local-transport';",
       ].join('\n'),
     );
     await writeFile(
@@ -815,6 +835,20 @@ describe('removeStrategiesLib', () => {
     const src = await readFile(join(stratDir, 'libs/shared/src/index.ts'), 'utf8');
     expect(src).not.toContain("'./strategies'");
     expect(src).not.toContain("'./transport'");
+    expect(src).toContain("'./env'");
+  });
+
+  it('removes local-transport.ts, its tests, and its re-export (regression: dangling @nestjs/microservices import)', async () => {
+    await removeStrategiesLib(stratDir);
+    await expect(access(join(stratDir, 'libs/shared/src/local-transport.ts'))).rejects.toThrow();
+    await expect(
+      access(join(stratDir, 'libs/shared/src/__tests__/local-transport.unit.test.ts')),
+    ).rejects.toThrow();
+    await expect(
+      access(join(stratDir, 'libs/shared/src/__tests__/local-transport.e2e.unit.test.ts')),
+    ).rejects.toThrow();
+    const src = await readFile(join(stratDir, 'libs/shared/src/index.ts'), 'utf8');
+    expect(src).not.toContain("'./local-transport'");
     expect(src).toContain("'./env'");
   });
 
