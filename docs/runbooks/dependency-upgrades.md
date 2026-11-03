@@ -51,3 +51,26 @@ re-run `yarn nx run-many -t lint test build` on the branch. For anything touchin
 generated projects also run
 `node tools/create-icore/scripts/smoke-scaffold.mjs --jobs=bullmq --pm=pnpm --mode=install --run`
 (install mode is the only one that catches version drift).
+
+## Dependabot security alerts
+
+Alerts track `main`, almost all are transitive packages that live only in `yarn.lock`. Routine (2026-11-03 pass took 143 open alerts down to 9):
+
+1. Export alerts: `gh api --paginate "repos/<org>/<repo>/dependabot/alerts?state=open&per_page=100"`.
+2. For each package: `yarn why <pkg>`, then `yarn up -R <pkg>` (lockfile-only, stays inside the parent's range). This closed most of them.
+3. If a parent pins an exact version (`@nestjs/platform-express` → `multer`, `@nestjs/swagger` → `js-yaml`), add a root `resolutions` entry. Current entries and the condition to remove them:
+   - `multer: 2.5.0`: drop once `@nestjs/platform-express` depends on `multer >= 2.5.0`.
+   - `js-yaml@5.3.0: 5.5.0`: drop once `@nestjs/swagger` depends on `js-yaml >= 5.4.1`.
+   - `uuid@^9.0.1: ^11.1.1` (gaxios; 11.x still ships CJS): drop once gaxios moves off uuid 9.
+   - `esbuild@^0.27.0: ^0.28.1` (tsup 8): drop with the tsup 9 upgrade.
+   - `minimatch@^10.2.5|^10.2.6: ^11.0.4`: drop once the parents allow 11.
+4. Verify: `yarn install --immutable`, `yarn nx run-many -t lint test build`, install-mode smoke (yarn and pnpm). Generated projects resolve fresh at install and do not use this repo's lock or `resolutions`.
+
+Still open (not safely fixable by a lock change):
+
+| Package                                             | Why                                                                                                         |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `decode-uri-component` 0.2.2 (via `query-string@7`) | Fix 0.5.x is ESM-only; `query-string@7` is CJS. Needs a parent change.                                      |
+| `stream-json` 1.9.1 (via `minio@8`)                 | Fix is 3.x with a different file layout (`jsonl/Parser.js` is used by `minio`). Wait for a `minio` release. |
+| `minimatch` 3/5/9, `glob` 10/11/13                  | Major jump (`glob` 14, `minimatch` 11) in dev tooling; parents need to move.                                |
+| `deepmerge` 4.3.1                                   | No patched version exists; dismiss with that reason.                                                        |
