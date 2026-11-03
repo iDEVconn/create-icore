@@ -3,18 +3,23 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/api/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/apps/api"],
       "options": {
         "command": "webpack-cli build",
-        "env": { "NODE_ENV": "production" },
+        "env": {
+          "NODE_ENV": "production"
+        },
         "cwd": "apps/api"
       },
       "configurations": {
         "development": {
-          "env": { "NODE_ENV": "development" }
+          "env": {
+            "NODE_ENV": "development"
+          }
         }
       }
     },
@@ -43,13 +48,6 @@
       "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
       "executor": "nx:noop"
     },
-    "test": {
-      "executor": "@nx/vitest:test",
-      "outputs": ["{workspaceRoot}/coverage/apps/api"],
-      "options": {
-        "config": "apps/api/vitest.config.mts"
-      }
-    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"]
@@ -72,6 +70,5 @@
         }
       }
     }
-  },
-  "tags": []
+  }
 }

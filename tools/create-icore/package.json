@@ -76,5 +76,17 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "nx": {
+    "includedScripts": [
+      "build",
+      "dev",
+      "test:watch",
+      "lint",
+      "typecheck",
+      "smoke",
+      "smoke:run",
+      "prepublishOnly"
+    ]
   }
 }
