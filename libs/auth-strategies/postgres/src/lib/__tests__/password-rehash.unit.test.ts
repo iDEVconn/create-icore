@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import * as bcrypt from 'bcrypt';
 import { hashPassword } from '../password-hashing';
+import type { PostgresAuthStrategyOptions } from '../postgres-auth.strategy';
 
 interface UserRow {
   id: string;
@@ -13,29 +14,26 @@ let userRow: UserRow | null = null;
 const updateCalls: string[] = [];
 
 // PostgresAuthStrategy talks to `postgres` exclusively through tagged
-// templates (`this.sql\`...\``) — stubbing the package's default export lets
+// templates (`this.sql\`...\``) — injecting a stub driver through `createSql` lets
 // signIn's rehash branch run against a real PostgresAuthStrategy instance
 // without a live database, the same way the RPC-propagation test in
 // postgres-auth.strategy.unit.test.ts already does for the error paths.
-vi.mock('postgres', () => ({
-  default:
-    () =>
-    (strings: TemplateStringsArray, ...values: unknown[]) => {
-      const text = strings.join(' ');
-      if (text.includes('CREATE TABLE')) return Promise.resolve([]);
-      if (text.includes('SELECT id, email, password_hash, role FROM _icore_users')) {
-        return Promise.resolve(userRow ? [userRow] : []);
-      }
-      if (text.includes('UPDATE _icore_users SET password_hash')) {
-        const newHash = String(values[0]);
-        updateCalls.push(newHash);
-        if (userRow) userRow = { ...userRow, password_hash: newHash };
-        return Promise.resolve([]);
-      }
-      if (text.includes('UPDATE _icore_users SET last_logged_in')) return Promise.resolve([]);
+const createSql = (() =>
+  (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join(' ');
+    if (text.includes('CREATE TABLE')) return Promise.resolve([]);
+    if (text.includes('SELECT id, email, password_hash, role FROM _icore_users')) {
+      return Promise.resolve(userRow ? [userRow] : []);
+    }
+    if (text.includes('UPDATE _icore_users SET password_hash')) {
+      const newHash = String(values[0]);
+      updateCalls.push(newHash);
+      if (userRow) userRow = { ...userRow, password_hash: newHash };
       return Promise.resolve([]);
-    },
-}));
+    }
+    if (text.includes('UPDATE _icore_users SET last_logged_in')) return Promise.resolve([]);
+    return Promise.resolve([]);
+  }) as unknown as NonNullable<PostgresAuthStrategyOptions['createSql']>;
 
 describe('PostgresAuthStrategy — lazy password rehash', () => {
   beforeEach(() => {
@@ -47,7 +45,11 @@ describe('PostgresAuthStrategy — lazy password rehash', () => {
     const { PostgresAuthStrategy } = await import('../postgres-auth.strategy');
     const legacyHash = await bcrypt.hash('correct-password', 10);
     userRow = { id: 'u1', email: 'x@x.com', password_hash: legacyHash, role: null };
-    const strategy = new PostgresAuthStrategy({ url: 'postgres://test/db', jwtSecret: 's' });
+    const strategy = new PostgresAuthStrategy({
+      url: 'postgres://test/db',
+      jwtSecret: 's',
+      createSql,
+    });
 
     await strategy.signIn('x@x.com', 'correct-password');
 
@@ -60,7 +62,11 @@ describe('PostgresAuthStrategy — lazy password rehash', () => {
     const { PostgresAuthStrategy } = await import('../postgres-auth.strategy');
     const argon2Hash = await hashPassword('correct-password');
     userRow = { id: 'u1', email: 'x@x.com', password_hash: argon2Hash, role: null };
-    const strategy = new PostgresAuthStrategy({ url: 'postgres://test/db', jwtSecret: 's' });
+    const strategy = new PostgresAuthStrategy({
+      url: 'postgres://test/db',
+      jwtSecret: 's',
+      createSql,
+    });
 
     await strategy.signIn('x@x.com', 'correct-password');
 
@@ -71,7 +77,11 @@ describe('PostgresAuthStrategy — lazy password rehash', () => {
     const { PostgresAuthStrategy } = await import('../postgres-auth.strategy');
     const legacyHash = await bcrypt.hash('correct-password', 10);
     userRow = { id: 'u1', email: 'x@x.com', password_hash: legacyHash, role: null };
-    const strategy = new PostgresAuthStrategy({ url: 'postgres://test/db', jwtSecret: 's' });
+    const strategy = new PostgresAuthStrategy({
+      url: 'postgres://test/db',
+      jwtSecret: 's',
+      createSql,
+    });
 
     await expect(strategy.signIn('x@x.com', 'wrong-password')).rejects.toThrow(
       'invalid_credentials',
