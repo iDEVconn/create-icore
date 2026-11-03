@@ -1,5 +1,12 @@
-import postgres from 'postgres';
+import type postgres from 'postgres' with { 'resolution-mode': 'import' };
 import type { DBDocument, DBStrategy, QueryOptions } from '@icore/shared';
+
+// postgres 4 is ESM-only; this library is CommonJS. Node 22.12+/24 (`.nvmrc`) can `require()` an
+// ES module synchronously, same interop as `@idevconn/llm-router` in ai-orchestrator. The static
+// import above is type-only and keeps `postgres.Sql` etc. for the types.
+const createSql = (
+  require('postgres') as typeof import('postgres', { with: { 'resolution-mode': 'import' } })
+).default;
 
 export class PostgresDBStrategy implements DBStrategy {
   private readonly sql: postgres.Sql;
@@ -7,7 +14,7 @@ export class PostgresDBStrategy implements DBStrategy {
   private readonly initialized = new Set<string>();
 
   constructor(url: string) {
-    this.sql = postgres(url);
+    this.sql = createSql(url);
   }
 
   private async ensureTable(collection: string): Promise<void> {

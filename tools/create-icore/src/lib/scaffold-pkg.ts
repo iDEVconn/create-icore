@@ -31,6 +31,7 @@ export async function writePnpmWorkspace(targetDir: string): Promise<void> {
     '@parcel/watcher',
     '@scarf/scarf',
     '@swc/core',
+    'argon2',
     'bcrypt',
     'less',
     'mongodb-memory-server',
