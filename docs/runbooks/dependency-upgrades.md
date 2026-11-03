@@ -76,3 +76,9 @@ Still open (not safely fixable by a lock change):
 | `stream-json` 1.9.1 (via `minio@8`)                 | Fix is 3.x with a different file layout (`jsonl/Parser.js` is used by `minio`). Wait for a `minio` release. |
 | `minimatch` 3/5/9, `glob` 10/11/13                  | Major jump (`glob` 14, `minimatch` 11) in dev tooling; parents need to move.                                |
 | `deepmerge` 4.3.1                                   | No patched version exists; dismiss with that reason.                                                        |
+
+### Keeping alerts down
+
+- `.github/dependabot.yml` sends every Dependabot PR to `dev` (without `target-branch` they went to `main`, e.g. #377), groups all security fixes into one PR (`applies-to: security-updates`), and batches minor/patch version updates weekly. Majors blocked by peers or ESM-only packages (`@nestjs/*`, `typescript`, `@types/node`, `postgres`) are ignored there: drop an `ignore` entry when its blocker is gone.
+- `.github/workflows/security-audit.yml` runs `yarn npm audit` weekly and on any `yarn.lock` / `package.json` change. Critical advisories anywhere in the tree fail the job. High advisories in production dependencies are reported as a warning only, because `decode-uri-component` (via `query-string@7`) is still open; set `continue-on-error: false` on that step once it is clean.
+- Dependabot PRs carry no changeset. If one touches a shipped dependency, add `.changeset/*.md` before merging.

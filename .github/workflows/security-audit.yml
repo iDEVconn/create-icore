@@ -1,0 +1,38 @@
+name: Security audit
+
+# Catches new advisories that appear without any commit (weekly) and any lockfile
+# change that reintroduces a vulnerable version. Fixing procedure:
+# docs/runbooks/dependency-upgrades.md ("Dependabot security alerts").
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  push:
+    branches: [main, dev]
+    paths: [yarn.lock, package.json]
+  pull_request:
+    branches: [main, dev]
+    paths: [yarn.lock, package.json]
+  workflow_dispatch:
+
+concurrency:
+  group: security-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: yarn npm audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      # Blocking: no critical advisory anywhere in the tree (dev tooling included).
+      - name: Critical (blocking)
+        run: yarn npm audit --all --recursive --severity critical
+      # Warning only until the remaining known highs are cleared (decode-uri-component via
+      # query-string@7, see the runbook). Flip continue-on-error off once this runs clean.
+      - name: High in production dependencies (warning)
+        continue-on-error: true
+        run: yarn npm audit --all --recursive --environment production --severity high
