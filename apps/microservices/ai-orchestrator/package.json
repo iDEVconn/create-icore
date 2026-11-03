@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.137.0",
+    "@anthropic-ai/sdk": "^1.4.0",
     "@google/generative-ai": "^0.24.1",
     "@icore/db-supabase": "*",
     "@icore/shared": "*",
