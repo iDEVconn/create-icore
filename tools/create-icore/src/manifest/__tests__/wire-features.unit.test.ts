@@ -46,8 +46,8 @@ async function fixture(): Promise<string> {
         '@idevconn/payment': '^1.2.0',
         '@idevconn/llm-router': '^0.9.0',
         '@casl/ability': '^7.0.0',
-        '@bull-board/api': '^7.1.5',
-        '@bull-board/express': '^7.1.5',
+        '@bull-board/api': '9.10.2',
+        '@bull-board/express': '9.10.2',
       },
     }),
   );
