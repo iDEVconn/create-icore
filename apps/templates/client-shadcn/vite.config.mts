@@ -14,6 +14,7 @@ import {
   injectAppVersionPlugin,
   noServerModulesPlugin,
 } from '@icore/vite-plugins';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 
 const rootPackageJsonPath = new URL('../../../package.json', import.meta.url);
 const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf-8')) as {
@@ -120,6 +121,7 @@ export default defineConfig(() => ({
     noServerModulesPlugin(),
     apiInfoPlugin(),
     injectAppVersionPlugin(rootPackageJson),
+    nxReadySignal(),
   ],
   // Uncomment this if you are using workers.
   // worker: {
