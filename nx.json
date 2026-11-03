@@ -82,6 +82,20 @@
         "apps/microservices/jobs-e2e/**/*",
         "apps/microservices/ai-orchestrator-e2e/**/*"
       ]
+    },
+    {
+      "plugin": "@nx/jest/plugin",
+      "options": {
+        "targetName": "e2e"
+      },
+      "include": [
+        "apps/api-e2e/**/*",
+        "apps/microservices/ai-orchestrator-e2e/**/*",
+        "apps/microservices/auth-e2e/**/*",
+        "apps/microservices/jobs-e2e/**/*",
+        "apps/microservices/notes-e2e/**/*",
+        "apps/microservices/upload-e2e/**/*"
+      ]
     }
   ],
   "targetDefaults": {
@@ -100,7 +114,17 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["default", "^default"]
-    }
+    },
+    "e2e": [
+      {
+        "filter": {
+          "plugin": "@nx/jest/plugin"
+        },
+        "options": {
+          "passWithNoTests": true
+        }
+      }
+    ]
   },
   "namedInputs": {
     "default": ["{projectRoot}/**/*"],
