@@ -5,8 +5,6 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
-import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 import {
   apiInfoPlugin,
   commonDefines,
@@ -16,6 +14,7 @@ import {
   injectAppVersionPlugin,
   noServerModulesPlugin,
 } from '@icore/vite-plugins';
+import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 
 const rootPackageJsonPath = new URL('../../../package.json', import.meta.url);
 const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf-8')) as {
@@ -43,6 +42,9 @@ function depVersion(name: string): string {
 }
 
 export default defineConfig(() => ({
+  resolve: {
+    tsconfigPaths: true,
+  },
   root: import.meta.dirname,
   cacheDir: '../../../node_modules/.vite/apps/templates/client-shadcn',
   server: commonServer(4200),
@@ -116,15 +118,14 @@ export default defineConfig(() => ({
         navigateFallbackDenylist: [/^\/api\//],
       },
     }),
-    nxViteTsPaths(),
-    nxCopyAssetsPlugin(['*.md']),
     noServerModulesPlugin(),
     apiInfoPlugin(),
     injectAppVersionPlugin(rootPackageJson),
+    nxReadySignal(),
   ],
   // Uncomment this if you are using workers.
   // worker: {
-  //   plugins: () => [ nxViteTsPaths() ],
+  //  plugins: [],
   // },
   build: {
     outDir: '../../../dist/apps/templates/client-shadcn',

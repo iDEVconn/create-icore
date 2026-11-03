@@ -1,16 +1,14 @@
 {
   "name": "upload-e2e",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["upload"],
   "projectType": "application",
+  "implicitDependencies": ["upload"],
   "targets": {
     "e2e": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
-      "options": {
-        "jestConfig": "apps/microservices/upload-e2e/jest.config.cts",
-        "passWithNoTests": true
-      },
+      "outputs": [
+        "{workspaceRoot}/coverage/{e2eProjectRoot}",
+        "{workspaceRoot}/coverage/upload-e2e"
+      ],
       "dependsOn": ["upload:build", "upload:serve"]
     }
   }

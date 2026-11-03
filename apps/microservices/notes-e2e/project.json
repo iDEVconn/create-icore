@@ -1,16 +1,14 @@
 {
   "name": "notes-e2e",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["notes"],
   "projectType": "application",
+  "implicitDependencies": ["notes"],
   "targets": {
     "e2e": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
-      "options": {
-        "jestConfig": "apps/microservices/notes-e2e/jest.config.cts",
-        "passWithNoTests": true
-      },
+      "outputs": [
+        "{workspaceRoot}/coverage/{e2eProjectRoot}",
+        "{workspaceRoot}/coverage/notes-e2e"
+      ],
       "dependsOn": ["notes:build", "notes:serve"]
     }
   }

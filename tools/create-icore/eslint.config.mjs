@@ -4,16 +4,11 @@ export default [
   ...baseConfig,
   {
     // Exclude generated/baked directories from all linting.
-    // Patterns here are relative to the workspace root (where ESLint is invoked).
-    ignores: [
-      'tools/create-icore/templates/**',
-      'tools/create-icore/dist/**',
-      'tools/create-icore/scripts/**',
-      'tools/create-icore/_template-shell/**',
-    ],
+    // Patterns here are relative to this project (the inferred lint target runs ESLint from the project root).
+    ignores: ['templates/**', 'dist/**', 'scripts/**', '_template-shell/**'],
   },
   {
-    files: ['tools/create-icore/**/*.json'],
+    files: ['**/*.json'],
     rules: {
       '@nx/dependency-checks': [
         'error',
