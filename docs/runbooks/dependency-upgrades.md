@@ -36,13 +36,15 @@ not assignable to `IServerAdapter`). Bump all three together.
 
 ## Major upgrades: status
 
-| Package                                                                              | Status    | Reason                                                                                                                                                                                |
-| ------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Nx 23 → 24                                                                           | Done      | Upgraded via `nx migrate 24.0.3` + `nx migrate --run-migrations` (removed deprecated executors, added the ready-signal plugin). lint/test/build and the install-mode smoke are green. |
-| NestJS 11 → 12                                                                       | Blocked   | `@nx/nest@24.0.3` (still `latest`) peers `@nestjs/core\|common` `<12`; wait for a release that supports 12. `@nestjs/schematics@12` / `swagger@12` follow.                            |
-| TypeScript 6 → 7                                                                     | Blocked   | `typescript-eslint@8.72` needs `<6.1`, `ts-jest@29` needs `<7`, `@nestjs/swagger@12` needs `<7`.                                                                                      |
-| `@types/node` 22 → 26                                                                | Skip      | Runtime is Node 24 (`.nvmrc`); keep types on `^24`.                                                                                                                                   |
-| `postgres` 4, `tsup` 9, `vite-plugin-pwa` 2, `@anthropic-ai/sdk` 1.x, `minimatch` 11 | Unchecked | Each is its own PR with its own test pass.                                                                                                                                            |
+| Package                                                | Status              | Reason                                                                                                                                                                                |
+| ------------------------------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nx 23 → 24                                             | Done                | Upgraded via `nx migrate 24.0.3` + `nx migrate --run-migrations` (removed deprecated executors, added the ready-signal plugin). lint/test/build and the install-mode smoke are green. |
+| NestJS 11 → 12                                         | Blocked             | `@nx/nest@24.0.3` (still `latest`) peers `@nestjs/core\|common` `<12`; wait for a release that supports 12. `@nestjs/schematics@12` / `swagger@12` follow.                            |
+| TypeScript 6 → 7                                       | Blocked             | `typescript-eslint@8.72` needs `<6.1`, `ts-jest@29` needs `<7`, `@nestjs/swagger@12` needs `<7`.                                                                                      |
+| `@types/node` 22 → 24                                  | Done                | Types follow the Node 24 runtime (`.nvmrc`); `^26` is intentionally skipped.                                                                                                          |
+| `tsup` 9, `vite-plugin-pwa` 2, `@anthropic-ai/sdk` 1.x | Done                | lint/test/build green; `client-shadcn` still emits `sw.js` + manifest; `create-icore` tarball and install-mode smoke (pnpm) pass.                                                     |
+| `postgres` 3 → 4                                       | Blocked             | v4 is ESM-only (`TS1479`: the CommonJS Nest libs `auth-postgres` / `db-postgres` cannot `require` it). Needs a dynamic `import("postgres")` rewrite in both strategies first.         |
+| `minimatch` 11                                         | Done (create-icore) | Bumped in `tools/create-icore`; see the security section for the `resolutions`.                                                                                                       |
 
 ## Test plan
 
