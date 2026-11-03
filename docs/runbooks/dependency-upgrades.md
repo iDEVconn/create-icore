@@ -36,13 +36,13 @@ not assignable to `IServerAdapter`). Bump all three together.
 
 ## Major upgrades: status
 
-| Package                                                                              | Status    | Reason                                                                                                                                                       |
-| ------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Nx 23 → 24                                                                           | Pending   | Needs a dedicated `nx migrate` PR: `@nx/eslint:lint` / `@nx/vitest:test` executors no longer resolve; `nxViteTsPaths` and `nxCopyAssetsPlugin` were removed. |
-| NestJS 11 → 12                                                                       | Blocked   | `@nx/nest@24` peers `@nestjs/core\|common` `<12`.                                                                                                            |
-| TypeScript 6 → 7                                                                     | Blocked   | `typescript-eslint@8.72` needs `<6.1`, `ts-jest@29` needs `<7`, `@nestjs/swagger@12` needs `<7`.                                                             |
-| `@types/node` 22 → 26                                                                | Skip      | Runtime is Node 24 (`.nvmrc`); keep types on `^24`.                                                                                                          |
-| `postgres` 4, `tsup` 9, `vite-plugin-pwa` 2, `@anthropic-ai/sdk` 1.x, `minimatch` 11 | Unchecked | Each is its own PR with its own test pass.                                                                                                                   |
+| Package                                                                              | Status    | Reason                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nx 23 → 24                                                                           | Done      | Upgraded via `nx migrate 24.0.3` + `nx migrate --run-migrations` (removed deprecated executors, added the ready-signal plugin). lint/test/build and the install-mode smoke are green. |
+| NestJS 11 → 12                                                                       | Blocked   | `@nx/nest@24.0.3` (still `latest`) peers `@nestjs/core\|common` `<12`; wait for a release that supports 12. `@nestjs/schematics@12` / `swagger@12` follow.                            |
+| TypeScript 6 → 7                                                                     | Blocked   | `typescript-eslint@8.72` needs `<6.1`, `ts-jest@29` needs `<7`, `@nestjs/swagger@12` needs `<7`.                                                                                      |
+| `@types/node` 22 → 26                                                                | Skip      | Runtime is Node 24 (`.nvmrc`); keep types on `^24`.                                                                                                                                   |
+| `postgres` 4, `tsup` 9, `vite-plugin-pwa` 2, `@anthropic-ai/sdk` 1.x, `minimatch` 11 | Unchecked | Each is its own PR with its own test pass.                                                                                                                                            |
 
 ## Test plan
 
