@@ -27,10 +27,6 @@
       },
       "outputs": ["{projectRoot}/dist", "{projectRoot}/templates"]
     },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
-    },
     "test": {
       "dependsOn": ["snapshot-templates"]
     }

@@ -82,7 +82,6 @@
       "build",
       "dev",
       "test:watch",
-      "lint",
       "typecheck",
       "smoke",
       "smoke:run",
