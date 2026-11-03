@@ -1,0 +1,44 @@
+# Dependabot config. Every PR goes to `dev` (never `main`: it is the deploy target).
+# Without this file Dependabot targets the default branch, so security PRs landed on main.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      # One PR for all security fixes instead of one per advisory (143 open alerts once).
+      security:
+        applies-to: security-updates
+        patterns: ['*']
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+    ignore:
+      # Majors blocked by peer ranges / ESM-only, see docs/runbooks/dependency-upgrades.md.
+      # Remove an entry when its blocker is resolved.
+      - dependency-name: '@nestjs/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies]
+    commit-message:
+      prefix: 'ci(deps)'
+    groups:
+      actions:
+        patterns: ['*']

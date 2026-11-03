@@ -5,13 +5,11 @@
   "implicitDependencies": ["ai-orchestrator"],
   "targets": {
     "e2e": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
-      "dependsOn": ["ai-orchestrator:build", "ai-orchestrator:serve"],
-      "options": {
-        "jestConfig": "apps/microservices/ai-orchestrator-e2e/jest.config.cts",
-        "passWithNoTests": true
-      }
+      "outputs": [
+        "{workspaceRoot}/coverage/{e2eProjectRoot}",
+        "{workspaceRoot}/coverage/ai-orchestrator-e2e"
+      ],
+      "dependsOn": ["ai-orchestrator:build", "ai-orchestrator:serve"]
     }
   }
 }

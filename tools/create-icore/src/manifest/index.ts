@@ -203,8 +203,12 @@ export const MANIFEST = {
       ],
       deps: {
         '@icore/jobs-client': '*',
-        '@bull-board/api': '^7.1.5',
-        '@bull-board/express': '^7.1.5',
+        // Exact, identical versions: @bull-board/express pins @bull-board/api
+        // exactly, so a range lets the package manager nest a second copy and
+        // ExpressAdapter stops matching IServerAdapter (TS2322).
+        '@bull-board/api': '9.11.0',
+        '@bull-board/express': '9.11.0',
+        '@bull-board/ui': '9.11.0',
       },
       tsPaths: { '@icore/jobs-client': ['libs/jobs-client/src/index.ts'] },
       gatewayModule: { importFrom: './admin/admin.module', symbol: 'AdminModule' },

@@ -1,11 +1,11 @@
 import { defineConfig } from 'vitest/config';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/worker',
-  plugins: [nxViteTsPaths()],
+  plugins: [],
   resolve: {
+    tsconfigPaths: true,
     // `cloudflare:workers` only exists inside workerd.
     alias: {
       'cloudflare:workers': `${import.meta.dirname}/src/testing/cloudflare-workers.stub.ts`,

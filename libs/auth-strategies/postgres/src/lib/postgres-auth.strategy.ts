@@ -1,4 +1,4 @@
-import postgres from 'postgres';
+import type postgres from 'postgres' with { 'resolution-mode': 'import' };
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { RpcException } from '@nestjs/microservices';
@@ -13,11 +13,20 @@ import type {
 import { decideRefresh, hashRefreshToken } from './refresh-token';
 import { hashPassword, isBcryptHash, verifyPassword } from './password-hashing';
 
+// postgres 4 is ESM-only; this library is CommonJS. Node 22.12+/24 (`.nvmrc`) can `require()` an
+// ES module synchronously, same interop as `@idevconn/llm-router` in ai-orchestrator. The static
+// import above is type-only and keeps `postgres.Sql` etc. for the types.
+const createSql = (
+  require('postgres') as typeof import('postgres', { with: { 'resolution-mode': 'import' } })
+).default;
+
 export interface PostgresAuthStrategyOptions {
   url: string;
   jwtSecret: string;
   jwtExpiresIn?: string;
   refreshExpiresIn?: string;
+  /** Test seam: replaces the real driver (`vi.mock` cannot intercept the `require()` above). */
+  createSql?: (url: string) => postgres.Sql;
 }
 
 function parseDurationSeconds(s: string): number {
@@ -40,7 +49,7 @@ export class PostgresAuthStrategy implements AuthStrategy {
   private tablesReadyPromise: Promise<void> | null = null;
 
   constructor(private readonly opts: PostgresAuthStrategyOptions) {
-    this.sql = postgres(opts.url);
+    this.sql = (opts.createSql ?? createSql)(opts.url);
   }
 
   private ensureTables(): Promise<void> {
