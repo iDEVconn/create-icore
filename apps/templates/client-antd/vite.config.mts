@@ -3,8 +3,6 @@ import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
-import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 import {
   apiInfoPlugin,
   commonDefines,
@@ -27,6 +25,9 @@ function depVersion(name: string): string {
 }
 
 export default defineConfig(() => ({
+  resolve: {
+    tsconfigPaths: true,
+  },
   root: import.meta.dirname,
   cacheDir: '../../../node_modules/.vite/apps/templates/client-antd',
   server: commonServer(4201),
@@ -45,15 +46,13 @@ export default defineConfig(() => ({
       routeFileIgnorePattern: '(__tests__|\\.test\\.(t|j)sx?$)',
     }),
     react(),
-    nxViteTsPaths(),
-    nxCopyAssetsPlugin(['*.md']),
     noServerModulesPlugin(),
     apiInfoPlugin(),
     injectAppVersionPlugin(rootPackageJson),
   ],
   // Uncomment this if you are using workers.
   // worker: {
-  //   plugins: () => [ nxViteTsPaths() ],
+  //  plugins: [],
   // },
   build: {
     outDir: '../../../dist/apps/templates/client-antd',
