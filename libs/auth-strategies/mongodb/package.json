@@ -6,7 +6,7 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "devDependencies": {
-    "@nx/vite": "23.3.1",
+    "@nx/vite": "24.0.3",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "jsonc-eslint-parser": "^3.3.0",

@@ -16,7 +16,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@nx/vite": "23.3.1",
+    "@nx/vite": "24.0.3",
     "@tanstack/react-router": "^1.170.46",
     "jsonc-eslint-parser": "^3.3.0",
     "react": "^19.3.1",

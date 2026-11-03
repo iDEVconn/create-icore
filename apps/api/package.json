@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "devDependencies": {
-    "@nx/vite": "23.3.1",
-    "@nx/webpack": "23.3.1",
+    "@nx/vite": "24.0.3",
+    "@nx/webpack": "24.0.3",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.3.0",
     "jsonc-eslint-parser": "^3.3.0",
