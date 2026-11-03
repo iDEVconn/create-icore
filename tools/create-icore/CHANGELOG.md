@@ -1,5 +1,17 @@
 # @idevconn/create-icore
 
+## 0.21.2
+
+### Patch Changes
+
+- 694fbcb: Upgrade `tsup` to 9, `vite-plugin-pwa` to 2 (client-shadcn template), `@anthropic-ai/sdk` to 1.x (ai-orchestrator) and align `@types/node` with the Node 24 runtime. `postgres` 4 stays on 3.x: it is ESM-only and the CommonJS strategies cannot `require` it.
+- 628d1bf: Bump minor/patch dependencies and upgrade Nx to 24 across the workspace and generated projects (nx 24.0.3 with its migrations, vitest 5.1, webpack 5.112, bullmq 6.5, bull-board 9.11, mongoose 9.11, and others); sync `_template-shell` and scaffold pins.
+- 5f0c054: Add `.github/dependabot.yml` (PRs target `dev`, grouped security updates) and a weekly `security-audit` workflow running `yarn npm audit` (critical advisories block, high production advisories warn).
+- ef82ac6: Pin `@bull-board/api`, `@bull-board/express` and `@bull-board/ui` to one exact version so generated `jobs=bullmq` projects no longer install two copies of `@bull-board/api` (TS2322 `ExpressAdapter` vs `IServerAdapter`).
+- 6c2b488: Allow `argon2` build scripts in generated pnpm workspaces so `--auth=postgres` installs cleanly (pnpm 10+ failed with `ERR_PNPM_IGNORED_BUILDS`).
+- cf17978: Upgrade `postgres` to 4 in the postgres auth and db strategies (ESM-only driver loaded via `require()` on Node 24; `PostgresAuthStrategyOptions.createSql` is a test seam).
+- be95005: Fix 134 of 143 open Dependabot alerts (undici, axios, js-yaml, ip-address, fast-uri, brace-expansion and more) via lockfile bumps and root `resolutions`; bump `minimatch` to ^11 in create-icore. Remaining alerts documented in `docs/runbooks/dependency-upgrades.md`.
+
 ## 0.21.1
 
 ### Patch Changes
