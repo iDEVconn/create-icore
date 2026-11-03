@@ -23,7 +23,7 @@ jobs:
       has-affected: ${{ steps.affected.outputs.has-affected }}
       docker-images: ${{ steps.affected.outputs.docker-images }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -96,7 +96,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -145,7 +145,7 @@ jobs:
     if: needs.detect-affected.outputs.has-affected == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -201,7 +201,7 @@ jobs:
               cloudflare-worker|--host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes
               cloudflare-worker-minimal|--host=cloudflare --auth=none --db=none --upload=none --example=none
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
         with:
           nx-cache: 'true'
@@ -248,7 +248,7 @@ jobs:
       matrix:
         image: ${{ fromJSON(needs.detect-affected.outputs.docker-images) }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - name: Build ${{ matrix.image }}
         uses: docker/build-push-action@v7
