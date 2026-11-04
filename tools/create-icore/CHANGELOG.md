@@ -1,5 +1,12 @@
 # @idevconn/create-icore
 
+## 0.21.3
+
+### Patch Changes
+
+- d6f4a5b: Reject `--example=notes` with `--db=none` (when auth is enabled) with a clear error instead of generating a project that fails to compile. Adds a blueprint options reference runbook.
+- 56736d1: Pre-approve `esbuild` and `workerd` build scripts in the generated `pnpm-workspace.yaml` so `--host=cloudflare` + pnpm installs no longer fail with `ERR_PNPM_IGNORED_BUILDS`.
+
 ## 0.21.2
 
 ### Patch Changes
