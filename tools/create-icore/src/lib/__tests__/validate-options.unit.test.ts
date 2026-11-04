@@ -34,6 +34,21 @@ describe('validateOptions', () => {
     expect(corrected.example).toBe('none');
   });
 
+  it('errors when example=notes has no database (db=none, auth enabled)', () => {
+    const { errors } = validateOptions({ ...base, dbProvider: 'none' });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/--example=notes needs a database/);
+  });
+
+  it('allows db=none when example=none, and auth=none + notes is still just corrected', () => {
+    expect(validateOptions({ ...base, dbProvider: 'none', example: 'none' }).errors).toHaveLength(
+      0,
+    );
+    const r = validateOptions({ ...base, authProvider: 'none', dbProvider: 'none' });
+    expect(r.errors).toHaveLength(0);
+    expect(r.corrected.example).toBe('none');
+  });
+
   it('does not warn when auth=none + example=none', () => {
     const opts = { ...base, authProvider: 'none' as const, example: 'none' as const };
     const { warnings } = validateOptions(opts);
