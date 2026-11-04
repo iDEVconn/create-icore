@@ -24,7 +24,8 @@ export async function writePnpmWorkspace(targetDir: string): Promise<void> {
   // (ERR_PNPM_IGNORED_BUILDS). pnpm 11 deprecated the old `onlyBuiltDependencies`
   // allowlist in favour of an `allowBuilds` map (pkg → true|false) — writing it
   // here is the declarative equivalent of running `pnpm approve-builds`, so a
-  // fresh `pnpm install` is clean and non-interactive.
+  // fresh `pnpm install` is clean and non-interactive. `esbuild` + `workerd`
+  // arrive with wrangler (`--host=cloudflare`).
   const allowBuilds = [
     '@firebase/util',
     '@nestjs/core',
@@ -33,12 +34,14 @@ export async function writePnpmWorkspace(targetDir: string): Promise<void> {
     '@swc/core',
     'argon2',
     'bcrypt',
+    'esbuild',
     'less',
     'mongodb-memory-server',
     'msgpackr-extract',
     'nx',
     'protobufjs',
     'unrs-resolver',
+    'workerd',
   ]
     .map((p) => `  '${p}': true`)
     .join('\n');

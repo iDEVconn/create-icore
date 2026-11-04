@@ -24,6 +24,14 @@ describe('writePnpmWorkspace', () => {
     expect(yaml).toContain("'nx': true");
   });
 
+  // wrangler (--host=cloudflare) pulls in esbuild + workerd, whose postinstall
+  // scripts pnpm blocks by default -> ERR_PNPM_IGNORED_BUILDS on install.
+  it('pre-approves the wrangler build scripts (esbuild, workerd)', async () => {
+    const yaml = await workspaceYaml(['apps/*']);
+    expect(yaml).toContain("'esbuild': true");
+    expect(yaml).toContain("'workerd': true");
+  });
+
   // The built microservice bundles keep every non-@icore package EXTERNAL and
   // resolve it upward from dist/ to the ROOT node_modules (apps/*/webpack.config.js).
   // Under pnpm's strict isolation a dependency declared only in a workspace lib
