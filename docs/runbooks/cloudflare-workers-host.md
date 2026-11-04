@@ -43,6 +43,7 @@ yarn nx run worker:serve    # wrangler dev --local on :8787
   Supabase/D1/R2 settings. `serve`/`smoke` replace it at bundle time (`--define`) to run with the fakes.
 - State in an isolate's memory is not shared between isolates — the reason sessions and throttle counters live in Durable Objects.
 - Each Durable Object / D1 round trip is ~70–80 ms from a distant colo; every authenticated request is one Durable Object request.
+- pnpm projects: `wrangler` pulls in `esbuild` + `workerd`, whose postinstall scripts pnpm 10+ blocks by default (`ERR_PNPM_IGNORED_BUILDS`). `writePnpmWorkspace` pre-approves both in `allowBuilds` (nightly smoke `pnpm · cloudflare-worker-*` failed on this, 2026-11-04). Add any new wrangler-side native dep there too.
 - Workers Paid is required in practice (cold bootstrap uses ~70 ms CPU; the Free plan allows 10 ms).
 
 ## Generating a project (`--host=cloudflare`)

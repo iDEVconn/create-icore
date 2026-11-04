@@ -84,6 +84,14 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
       errors.push('--session=durable-object needs --host=cloudflare');
   }
 
+  // The notes sample persists through a DBStrategy; with db=none its db.provider is never wired and
+  // the generated project fails to compile (imports a pruned @icore/db-* lib).
+  if (opts.authProvider !== 'none' && opts.dbProvider === 'none' && opts.example === 'notes') {
+    errors.push(
+      '--example=notes needs a database: pass --db=<supabase|firebase|mongodb|postgres|sqlite|d1> or --example=none',
+    );
+  }
+
   if (opts.authProvider === 'none' && opts.example !== 'none') {
     warnings.push(
       'notes example requires auth — example has been set to none (auth=none disables CASL and AuthGuard)',
