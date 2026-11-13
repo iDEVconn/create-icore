@@ -72,6 +72,22 @@ async function stripJobsDockerCompose(targetDir: string): Promise<void> {
   }
 }
 
+async function stripPaymentDockerCompose(targetDir: string): Promise<void> {
+  const composePath = join(targetDir, 'docker-compose.yml');
+  try {
+    const compose = await readFile(composePath, 'utf8');
+    const next = compose
+      .replace(/\n {2}payment:[\s\S]+?(?=\n {2}\w+:|\nnetworks:)/m, '\n')
+      .replace(/\n {6}payment:\n {8}condition: service_started/g, '')
+      .replace(/\n {6}PAYMENT_TRANSPORT:[^\n]*/g, '')
+      .replace(/\n {6}PAYMENT_HOST:[^\n]*/g, '')
+      .replace(/\n {6}PAYMENT_PORT:[^\n]*/g, '');
+    await writeFile(composePath, next);
+  } catch {
+    // ignore
+  }
+}
+
 async function stripAiDockerCompose(targetDir: string): Promise<void> {
   const composePath = join(targetDir, 'docker-compose.yml');
   try {
@@ -113,6 +129,7 @@ export async function cleanupUnusedFeatures(
     if (unit.gatewayService) await stripGatewayTransport(targetDir, unit.gatewayService.prefix);
     if (unit.dockerService === 'jobs') await stripJobsDockerCompose(targetDir);
     if (unit.dockerService === 'ai') await stripAiDockerCompose(targetDir);
+    if (unit.dockerService === 'payment') await stripPaymentDockerCompose(targetDir);
     if (key === 'jobs') {
       // jobs.ts in libs/shared is only used by BullMQ — dead when jobs=none
       try {

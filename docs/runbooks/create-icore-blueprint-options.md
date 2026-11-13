@@ -29,6 +29,13 @@ The template snapshot (`tools/create-icore/templates/`) contains **everything**.
 Consequence: choosing less yields a smaller project. There are no "disabled" flags in generated code — an unchosen feature has no files,
 no deps, no compose service, no env block.
 
+Compose services follow the same rule for every optional microservice: `jobs`, `ai` and `payment` each have their `docker-compose.yml` service
+block, the gateway `depends_on` entry, the gateway env keys and their `Dockerfile.ms-<name>` removed when the feature is `none`
+(`dockerService` on the feature unit in `manifest/index.ts`, stripped in `manifest/wire-features.ts`). Every `dockerfile:` the compose file
+builds must be in the file list of `scripts/snapshot-templates.mjs`; `snapshot-dockerfiles.unit.test.ts` pins that. Before this was fixed
+(`Dockerfile.ms-payment` was missing from the snapshot and the payment service was never stripped) `payment=paypal` generated a compose file
+that could not `docker compose build` and `payment=none` kept a dangling `payment` service.
+
 ## 2. Options
 
 | Flag (config key)                      | Values                                                                 | Default / when skipped                                                                |

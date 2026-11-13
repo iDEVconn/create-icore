@@ -188,11 +188,13 @@ export const MANIFEST = {
         'apps/microservices/payment-e2e',
         'libs/payment-client',
         'apps/api/src/app/payment',
+        'Dockerfile.ms-payment',
       ],
       deps: { '@icore/payment-client': '*', '@idevconn/payment': '^1.2.0' },
       tsPaths: { '@icore/payment-client': ['libs/payment-client/src/index.ts'] },
       gatewayModule: { importFrom: './payment/payment.module', symbol: 'PaymentModule' },
       gatewayService: { name: 'payment', prefix: 'PAYMENT' },
+      dockerService: 'payment',
     },
     jobs: {
       libDirs: [

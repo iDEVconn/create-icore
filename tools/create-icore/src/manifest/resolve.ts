@@ -30,6 +30,7 @@ const CLOUDFLARE_EXCLUDED_PATHS = [
   'Dockerfile.ms-auth',
   'Dockerfile.ms-upload',
   'Dockerfile.ms-jobs',
+  'Dockerfile.ms-payment',
   'Dockerfile.ms-ai',
   'Dockerfile.client',
   'nginx.client.conf',
