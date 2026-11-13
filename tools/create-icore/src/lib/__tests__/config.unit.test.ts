@@ -122,6 +122,10 @@ describe('validateConfig', () => {
     expect(() => validateConfig({ upload: 'aws-s3' })).toThrowError(ConfigFileError);
   });
 
+  it('accepts ui=none', () => {
+    expect(validateConfig({ ui: 'none' }).ui).toBe('none');
+  });
+
   it('throws ConfigFileError for invalid ui', () => {
     expect(() => validateConfig({ ui: 'bootstrap' })).toThrowError(ConfigFileError);
   });

@@ -41,7 +41,7 @@ no deps, no compose service, no env block.
 | `--jobs` (`jobs`)                      | `bullmq`, `none`                                                       | `none`                                                                                |
 | `--ai` (`ai`)                          | `llm-router`, `none`                                                   | `none`                                                                                |
 | `--example` (`example`)                | `notes`, `none`                                                        | `none` if `auth=none`; else wizard (`notes`)                                          |
-| `--ui` (`ui`)                          | `shadcn`, `antd`, `mui`                                                | wizard (`shadcn`)                                                                     |
+| `--ui` (`ui`)                          | `shadcn`, `antd`, `mui`, `none`                                        | wizard (`shadcn`); `none` = API-only, no client                                       |
 | `--transport` (`transport`)            | `tcp`, `redis`, `nats`, `mqtt`, `rmq`, `kafka`, `local`                | `local` on cloudflare; `tcp` if no microservice; else wizard (`tcp`)                  |
 | `--session` (`session`)                | `redis`, `memory`, `durable-object`                                    | `redis` if `auth=none`; `durable-object` on cloudflare; else wizard (`redis`)         |
 | `--package-manager` (`packageManager`) | `yarn`, `npm`, `pnpm`                                                  | detected from `npm_config_user_agent`, else `yarn`                                    |
@@ -64,6 +64,7 @@ no deps, no compose service, no env block.
 | `host=cloudflare` + `payment`/`jobs`/`ai` ≠ `none`                            | unsupported                                      |
 | `host=cloudflare` + explicit transport other than `local`/default `tcp`       | unsupported                                      |
 | `host=cloudflare` + auth ≠ none + session other than `durable-object`/`redis` | unsupported                                      |
+| `host=cloudflare` + `ui=none`                                                 | unsupported (the Worker serves the built client) |
 
 **Auto-corrections (with a warning where noted)**
 
@@ -75,6 +76,7 @@ no deps, no compose service, no env block.
 
 **Warning only (not corrected)**
 
+- Every option `none` (`auth`, `db`, `upload`, `payment`, `jobs`, `ai`, `example`, `ui`): a notice says only the bare NestJS gateway (`apps/api`) is generated. Generation continues.
 - `jobs=bullmq` with `transport` ≠ `redis`: BullMQ needs Redis. The compose file still gets Redis for the jobs stack, but you own making sure a
   Redis is reachable.
 
@@ -219,3 +221,16 @@ See `scaffold-smoke-tests.md` for the matrix definition.
 4. Any wiring step in `scaffold.ts` (`wire-*.ts`) and the `blueprint.json` field.
 5. `appTests` for app-level tests that import the new lib (else the scaffold-smoke audit fails).
 6. Extend the Layer A/B covering set, `package.json` dep in `_template-shell` if shared (`template-shell-drift` test), changeset, this page.
+
+## ui=none (API-only)
+
+`--ui=none` generates no React client. Path exclusion lives in `UI_NONE_EXCLUDED_PATHS` (`manifest/resolve.ts`): `apps/templates`, `apps/client`,
+`Dockerfile.client`, `nginx.client.conf`, `libs/template-shared`, `libs/vite-plugins`. On top of that `scaffold()` skips every client step
+(template promotion, client `.env`, nav config, auth-none UI variants, `apps/client/blueprint.json`), strips the `@icore/template-shared` and
+`@icore/vite-plugins` aliases from `tsconfig.base.json`, and `pruneClientDeps` removes client-only dependencies from the root `package.json`
+(only those no remaining code or config file still references). The Nx plugins `nx.json` registers (`@nx/vite`, `@nx/vitest`, `@nx/playwright`), `vite` and
+`@playwright/test` stay. `@nx/react` is pruned too (nx.json only lists it under `generators`; its peers would reinstall React). README, the root `dev` hint and the post-scaffold "Next" output drop the client (`:4200`);
+the CLI points at the gateway Swagger (`:3001/api/docs`) instead.
+
+Combos in CI: `ui-none` and `ui-none-minimal` in `pipeline.yml` (typecheck) and `supabase-api-only-tcp` in `scaffold-smoke-matrix.yml` (install + build + boot).
+Not covered: a gateway-less project (`--gateway=none`) is a separate, larger change.

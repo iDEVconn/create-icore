@@ -314,6 +314,47 @@ describe('collectOptions — wizard provider options', () => {
   });
 });
 
+describe('collectOptions — UI library question', () => {
+  const argv = [
+    'my-app',
+    '--auth=supabase',
+    '--db=supabase',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=none',
+    '--ai=none',
+    '--example=notes',
+    '--transport=tcp',
+    '--session=redis',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+
+  it('reads --ui=none from the flag', () => {
+    expect(parseFlags(['my-app', '--ui=none']).ui).toBe('none');
+  });
+
+  it('offers an API-only (no client) choice in the wizard and returns it', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'UI library' ? 'none' : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({ argv, cwd: '.' });
+      const ui = select.mock.calls.find(
+        ([o]) => (o as { message: string }).message === 'UI library',
+      )?.[0] as {
+        options: { value: string; label: string }[];
+      };
+      expect(ui.options).toContainEqual({ value: 'none', label: 'No client (API only)' });
+      expect(opts.ui).toBe('none');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+});
+
 describe('collectOptions — --host=cloudflare', () => {
   const argv = (extra: string[]) => [
     'my-app',

@@ -55,6 +55,15 @@ async function stripTsconfigPath(targetDir: string, alias: string): Promise<void
 }
 
 /**
+ * `--ui=none`: the browser-only libs are excluded from the copy, so their tsconfig aliases would
+ * dangle. Run after the copy, only for API-only projects.
+ */
+export async function removeClientTsconfigPaths(targetDir: string): Promise<void> {
+  await stripTsconfigPath(targetDir, '@icore/template-shared');
+  await stripTsconfigPath(targetDir, '@icore/vite-plugins');
+}
+
+/**
  * Deletes the shared `@icore/firebase-admin` init lib and its tsconfig alias.
  * Called only when no microservice uses the Firebase provider — the per-MS
  * strategy pruning already removes the import + dep from each service.
@@ -261,4 +270,88 @@ export async function pruneUnusedLibDeps(targetDir: string): Promise<void> {
     const used = await dirImportsDep(join(targetDir, lib, 'src'), dep);
     if (!used) await stripDeps(join(targetDir, lib, 'package.json'), [dep]);
   }
+}
+
+/**
+ * Dependencies only the React client (apps/client, libs/template-shared, libs/vite-plugins) uses.
+ * Nx plugins registered in nx.json `plugins` (@nx/vite, @nx/vitest, @nx/playwright), vite and
+ * @playwright/test are deliberately NOT listed, so they stay installed. @nx/react is listed: nx.json
+ * only mentions it under `generators`, and its peers (react, react-dom) would bring React back.
+ */
+const CLIENT_ONLY_DEPS = [
+  'react',
+  'react-dom',
+  'react-i18next',
+  'i18next',
+  'zustand',
+  'classnames',
+  'dayjs',
+  'axios',
+  '@casl/react',
+  '@idevconn/api-client',
+  '@idevconn/use-draft',
+  '@tanstack/react-query',
+  '@tanstack/react-router',
+  '@tanstack/router-plugin',
+  '@icore/vite-plugins',
+  '@vitejs/plugin-react',
+  '@testing-library/dom',
+  '@testing-library/react',
+  '@types/react',
+  '@types/react-dom',
+  'eslint-plugin-react',
+  'eslint-plugin-react-hooks',
+  'eslint-plugin-jsx-a11y',
+  'eslint-plugin-playwright',
+  'jsdom',
+  '@nx/react',
+];
+
+const CODE_FILE = /\.(?:[cm]?[jt]sx?)$/;
+
+async function collectCodeFiles(dir: string, depth = 0): Promise<string[]> {
+  const out: string[] = [];
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    if (e.name === 'node_modules' || e.name === 'dist' || e.name.startsWith('.')) continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...(await collectCodeFiles(p, depth + 1)));
+    else if (e.isFile() && CODE_FILE.test(e.name)) out.push(p);
+  }
+  return out;
+}
+
+/**
+ * `--ui=none`: drop the client-only dependencies from the root package.json, unless a code or config
+ * file that is still in the project mentions them (a quoted `dep` or `dep/subpath`). Usage-driven so
+ * a server lib that happens to share, say, `axios` keeps it.
+ */
+export async function pruneClientDeps(targetDir: string): Promise<void> {
+  const pkgPath = join(targetDir, 'package.json');
+  try {
+    await readFile(pkgPath, 'utf8');
+  } catch (err) {
+    if (isEnoent(err)) return;
+    throw err;
+  }
+  const files = [
+    ...(await collectCodeFiles(join(targetDir, 'apps'))),
+    ...(await collectCodeFiles(join(targetDir, 'libs'))),
+    ...(await collectCodeFiles(join(targetDir, 'tools'))),
+    ...(await readdir(targetDir, { withFileTypes: true }))
+      .filter((e) => e.isFile() && CODE_FILE.test(e.name))
+      .map((e) => join(targetDir, e.name)),
+  ];
+  const sources = await Promise.all(files.map((f) => readFile(f, 'utf8').catch(() => '')));
+  const drop = CLIENT_ONLY_DEPS.filter((dep) => {
+    const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`['"]${escaped}(?:/[^'"]*)?['"]`);
+    return !sources.some((s) => re.test(s));
+  });
+  await stripDeps(pkgPath, drop);
 }

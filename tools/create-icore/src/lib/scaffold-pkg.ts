@@ -167,7 +167,13 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
   await writeFile(join(targetDir, 'CLAUDE.md'), '@AGENTS.md\n');
 
   // ── README.md ──────────────────────────────────────────────────────────────
-  const uiLabel = { shadcn: 'shadcn/ui + Tailwind', antd: 'Ant Design 6', mui: 'MUI 9' }[opts.ui];
+  const hasClient = opts.ui !== 'none';
+  const uiLabel = {
+    shadcn: 'shadcn/ui + Tailwind',
+    antd: 'Ant Design 6',
+    mui: 'MUI 9',
+    none: '—',
+  }[opts.ui];
   const emailNotice = authEmailNotice(opts.authProvider);
   const emailSetup =
     emailNotice.length > 0
@@ -181,7 +187,7 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
         : '## Session store\n\nSessions are stored in Redis (`SESSION_REDIS_URL` in `apps/api/.env`), so they survive restarts and several gateway instances can share them.\n\n';
   const readme = `# ${opts.projectName}
 
-> Scaffolded with [iCore](https://github.com/iDEVconn/create-icore) — Nx + NestJS + React full-stack template.
+> Scaffolded with [iCore](https://github.com/iDEVconn/create-icore) — Nx + NestJS ${hasClient ? '+ React full-stack' : 'API-only'} template.
 
 ## Stack
 
@@ -192,19 +198,16 @@ export async function writeAiFiles(targetDir: string, opts: CreateIcoreOptions):
 | Auth | ${opts.authProvider} |
 | Database | ${opts.dbProvider} |
 | Upload | ${opts.upload === 'none' ? '—' : opts.upload} |
-| UI | ${uiLabel} + TanStack Router + Query |
-| i18n | i18next (en / ru / he) |
+${hasClient ? `| UI | ${uiLabel} + TanStack Router + Query |\n| i18n | i18next (en / ru / he) |` : ''}
 
 ## Quick start
 
 \`\`\`bash
 # 1. Fill in provider credentials
-${opts.authProvider !== 'none' ? '#    apps/microservices/auth/.env\n' : ''}${opts.upload !== 'none' ? '#    apps/microservices/upload/.env\n' : ''}#    apps/client/.env               (VITE_API_URL — already defaults to /api)
-
+${opts.authProvider !== 'none' ? '#    apps/microservices/auth/.env\n' : ''}${opts.upload !== 'none' ? '#    apps/microservices/upload/.env\n' : ''}${hasClient ? '#    apps/client/.env               (VITE_API_URL — already defaults to /api)\n' : ''}
 # 2. Start everything
 ${devCmd}
-# → http://localhost:4200        client
-# → http://localhost:3001/api/docs  Swagger
+${hasClient ? '# → http://localhost:4200        client\n' : ''}# → http://localhost:3001/api/docs  Swagger
 \`\`\`
 
 ${emailSetup}${sessionNote}## Commands
@@ -262,13 +265,13 @@ apps/
 ├── api/               NestJS gateway — all client traffic enters here (:3001)
 ├── microservices/
 ${activeMSes.map((s) => `│   ├── ${s.split(' ')[0]}/`).join('\n')}
-└── client/            Vite + React 19 + ${opts.ui} (:4200)
+${hasClient ? `└── client/            Vite + React 19 + ${opts.ui} (:4200)` : ''}
 libs/
 ├── shared/            contracts, CASL, transport helpers, env banner utils
 ├── auth-strategies/${opts.authProvider}/
 ${opts.upload !== 'none' ? `├── storage-strategies/${opts.upload}/\n` : ''}├── db-strategies/${opts.dbProvider === 'firebase' ? 'firestore' : opts.dbProvider}/
 ├── auth-client/       gateway → auth MS (TCP/Redis/NATS)
-${opts.upload !== 'none' ? `├── upload-client/     gateway → upload MS\n` : ''}└── template-shared/   browser-safe React foundation (stores, i18n, CASL)
+${opts.upload !== 'none' ? `├── upload-client/     gateway → upload MS\n` : ''}${hasClient ? '└── template-shared/   browser-safe React foundation (stores, i18n, CASL)\n' : ''}
 \`\`\`
 
 ## Key patterns
@@ -281,8 +284,7 @@ ${opts.upload !== 'none' ? `├── upload-client/     gateway → upload MS\n
 1. Root \`.env\` — \`DB_PROVIDER\`
 2. \`apps/api/.env\` — gateway transport endpoints
 3. \`apps/microservices/<name>/.env\` — each MS provider + transport
-4. \`apps/client/.env\` — \`VITE_API_URL\`
-
+${hasClient ? '4. `apps/client/.env` — `VITE_API_URL`\n' : ''}
 ## Commands
 
 \`\`\`bash
@@ -299,7 +301,7 @@ ${nx} g @nx/nest:resource     # generate NestJS resource
 
 | File | Key vars |
 |------|----------|
-${opts.authProvider !== 'none' ? `| \`apps/microservices/auth/.env\` | \`AUTH_PROVIDER=${opts.authProvider}\`, ${opts.authProvider === 'supabase' ? '`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`' : '`FB_ADMIN_*`, `FIREBASE_WEB_API_KEY`'} |\n` : ''}${opts.upload !== 'none' ? `| \`apps/microservices/upload/.env\` | \`STORAGE_PROVIDER=${opts.upload}\`, provider creds |\n` : ''}${opts.example !== 'none' ? `| \`apps/microservices/notes/.env\` | \`DB_PROVIDER=${opts.dbProvider}\`, DB creds |\n` : ''}| \`apps/client/.env\` | \`VITE_API_URL=/api\` (proxied to :3001 in dev) |
+${opts.authProvider !== 'none' ? `| \`apps/microservices/auth/.env\` | \`AUTH_PROVIDER=${opts.authProvider}\`, ${opts.authProvider === 'supabase' ? '`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`' : '`FB_ADMIN_*`, `FIREBASE_WEB_API_KEY`'} |\n` : ''}${opts.upload !== 'none' ? `| \`apps/microservices/upload/.env\` | \`STORAGE_PROVIDER=${opts.upload}\`, provider creds |\n` : ''}${opts.example !== 'none' ? `| \`apps/microservices/notes/.env\` | \`DB_PROVIDER=${opts.dbProvider}\`, DB creds |\n` : ''}${hasClient ? '| `apps/client/.env` | `VITE_API_URL=/api` (proxied to :3001 in dev) |' : ''}
 
 ## Testing
 

@@ -12,6 +12,7 @@ import type {
   JobsProvider,
   AiProvider,
   ExampleMode,
+  UiLibrary,
   PackageManager,
   MsTransport,
   CreateIcoreOptions,
@@ -120,7 +121,7 @@ export function parseFlags(argv: string[]): ParsedFlags {
         out.example = v as ExampleMode;
         break;
       case 'ui':
-        out.ui = v as 'shadcn' | 'antd' | 'mui';
+        out.ui = v as UiLibrary;
         break;
       case 'transport':
         out.transport = v as MsTransport;
@@ -318,23 +319,19 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         })) as ExampleMode));
   if (p.isCancel(example)) throw new Error('cancelled');
 
-  const ui =
+  const ui: UiLibrary =
     flags.ui ??
     ((await p.select({
       message: 'UI library',
       options: [
-        { value: 'shadcn' as 'shadcn' | 'antd' | 'mui', label: 'shadcn/ui + Tailwind' },
-        {
-          value: 'antd' as 'shadcn' | 'antd' | 'mui',
-          label: 'Ant Design 6',
-        },
-        {
-          value: 'mui' as 'shadcn' | 'antd' | 'mui',
-          label: 'MUI 9 (Material Design)',
-        },
+        { value: 'shadcn' as UiLibrary, label: 'shadcn/ui + Tailwind' },
+        { value: 'antd' as UiLibrary, label: 'Ant Design 6' },
+        { value: 'mui' as UiLibrary, label: 'MUI 9 (Material Design)' },
+        // The Cloudflare Worker serves the built client, so API-only is a Node-host choice.
+        ...(cf ? [] : [{ value: 'none' as UiLibrary, label: 'No client (API only)' }]),
       ],
-      initialValue: 'shadcn' as 'shadcn' | 'antd' | 'mui',
-    })) as 'shadcn' | 'antd' | 'mui');
+      initialValue: 'shadcn' as UiLibrary,
+    })) as UiLibrary);
   if (p.isCancel(ui)) throw new Error('cancelled');
 
   const noMicroservices =

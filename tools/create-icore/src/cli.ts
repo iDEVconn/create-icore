@@ -61,11 +61,14 @@ async function main() {
   p.log.info(`Next:`);
   p.log.info(`  cd ${opts.projectName}`);
   if (!opts.install) p.log.info(`  ${opts.packageManager} install`);
-  const services = ['gateway', 'client'];
+  const services = opts.ui === 'none' ? ['gateway'] : ['gateway', 'client'];
   if (opts.authProvider !== 'none') services.splice(1, 0, 'auth MS');
-  if (opts.upload !== 'none') services.splice(-1, 0, 'upload MS');
+  if (opts.upload !== 'none')
+    services.splice(opts.ui === 'none' ? services.length : -1, 0, 'upload MS');
   p.log.info(`  ${pmRun(opts.packageManager, 'dev')}      # ${services.join(' + ')}`);
-  p.log.info(`  open http://localhost:4200`);
+  p.log.info(
+    opts.ui === 'none' ? `  open http://localhost:3001/api/docs` : `  open http://localhost:4200`,
+  );
   if (opts.authProvider !== 'none') {
     p.log.info(`  edit apps/microservices/auth/.env to plug in real ${opts.authProvider} creds`);
   }
