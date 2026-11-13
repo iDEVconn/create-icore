@@ -76,5 +76,7 @@ The Worker also serves the built client: `wrangler.jsonc` has an `assets` bindin
 
 ## Not done yet
 
+- **NestJS 12.** A probe (2026-11-13) found that Nest 12 fails to load inside workerd (`wrangler dev --local`: `Uncaught TypeError: The argument 'path' ... must be a file URL ... or an absolute path string`), so this host blocks the Nest 12 upgrade. Details in [`nest-12-migration-probe.md`](./nest-12-migration-probe.md).
+
 - A real deployment (the generated workflow and assets binding are verified only locally), Smart Placement and region hints. Note the repo's own
   notes microservice still selects Supabase; a generated `--db=d1` project wires it to the D1 binding.
