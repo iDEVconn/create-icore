@@ -8,7 +8,8 @@ export type PaymentProvider = 'paypal' | 'none';
 export type JobsProvider = 'bullmq' | 'none';
 export type AiProvider = 'llm-router' | 'none';
 export type ExampleMode = 'notes' | 'none';
-export type UiLibrary = 'shadcn' | 'antd' | 'mui';
+/** `none` = API-only project: no React client is generated. */
+export type UiLibrary = 'shadcn' | 'antd' | 'mui' | 'none';
 export type HostKind = 'node' | 'cloudflare';
 /** `local` is in-process and only exists on the Cloudflare Workers host. */
 export type MsTransport = 'tcp' | 'redis' | 'nats' | 'mqtt' | 'rmq' | 'kafka' | 'local';
@@ -48,6 +49,10 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
         `--host=cloudflare does not support ${flag}=${value} (supported: ${supported}) — see docs/runbooks/cloudflare-workers-host.md`,
       );
     };
+    if (opts.ui === 'none')
+      errors.push(
+        '--host=cloudflare does not support --ui=none (the Worker serves the built client) — see docs/runbooks/cloudflare-workers-host.md',
+      );
     if (opts.authProvider !== 'supabase' && opts.authProvider !== 'none')
       unsupported('--auth', opts.authProvider, 'supabase, none');
     if (opts.dbProvider !== 'd1' && opts.dbProvider !== 'none')
@@ -108,6 +113,21 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
   if (opts.authProvider === 'none' && opts.session !== 'redis') {
     warnings.push('--session has no effect with auth=none (there are no sessions) — ignored');
     corrected = { ...corrected, session: 'redis' };
+  }
+
+  const everythingNone =
+    opts.authProvider === 'none' &&
+    opts.dbProvider === 'none' &&
+    opts.upload === 'none' &&
+    opts.payment === 'none' &&
+    opts.jobs === 'none' &&
+    opts.ai === 'none' &&
+    opts.example === 'none' &&
+    opts.ui === 'none';
+  if (everythingNone) {
+    warnings.push(
+      'every option is "none" — only the bare NestJS gateway (apps/api) will be generated: no auth, database, upload, payment, jobs, AI, notes example or client',
+    );
   }
 
   return { warnings, errors, corrected };

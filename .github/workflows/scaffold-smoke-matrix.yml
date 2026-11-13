@@ -47,6 +47,9 @@ jobs:
             flags: --auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --session=memory
           - name: cloudflare-d1-r2-tcp-shadcn
             flags: --auth=supabase --db=d1 --upload=r2 --ai=llm-router --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
+          # --ui=none: API-only project, no client in the project list and no client service to boot.
+          - name: supabase-api-only-tcp
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --ui=none
           # host=cloudflare: no services to boot; the run phase is the Worker's own wrangler-dev smoke.
           - name: cloudflare-worker-shadcn
             flags: --host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes --ui=shadcn

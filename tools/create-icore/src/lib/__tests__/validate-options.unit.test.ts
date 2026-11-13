@@ -170,4 +170,51 @@ describe('validateOptions', () => {
       expect(validateOptions({ ...base, dbProvider: 'd1', upload: 'r2' }).errors).toEqual([]);
     });
   });
+  describe('everything none', () => {
+    const allNone = {
+      ...base,
+      authProvider: 'none' as const,
+      dbProvider: 'none' as const,
+      upload: 'none' as const,
+      payment: 'none' as const,
+      jobs: 'none' as const,
+      ai: 'none' as const,
+      example: 'none' as const,
+      ui: 'none' as const,
+    };
+
+    it('warns that only the bare gateway will be generated, without blocking', () => {
+      const { warnings, errors } = validateOptions(allNone);
+      expect(errors).toEqual([]);
+      expect(warnings.join()).toMatch(/every option is "none".*gateway/i);
+    });
+
+    it('does not warn while at least one feature or the client is kept', () => {
+      expect(validateOptions({ ...allNone, ui: 'shadcn' }).warnings.join()).not.toMatch(
+        /every option is "none"/i,
+      );
+      expect(validateOptions({ ...allNone, ai: 'llm-router' }).warnings.join()).not.toMatch(
+        /every option is "none"/i,
+      );
+    });
+  });
+
+  describe('ui=none', () => {
+    it('accepts ui=none on the Node host unchanged', () => {
+      const { errors, corrected } = validateOptions({ ...base, ui: 'none' });
+      expect(errors).toEqual([]);
+      expect(corrected.ui).toBe('none');
+    });
+
+    it('rejects ui=none on host=cloudflare (the Worker serves the built client)', () => {
+      const { errors } = validateOptions({
+        ...base,
+        host: 'cloudflare',
+        dbProvider: 'd1',
+        upload: 'r2',
+        ui: 'none',
+      });
+      expect(errors.join()).toMatch(/--ui=none/);
+    });
+  });
 });

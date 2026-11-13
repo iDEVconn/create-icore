@@ -229,7 +229,7 @@ export const MANIFEST = {
       dockerService: 'ai',
     },
   },
-  ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY },
+  ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY, none: EMPTY },
   transport: {
     tcp: EMPTY,
     redis: EMPTY,

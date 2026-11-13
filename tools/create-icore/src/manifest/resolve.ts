@@ -47,6 +47,16 @@ const UPLOAD_NONE_EXCLUDED_PATHS = [
   'Dockerfile.ms-upload',
 ];
 
+/** `--ui=none`: API-only project, nothing of the React client (or its browser-only libs) ships. */
+const UI_NONE_EXCLUDED_PATHS = [
+  'apps/templates',
+  'apps/client',
+  'Dockerfile.client',
+  'nginx.client.conf',
+  'libs/template-shared',
+  'libs/vite-plugins',
+];
+
 export interface BindingDiagnostic {
   /** Options after cross-axis constraint normalization (e.g. auth=none -> example=none). */
   options: CreateIcoreOptions;
@@ -164,6 +174,10 @@ export function resolveBindings(rawOpts: CreateIcoreOptions): BindingDiagnostic 
     for (const p of UPLOAD_NONE_EXCLUDED_PATHS) {
       addExcludedPath(p);
     }
+  }
+
+  if (opts.ui === 'none') {
+    for (const p of UI_NONE_EXCLUDED_PATHS) excludedPaths.add(p);
   }
 
   // Strict guard for tools/: omit the entire directory when no active unit requires a tool script.

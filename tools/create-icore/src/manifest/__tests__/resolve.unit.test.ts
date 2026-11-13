@@ -92,4 +92,30 @@ describe('resolveBindings', () => {
     expect(diag.excludedPaths.has('tools/remove-notes.mjs')).toBe(true);
     expect(diag.excludedPaths.has('libs/db-strategies')).toBe(true);
   });
+  describe('ui=none', () => {
+    const CLIENT_PATHS = [
+      'apps/templates',
+      'apps/client',
+      'Dockerfile.client',
+      'nginx.client.conf',
+      'libs/template-shared',
+      'libs/vite-plugins',
+    ];
+
+    it('excludes every client artifact from the copy', () => {
+      const { excludedPaths } = resolveBindings({ ...base, ui: 'none' });
+      for (const p of CLIENT_PATHS) expect(excludedPaths.has(p), p).toBe(true);
+    });
+
+    it('keeps client artifacts for a real UI library', () => {
+      const { excludedPaths } = resolveBindings({ ...base, ui: 'shadcn' });
+      for (const p of CLIENT_PATHS) expect(excludedPaths.has(p), p).toBe(false);
+    });
+
+    it('combines with auth=none without throwing', () => {
+      expect(() =>
+        resolveBindings({ ...base, ui: 'none', authProvider: 'none', dbProvider: 'none' }),
+      ).not.toThrow();
+    });
+  });
 });

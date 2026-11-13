@@ -200,6 +200,8 @@ jobs:
               cloudflare-d1-r2|--auth=supabase --db=d1 --upload=r2 --payment=none --jobs=none --example=notes --transport=tcp
               cloudflare-worker|--host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes
               cloudflare-worker-minimal|--host=cloudflare --auth=none --db=none --upload=none --example=none
+              ui-none|--auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --ui=none
+              ui-none-minimal|--auth=none --db=none --upload=none --example=none --ui=none
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

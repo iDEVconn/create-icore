@@ -19,6 +19,8 @@ import {
 } from './scaffold-env.js';
 import {
   removeFirebaseAdminLib,
+  removeClientTsconfigPaths,
+  pruneClientDeps,
   removeStrategiesLib,
   removeUploadStack,
   pruneApiExpressDep,
@@ -66,6 +68,8 @@ export {
   removeAuthTsconfigPaths,
   removeDockerComposeAuthService,
   removeFirebaseAdminLib,
+  removeClientTsconfigPaths,
+  pruneClientDeps,
   removeStrategiesLib,
   removeUploadStack,
   pruneApiExpressDep,
@@ -136,6 +140,8 @@ export async function selectClientTemplate(
   targetDir: string,
   opts: CreateIcoreOptions,
 ): Promise<void> {
+  // API-only project: the copy already left out apps/templates and apps/client.
+  if (opts.ui === 'none') return;
   // Drop the templates dir altogether and move the chosen template into apps/client.
   const templatesRoot = join(targetDir, 'apps/templates');
   const chosen = join(templatesRoot, `client-${opts.ui}`);
@@ -245,7 +251,7 @@ export async function scaffold(
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
-  await writeClientEnv(opts.targetDir, opts);
+  if (opts.ui !== 'none') await writeClientEnv(opts.targetDir, opts);
   if (opts.authProvider === 'none') {
     // Blueprint-driven auth=none: delete auth-only paths then overlay auth-none
     // file variants. Must run BEFORE removeUploadStack and cleanupUnusedFeatures
@@ -257,7 +263,8 @@ export async function scaffold(
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
-  await writeNavConfig(opts.targetDir, opts);
+  if (opts.ui !== 'none') await writeNavConfig(opts.targetDir, opts);
+  else await removeClientTsconfigPaths(opts.targetDir);
   if (opts.authProvider !== 'none') {
     await cleanupUnusedAuth(opts.targetDir, opts.authProvider as AuthBackend);
     await writeAuthProvider(opts.targetDir, opts.authProvider as AuthBackend);
@@ -302,6 +309,8 @@ export async function scaffold(
   await pruneRootProviderDeps(opts.targetDir, opts);
   await pruneApiExpressDep(opts.targetDir);
   await pruneUnusedLibDeps(opts.targetDir);
+  // Usage-driven, so it must see the project after every other removal above.
+  if (opts.ui === 'none') await pruneClientDeps(opts.targetDir);
   await pruneUnusedAiUsageApiDep(opts.targetDir, opts.ai);
 
   // Remove strategy interfaces + testing harness only when NO microservice
