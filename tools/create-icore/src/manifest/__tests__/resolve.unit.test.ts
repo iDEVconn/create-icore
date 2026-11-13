@@ -118,4 +118,28 @@ describe('resolveBindings', () => {
       ).not.toThrow();
     });
   });
+
+  describe('Dockerfile.ms-payment', () => {
+    it('is excluded when payment=none', () => {
+      const { excludedPaths } = resolveBindings({ ...base, payment: 'none' });
+      expect(excludedPaths.has('Dockerfile.ms-payment')).toBe(true);
+    });
+
+    it('ships when payment=paypal', () => {
+      const { excludedPaths } = resolveBindings({ ...base, payment: 'paypal' });
+      expect(excludedPaths.has('Dockerfile.ms-payment')).toBe(false);
+    });
+
+    it('is dropped with the other containers on host=cloudflare', () => {
+      const { excludedPaths } = resolveBindings({
+        ...base,
+        host: 'cloudflare',
+        dbProvider: 'd1',
+        upload: 'r2',
+        transport: 'local',
+        session: 'durable-object',
+      });
+      expect(excludedPaths.has('Dockerfile.ms-payment')).toBe(true);
+    });
+  });
 });
