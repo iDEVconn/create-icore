@@ -54,6 +54,9 @@ export async function removeNotesFiles(projectRoot) {
     'apps/client/src/queries/__tests__/notes.gql-api.unit.test.ts',
     'apps/client/src/graphql/notes.queries.ts',
     'apps/client/src/graphql/gql/notes.graphql',
+    // api=graphql: the swapped GraphQL hook test, and the operation() test that parses notes.graphql
+    'apps/client/src/queries/__tests__/notes.unit.test.ts',
+    'apps/client/src/graphql/__tests__/operation.unit.test.ts',
     // Boots the REST NotesModule and the notes GraphQL surface (api=both).
     'apps/api/src/app/graphql/__tests__/graphql.integration.unit.test.ts',
   ]) {

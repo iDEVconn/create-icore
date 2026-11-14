@@ -7,6 +7,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rm,
   symlink,
   writeFile,
 } from 'node:fs/promises';
@@ -47,9 +48,12 @@ const base: CreateIcoreOptions = {
 
 type RemoveNotes = { removeNotesFiles: (root: string) => Promise<void> };
 
-async function scaffoldAndRemoveNotes(api: CreateIcoreOptions['api']): Promise<string> {
+async function scaffoldAndRemoveNotes(
+  api: CreateIcoreOptions['api'],
+  ui: CreateIcoreOptions['ui'] = 'shadcn',
+): Promise<string> {
   const outDir = join(await mkdtemp(join(tmpdir(), 'icore-rm-notes-')), 'rm-notes');
-  await scaffold({ ...base, api, targetDir: outDir }, realTemplatesDir);
+  await scaffold({ ...base, api, ui, targetDir: outDir }, realTemplatesDir);
   const script = join(outDir, 'tools/remove-notes.mjs');
   const mod = (await import(pathToFileURL(script).href)) as RemoveNotes;
   await mod.removeNotesFiles(outDir);
@@ -115,6 +119,41 @@ describe.each(['rest', 'graphql', 'both'] as const)('remove-notes on an api=%s p
 });
 
 const read = (dir: string, rel: string) => readFile(join(dir, rel), 'utf8');
+
+/** Relative imports under apps/client/src (code and `.graphql` documents) to a missing file. */
+async function danglingClientImports(outDir: string): Promise<string[]> {
+  const out: string[] = [];
+  const root = join(outDir, 'apps/client/src');
+  for (const file of await walk(root)) {
+    // Regenerated from src/routes by the TanStack router plugin on the next serve/build/test.
+    if (!/\.(ts|tsx)$/.test(file) || file.endsWith('routeTree.gen.ts')) continue;
+    const src = await readFile(file, 'utf8');
+    for (const m of src.matchAll(/(?:from|import)\s+'(\.{1,2}\/[^']+)'/g)) {
+      const target = resolve(dirname(file), m[1] as string);
+      const found = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'].some((ext) =>
+        existsSync(target + ext),
+      );
+      if (!found) out.push(`${relative(outDir, file)} -> ${m[1]}`);
+    }
+  }
+  return out;
+}
+
+describe.each([
+  ['rest', 'shadcn'],
+  ['graphql', 'shadcn'],
+  ['graphql', 'antd'],
+  ['both', 'mui'],
+] as const)('remove-notes on an api=%s ui=%s project (client)', (api, ui) => {
+  it('leaves no client import of a removed file', async () => {
+    const outDir = await scaffoldAndRemoveNotes(api, ui);
+    try {
+      expect(await danglingClientImports(outDir)).toEqual([]);
+    } finally {
+      await rm(dirname(outDir), { recursive: true, force: true });
+    }
+  }, 120_000);
+});
 
 describe('remove-notes keeps the gateway compiling (api=graphql)', () => {
   it('tsc --noEmit passes on apps/api after the transformation', async () => {
