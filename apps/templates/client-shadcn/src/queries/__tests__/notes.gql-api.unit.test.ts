@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { print } from 'graphql';
 import { api } from '../../main';
 import { CreateNote, DeleteNote, ListNotes, UpdateNote } from '../../graphql/notes.queries';
-import { useCreateNote, useDeleteNote, useNotesList, useUpdateNote } from '../notes.graphql';
+import { useCreateNote, useDeleteNote, useNotesList, useUpdateNote } from '../notes.gql-api';
 
 const notify = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 
@@ -27,7 +27,7 @@ function wrapper() {
   const invalidate = vi.spyOn(client, 'invalidateQueries');
   const Wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client }, children);
-  return { Wrapper, invalidate };
+  return { Wrapper, invalidate, client };
 }
 
 function sent(call = 0): [string, { query: string; variables: unknown; operationName: string }] {
@@ -44,7 +44,7 @@ describe('notes queries (GraphQL)', () => {
 
   it('useNotesList sends ListNotes with {limit, offset} and returns {items, total}', async () => {
     vi.mocked(api).mockResolvedValueOnce({ data: { notes: { items: [note], total: 1 } } });
-    const { Wrapper } = wrapper();
+    const { Wrapper, client } = wrapper();
     const { result } = renderHook(() => useNotesList(20, 40), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     const [path, body] = sent();
@@ -55,6 +55,11 @@ describe('notes queries (GraphQL)', () => {
       operationName: 'ListNotes',
     });
     expect(result.current.data).toEqual({ items: [note], total: 1 });
+    // Pinned so a key rename (which would escape the ['notes'] invalidation) fails.
+    const cached = client
+      .getQueryCache()
+      .find({ queryKey: ['notes', { limit: 20, offset: 40 }], exact: true });
+    expect(cached?.state.data).toEqual({ items: [note], total: 1 });
   });
 
   it('useCreateNote sends CreateNote, notifies and invalidates ["notes"] like the REST hook', async () => {

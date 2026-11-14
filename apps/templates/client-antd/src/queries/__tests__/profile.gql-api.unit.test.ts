@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { print } from 'graphql';
 import { api } from '../../main';
 import { GetMe } from '../../graphql/profile.queries';
-import { useProfile, useUpdateProfile } from '../profile.graphql';
+import { useProfile, useUpdateProfile } from '../profile.gql-api';
 
 const notify = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 

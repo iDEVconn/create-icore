@@ -125,7 +125,7 @@ Apollo config details, which limits library (or custom validation rules) provide
 
 8. **Operation files and loader (owner's choice, after seeing CBC).** `.graphql` files + `vite-plugin-graphql-loader` instead of inline tagged templates; the plugin version is the current one that supports Vite 8 (`6.0.0`, CBC runs `5.0.1`).
 9. **`graphql` is pinned to 16 repo-wide.** `@apollo/server` 5 peers `graphql ^16.11`; `@nestjs/graphql`/`@nestjs/apollo` and the codegen packages accept 16 and 17, so 16 is the common version (17 is out, but would break the Apollo peer).
-10. **GraphQL implementation files swap in by renaming.** The template ships both `queries/notes.ts` (REST) and the GraphQL implementation as `queries/notes.graphql.ts`; a new generator step moves the latter over the former for `api=graphql` and drops it otherwise (same family as the existing auth-none variants, but file-based). Pages import `queries/notes` either way.
+10. **GraphQL implementation files swap in by renaming.** The template ships both `queries/notes.ts` (REST) and the GraphQL implementation as `queries/notes.gql-api.ts`; a new generator step moves the latter over the former for `api=graphql` and drops it otherwise (same family as the existing auth-none variants, but file-based). Pages import `queries/notes` either way.
 
 ## Open questions for the owner
 

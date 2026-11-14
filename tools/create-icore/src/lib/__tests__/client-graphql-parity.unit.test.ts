@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * The client GraphQL data layer has no UI-library code, so `create-icore`
  * ships the SAME files for client-shadcn, client-antd and client-mui (the
- * `api=graphql` overlay renames `queries/*.graphql.ts` over the REST twins).
+ * `api=graphql` overlay renames `queries/*.gql-api.ts` over the REST twins).
  * Any drift between the three copies would make one UI choice behave
  * differently, so they must stay byte-identical.
  */
@@ -25,14 +25,29 @@ const SHARED_FILES = [
   'src/graphql/notes.queries.ts',
   'src/graphql/profile.queries.ts',
   'src/gql/types.ts',
-  'src/queries/notes.graphql.ts',
-  'src/queries/profile.graphql.ts',
-  'src/queries/__tests__/notes.graphql.unit.test.ts',
-  'src/queries/__tests__/profile.graphql.unit.test.ts',
+  'src/queries/notes.gql-api.ts',
+  'src/queries/profile.gql-api.ts',
+  'src/queries/__tests__/notes.gql-api.unit.test.ts',
+  'src/queries/__tests__/profile.gql-api.unit.test.ts',
   // The REST twins the overlay replaces must stay identical too.
   'src/queries/notes.ts',
   'src/queries/profile.ts',
 ];
+
+/**
+ * Production code (pages, components, layouts, main) must stay on the REST
+ * queries in every template: only the `api=graphql` overlay switches the
+ * client, by renaming the twins over `queries/notes.ts` / `queries/profile.ts`.
+ */
+const GRAPHQL_CLIENT_IMPORTS = [
+  /queries\/(notes|profile)\.(graphql|gql-api)['"]/,
+  /api\/graphql['"]/,
+  /graphql\/(notes|profile)\.queries['"]/,
+];
+
+function importsGraphqlClient(source: string): boolean {
+  return GRAPHQL_CLIENT_IMPORTS.some((pattern) => pattern.test(source));
+}
 
 function read(template: string, file: string): string {
   return readFileSync(join(repoRoot, 'apps/templates', template, file), 'utf8');
@@ -76,6 +91,25 @@ describe('client GraphQL layer parity across the three UI templates', () => {
     },
   );
 
+  it('the REST-only guard recognises every GraphQL client entry point', () => {
+    const flagged = [
+      "import { useNotesList } from '@/queries/notes.gql-api';",
+      "import { useProfile } from '../queries/profile.gql-api';",
+      "import { useNotesList } from '@/queries/notes.graphql';",
+      "import { request } from '@/api/graphql';",
+      "import { request } from '../../api/graphql';",
+      "import { ListNotes } from '@/graphql/notes.queries';",
+      "import { GetMe } from '../graphql/profile.queries';",
+    ];
+    for (const line of flagged) expect(importsGraphqlClient(line), line).toBe(true);
+    const allowed = [
+      "import { useNotesList } from '@/queries/notes';",
+      "import { useProfile } from '../queries/profile';",
+      "import { api } from '../main';",
+    ];
+    for (const line of allowed) expect(importsGraphqlClient(line), line).toBe(false);
+  });
+
   it.each(TEMPLATES)('%s production code still imports the REST queries only', (template) => {
     const offenders: string[] = [];
     const roots = ['src/routes', 'src/components', 'src/layouts', 'src/app', 'src/main.tsx'];
@@ -89,10 +123,7 @@ describe('client GraphQL layer parity across the three UI templates', () => {
         }
         return;
       }
-      if (
-        /\.(ts|tsx)$/.test(rel) &&
-        /queries\/(notes|profile)\.graphql['"]/.test(read(template, rel))
-      ) {
+      if (/\.(ts|tsx)$/.test(rel) && importsGraphqlClient(read(template, rel))) {
         offenders.push(rel);
       }
     };
