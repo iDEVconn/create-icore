@@ -143,3 +143,27 @@ describe('resolveBindings', () => {
     });
   });
 });
+
+// Interim until the `--api` axis: ApiSurfacesModule / api-surface-resolvers wire the notes AND
+// storage GraphQL surfaces, so a scaffold missing either feature must not ship them (dangling
+// imports). With both features present they ship as before.
+describe('resolveBindings: GraphQL surface paths', () => {
+  const GRAPHQL_PATHS = [
+    'apps/api/src/app/graphql',
+    'apps/api/scripts/emit-schema.ts',
+    'apps/api/schema.gql',
+  ];
+
+  it.each([
+    ['example=none', { example: 'none' as const }],
+    ['upload=none', { example: 'notes' as const, upload: 'none' as const }],
+  ])('excludes them when %s', (_label, over) => {
+    const { excludedPaths } = resolveBindings({ ...base, ...over });
+    for (const p of GRAPHQL_PATHS) expect(excludedPaths.has(p)).toBe(true);
+  });
+
+  it('keeps them when notes and storage are both present', () => {
+    const { excludedPaths } = resolveBindings({ ...base, example: 'notes' });
+    for (const p of GRAPHQL_PATHS) expect(excludedPaths.has(p)).toBe(false);
+  });
+});

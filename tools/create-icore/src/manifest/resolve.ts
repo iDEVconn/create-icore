@@ -48,6 +48,17 @@ const UPLOAD_NONE_EXCLUDED_PATHS = [
   'Dockerfile.ms-upload',
 ];
 
+/**
+ * Interim until the `--api` axis: ApiSurfacesModule and api-surface-resolvers.ts wire the notes
+ * and storage GraphQL surfaces together, so a project without either feature drops the GraphQL
+ * API entirely instead of shipping dangling imports. auth=none drops it in scaffold-auth-none.ts.
+ */
+const GRAPHQL_SURFACE_PATHS = [
+  'apps/api/src/app/graphql',
+  'apps/api/scripts/emit-schema.ts',
+  'apps/api/schema.gql',
+];
+
 /** `--ui=none`: API-only project, nothing of the React client (or its browser-only libs) ships. */
 const UI_NONE_EXCLUDED_PATHS = [
   'apps/templates',
@@ -175,6 +186,10 @@ export function resolveBindings(rawOpts: CreateIcoreOptions): BindingDiagnostic 
     for (const p of UPLOAD_NONE_EXCLUDED_PATHS) {
       addExcludedPath(p);
     }
+  }
+
+  if (opts.example === 'none' || opts.upload === 'none') {
+    for (const p of GRAPHQL_SURFACE_PATHS) addExcludedPath(p);
   }
 
   if (opts.ui === 'none') {

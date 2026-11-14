@@ -1,29 +1,19 @@
 // Writes apps/api/schema.gql from the code-first resolvers without booting the gateway.
 // Run through `yarn nx run api:graphql-schema`; CI diffs the result against the committed file.
 //
-// Runs under tsx (esbuild), which does not emit decorator metadata: every @Field / @Query /
-// @Mutation / @Args must name its type explicitly (`@Field(() => String)`).
+// Runs under @swc-node/register with apps/api/tsconfig.app.json (SWC_NODE_PROJECT), which emits
+// decorator metadata like the webpack build. tsx/esbuild cannot be used: it emits no metadata,
+// and @nestjs/graphql's @Args reads `design:paramtypes` unconditionally (it crashes without it,
+// even with an explicit type). Every @Field / @Query / @Args still names its type explicitly.
 import 'reflect-metadata';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Query, Resolver } from '@nestjs/graphql';
+import { API_SURFACE_RESOLVERS } from '../src/app/graphql/api-surface-resolvers';
 import { emitSchema } from '../src/app/graphql/schema-emitter';
-
-// Stand-in until the API surfaces (notes, profile, storage resolvers) exist: a schema needs a
-// Query type to be valid.
-@Resolver()
-class PlaceholderResolver {
-  @Query(() => Boolean)
-  placeholder(): boolean {
-    return true;
-  }
-}
-
-const RESOLVERS = [PlaceholderResolver];
 
 async function main(): Promise<void> {
   const target = join(__dirname, '..', 'schema.gql');
-  writeFileSync(target, await emitSchema(RESOLVERS));
+  writeFileSync(target, await emitSchema(API_SURFACE_RESOLVERS));
   console.log(`GraphQL schema written to ${target}`);
 }
 
