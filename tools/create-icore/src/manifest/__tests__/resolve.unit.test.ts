@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveUnits, resolveBindings } from '../resolve.js';
+import { MANIFEST } from '../index.js';
 import type { CreateIcoreOptions } from '../../lib/options.js';
 
 const base: CreateIcoreOptions = {
@@ -13,6 +14,7 @@ const base: CreateIcoreOptions = {
   ai: 'none',
   example: 'none',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'npm',
@@ -165,5 +167,46 @@ describe('resolveBindings: GraphQL surface paths', () => {
   it('keeps them when notes and storage are both present', () => {
     const { excludedPaths } = resolveBindings({ ...base, example: 'notes' });
     for (const p of GRAPHQL_PATHS) expect(excludedPaths.has(p)).toBe(false);
+  });
+});
+
+describe('resolveUnits — api axis', () => {
+  const deps = (o: CreateIcoreOptions) => resolveUnits(o).flatMap((u) => Object.keys(u.deps));
+
+  it('rest adds no GraphQL dependency', () => {
+    const d = deps({ ...base, api: 'rest' });
+    for (const n of [
+      '@nestjs/graphql',
+      '@nestjs/apollo',
+      '@apollo/server',
+      'graphql',
+      'vite-plugin-graphql-loader',
+    ])
+      expect(d).not.toContain(n);
+  });
+
+  it('both adds the server GraphQL deps but no client deps', () => {
+    const d = deps({ ...base, api: 'both' });
+    for (const n of ['@nestjs/graphql', '@nestjs/apollo', '@apollo/server', 'graphql'])
+      expect(d).toContain(n);
+    expect(d).not.toContain('vite-plugin-graphql-loader');
+    expect(resolveUnits({ ...base, api: 'both' })).not.toContain(MANIFEST.apiClient);
+  });
+
+  it('graphql adds the server deps and the client unit', () => {
+    const units = resolveUnits({ ...base, api: 'graphql' });
+    expect(units).toContain(MANIFEST.api.graphql);
+    expect(units).toContain(MANIFEST.apiClient);
+    expect(units.flatMap((u) => Object.keys(u.deps))).toContain('vite-plugin-graphql-loader');
+  });
+
+  it('graphql with ui=none has no client unit', () => {
+    const units = resolveUnits({ ...base, api: 'graphql', ui: 'none' });
+    expect(units).toContain(MANIFEST.api.graphql);
+    expect(units).not.toContain(MANIFEST.apiClient);
+  });
+
+  it('MANIFEST.api.rest is empty', () => {
+    expect(MANIFEST.api.rest).toEqual({ libDirs: [], deps: {}, tsPaths: {} });
   });
 });

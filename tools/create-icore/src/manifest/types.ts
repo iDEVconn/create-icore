@@ -3,6 +3,7 @@ import type {
   DbProvider,
   UploadProvider,
   UiLibrary,
+  ApiStyle,
   MsTransport,
 } from '../lib/options.js';
 
@@ -45,6 +46,10 @@ export interface Manifest {
   db: Record<DbProvider, Unit>;
   feature: { notes: Unit; payment: Unit; jobs: Unit; ai: Unit };
   ui: Record<UiLibrary, Unit>;
+  /** Server-side dependencies of the gateway's GraphQL surface (`rest` adds nothing). */
+  api: Record<ApiStyle, Unit>;
+  /** Client-side GraphQL tooling, only for `api=graphql` with a React client. */
+  apiClient: Unit;
   transport: Record<MsTransport, Unit>;
   /** Hosting targets other than the default Node deployment. */
   host: { cloudflare: Unit };

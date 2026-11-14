@@ -22,6 +22,7 @@ const opts: CreateIcoreOptions = {
   ai: 'llm-router',
   example: 'notes',
   ui: 'antd',
+  api: 'rest',
   transport: 'nats',
   session: 'redis',
   packageManager: 'pnpm',
@@ -52,6 +53,7 @@ describe('writeBlueprintJson', () => {
       ai: 'llm-router',
       example: 'notes',
       ui: 'antd',
+      api: 'rest',
       transport: 'nats',
       packageManager: 'pnpm',
       generatorVersion: ownPkg.version,
@@ -60,6 +62,15 @@ describe('writeBlueprintJson', () => {
     expect(bp).not.toHaveProperty('targetDir');
     expect(bp).not.toHaveProperty('install');
     expect(bp).not.toHaveProperty('initGit');
+  });
+
+  it('records the api style', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-bp-'));
+    for (const api of ['rest', 'graphql', 'both'] as const) {
+      await writeBlueprintJson(dir, { ...opts, targetDir: dir, api });
+      const bp = JSON.parse(await readFile(join(dir, 'blueprint.json'), 'utf8'));
+      expect(bp.api).toBe(api);
+    }
   });
 
   it('is deterministic (no timestamp) — two writes byte-match', async () => {
@@ -105,6 +116,7 @@ describe('writeServiceBlueprints', () => {
       ai: 'llm-router',
       example: 'notes',
       ui: 'shadcn',
+      api: 'rest',
       transport: 'nats',
     });
 

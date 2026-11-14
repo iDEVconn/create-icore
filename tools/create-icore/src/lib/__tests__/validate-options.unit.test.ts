@@ -13,6 +13,7 @@ const base: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'yarn',
@@ -181,6 +182,7 @@ describe('validateOptions', () => {
       ai: 'none' as const,
       example: 'none' as const,
       ui: 'none' as const,
+      api: 'rest',
     };
 
     it('warns that only the bare gateway will be generated, without blocking', () => {
@@ -213,8 +215,57 @@ describe('validateOptions', () => {
         dbProvider: 'd1',
         upload: 'r2',
         ui: 'none',
+        api: 'rest',
       });
       expect(errors.join()).toMatch(/--ui=none/);
     });
+  });
+});
+
+describe('api axis', () => {
+  it('accepts rest, graphql and both with a supported auth provider on the Node host', () => {
+    for (const api of ['rest', 'graphql', 'both'] as const) {
+      const { errors, corrected } = validateOptions({ ...base, api });
+      expect(errors).toEqual([]);
+      expect(corrected.api).toBe(api);
+    }
+  });
+
+  it('rejects graphql/both with auth=none (resolvers are guarded by the session)', () => {
+    for (const api of ['graphql', 'both'] as const) {
+      const { errors } = validateOptions({
+        ...base,
+        api,
+        authProvider: 'none',
+        dbProvider: 'none',
+        example: 'none',
+      });
+      expect(errors).toContain(`--api=${api} needs auth (resolvers are guarded by the session)`);
+    }
+  });
+
+  it('accepts api=rest with auth=none', () => {
+    const { errors } = validateOptions({
+      ...base,
+      authProvider: 'none',
+      dbProvider: 'none',
+      example: 'none',
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects graphql/both on host=cloudflare and points at the runbook', () => {
+    for (const api of ['graphql', 'both'] as const) {
+      const { errors } = validateOptions({
+        ...base,
+        api,
+        host: 'cloudflare',
+        dbProvider: 'd1',
+        upload: 'r2',
+      });
+      const msg = errors.find((e) => e.includes('--api'));
+      expect(msg).toBeDefined();
+      expect(msg).toContain('docs/runbooks/cloudflare-workers-host.md');
+    }
   });
 });

@@ -10,6 +10,8 @@ export type AiProvider = 'llm-router' | 'none';
 export type ExampleMode = 'notes' | 'none';
 /** `none` = API-only project: no React client is generated. */
 export type UiLibrary = 'shadcn' | 'antd' | 'mui' | 'none';
+/** Which API surface the gateway exposes: REST controllers, GraphQL resolvers, or both. */
+export type ApiStyle = 'rest' | 'graphql' | 'both';
 export type HostKind = 'node' | 'cloudflare';
 /** `local` is in-process and only exists on the Cloudflare Workers host. */
 export type MsTransport = 'tcp' | 'redis' | 'nats' | 'mqtt' | 'rmq' | 'kafka' | 'local';
@@ -53,6 +55,10 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
       errors.push(
         '--host=cloudflare does not support --ui=none (the Worker serves the built client) — see docs/runbooks/cloudflare-workers-host.md',
       );
+    if (opts.api !== 'rest')
+      errors.push(
+        `--host=cloudflare does not support --api=${opts.api} (the Worker has no GraphQL surface yet) — see docs/runbooks/cloudflare-workers-host.md`,
+      );
     if (opts.authProvider !== 'supabase' && opts.authProvider !== 'none')
       unsupported('--auth', opts.authProvider, 'supabase, none');
     if (opts.dbProvider !== 'd1' && opts.dbProvider !== 'none')
@@ -87,6 +93,10 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
       errors.push('--transport=local needs --host=cloudflare (it is an in-process transport)');
     if (opts.session === 'durable-object')
       errors.push('--session=durable-object needs --host=cloudflare');
+  }
+
+  if (opts.api !== 'rest' && opts.authProvider === 'none') {
+    errors.push(`--api=${opts.api} needs auth (resolvers are guarded by the session)`);
   }
 
   // The notes sample persists through a DBStrategy; with db=none its db.provider is never wired and
@@ -151,6 +161,8 @@ export interface CreateIcoreOptions {
   ai: AiProvider;
   example: ExampleMode;
   ui: UiLibrary;
+  /** API surface of the gateway (`rest` is the classic REST-only project). */
+  api: ApiStyle;
   transport: MsTransport;
   /** Where the gateway keeps login sessions: Redis (default) or in its own process. */
   session: SessionStoreKind;

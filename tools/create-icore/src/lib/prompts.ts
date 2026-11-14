@@ -13,6 +13,7 @@ import type {
   AiProvider,
   ExampleMode,
   UiLibrary,
+  ApiStyle,
   PackageManager,
   MsTransport,
   CreateIcoreOptions,
@@ -122,6 +123,9 @@ export function parseFlags(argv: string[]): ParsedFlags {
         break;
       case 'ui':
         out.ui = v as UiLibrary;
+        break;
+      case 'api':
+        out.api = v as ApiStyle;
         break;
       case 'transport':
         out.transport = v as MsTransport;
@@ -319,6 +323,26 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         })) as ExampleMode));
   if (p.isCancel(example)) throw new Error('cancelled');
 
+  // GraphQL resolvers are session-guarded (no auth, no GraphQL) and the Worker has no GraphQL
+  // surface, so neither case is asked: it is REST there.
+  const api: ApiStyle =
+    flags.api ??
+    (authProvider === 'none' || cf
+      ? 'rest'
+      : (((await p.select({
+          message: 'API style',
+          options: [
+            { value: 'rest' as ApiStyle, label: 'REST (controllers + Swagger) — the default' },
+            {
+              value: 'graphql' as ApiStyle,
+              label: 'GraphQL only (code-first resolvers, typed client)',
+            },
+            { value: 'both' as ApiStyle, label: 'Both — REST and GraphQL side by side' },
+          ],
+          initialValue: 'rest' as ApiStyle,
+        })) ?? 'rest') as ApiStyle));
+  if (p.isCancel(api)) throw new Error('cancelled');
+
   const ui: UiLibrary =
     flags.ui ??
     ((await p.select({
@@ -418,6 +442,7 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
     ai,
     example,
     ui,
+    api,
     transport,
     session,
     packageManager,

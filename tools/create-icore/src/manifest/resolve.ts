@@ -101,6 +101,9 @@ export function resolveUnits(opts: CreateIcoreOptions): Unit[] {
   if (opts.ai !== 'none') units.push(MANIFEST.feature.ai);
   if (opts.example === 'notes') units.push(MANIFEST.feature.notes);
 
+  units.push(MANIFEST.api[opts.api]);
+  if (opts.api === 'graphql' && opts.ui !== 'none') units.push(MANIFEST.apiClient);
+
   const firebaseUsed =
     opts.authProvider === 'firebase' ||
     opts.dbProvider === 'firebase' ||

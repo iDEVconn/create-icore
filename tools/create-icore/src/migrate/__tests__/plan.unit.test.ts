@@ -64,4 +64,16 @@ describe('computePlan', () => {
     const registry: RegistryFile = { entries: [entry({ version: '0.1.0' })] };
     expect(computePlan(registry, '0.5.0', '0.9.0', { ui: 'mui' })).toEqual([]);
   });
+
+  it('matches api:<style> axes like any other axis', () => {
+    const registry: RegistryFile = {
+      entries: [
+        entry({ id: 'gql', affectedAxes: ['api:graphql'] }),
+        entry({ id: 'rest', affectedAxes: ['api:rest'] }),
+        entry({ id: 'gql-mui', affectedAxes: ['api:graphql', 'ui:mui'] }),
+      ],
+    };
+    const plan = computePlan(registry, '0.0.0', '9.9.9', { api: 'graphql', ui: 'mui' });
+    expect(plan.map((e) => e.id).sort()).toEqual(['gql', 'gql-mui']);
+  });
 });
