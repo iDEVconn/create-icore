@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { NotesClientService } from '@icore/notes-client';
 import { AbilityFactory } from '../../abilities/ability.factory';
 import { NotesGatewayService } from '../notes-gateway.service';
@@ -51,6 +51,46 @@ describe('NotesGatewayService', () => {
     const { client, svc } = setup();
     await svc.list(user('u1'), { limit: 5000, offset: -3 });
     expect(client.list).toHaveBeenCalledWith({ ownerId: 'u1', limit: 100, offset: 0 });
+  });
+
+  it('list clamps a negative limit to 1', async () => {
+    const { client, svc } = setup();
+    await svc.list(user('u1'), { limit: -5, offset: 0 });
+    expect(client.list).toHaveBeenCalledWith({ ownerId: 'u1', limit: 1, offset: 0 });
+  });
+
+  // GraphQL inputs are nullable per field and REST bodies are untyped: a null or non-string
+  // value must never reach the store (it would break every later list/read of the note).
+  it.each([
+    ['title null', { title: null, body: 'b' }],
+    ['body missing', { title: 't' }],
+    ['title a number', { title: 1, body: 'b' }],
+  ])('create rejects %s with BadRequestException', async (_l, input) => {
+    const { client, svc } = setup();
+    await expect(svc.create(user('u1'), input as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(client.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['empty patch', {}],
+    ['only null fields', { title: null, body: null }],
+    ['only non-string fields', { title: 3 }],
+  ])('update rejects %s with BadRequestException, nothing written', async (_l, patch) => {
+    const { client, svc } = setup();
+    (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(note);
+    await expect(svc.update(user('u1'), 'n1', patch as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(client.update).not.toHaveBeenCalled();
+  });
+
+  it('update forwards only the string fields of the patch', async () => {
+    const { client, svc } = setup();
+    (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(note);
+    await svc.update(user('u1'), 'n1', { title: 'new', body: null } as never);
+    expect(client.update).toHaveBeenCalledWith('n1', { title: 'new' });
   });
 
   it('get throws NotFoundException when missing', async () => {

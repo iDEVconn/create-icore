@@ -272,6 +272,18 @@ describe('ApiGraphqlModule over HTTP (non-production)', () => {
     expect(r.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
   });
 
+  it('answers a document mixing health and a guarded field with 401 and no partial data', async () => {
+    const r = await send(
+      b,
+      { query: '{ health { status } ping }' },
+      { session: false, csrf: false },
+    );
+    expect(r.status).toBe(401);
+    expect(r.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+    expect(r.body.data ?? null).toBeNull();
+    expect(calls).toBe(0);
+  });
+
   it('maps a ForbiddenException thrown by a resolver to HTTP 403 FORBIDDEN', async () => {
     const r = await send(b, { query: '{ forbidden }' });
     expect(r.status).toBe(403);
@@ -640,6 +652,21 @@ describe('API surfaces over /api/graphql', () => {
     expect(r.body.errors[0].message).toBe('Forbidden'); // the ability check, not CSRF
     expect(s.notes.update).not.toHaveBeenCalled();
     expect(s.notes.notes.get('n-a')?.title).toBe('title n-a');
+  });
+
+  it('rejects updateNote with a null title (HTTP 400), nothing written, list still fine', async () => {
+    s.notes.update.mockClear();
+    const r = await send(
+      b,
+      { query: 'mutation { updateNote(id: "n-a", input: { title: null }) { id title } }' },
+      { sid: s.sid.ua },
+    );
+    expect(r.status).toBe(400);
+    expect(r.body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
+    expect(s.notes.update).not.toHaveBeenCalled();
+    const list = await send(b, { query: LIST }, { sid: s.sid.ua });
+    expect(list.status).toBe(200);
+    expect(list.body.data.notes.items[0].title).toBe('title n-a');
   });
 
   it("lets an admin update any user's note", async () => {
