@@ -13,6 +13,9 @@ const config: CodegenConfig = {
   overwrite: true,
   schema: path.resolve(import.meta.dirname, '../../../apps/api/schema.gql'),
   documents: [path.resolve(import.meta.dirname, 'src/graphql/gql/*.graphql')],
+  // A generated project without auth ships no operation (its schema is the public `health`
+  // query only); codegen must still succeed there.
+  ignoreNoDocuments: true,
   generates: {
     [path.resolve(import.meta.dirname, 'src/gql/types.ts')]: {
       // typescript-operations 7 is standalone: it emits the operation

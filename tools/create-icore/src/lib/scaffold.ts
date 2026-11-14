@@ -35,7 +35,7 @@ import {
 } from './scaffold-auth-none.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
-import { wireApi } from '../manifest/wire-api.js';
+import { applyApiVariants, wireApi } from '../manifest/wire-api.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
 import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
@@ -173,6 +173,8 @@ async function rewriteClientPaths(clientDir: string, ui: string): Promise<void> 
     'tsconfig.spec.json',
     'project.json',
     'eslint.config.mjs',
+    // Resolves apps/api/schema.gql from its own directory.
+    'codegen.ts',
   ];
   for (const rel of candidates) {
     const path = join(clientDir, rel);
@@ -252,6 +254,7 @@ export async function scaffold(
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
+  await applyApiVariants(opts.targetDir, opts);
   if (opts.ui !== 'none') await writeClientEnv(opts.targetDir, opts);
   if (opts.authProvider === 'none') {
     // Blueprint-driven auth=none: delete auth-only paths then overlay auth-none

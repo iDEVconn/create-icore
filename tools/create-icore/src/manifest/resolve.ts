@@ -112,8 +112,51 @@ const UI_NONE_EXCLUDED_PATHS = [
   'libs/vite-plugins',
 ];
 
-/** Server paths the `--api` axis leaves out; absent features vanish through their own lists. */
+/**
+ * GraphQL client files (spec section 8, decision 5): only `--api=graphql` ships them; `both` keeps
+ * the client on REST. applyApiVariants swaps the `*.gql-api.ts` twins over their REST files.
+ */
+const CLIENT_NOTES_GRAPHQL_PATHS = [
+  'apps/client/src/queries/notes.gql-api.ts',
+  'apps/client/src/queries/__tests__/notes.gql-api.unit.test.ts',
+  'apps/client/src/graphql/notes.queries.ts',
+  'apps/client/src/graphql/gql/notes.graphql',
+  // Exercises operation() against notes.graphql.
+  'apps/client/src/graphql/__tests__/operation.unit.test.ts',
+];
+const CLIENT_PROFILE_GRAPHQL_PATHS = [
+  'apps/client/src/queries/profile.gql-api.ts',
+  'apps/client/src/queries/__tests__/profile.gql-api.unit.test.ts',
+  'apps/client/src/graphql/profile.queries.ts',
+  'apps/client/src/graphql/gql/profile.graphql',
+];
+const CLIENT_GRAPHQL_PATHS = [
+  'apps/client/codegen.ts',
+  'apps/client/graphql-loader.d.ts',
+  'apps/client/src/api/graphql.ts',
+  'apps/client/src/api/__tests__/graphql.unit.test.ts',
+  'apps/client/src/gql',
+  'apps/client/src/graphql',
+  ...CLIENT_NOTES_GRAPHQL_PATHS.filter((p) => p.startsWith('apps/client/src/queries/')),
+  ...CLIENT_PROFILE_GRAPHQL_PATHS.filter((p) => p.startsWith('apps/client/src/queries/')),
+];
+
+/** Client paths the `--api` axis leaves out; operations ship only with their feature. */
+function apiClientExcludedPaths(opts: CreateIcoreOptions): string[] {
+  if (opts.api !== 'graphql') return CLIENT_GRAPHQL_PATHS;
+  const out: string[] = [];
+  if (opts.example !== 'notes') out.push(...CLIENT_NOTES_GRAPHQL_PATHS);
+  if (opts.authProvider === 'none') out.push(...CLIENT_PROFILE_GRAPHQL_PATHS);
+  return out;
+}
+
+/** Paths the `--api` axis leaves out; absent features vanish through their own lists. */
 function apiExcludedPaths(opts: CreateIcoreOptions): string[] {
+  return [...apiServerExcludedPaths(opts), ...apiClientExcludedPaths(opts)];
+}
+
+/** Server paths the `--api` axis leaves out. */
+function apiServerExcludedPaths(opts: CreateIcoreOptions): string[] {
   if (opts.api === 'rest') return API_REST_EXCLUDED_PATHS;
   const out = [...API_SCHEMA_EXCLUDED_PATHS];
   if (opts.api === 'graphql') out.push(...API_GRAPHQL_EXCLUDED_PATHS);

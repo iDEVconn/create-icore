@@ -268,6 +268,67 @@ describe('resolveBindings: api axis (server)', () => {
   });
 });
 
+// Client half of the `--api` axis (spec section 8, decision 5): GraphQL client files ship only
+// with api=graphql, per feature; the exclusions reach every template (apps/templates/client-<ui>).
+describe('resolveBindings: api axis (client)', () => {
+  const CLIENT_GRAPHQL = [
+    'codegen.ts',
+    'graphql-loader.d.ts',
+    'src/api/graphql.ts',
+    'src/api/__tests__/graphql.unit.test.ts',
+    'src/gql',
+    'src/graphql',
+    'src/queries/notes.gql-api.ts',
+    'src/queries/profile.gql-api.ts',
+    'src/queries/__tests__/notes.gql-api.unit.test.ts',
+    'src/queries/__tests__/profile.gql-api.unit.test.ts',
+  ];
+  const NOTES = [
+    'src/queries/notes.gql-api.ts',
+    'src/queries/__tests__/notes.gql-api.unit.test.ts',
+    'src/graphql/notes.queries.ts',
+    'src/graphql/gql/notes.graphql',
+    'src/graphql/__tests__/operation.unit.test.ts',
+  ];
+  const PROFILE = [
+    'src/queries/profile.gql-api.ts',
+    'src/queries/__tests__/profile.gql-api.unit.test.ts',
+    'src/graphql/profile.queries.ts',
+    'src/graphql/gql/profile.graphql',
+  ];
+  const full = { ...base, example: 'notes' as const };
+  const excluded = (o: Partial<CreateIcoreOptions>) =>
+    resolveBindings({ ...full, ...o }).excludedPaths;
+  const inEvery = (ex: ReadonlySet<string>, rel: string) =>
+    ['shadcn', 'antd', 'mui'].every((ui) => ex.has(`apps/templates/client-${ui}/${rel}`));
+  const inNone = (ex: ReadonlySet<string>, rel: string) =>
+    ['shadcn', 'antd', 'mui'].every((ui) => !ex.has(`apps/templates/client-${ui}/${rel}`));
+
+  it.each(['rest', 'both'] as const)('%s: excludes every GraphQL client file', (api) => {
+    const ex = excluded({ api });
+    for (const p of CLIENT_GRAPHQL) expect(inEvery(ex, p), p).toBe(true);
+  });
+
+  it('graphql: ships every GraphQL client file when notes and auth exist', () => {
+    const ex = excluded({ api: 'graphql' });
+    for (const p of [...CLIENT_GRAPHQL, ...NOTES, ...PROFILE]) expect(inNone(ex, p), p).toBe(true);
+  });
+
+  it('graphql --example=none: drops the notes operations, keeps profile and the plumbing', () => {
+    const ex = excluded({ api: 'graphql', example: 'none' });
+    for (const p of NOTES) expect(inEvery(ex, p), p).toBe(true);
+    for (const p of [...PROFILE, 'src/api/graphql.ts', 'src/graphql/operation.ts', 'codegen.ts'])
+      expect(inNone(ex, p), p).toBe(true);
+  });
+
+  it('graphql + auth=none: drops notes and profile operations, keeps the plumbing', () => {
+    const ex = excluded({ api: 'graphql', authProvider: 'none', dbProvider: 'none' });
+    for (const p of [...NOTES, ...PROFILE]) expect(inEvery(ex, p), p).toBe(true);
+    for (const p of ['src/api/graphql.ts', 'src/graphql/operation.ts', 'codegen.ts', 'src/gql'])
+      expect(inNone(ex, p), p).toBe(true);
+  });
+});
+
 describe('resolveUnits — api axis', () => {
   const deps = (o: CreateIcoreOptions) => resolveUnits(o).flatMap((u) => Object.keys(u.deps));
 
