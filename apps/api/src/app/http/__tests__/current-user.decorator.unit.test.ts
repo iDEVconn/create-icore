@@ -1,7 +1,7 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants.js';
 import { describe, expect, it } from 'vitest';
-import { CurrentUser } from '../current-user.decorator';
+import { CurrentUser, type CurrentUserPayload } from '../current-user.decorator';
 
 // Reads the factory Nest registers for @CurrentUser() and runs it against both context types.
 function factoryOf(): (data: unknown, ctx: ExecutionContext) => unknown {
@@ -46,3 +46,12 @@ describe('CurrentUser', () => {
     expect(factoryOf()(undefined, ctx)).toBeUndefined();
   });
 });
+
+// Compile-time pin: the provider token shape stays assignable to the decorator's payload.
+// Type-only import, so the test ships no runtime dependency on the strategies folder.
+type AssertAssignable<T extends CurrentUserPayload> = T;
+export type VerifiedTokenFitsPayload = AssertAssignable<{
+  uid: string;
+  email?: string;
+  role?: string;
+}>;
