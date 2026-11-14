@@ -2,12 +2,12 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc",
-    "module": "node16",
+    "module": "nodenext",
     "types": ["node", "vitest/globals"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2021",
-    "moduleResolution": "node16",
+    "moduleResolution": "nodenext",
     "rootDir": "../../.."
   },
   "include": ["src/**/*.ts"],

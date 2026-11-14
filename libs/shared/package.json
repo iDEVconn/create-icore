@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@casl/ability": "^7.1.1",
-    "@nestjs/microservices": "^11.2.8",
+    "@nestjs/microservices": "^12.5.0",
     "ioredis": "^6.0.0",
     "tslib": "^2.9.1"
   },

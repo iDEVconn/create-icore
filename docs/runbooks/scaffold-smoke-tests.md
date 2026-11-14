@@ -80,7 +80,7 @@ node scripts/smoke-scaffold.mjs --auth=firebase --db=firebase --upload=firebase 
   `npm install` with `@idevconn/payment` requesting `express@^5.0.0`, check
   `apps/api/package.json` first. The generated API workspace must stay on
   Express 5 (`express@^5.2.1` and `@types/express@^5`) because
-  `@idevconn/payment@1.2.x`, `@bull-board/express@7.x`, and Nest 11's
+  `@idevconn/payment@1.2.x`, `@bull-board/express@7.x`, and Nest 12's
   `@nestjs/platform-express` stack are all Express-5-compatible. After changing
   the source package, run `yarn nx build create-icore` so the ignored template
   snapshot used by the smoke script is regenerated before reproducing the

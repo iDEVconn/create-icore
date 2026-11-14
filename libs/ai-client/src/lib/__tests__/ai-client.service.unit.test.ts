@@ -1,9 +1,10 @@
+import { vi, type Mocked } from 'vitest';
 import { of } from 'rxjs';
 import type { ClientProxy } from '@nestjs/microservices';
 import { AiClientService } from '../ai-client.service';
 
-function fakeClient(response: unknown): jest.Mocked<Pick<ClientProxy, 'send'>> {
-  return { send: jest.fn().mockReturnValue(of(response)) };
+function fakeClient(response: unknown): Mocked<Pick<ClientProxy, 'send'>> {
+  return { send: vi.fn().mockReturnValue(of(response)) };
 }
 
 describe('AiClientService', () => {
