@@ -18,7 +18,7 @@ export const TRANSPORT_ENV_TOKEN: Record<string, string> = {
 // @nestjs/microservices, so a project crashes on boot without them. (ioredis
 // for redis already ships via the jobs/BullMQ stack.)
 export const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
-  nats: { nats: '^2.29.3' },
+  nats: { '@nats-io/transport-node': '^3.4.0' },
   mqtt: { mqtt: '^5.16.1' },
   rmq: { amqplib: '^2.2.1', 'amqp-connection-manager': '^5.0.1' },
   kafka: { kafkajs: '^2.2.4' },

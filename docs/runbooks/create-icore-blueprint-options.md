@@ -140,15 +140,15 @@ template trees.
 
 ### Transport (gateway ↔ microservices)
 
-| Value   | Needs                | Effect on the project                                                  |
-| ------- | -------------------- | ---------------------------------------------------------------------- |
-| `tcp`   | nothing              | default; compose `*_TRANSPORT` flipped from the templated `redis`      |
-| `redis` | Redis                | compose left as templated                                              |
-| `nats`  | NATS server          | adds `nats` driver dep; compose rewritten, redis URL dropped           |
-| `mqtt`  | MQTT broker          | adds `mqtt` driver dep                                                 |
-| `rmq`   | RabbitMQ             | adds `amqplib` + `amqp-connection-manager`; queues are `durable: true` |
-| `kafka` | Kafka                | adds `kafkajs`                                                         |
-| `local` | Cloudflare host only | in-process `LocalServer` / `LocalClientProxy`; no host/port/url vars   |
+| Value   | Needs                | Effect on the project                                                           |
+| ------- | -------------------- | ------------------------------------------------------------------------------- |
+| `tcp`   | nothing              | default; compose `*_TRANSPORT` flipped from the templated `redis`               |
+| `redis` | Redis                | compose left as templated                                                       |
+| `nats`  | NATS server          | adds `@nats-io/transport-node` driver dep; compose rewritten, redis URL dropped |
+| `mqtt`  | MQTT broker          | adds `mqtt` driver dep                                                          |
+| `rmq`   | RabbitMQ             | adds `amqplib` + `amqp-connection-manager`; queues are `durable: true`          |
+| `kafka` | Kafka                | adds `kafkajs`                                                                  |
+| `local` | Cloudflare host only | in-process `LocalServer` / `LocalClientProxy`; no host/port/url vars            |
 
 gRPC is intentionally not offered (needs `.proto` contracts, incompatible with the message-pattern layer). When no microservice remains
 (`auth=none`, `upload=none`, `payment=none`, `ai=none`) the wizard skips the question and uses `tcp`; if additionally `db=none`, the strategies
