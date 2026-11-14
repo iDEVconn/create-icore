@@ -231,4 +231,55 @@ describe('microserviceGenerator', () => {
     await expect(microserviceGenerator(tree, { name: 'api' })).rejects.toThrow(/reserved/i);
     await expect(microserviceGenerator(tree, { name: 'notes' })).rejects.toThrow(/already exists/i);
   });
+
+  it('generates Nest 12 projects: nodenext, vitest client lib, reflect-metadata first', async () => {
+    const tree = createTreeWithEmptyWorkspace();
+    seedIcoreWorkspace(tree);
+
+    await microserviceGenerator(tree, { name: 'service-two' });
+
+    const msPkg = readJson<{ dependencies: Record<string, string> }>(
+      tree,
+      'apps/microservices/service-two/package.json',
+    );
+    const libPkg = readJson<{ dependencies: Record<string, string> }>(
+      tree,
+      'libs/service-two-client/package.json',
+    );
+    for (const pkg of [msPkg, libPkg]) {
+      for (const dep of ['@nestjs/common', '@nestjs/microservices']) {
+        expect(pkg.dependencies[dep], dep).toMatch(/^\^12\./);
+      }
+    }
+    expect(msPkg.dependencies['@nestjs/core']).toMatch(/^\^12\./);
+
+    for (const f of [
+      'apps/microservices/service-two/tsconfig.json',
+      'apps/microservices/service-two/tsconfig.app.json',
+      'libs/service-two-client/tsconfig.json',
+    ]) {
+      const ts = readJson<{ compilerOptions: { module: string; moduleResolution: string } }>(
+        tree,
+        f,
+      );
+      expect(ts.compilerOptions.module, f).toBe('nodenext');
+      expect(ts.compilerOptions.moduleResolution, f).toBe('nodenext');
+    }
+
+    // jest cannot load ESM-only Nest 12: the client lib is a vitest project like libs/auth-client
+    expect(tree.exists('libs/service-two-client/vitest.config.mts')).toBe(true);
+    expect(tree.exists('libs/service-two-client/jest.config.cts')).toBe(false);
+    const spec = readJson<{ compilerOptions: { types: string[] } }>(
+      tree,
+      'libs/service-two-client/tsconfig.spec.json',
+    );
+    expect(spec.compilerOptions.types).toContain('vitest/globals');
+    expect(spec.compilerOptions.types).not.toContain('jest');
+    expect(tree.read('libs/service-two-client/vitest.config.mts', 'utf-8')).toContain(
+      "setupFiles: ['reflect-metadata']",
+    );
+
+    const main = tree.read('apps/microservices/service-two/src/main.ts', 'utf-8') ?? '';
+    expect(main.startsWith("import 'reflect-metadata';")).toBe(true);
+  });
 });

@@ -10,6 +10,8 @@ export default defineConfig(() => ({
     name: 'storage-minio',
     watch: false,
     globals: true,
+    // Nest 12 no longer loads reflect-metadata itself
+    setupFiles: ['reflect-metadata'],
     environment: 'node',
     passWithNoTests: true,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

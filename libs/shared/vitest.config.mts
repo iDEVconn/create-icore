@@ -10,6 +10,8 @@ export default defineConfig(() => ({
     name: 'shared',
     watch: false,
     globals: true,
+    // Nest 12 no longer loads reflect-metadata itself
+    setupFiles: ['reflect-metadata'],
     environment: 'node',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     // The strategy contract harness files only EXPORT reusable suites

@@ -346,7 +346,9 @@ Since `LlmCallEvent` (llm-router's `onCall`/`onCost` payload) has no notion of _
 
 ## NestJS tsconfig
 
-API + microservice tsconfigs override `module: CommonJS` and `moduleResolution: node16` (required for NestJS decorators and `node:crypto` style imports). `tsconfig.base.json` does NOT set `module` or `moduleResolution` — each project tsconfig picks what it needs (Vite client uses `bundler`, NestJS uses `node16`). The `@icore/shared` path alias resolves from `tsconfig.base.json` `paths`.
+API + microservice tsconfigs use `module: nodenext` and `moduleResolution: nodenext`. Nest 12 is ESM-only (`"type": "module"` on every `@nestjs/*` package); the projects stay `"type": "commonjs"` and Node 24 `require()`s the ESM Nest packages (`node16` cannot: `TS1479`). `tsconfig.base.json` does NOT set `module` or `moduleResolution` — each project tsconfig picks what it needs (Vite client uses `bundler`, NestJS uses `nodenext`). The `@icore/shared` path alias resolves from `tsconfig.base.json` `paths`.
+
+Nest 12 no longer imports `reflect-metadata` itself: every Nest entry (`apps/api` and each microservice `src/main.ts`, `apps/worker/src/index.ts`) starts with `import 'reflect-metadata';` and every Nest project's vitest config has `setupFiles: ['reflect-metadata']` (pinned by `nest-reflect-metadata.unit.test.ts`; the microservice generator templates carry both). jest cannot load ESM Nest, so the client libs (`libs/*-client`) are vitest projects, as is what `nx g @icore/workspace-plugin:microservice` generates; only the `*-e2e` projects still use jest. `@nx/nest@24.0.6` peers `@nestjs/core|common` `<12`: yarn prints `YN0060` for it, harmless (we use `@nx/nest` for generators only; `packageExtensions` cannot override an existing peer range). The Cloudflare Worker needs `"define": {"import.meta.url": ...}` in `wrangler.jsonc` (`@nestjs/swagger` 12 calls `createRequire(import.meta.url)` at import time) and alias stubs for `@nats-io/transport-node` and `@fastify/static`. See `docs/runbooks/nest-12-migration-probe.md`.
 
 ## Important
 

@@ -13,10 +13,10 @@
   "dependencies": {
     "@icore/shared": "*",
     "@idevconn/payment": "^1.2.0",
-    "@nestjs/common": "^11.2.8",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.2.8",
-    "@nestjs/microservices": "^11.2.8",
+    "@nestjs/common": "^12.5.0",
+    "@nestjs/config": "^12.1.1",
+    "@nestjs/core": "^12.5.0",
+    "@nestjs/microservices": "^12.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "tslib": "^2.9.1"
