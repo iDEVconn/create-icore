@@ -895,7 +895,8 @@ const UI_VARIANTS: Record<string, Record<string, string>> = {
 };
 
 export async function applyAuthNoneVariants(targetDir: string, ui: string): Promise<void> {
-  const uiFiles = UI_VARIANTS[ui] ?? UI_VARIANTS['shadcn'];
+  // ui=none: only the shared (non-client) variants apply; never create apps/client files.
+  const uiFiles = ui === 'none' ? {} : (UI_VARIANTS[ui] ?? UI_VARIANTS['shadcn']);
   const all = { ...COMMON_VARIANTS, ...uiFiles };
   for (const [rel, content] of Object.entries(all)) {
     const dest = join(targetDir, rel);

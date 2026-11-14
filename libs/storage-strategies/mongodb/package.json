@@ -7,17 +7,17 @@
   "types": "./src/index.d.ts",
   "dependencies": {
     "@icore/shared": "*",
-    "@nestjs/common": "^11.2.8",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/mongoose": "^11.0.4",
+    "@nestjs/common": "^12.5.0",
+    "@nestjs/config": "^12.1.1",
+    "@nestjs/mongoose": "^12.0.1",
     "mongodb-memory-server": "^11.3.0",
-    "mongoose": "^9.11.4",
+    "mongoose": "^9.12.0",
     "tslib": "^2.9.1"
   },
   "devDependencies": {
-    "@nx/vite": "24.0.3",
+    "@nx/vite": "24.0.6",
     "jsonc-eslint-parser": "^3.3.0",
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vitest": "~5.1.0"
   }
 }

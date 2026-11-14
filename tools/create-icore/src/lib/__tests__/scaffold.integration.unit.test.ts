@@ -1482,8 +1482,11 @@ describe('scaffold — pm-specific file generation', () => {
     );
     expect(jobsClientPkg.dependencies['rxjs']).toBeDefined();
     expect(jobsClientPkg.dependencies['reflect-metadata']).toBeDefined();
-    expect(jobsClientPkg.devDependencies['jest']).toBeDefined();
-    expect(jobsClientPkg.devDependencies['ts-jest']).toBeDefined();
+    // Nest 12 is ESM-only and jest cannot load it: the client libs are vitest projects.
+    expect(jobsClientPkg.devDependencies['vitest']).toBeDefined();
+    expect(jobsClientPkg.devDependencies['@nx/vite']).toBeDefined();
+    expect(jobsClientPkg.devDependencies['jest']).toBeUndefined();
+    expect(jobsClientPkg.devDependencies['ts-jest']).toBeUndefined();
 
     // 7. root package.json has webpack
     const rootPkg = JSON.parse(await readFile(join(outputDir, 'package.json'), 'utf8'));

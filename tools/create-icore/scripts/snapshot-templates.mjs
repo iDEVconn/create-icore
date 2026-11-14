@@ -34,6 +34,7 @@ const PATHS_TO_COPY = [
   'Dockerfile.ms-auth',
   'Dockerfile.ms-upload',
   'Dockerfile.ms-jobs',
+  'Dockerfile.ms-payment',
   'Dockerfile.ms-ai',
   'Dockerfile.client',
   'nginx.client.conf',

@@ -51,7 +51,7 @@ const PAYMENT_PROVIDERS: readonly PaymentProvider[] = ['paypal', 'none'];
 const JOBS_PROVIDERS: readonly JobsProvider[] = ['bullmq', 'none'];
 const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
 const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
-const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui'];
+const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui', 'none'];
 const MS_TRANSPORTS: readonly MsTransport[] = [
   'tcp',
   'redis',

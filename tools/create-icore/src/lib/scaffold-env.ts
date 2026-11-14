@@ -25,8 +25,8 @@ export const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
 };
 
 export const MONGODB_DEPS: Record<string, string> = {
-  mongoose: '^9.11.4',
-  '@nestjs/mongoose': '^11.0.4',
+  mongoose: '^9.12.0',
+  '@nestjs/mongoose': '^12.0.1',
   bcrypt: '^6.0.0',
   jsonwebtoken: '^9.0.3',
 };

@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "generators": "./generators.json",
   "dependencies": {
-    "@nx/devkit": "24.0.3",
+    "@nx/devkit": "24.0.6",
     "tslib": "^2.9.1",
     "typescript": "6.0.3"
   }

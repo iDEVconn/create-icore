@@ -15,6 +15,8 @@ export default defineConfig(() => ({
     name: 'worker',
     watch: false,
     globals: true,
+    // Nest 12 no longer loads reflect-metadata itself
+    setupFiles: ['reflect-metadata'],
     environment: 'node',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],

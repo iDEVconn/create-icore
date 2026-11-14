@@ -76,5 +76,7 @@ The Worker also serves the built client: `wrangler.jsonc` has an `assets` bindin
 
 ## Not done yet
 
+- **NestJS 12** is supported: `apps/worker/wrangler.jsonc` defines `import.meta.url` (`@nestjs/swagger` 12 calls `createRequire(import.meta.url)` at import time; workerd has none) and stubs `@nats-io/transport-node` / `@fastify/static`. `worker:smoke` passes. See [`nest-12-migration-probe.md`](./nest-12-migration-probe.md).
+
 - A real deployment (the generated workflow and assets binding are verified only locally), Smart Placement and region hints. Note the repo's own
   notes microservice still selects Supabase; a generated `--db=d1` project wires it to the D1 binding.

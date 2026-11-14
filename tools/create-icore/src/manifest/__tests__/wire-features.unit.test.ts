@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtemp, mkdir, writeFile, readFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { writeFeaturesWiring, cleanupUnusedFeatures } from '../wire-features.js';
 import type { CreateIcoreOptions } from '../../lib/options.js';
 
@@ -205,5 +206,37 @@ describe('cleanupUnusedFeatures', () => {
 
     const ts = JSON.parse(await readFile(join(dir, 'tsconfig.base.json'), 'utf8'));
     expect(ts.compilerOptions.paths).not.toHaveProperty('@icore/ai-client');
+  });
+
+  describe('payment service in docker-compose.yml (real compose file)', () => {
+    const realCompose = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../../../../docker-compose.yml',
+    );
+
+    async function composeAfter(over: Partial<CreateIcoreOptions>): Promise<string> {
+      const dir = await fixture();
+      await writeFile(join(dir, 'docker-compose.yml'), await readFile(realCompose, 'utf8'));
+      await cleanupUnusedFeatures(dir, { ...base, targetDir: dir, ...over });
+      return readFile(join(dir, 'docker-compose.yml'), 'utf8');
+    }
+
+    it('drops the payment service, its gateway depends_on and PAYMENT_* env when payment=none', async () => {
+      const compose = await composeAfter({ payment: 'none' });
+      expect(compose).not.toMatch(/^ {2}payment:/m);
+      expect(compose).not.toContain('Dockerfile.ms-payment');
+      expect(compose).not.toMatch(/PAYMENT_/);
+      expect(compose).not.toMatch(/^ {6}payment:\n {8}condition/m);
+      // neighbours survive the strip
+      expect(compose).toMatch(/^ {2}jobs:/m);
+      expect(compose).toMatch(/^ {2}gateway:/m);
+    });
+
+    it('keeps the payment service when payment=paypal', async () => {
+      const compose = await composeAfter({ payment: 'paypal' });
+      expect(compose).toMatch(/^ {2}payment:/m);
+      expect(compose).toContain('Dockerfile.ms-payment');
+      expect(compose).toMatch(/PAYMENT_HOST: payment/);
+    });
   });
 });

@@ -132,9 +132,11 @@ export async function writeServiceBlueprints(
     transport: t,
   });
 
-  await writeJson(targetDir, 'apps/client', {
-    schemaVersion: 1,
-    service: 'client',
-    ui: opts.ui,
-  });
+  if (opts.ui !== 'none') {
+    await writeJson(targetDir, 'apps/client', {
+      schemaVersion: 1,
+      service: 'client',
+      ui: opts.ui,
+    });
+  }
 }

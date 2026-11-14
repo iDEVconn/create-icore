@@ -6,7 +6,7 @@
   "main": "./src/index.mjs",
   "types": "./src/index.d.mts",
   "peerDependencies": {
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vitest": "~5.1.0"
   },
   "peerDependenciesMeta": {
@@ -19,6 +19,6 @@
   },
   "devDependencies": {
     "jsonc-eslint-parser": "^3.3.0",
-    "vite": "^8.3.5"
+    "vite": "^8.3.6"
   }
 }

@@ -1,26 +1,24 @@
+import { vi } from 'vitest';
 import { Logger } from '@nestjs/common';
 
-const onMock = jest.fn();
-const quitMock = jest.fn().mockResolvedValue(undefined);
-const ioredisCtor = jest.fn().mockImplementation((url: string, opts: unknown) => ({
-  url,
-  opts,
-  on: onMock,
-  quit: quitMock,
-}));
+// vi.mock is hoisted above the file's top-level statements, so the doubles it returns must be hoisted too.
+// The constructors use `function` so `new` works on them.
+const { onMock, quitMock, ioredisCtor, addMock, closeMock, queueCtor } = vi.hoisted(() => {
+  const onMock = vi.fn();
+  const quitMock = vi.fn().mockResolvedValue(undefined);
+  const ioredisCtor = vi.fn().mockImplementation(function (url: string, opts: unknown) {
+    return { url, opts, on: onMock, quit: quitMock };
+  });
+  const addMock = vi.fn();
+  const closeMock = vi.fn().mockResolvedValue(undefined);
+  const queueCtor = vi.fn().mockImplementation(function (name: string, opts: unknown) {
+    return { name, opts, add: addMock, close: closeMock };
+  });
+  return { onMock, quitMock, ioredisCtor, addMock, closeMock, queueCtor };
+});
 
-jest.mock('ioredis', () => ioredisCtor);
-
-const addMock = jest.fn();
-const closeMock = jest.fn().mockResolvedValue(undefined);
-const queueCtor = jest.fn().mockImplementation((name: string, opts: unknown) => ({
-  name,
-  opts,
-  add: addMock,
-  close: closeMock,
-}));
-
-jest.mock('bullmq', () => ({ Queue: queueCtor }));
+vi.mock('ioredis', () => ({ default: ioredisCtor }));
+vi.mock('bullmq', () => ({ Queue: queueCtor }));
 
 import { JobsClientService } from '../jobs-client.service';
 
@@ -44,7 +42,7 @@ describe('JobsClientService', () => {
   });
 
   it('warns once on repeated connection errors instead of crashing', () => {
-    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
     new JobsClientService('redis://localhost:6379');
 

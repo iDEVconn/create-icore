@@ -7,6 +7,7 @@ import {
   pruneApiExpressDep,
   pruneUnusedLibDeps,
   pruneUnusedAiUsageApiDep,
+  pruneClientDeps,
 } from '../scaffold-strip.js';
 
 describe('removeFirebaseAdminLib', () => {
@@ -218,5 +219,81 @@ import type { AppAbility } from '@icore/shared';
     };
     expect(tplPkg.dependencies?.['@casl/react']).toBe('^6.0.0');
     expect(tplPkg.dependencies?.['@icore/shared']).toBe('^1.0.0');
+  });
+});
+
+describe('pruneClientDeps', () => {
+  async function fixture(): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-prune-client-'));
+    await mkdir(join(dir, 'apps/api/src'), { recursive: true });
+    await writeFile(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        dependencies: {
+          react: '^19',
+          'react-dom': '^19',
+          zustand: '^5',
+          '@tanstack/react-query': '^5',
+          '@nestjs/core': '^11',
+        },
+        devDependencies: {
+          vite: '^8',
+          '@vitejs/plugin-react': '^5',
+          '@nx/react': '^24',
+          'eslint-plugin-react': '^7',
+          typescript: '^6',
+        },
+      }),
+    );
+    return dir;
+  }
+
+  async function depsOf(dir: string): Promise<string[]> {
+    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    return [...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)];
+  }
+
+  it('removes client-only deps that no remaining source references, keeps everything else', async () => {
+    const dir = await fixture();
+    await writeFile(
+      join(dir, 'apps/api/src/main.ts'),
+      "import { NestFactory } from '@nestjs/core';",
+    );
+
+    await pruneClientDeps(dir);
+
+    const deps = await depsOf(dir);
+    for (const gone of [
+      'react',
+      'react-dom',
+      'zustand',
+      '@tanstack/react-query',
+      '@vitejs/plugin-react',
+      '@nx/react', // peers react/react-dom: leaving it would reinstall React
+      'eslint-plugin-react',
+    ]) {
+      expect(deps, gone).not.toContain(gone);
+    }
+    expect(deps).toEqual(expect.arrayContaining(['@nestjs/core', 'typescript', 'vite']));
+  });
+
+  it('keeps a candidate dep that a remaining source or config file still references', async () => {
+    const dir = await fixture();
+    await writeFile(join(dir, 'apps/api/src/store.ts'), "import { create } from 'zustand';");
+    await writeFile(join(dir, 'eslint.config.mjs'), "import react from 'eslint-plugin-react';");
+
+    await pruneClientDeps(dir);
+
+    const deps = await depsOf(dir);
+    expect(deps).toEqual(expect.arrayContaining(['zustand', 'eslint-plugin-react']));
+    expect(deps).not.toContain('react');
+  });
+
+  it('silently no-ops when package.json does not exist', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-prune-client-empty-'));
+    await expect(pruneClientDeps(dir)).resolves.not.toThrow();
   });
 });
