@@ -273,4 +273,16 @@ describe('AuthGuard', () => {
       ServiceUnavailableException,
     );
   });
+
+  it('rejects a graphql-context request without a session cookie', async () => {
+    const gql = {
+      getType: () => 'graphql',
+      getArgByIndex: (i: number) => (i === 2 ? { req: { cookies: {} }, res: {} } : undefined),
+      getHandler: () => ({}),
+      getClass: () => ({}),
+    } as unknown as ExecutionContext;
+    await expect(guard.canActivate(gql)).rejects.toThrow(
+      new UnauthorizedException('missing_session'),
+    );
+  });
 });
