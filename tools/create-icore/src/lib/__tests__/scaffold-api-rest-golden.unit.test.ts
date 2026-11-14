@@ -27,10 +27,14 @@ const NEUTRAL_HTTP = [
 const NEUTRAL_NOTES = [
   'apps/api/src/app/notes/notes-gateway.service.ts',
   'apps/api/src/app/notes/__tests__/notes-gateway.service.unit.test.ts',
+  // Pins the empty-reply fix of NotesClientService.delete (found in the live GraphQL check).
+  'libs/notes-client/src/lib/__tests__/notes-client.service.unit.test.ts',
 ];
 const NEUTRAL_STORAGE = [
   'apps/api/src/app/storage/storage.controllers.ts',
   'apps/api/src/app/storage/storage-files.controller.ts',
+  // Pins the empty-reply fix of UploadClientService.remove.
+  'libs/upload-client/src/lib/__tests__/upload-client.service.unit.test.ts',
 ];
 /** The profile hook exists only with auth (its page is auth-only). */
 const NEUTRAL_PROFILE = [
