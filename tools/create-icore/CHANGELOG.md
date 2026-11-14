@@ -1,5 +1,19 @@
 # @idevconn/create-icore
 
+## 0.22.0
+
+### Minor Changes
+
+- 7d0827e: Add `--ui=none` to generate an API-only project without the React client, plus a notice when every option is `none`.
+- 9e19a27: Upgrade NestJS to 12: generated projects (and `nx g @icore/workspace-plugin:microservice`) use Nest 12 (`nodenext`, explicit `reflect-metadata`, vitest client libs).
+
+### Patch Changes
+
+- f3f9223: Fix generated docker-compose.yml: ship Dockerfile.ms-payment, and drop the payment service (depends_on, PAYMENT_* env, Dockerfile) when payment=none.
+- cf27366: Correct the NestJS 12 notes: the @nx/nest peer range is advisory, only the Cloudflare Workers host blocks the upgrade.
+- 744e6a7: Document the NestJS 12 migration probe (what blocks it, how to repeat it) in the runbooks.
+- 63ee045: Bump Nx and all `@nx/*` packages to 24.0.6 (repo and generated-project root manifest).
+
 ## 0.21.3
 
 ### Patch Changes
