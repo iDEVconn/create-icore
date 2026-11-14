@@ -49,6 +49,7 @@ that could not `docker compose build` and `payment=none` kept a dangling `paymen
 | `--ai` (`ai`)                          | `llm-router`, `none`                                                   | `none`                                                                                |
 | `--example` (`example`)                | `notes`, `none`                                                        | `none` if `auth=none`; else wizard (`notes`)                                          |
 | `--ui` (`ui`)                          | `shadcn`, `antd`, `mui`, `none`                                        | wizard (`shadcn`); `none` = API-only, no client                                       |
+| `--api` (`api`)                        | `rest`, `graphql`, `both`                                              | wizard (`rest`); not asked on cloudflare                                              |
 | `--transport` (`transport`)            | `tcp`, `redis`, `nats`, `mqtt`, `rmq`, `kafka`, `local`                | `local` on cloudflare; `tcp` if no microservice; else wizard (`tcp`)                  |
 | `--session` (`session`)                | `redis`, `memory`, `durable-object`                                    | `redis` if `auth=none`; `durable-object` on cloudflare; else wizard (`redis`)         |
 | `--package-manager` (`packageManager`) | `yarn`, `npm`, `pnpm`                                                  | detected from `npm_config_user_agent`, else `yarn`                                    |
@@ -72,6 +73,7 @@ that could not `docker compose build` and `payment=none` kept a dangling `paymen
 | `host=cloudflare` + explicit transport other than `local`/default `tcp`       | unsupported                                      |
 | `host=cloudflare` + auth ≠ none + session other than `durable-object`/`redis` | unsupported                                      |
 | `host=cloudflare` + `ui=none`                                                 | unsupported (the Worker serves the built client) |
+| `host=cloudflare` + `api` ≠ `rest`                                            | unsupported (Apollo on workerd not verified)     |
 
 **Auto-corrections (with a warning where noted)**
 
@@ -138,6 +140,24 @@ Selects one `libs/storage-strategies/*`. `none` removes the upload microservice,
 `shadcn` | `antd` | `mui`: `apps/templates/client-<ui>` is promoted to `apps/client`; the other two are deleted. Feature exclusions apply to all three
 template trees.
 
+### API style (`--api`)
+
+`rest` (default) ships the REST surface only and no GraphQL artefact. `graphql` replaces the REST surface of notes (CRUD), profile (`me`)
+and storage (list, signed-url, remove) with resolvers on `POST /api/graphql`; auth, webhooks, admin, upload/download and health stay REST.
+`both` keeps REST and adds `/api/graphql`; the client stays on REST. Feature surfaces exist only when their feature does (notes needs
+`example=notes`, storage needs `upload` ≠ `none` and auth, profile needs auth); the public `health` query always exists, so
+`--api=graphql --auth=none` is a GraphQL endpoint with `health` only. Details: `docs/runbooks/graphql-api.md`.
+
+Exclusions (`manifest/resolve.ts`) and wiring (`manifest/wire-api.ts`):
+
+| `api`     | server                                                                                                                                            | client                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `rest`    | every GraphQL file excluded; GraphQL deps, `graphql-schema` target and GraphQL config entries stripped (output = pre-axis output + neutral files) | every GraphQL file excluded; loader, `graphql-loader.d.ts` includes, client GraphQL deps, codegen target stripped |
+| `graphql` | REST notes/profile modules and storage list controller excluded; `ApiSurfacesModule` + `API_SURFACE_RESOLVERS` generated per feature              | `*.gql-api.ts` hooks swapped over the REST ones; operations per feature; codegen depends on `api:graphql-schema`  |
+| `both`    | REST and GraphQL surfaces; `ApiSurfacesModule` generated per feature                                                                              | as `rest`                                                                                                         |
+
+`apps/api/schema.gql` is never shipped (R12): it appears when the gateway boots outside production or on `nx run api:graphql-schema`.
+
 ### Transport (gateway ↔ microservices)
 
 | Value   | Needs                | Effect on the project                                                           |
@@ -198,6 +218,8 @@ them; correctness rests on the manifest being additive (units are independent) p
 | Cloudflare Worker          | `--host=cloudflare --auth=supabase --db=d1 --upload=r2 --example=notes`                                 | `apps/worker`, DO sessions, D1 binding, R2 storage, no Docker files |
 | Cloudflare Worker, minimal | `--host=cloudflare --auth=none --db=none --upload=none`                                                 | Worker serving the SPA + gateway only                               |
 | Rejected                   | `--host=cloudflare --auth=firebase`, `--host=node --transport=local`, `--host=cloudflare --jobs=bullmq` | error before any file is written                                    |
+| GraphQL client             | `--auth=supabase --db=supabase --upload=supabase --example=notes --api=graphql`                         | resolvers, `/api/graphql`, client hooks over GraphQL                |
+| GraphQL, no login          | `--auth=none --upload=none --api=graphql`                                                               | `/api/graphql` with the public `health` query only                  |
 | Silently corrected         | `--auth=none --example=notes`                                                                           | `example` becomes `none` + warning                                  |
 
 ## 6. How it is verified

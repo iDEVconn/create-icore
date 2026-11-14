@@ -47,6 +47,11 @@ jobs:
             flags: --auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --session=memory
           - name: cloudflare-d1-r2-tcp-shadcn
             flags: --auth=supabase --db=d1 --upload=r2 --ai=llm-router --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn
+          # --api: GraphQL client (antd, codegen + loader) and REST client + /api/graphql (both).
+          - name: supabase-graphql-tcp-antd
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --ui=antd --api=graphql
+          - name: supabase-both-tcp-shadcn
+            flags: --auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --ui=shadcn --api=both
           # --ui=none: API-only project, no client in the project list and no client service to boot.
           - name: supabase-api-only-tcp
             flags: --auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --ui=none
