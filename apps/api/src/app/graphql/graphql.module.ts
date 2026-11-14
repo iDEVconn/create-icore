@@ -54,6 +54,9 @@ export function graphqlOptions(env: NodeJS.ProcessEnv = process.env): ApolloDriv
     context: ({ req, res }: { req: Request; res: Response }) => ({ req, res }),
     introspection: !production,
     graphiql: !production,
+    // No "Did you mean …?" field suggestions in validation errors: they leak the schema that
+    // introspection hides.
+    hideSchemaDetailsFromClientErrors: production,
     allowBatchedHttpRequests: false,
     csrfPrevention: true,
     // Keep the status that GraphqlErrorFilter puts in `extensions.http` (401/403/429/…); by default

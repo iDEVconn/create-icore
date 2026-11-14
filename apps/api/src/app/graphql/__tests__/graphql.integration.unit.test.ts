@@ -322,6 +322,12 @@ describe('ApiGraphqlModule over HTTP (non-production)', () => {
     expect(calls).toBe(0);
   });
 
+  it('suggests field names outside production (control for the production case)', async () => {
+    const r = await send(b, { query: '{ pong }' });
+    expect(r.status).toBe(400);
+    expect(r.body.errors[0].message).toMatch(/did you mean "ping"/i);
+  });
+
   it('rejects a batched (array) request', async () => {
     const r = await send(b, [{ query: '{ ping }' }, { query: '{ ping }' }]);
     expect(r.status).toBe(400);
@@ -421,6 +427,13 @@ describe('ApiGraphqlModule over HTTP (NODE_ENV=production)', () => {
     const r = await send(b, { query: '{ ping }' }, { session: false });
     expect(r.status).toBe(401);
     expect(r.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('does not leak schema details through "Did you mean" suggestions', async () => {
+    const r = await send(b, { query: '{ pong }' });
+    expect(r.status).toBe(400);
+    expect(r.body.errors[0].message).not.toMatch(/did you mean/i);
+    expect(JSON.stringify(r.body)).not.toContain('ping');
   });
 
   it('does not serve the GraphiQL landing page', async () => {
