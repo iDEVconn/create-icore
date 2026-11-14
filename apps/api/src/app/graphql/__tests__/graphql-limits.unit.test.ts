@@ -69,4 +69,66 @@ describe('createLimitRules', () => {
     const errors = check(`query { tree { ...F } } fragment F on Node { ${aliases} }`);
     expect(errors[0]).toMatch(/aliases/);
   });
+
+  // Fragment chains: F0 spreads F1 `spreads` times, F1 spreads F2, ... A naive walk re-expands
+  // every spread (spreads^n work) before any guard runs.
+  function chain(n: number, spreads: number, body: (next: string) => string): string {
+    const fragments: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const next = Array.from({ length: spreads }, () => `...F${i + 1}`).join(' ');
+      fragments.push(`fragment F${i} on Node { ${body(next)} }`);
+    }
+    fragments.push(`fragment F${n} on Node { id }`);
+    return `query { tree { ...F0 } } ${fragments.join(' ')}`;
+  }
+
+  function timed(query: string): { errors: string[]; ms: number } {
+    const doc = parse(query);
+    const start = performance.now();
+    const errors = validate(schema, doc, rules).map((e) => e.message);
+    return { errors, ms: performance.now() - start };
+  }
+
+  it('validates a 30-fragment doubling chain in linear time', () => {
+    const { errors, ms } = timed(chain(30, 2, (next) => next));
+    expect(errors).toEqual([]);
+    expect(ms).toBeLessThan(100);
+  });
+
+  it('validates a 30-fragment tripling chain in linear time', () => {
+    const { errors, ms } = timed(chain(30, 3, (next) => next));
+    expect(errors).toEqual([]);
+    expect(ms).toBeLessThan(100);
+  });
+
+  it('still reports the right depth through a doubling chain', () => {
+    // tree + 30 nested `child` levels + id = depth 32
+    const { errors, ms } = timed(chain(30, 2, (next) => `child { ${next} }`));
+    expect(errors).toEqual(['Query depth 32 exceeds the maximum of 8.']);
+    expect(ms).toBeLessThan(100);
+  });
+
+  it('counts aliases per execution: a fragment spread twice counts its aliases twice', () => {
+    // 6 doubling fragments with one alias each + a leaf with 9 aliases: 15 aliases in the
+    // document, but 2^6 * 9 + 63 = 639 aliased fields would be resolved. Depth stays 8.
+    const leaf = Array.from({ length: 9 }, (_, i) => `a${i}: id`).join(' ');
+    const fragments: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      fragments.push(`fragment F${i} on Node { child { ...F${i + 1} } x: child { ...F${i + 1} } }`);
+    }
+    fragments.push(`fragment F6 on Node { ${leaf} }`);
+    const { errors } = timed(`query { tree { ...F0 } } ${fragments.join(' ')}`);
+    expect(errors).toEqual(['639 aliases exceed the maximum of 15.']);
+  });
+
+  it('counts aliases separately per operation', () => {
+    const eight = Array.from({ length: 8 }, (_, i) => `a${i}: ping`).join(' ');
+    expect(check(`query A { ${eight} } query B { ${eight} }`)).toEqual([]);
+  });
+
+  it('handles a 40-fragment tripling alias chain in linear time', () => {
+    const { errors, ms } = timed(chain(40, 3, (next) => `x: child { ${next} }`));
+    expect(errors.some((e) => /aliases exceed/.test(e))).toBe(true);
+    expect(ms).toBeLessThan(100);
+  });
 });

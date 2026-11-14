@@ -1,14 +1,23 @@
 import {
+  BadRequestException,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
+  InternalServerErrorException,
   NotFoundException,
+  ServiceUnavailableException,
   type INestApplication,
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Field, Mutation, ObjectType, Query, Resolver } from '@nestjs/graphql';
 import { Test } from '@nestjs/testing';
-import { ThrottlerModule } from '@nestjs/throttler';
+import {
+  ThrottlerException,
+  ThrottlerModule,
+  seconds,
+  type ThrottlerOptions,
+} from '@nestjs/throttler';
 import cookieParser from 'cookie-parser';
 import { AuthClientService } from '@icore/auth-client';
 import { InMemorySessionStore } from '@icore/shared';
@@ -70,6 +79,31 @@ class ThrowawayResolver {
     throw new NotFoundException('note_not_found');
   }
 
+  @Query(() => String)
+  badInput(): string {
+    throw new BadRequestException('bad_title');
+  }
+
+  @Query(() => String)
+  conflict(): string {
+    throw new ConflictException('already_exists');
+  }
+
+  @Query(() => String)
+  throttled(): string {
+    throw new ThrottlerException();
+  }
+
+  @Query(() => String)
+  unavailable(): string {
+    throw new ServiceUnavailableException('session_store_unavailable');
+  }
+
+  @Query(() => String)
+  internal(): string {
+    throw new InternalServerErrorException('db password is hunter2');
+  }
+
   @Mutation(() => String)
   touch(): string {
     calls++;
@@ -95,17 +129,20 @@ interface Booted {
 
 // NODE_ENV is pinned while the app is built and started: `nx test` loads the root .env, and any
 // value but `test`/`production` would make ApiGraphqlModule write this throwaway schema to disk.
-async function boot(nodeEnv: 'test' | 'production'): Promise<Booted> {
+async function boot(
+  nodeEnv: 'test' | 'production',
+  throttlers: ThrottlerOptions[] = throttlerOptions,
+): Promise<Booted> {
   const previous = process.env['NODE_ENV'];
   process.env['NODE_ENV'] = nodeEnv;
   try {
-    return await bootApp();
+    return await bootApp(throttlers);
   } finally {
     process.env['NODE_ENV'] = previous;
   }
 }
 
-async function bootApp(): Promise<Booted> {
+async function bootApp(throttlers: ThrottlerOptions[]): Promise<Booted> {
   const store = new InMemorySessionStore();
   const session = await store.create({
     uid: 'u1',
@@ -116,7 +153,7 @@ async function bootApp(): Promise<Booted> {
     providerAccessTokenExpiresAt: Date.now() + 60 * 60 * 1000,
   });
   const moduleRef = await Test.createTestingModule({
-    imports: [ApiGraphqlModule, ThrottlerModule.forRoot(throttlerOptions)],
+    imports: [ApiGraphqlModule, ThrottlerModule.forRoot(throttlers)],
     controllers: [RestController],
     providers: [
       ThrowawayResolver,
@@ -279,6 +316,19 @@ describe('ApiGraphqlModule over HTTP (non-production)', () => {
     expect(calls).toBe(0);
   });
 
+  it.each([
+    ['badInput', 400, 'BAD_USER_INPUT', 'bad_title'],
+    ['conflict', 409, 'CONFLICT', 'already_exists'],
+    ['throttled', 429, 'TOO_MANY_REQUESTS', 'ThrottlerException: Too Many Requests'],
+    ['unavailable', 503, 'SERVICE_UNAVAILABLE', 'session_store_unavailable'],
+    ['internal', 500, 'INTERNAL_SERVER_ERROR', 'db password is hunter2'],
+  ])('maps %s to HTTP %i %s', async (field, status, code, message) => {
+    const r = await send(b, { query: `{ ${field} }` });
+    expect(r.status).toBe(status);
+    expect(r.body.errors[0].extensions.code).toBe(code);
+    expect(r.body.errors[0].message).toBe(message);
+  });
+
   it('leaves REST error responses untouched', async () => {
     const res = await fetch(`${b.base}/api/rest/forbidden`, {
       headers: { cookie: `icore_sid=${b.sessionId}` },
@@ -313,6 +363,25 @@ describe('ApiGraphqlModule over HTTP (NODE_ENV=production)', () => {
     expect(r.body.errors[0].message).not.toContain('boom');
   });
 
+  it.each([
+    ['unavailable', 503, 'SERVICE_UNAVAILABLE'],
+    ['internal', 500, 'INTERNAL_SERVER_ERROR'],
+  ])(
+    'masks the message of a %s (HTTP %i) but keeps status and code',
+    async (field, status, code) => {
+      const r = await send(b, { query: `{ ${field} }` });
+      expect(r.status).toBe(status);
+      expect(r.body.errors[0].extensions.code).toBe(code);
+      expect(r.body.errors[0].message).toBe('Internal server error');
+    },
+  );
+
+  it('keeps the message of a 4xx error', async () => {
+    const r = await send(b, { query: '{ conflict }' });
+    expect(r.status).toBe(409);
+    expect(r.body.errors[0].message).toBe('already_exists');
+  });
+
   it('still maps auth failures to HTTP 401', async () => {
     const r = await send(b, { query: '{ ping }' }, { session: false });
     expect(r.status).toBe(401);
@@ -322,5 +391,50 @@ describe('ApiGraphqlModule over HTTP (NODE_ENV=production)', () => {
   it('does not serve the GraphiQL landing page', async () => {
     const res = await fetch(`${b.base}/api/graphql`, { headers: { accept: 'text/html' } });
     expect(await res.text()).not.toMatch(/graphiql/i);
+  });
+});
+
+describe('request-level throttle floor on /api/graphql', () => {
+  let b: Booted;
+  const limit = 3;
+
+  beforeAll(async () => {
+    b = await boot('test', [
+      { name: 'default', ttl: seconds(60), limit },
+      ...throttlerOptions.filter((t) => t.name !== 'default'),
+    ]);
+  });
+
+  afterAll(async () => {
+    await b.app.close();
+  });
+
+  beforeEach(() => {
+    calls = 0;
+  });
+
+  it('counts every request, including ones rejected before any resolver runs', async () => {
+    // Unauthenticated, unparseable and batched requests never reach a guarded resolver, so the
+    // per-resolver guard alone would not count them.
+    const first = await send(b, { query: '{ ping }' }, { session: false });
+    expect(first.status).toBe(401);
+    expect((await send(b, { query: '{ ping ' })).status).toBe(400);
+    expect((await send(b, [{ query: '{ ping }' }])).status).toBe(400);
+
+    const limited = await send(b, { query: '{ ping }' }, { session: false });
+    expect(limited.status).toBe(429);
+    expect(limited.body.errors[0].extensions.code).toBe('TOO_MANY_REQUESTS');
+
+    const authed = await send(b, { query: '{ ping }' });
+    expect(authed.status).toBe(429);
+    expect(authed.body.errors[0].extensions.code).toBe('TOO_MANY_REQUESTS');
+    expect(calls).toBe(0);
+  });
+
+  it('does not throttle other routes through the GraphQL counter', async () => {
+    const res = await fetch(`${b.base}/api/rest/forbidden`, {
+      headers: { cookie: `icore_sid=${b.sessionId}` },
+    });
+    expect(res.status).toBe(403);
   });
 });
