@@ -1,3 +1,4 @@
+import { HealthResolver } from './health.resolver';
 import { NotesResolver } from '../notes/graphql/notes.resolver';
 import { ProfileResolver } from '../profile/graphql/profile.resolver';
 import { StorageResolver } from '../storage/graphql/storage.resolver';
@@ -8,4 +9,9 @@ import { StorageResolver } from '../storage/graphql/storage.resolver';
  * never loads Apollo or the microservice client modules.
  */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-export const API_SURFACE_RESOLVERS: Function[] = [NotesResolver, ProfileResolver, StorageResolver];
+export const API_SURFACE_RESOLVERS: Function[] = [
+  HealthResolver,
+  NotesResolver,
+  ProfileResolver,
+  StorageResolver,
+];

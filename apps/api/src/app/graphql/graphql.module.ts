@@ -9,6 +9,7 @@ import type { Request, Response } from 'express';
 import { GraphqlErrorFilter } from './graphql-error.filter';
 import { createLimitRules } from './graphql-limits';
 import { GraphqlThrottleMiddleware } from './graphql-throttle.middleware';
+import { HealthResolver } from './health.resolver';
 
 /** Where a development server writes the schema (the committed copy comes from `api:graphql-schema`). */
 export const SCHEMA_FILE = join(process.cwd(), 'apps/api/schema.gql');
@@ -70,7 +71,7 @@ export function graphqlOptions(env: NodeJS.ProcessEnv = process.env): ApolloDriv
       useFactory: () => graphqlOptions(),
     }),
   ],
-  providers: [{ provide: APP_FILTER, useClass: GraphqlErrorFilter }],
+  providers: [{ provide: APP_FILTER, useClass: GraphqlErrorFilter }, HealthResolver],
 })
 export class ApiGraphqlModule implements NestModule {
   // Request-level throttle floor, before Apollo parses anything (needs the gateway's global

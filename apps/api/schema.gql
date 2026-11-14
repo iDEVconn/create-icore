@@ -7,6 +7,10 @@ input CreateNoteInput {
   title: String!
 }
 
+type Health {
+  status: String!
+}
+
 type Mutation {
   """Create a note (ownerId is set from the session)"""
   createNote(input: CreateNoteInput!): Note!
@@ -44,6 +48,7 @@ type Profile {
 type Query {
   """List the caller's stored files"""
   files(prefix: String): [StorageRef!]!
+  health: Health!
 
   """The authenticated user (uid / email / role)"""
   me: Profile!

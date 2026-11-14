@@ -259,6 +259,19 @@ describe('ApiGraphqlModule over HTTP (non-production)', () => {
     expect(calls).toBe(1);
   });
 
+  it('answers the public health query with no session and no CSRF header', async () => {
+    const r = await send(b, { query: '{ health { status } }' }, { session: false, csrf: false });
+    expect(r.status).toBe(200);
+    expect(r.body.errors).toBeUndefined();
+    expect(r.body.data.health.status).toBe('ok');
+  });
+
+  it('keeps guarded queries guarded next to health (401 without a session)', async () => {
+    const r = await send(b, { query: '{ ping }' }, { session: false, csrf: false });
+    expect(r.status).toBe(401);
+    expect(r.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+  });
+
   it('maps a ForbiddenException thrown by a resolver to HTTP 403 FORBIDDEN', async () => {
     const r = await send(b, { query: '{ forbidden }' });
     expect(r.status).toBe(403);

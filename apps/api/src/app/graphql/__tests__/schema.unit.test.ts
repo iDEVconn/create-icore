@@ -24,6 +24,7 @@ describe('committed apps/api/schema.gql', () => {
       'updateNote(id: ID!, input: UpdateNoteInput!): Note!',
       'deleteNote(id: ID!): Boolean!',
       'removeFile(bucket: String!, path: String!): Boolean!',
+      'health: Health!',
       'items: [Note!]!',
       'total: Int!',
     ]) {
@@ -32,6 +33,7 @@ describe('committed apps/api/schema.gql', () => {
     expect(sdl).toMatch(
       /type Note \{\n {2}body: String!\n {2}createdAt: String!\n {2}id: String!\n {2}ownerId: String!\n {2}title: String!\n {2}updatedAt: String!\n\}/,
     );
+    expect(sdl).toMatch(/type Health \{\n {2}status: String!\n\}/);
     expect(sdl).toMatch(/type StorageRef \{\n {2}bucket: String!\n {2}path: String!\n\}/);
     // role is optional on the session record (VerifiedToken), so it is nullable here.
     expect(sdl).toMatch(
