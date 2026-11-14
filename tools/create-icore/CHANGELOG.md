@@ -1,5 +1,12 @@
 # @idevconn/create-icore
 
+## 0.22.1
+
+### Patch Changes
+
+- 353b3d0: Fix --transport=nats on Nest 12: install @nats-io/transport-node (NATS v3) instead of the retired nats package; guard test pins transport drivers against @nestjs/microservices peers.
+- 35edc51: Fix the Redis microservice transport ignoring its URL: ${PREFIX}_REDIS_URL is resolved to host/port/credentials/db/TLS, so non-default hosts and ports (and docker service names) work.
+
 ## 0.22.0
 
 ### Minor Changes
