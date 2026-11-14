@@ -14,7 +14,9 @@ function factoryOf(): (data: unknown, ctx: ExecutionContext) => unknown {
     string,
     { factory: (data: unknown, ctx: ExecutionContext) => unknown }
   >;
-  return Object.values(meta)[0].factory;
+  const entry = Object.values(meta)[0];
+  if (!entry) throw new Error('CurrentUser registered no route-arg factory');
+  return entry.factory;
 }
 
 const user = { uid: 'u1', email: 'u1@example.com', role: 'user' };
