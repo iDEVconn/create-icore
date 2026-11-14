@@ -92,7 +92,7 @@ Notes ownership/ability logic and storage `assertOwnership` currently live insid
 ### 9. `create-icore` changes
 
 - `ApiStyle = 'rest' | 'graphql' | 'both'` in `lib/options.ts`; `--api` flag, `config.ts` allowed values, wizard question (default `rest`), `MANIFEST.api` units (deps, exclusion lists, overlays), `blueprint.json` records `api`; `create-icore migrate` unit matching extended to `api:<style>` like `ui:<unit>`.
-- `validateOptions`: `api != rest` requires `authProvider != none` (resolvers are session-guarded; with no auth there is nothing to expose) -> error; `api != rest` + `host=cloudflare` -> error (Apollo on workerd not verified).
+- `validateOptions`: `api != rest` + `host=cloudflare` -> error (Apollo on workerd not verified).
 - The repository itself keeps its production wiring at `rest`; the GraphQL modules, schema and client files exist in the repo and are exercised by tests and CI combos so the template snapshot contains them.
 
 ### 10. Security requirements (acceptance, not options)
@@ -126,6 +126,8 @@ Apollo config details, which limits library (or custom validation rules) provide
 8. **Operation files and loader (owner's choice, after seeing CBC).** `.graphql` files + `vite-plugin-graphql-loader` instead of inline tagged templates; the plugin version is the current one that supports Vite 8 (`6.0.0`, CBC runs `5.0.1`).
 9. **`graphql` is pinned to 16 repo-wide.** `@apollo/server` 5 peers `graphql ^16.11`; `@nestjs/graphql`/`@nestjs/apollo` and the codegen packages accept 16 and 17, so 16 is the common version (17 is out, but would break the Apollo peer).
 10. **GraphQL implementation files swap in by renaming.** The template ships both `queries/notes.ts` (REST) and the GraphQL implementation as `queries/notes.gql-api.ts`; a new generator step moves the latter over the former for `api=graphql` and drops it otherwise (same family as the existing auth-none variants, but file-based). Pages import `queries/notes` either way.
+
+11. **`--api=graphql|both` is allowed with `auth=none`** (owner objected to the first draft, which made it an error: a primitive SPA without authentication must not be refused). Without auth there are no sessions, so there are no notes/profile/storage resolvers (they need a user): the GraphQL surface is a minimal **public `health` query** (`Query { health: Health! }`, always present in every GraphQL mode, also the smoke target) and the endpoint is the foundation the user adds their own resolvers to. In that mode the auth-bound global guards do not exist (they live in the auth module), so the endpoint is protected by the request-level throttle only, which is acceptable because there is no session to forge; `CsrfGuard` does not exist there either. The wizard asks the `--api` question for `auth=none` as well (it is skipped only for `host=cloudflare`). Storage's GraphQL surface exists only when `authProvider != none`.
 
 ## Open questions for the owner
 
