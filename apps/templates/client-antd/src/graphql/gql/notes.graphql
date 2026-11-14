@@ -1,0 +1,39 @@
+fragment NoteFields on Note {
+  id
+  ownerId
+  title
+  body
+  createdAt
+  updatedAt
+}
+
+query ListNotes($limit: Int, $offset: Int) {
+  notes(limit: $limit, offset: $offset) {
+    items {
+      ...NoteFields
+    }
+    total
+  }
+}
+
+query GetNote($id: ID!) {
+  note(id: $id) {
+    ...NoteFields
+  }
+}
+
+mutation CreateNote($input: CreateNoteInput!) {
+  createNote(input: $input) {
+    ...NoteFields
+  }
+}
+
+mutation UpdateNote($id: ID!, $input: UpdateNoteInput!) {
+  updateNote(id: $id, input: $input) {
+    ...NoteFields
+  }
+}
+
+mutation DeleteNote($id: ID!) {
+  deleteNote(id: $id)
+}
