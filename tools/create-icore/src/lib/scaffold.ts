@@ -135,6 +135,11 @@ export async function copyTree(
     }
     // symlinks skipped intentionally
   }
+  // A template directory whose every entry was excluded (e.g. apps/client/src/api with
+  // api != graphql) leaves no empty directory behind. An empty source directory is copied as is.
+  if (relPrefix !== '' && entries.length > 0 && (await readdir(dest)).length === 0) {
+    await rmdir(dest);
+  }
 }
 
 export async function selectClientTemplate(

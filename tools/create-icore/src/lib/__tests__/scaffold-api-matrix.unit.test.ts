@@ -90,6 +90,16 @@ async function danglingRelativeImports(outDir: string): Promise<string[]> {
 }
 
 const has = (dir: string, rel: string) => existsSync(join(dir, rel));
+
+async function emptyDirs(dir: string, root = dir, out: string[] = []): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  if (entries.length === 0) out.push(relative(root, dir));
+  for (const e of entries) {
+    // The router plugin's empty local cache (never in git or CI), copied by a local snapshot.
+    if (e.isDirectory() && e.name !== '.tanstack') await emptyDirs(join(dir, e.name), root, out);
+  }
+  return out;
+}
 const read = (dir: string, rel: string) => readFile(join(dir, rel), 'utf8');
 
 describe.each(COMBOS.map((c) => [label(c), c] as const))('scaffold %s', (_label, combo) => {
@@ -114,8 +124,15 @@ async function check(outDir: string, combo: Combo): Promise<void> {
   expect(await auditProject(outDir)).toEqual([]);
   expect(await danglingRelativeImports(outDir)).toEqual([]);
 
+  // No directory is left empty by an exclusion (the pre-axis generator left none).
+  expect(await emptyDirs(outDir)).toEqual([]);
+
   // Server
   expect(has(outDir, 'apps/api/src/app/graphql/graphql.module.ts')).toBe(api !== 'rest');
+  const apiProject = JSON.parse(await read(outDir, 'apps/api/project.json')) as {
+    targets: Record<string, unknown>;
+  };
+  expect(apiProject.targets['graphql-schema'] !== undefined).toBe(api !== 'rest');
   expect(has(outDir, 'apps/api/schema.gql')).toBe(false);
   expect(has(outDir, 'apps/api/src/app/notes/notes.controller.ts')).toBe(
     example === 'notes' && api !== 'graphql',
@@ -137,6 +154,15 @@ async function check(outDir: string, combo: Combo): Promise<void> {
 
   const vite = await read(outDir, 'apps/client/vite.config.mts');
   expect(vite.includes('graphqlLoader()')).toBe(gqlClient);
+  if (!gqlClient) {
+    for (const rel of [
+      'vite.config.mts',
+      'tsconfig.app.json',
+      'tsconfig.spec.json',
+      'package.json',
+    ])
+      expect(await read(outDir, `apps/client/${rel}`), rel).not.toMatch(/graphql/i);
+  }
   const pkg = await read(outDir, 'apps/client/package.json');
   expect(pkg.includes('"graphql"')).toBe(gqlClient);
   const project = JSON.parse(await read(outDir, 'apps/client/project.json')) as {

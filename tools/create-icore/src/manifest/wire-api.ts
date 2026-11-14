@@ -285,6 +285,19 @@ async function swapClientQueries(targetDir: string): Promise<void> {
   }
 }
 
+/**
+ * Remove `re` from `src` or fail: a template that no longer has the expected GraphQL entry must
+ * be fixed here, not shipped half-stripped.
+ */
+function mustReplace(src: string, re: RegExp, file: string): string {
+  if (!re.test(src)) {
+    throw new Error(
+      `applyApiVariants: expected GraphQL entry ${re} not found in apps/client/${file}`,
+    );
+  }
+  return src.replace(re, '');
+}
+
 /** api=rest|both: the client stays on REST, so its config goes back to the pre-GraphQL shape. */
 async function stripGraphqlClient(targetDir: string): Promise<void> {
   const client = join(targetDir, CLIENT);
@@ -304,18 +317,19 @@ async function stripGraphqlClient(targetDir: string): Promise<void> {
   const vitePath = join(client, 'vite.config.mts');
   const vite = await readIfExists(vitePath);
   if (vite !== null) {
-    await writeFile(
-      vitePath,
-      vite
-        .replace(/^import graphqlLoader from 'vite-plugin-graphql-loader';\n/m, '')
-        .replace(/^[ \t]*graphqlLoader\(\),\n/m, ''),
+    let next = mustReplace(
+      vite,
+      /^import graphqlLoader from 'vite-plugin-graphql-loader';\n/m,
+      'vite.config.mts',
     );
+    next = mustReplace(next, /^[ \t]*graphqlLoader\(\),\n/m, 'vite.config.mts');
+    await writeFile(vitePath, next);
   }
 
   for (const cfg of ['tsconfig.app.json', 'tsconfig.spec.json']) {
     const path = join(client, cfg);
     const src = await readIfExists(path);
-    if (src !== null) await writeFile(path, src.replace(/,\s*"graphql-loader\.d\.ts"/, ''));
+    if (src !== null) await writeFile(path, mustReplace(src, /,\s*"graphql-loader\.d\.ts"/, cfg));
   }
 
   // Never leave a GraphQL twin behind (the copy already excludes them).

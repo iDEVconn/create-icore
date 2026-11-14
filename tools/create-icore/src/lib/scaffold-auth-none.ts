@@ -44,6 +44,8 @@ const AUTH_ONLY_PATHS = [
   'apps/client/src/routes/auth.callback.tsx',
   'apps/client/src/routes/auth.oauth.callback.tsx',
   'apps/client/src/routes/_dashboard/profile.tsx',
+  'apps/client/src/queries/profile.ts',
+  'apps/client/src/queries/__tests__/profile.unit.test.ts',
   'libs/template-shared/src/lib/abilities',
 ];
 

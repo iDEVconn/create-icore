@@ -15,7 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const realTemplatesDir = resolve(here, '../../../templates');
 
 /** Neutral refactor (decision 1): shared by REST and GraphQL, ships in every mode. */
-const NEUTRAL_FILES = [
+const NEUTRAL_HTTP = [
   'apps/api/src/app/http/context-aware-throttler.guard.ts',
   'apps/api/src/app/http/current-user.decorator.ts',
   'apps/api/src/app/http/execution-context.ts',
@@ -23,16 +23,24 @@ const NEUTRAL_FILES = [
   'apps/api/src/app/http/__tests__/context-aware-throttler.guard.unit.test.ts',
   'apps/api/src/app/http/__tests__/current-user.decorator.unit.test.ts',
   'apps/api/src/app/http/__tests__/execution-context.unit.test.ts',
+];
+const NEUTRAL_NOTES = [
   'apps/api/src/app/notes/notes-gateway.service.ts',
   'apps/api/src/app/notes/__tests__/notes-gateway.service.unit.test.ts',
+];
+const NEUTRAL_STORAGE = [
   'apps/api/src/app/storage/storage.controllers.ts',
   'apps/api/src/app/storage/storage-files.controller.ts',
+];
+/** The profile hook exists only with auth (its page is auth-only). */
+const NEUTRAL_PROFILE = [
   'apps/client/src/queries/profile.ts',
   'apps/client/src/queries/__tests__/profile.unit.test.ts',
 ];
 
-// Local, gitignored tool state the snapshot copies from a developer's working tree (never in CI).
-const LOCAL_ARTEFACT = /(^|\/)(\.claude-flow|\.swarm)\/|(^|\/)ruvector\.db$/;
+// Local tool state the snapshot copies from a developer's working tree, never in git or CI:
+// gitignored agent state, and the TanStack router plugin's empty `.tanstack/tmp` cache dir.
+const LOCAL_ARTEFACT = /(^|\/)(\.claude-flow|\.swarm|\.tanstack)(\/|$)|(^|\/)ruvector\.db$/;
 
 const base: CreateIcoreOptions = {
   projectName: 'golden',
@@ -53,40 +61,79 @@ const base: CreateIcoreOptions = {
   install: false,
 };
 
-async function walk(dir: string, out: string[] = []): Promise<string[]> {
+interface GoldenCase {
+  name: string;
+  fixture: string;
+  options: Partial<CreateIcoreOptions>;
+  neutral: string[];
+}
+
+const CASES: GoldenCase[] = [
+  ...(['shadcn', 'antd', 'mui'] as const).map((ui) => ({
+    name: `ui=${ui}, supabase, notes, upload`,
+    fixture: `rest-baseline-${ui}`,
+    options: { ui },
+    neutral: [...NEUTRAL_HTTP, ...NEUTRAL_NOTES, ...NEUTRAL_STORAGE, ...NEUTRAL_PROFILE],
+  })),
+  {
+    name: 'ui=shadcn, auth=none, upload',
+    fixture: 'rest-authnone-baseline-shadcn',
+    options: { ui: 'shadcn', authProvider: 'none', dbProvider: 'none', example: 'none' },
+    neutral: [...NEUTRAL_HTTP, ...NEUTRAL_STORAGE],
+  },
+];
+
+/** Files and directories (the latter with a trailing slash) under `dir`, relative. */
+async function walk(dir: string, root = dir, out: string[] = []): Promise<string[]> {
   for (const e of await readdir(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
-    if (e.isDirectory()) await walk(p, out);
-    else out.push(p);
+    if (e.isDirectory()) {
+      out.push(`${relative(root, p)}/`);
+      await walk(p, root, out);
+    } else out.push(relative(root, p));
   }
   return out;
 }
 
 const byCodePoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-describe.each(['shadcn', 'antd', 'mui'] as const)('scaffold --api=rest --ui=%s (golden)', (ui) => {
-  it('equals the pre-axis file list plus exactly the neutral files', async () => {
-    const tmp = await mkdtemp(join(tmpdir(), 'icore-golden-'));
-    const outDir = join(tmp, 'golden');
-    try {
-      await scaffold({ ...base, ui, targetDir: outDir }, realTemplatesDir);
-      await check(outDir, ui);
-    } finally {
-      await rm(tmp, { recursive: true, force: true });
-    }
-  }, 120_000);
-});
+const lines = async (name: string) =>
+  (await readFile(join(here, `fixtures/${name}`), 'utf8')).split('\n').filter(Boolean);
 
-async function check(outDir: string, ui: string): Promise<void> {
-  const actual = (await walk(outDir))
-    .map((f) => relative(outDir, f))
-    .filter((f) => !LOCAL_ARTEFACT.test(f))
-    .sort(byCodePoint);
-  const baseline = (await readFile(join(here, `fixtures/rest-baseline-${ui}.txt`), 'utf8'))
-    .split('\n')
-    .filter(Boolean);
-  expect(actual).toEqual([...baseline, ...NEUTRAL_FILES].sort(byCodePoint));
-  expect(actual.filter((f) => /graphql|\.gql|codegen|src\/gql\//i.test(f))).toEqual([]);
+/** Every ancestor directory of `file` (with a trailing slash). */
+function parents(file: string): string[] {
+  const parts = file.split('/');
+  return parts.slice(0, -1).map((_, i) => `${parts.slice(0, i + 1).join('/')}/`);
+}
+
+describe.each(CASES.map((c) => [c.name, c] as const))(
+  'scaffold --api=rest %s (golden)',
+  (_n, c) => {
+    it('equals the pre-axis files and directories plus exactly the neutral files', async () => {
+      const tmp = await mkdtemp(join(tmpdir(), 'icore-golden-'));
+      const outDir = join(tmp, 'golden');
+      try {
+        await scaffold({ ...base, ...c.options, targetDir: outDir }, realTemplatesDir);
+        await check(outDir, c);
+      } finally {
+        await rm(tmp, { recursive: true, force: true });
+      }
+    }, 120_000);
+  },
+);
+
+async function check(outDir: string, c: GoldenCase): Promise<void> {
+  const all = (await walk(outDir)).filter((f) => !LOCAL_ARTEFACT.test(f));
+  const files = all.filter((f) => !f.endsWith('/')).sort(byCodePoint);
+  const dirs = all.filter((f) => f.endsWith('/')).sort(byCodePoint);
+
+  expect(files).toEqual([...(await lines(`${c.fixture}.txt`)), ...c.neutral].sort(byCodePoint));
+  const expectedDirs = new Set([
+    ...(await lines(`${c.fixture}.dirs.txt`)).map((d) => `${d}/`),
+    ...c.neutral.flatMap(parents),
+  ]);
+  expect(dirs).toEqual([...expectedDirs].sort(byCodePoint));
+  expect(all.filter((f) => /graphql|\.gql|codegen|src\/gql\//i.test(f))).toEqual([]);
 
   const pkgs = ['apps/api/package.json', 'apps/client/package.json', 'package.json'];
   for (const p of pkgs) expect(await readFile(join(outDir, p), 'utf8'), p).not.toMatch(/graphql/);

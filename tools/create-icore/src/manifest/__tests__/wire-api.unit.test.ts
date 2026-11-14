@@ -459,3 +459,19 @@ describe('wireApi: GraphQL leftovers outside the api sources', () => {
     expect(await read(dir, '.prettierignore')).not.toContain('src/gql/types.ts');
   });
 });
+
+describe('applyApiVariants: template drift fails loudly', () => {
+  it.each([
+    ['vite.config.mts', /^\s*graphqlLoader\(\),\n/m],
+    ['vite.config.mts', /^import graphqlLoader from 'vite-plugin-graphql-loader';\n/m],
+    ['tsconfig.app.json', /,\s*"graphql-loader\.d\.ts"/],
+    ['tsconfig.spec.json', /,\s*"graphql-loader\.d\.ts"/],
+  ] as const)('throws when %s no longer has the expected GraphQL entry (%s)', async (rel, re) => {
+    const dir = await clientFixture();
+    const path = join(dir, 'apps/client', rel);
+    await writeFile(path, (await readFile(path, 'utf8')).replace(re, ''));
+    await expect(applyApiVariants(dir, { ...base, targetDir: dir, api: 'rest' })).rejects.toThrow(
+      rel,
+    );
+  });
+});
