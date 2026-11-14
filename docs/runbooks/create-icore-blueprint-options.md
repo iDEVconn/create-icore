@@ -49,7 +49,7 @@ that could not `docker compose build` and `payment=none` kept a dangling `paymen
 | `--ai` (`ai`)                          | `llm-router`, `none`                                                   | `none`                                                                                |
 | `--example` (`example`)                | `notes`, `none`                                                        | `none` if `auth=none`; else wizard (`notes`)                                          |
 | `--ui` (`ui`)                          | `shadcn`, `antd`, `mui`, `none`                                        | wizard (`shadcn`); `none` = API-only, no client                                       |
-| `--api` (`api`)                        | `rest`, `graphql`, `both`                                              | wizard (`rest`); not asked on cloudflare                                              |
+| `--api` (`api`)                        | `rest`, `graphql`, `both`                                              | wizard (`rest`); not asked on cloudflare; the all-`none` notice needs `api=rest`      |
 | `--transport` (`transport`)            | `tcp`, `redis`, `nats`, `mqtt`, `rmq`, `kafka`, `local`                | `local` on cloudflare; `tcp` if no microservice; else wizard (`tcp`)                  |
 | `--session` (`session`)                | `redis`, `memory`, `durable-object`                                    | `redis` if `auth=none`; `durable-object` on cloudflare; else wizard (`redis`)         |
 | `--package-manager` (`packageManager`) | `yarn`, `npm`, `pnpm`                                                  | detected from `npm_config_user_agent`, else `yarn`                                    |
@@ -85,7 +85,7 @@ that could not `docker compose build` and `payment=none` kept a dangling `paymen
 
 **Warning only (not corrected)**
 
-- Every option `none` (`auth`, `db`, `upload`, `payment`, `jobs`, `ai`, `example`, `ui`): a notice says only the bare NestJS gateway (`apps/api`) is generated. Generation continues.
+- Every option `none` (`auth`, `db`, `upload`, `payment`, `jobs`, `ai`, `example`, `ui`) and `api=rest`: a notice says only the bare NestJS gateway (`apps/api`) is generated. Generation continues. With `api=graphql|both` there is no notice (the gateway also serves `/api/graphql` with `health`).
 - `jobs=bullmq` with `transport` ≠ `redis`: BullMQ needs Redis. The compose file still gets Redis for the jobs stack, but you own making sure a
   Redis is reachable.
 
