@@ -65,6 +65,13 @@
           "buildTarget": "api:build:production"
         }
       }
+    },
+    "graphql-schema": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/schema.gql"],
+      "options": {
+        "command": "tsx --tsconfig apps/api/tsconfig.app.json apps/api/scripts/emit-schema.ts"
+      }
     }
   }
 }

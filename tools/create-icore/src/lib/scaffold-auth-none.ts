@@ -35,6 +35,9 @@ const AUTH_ONLY_PATHS = [
   'apps/api/src/app/auth',
   'apps/api/src/app/profile',
   'apps/api/src/app/abilities',
+  // The GraphQL surface runs behind the session guards (a GraphQL API needs auth).
+  'apps/api/src/app/graphql',
+  'apps/api/scripts/emit-schema.ts',
   'libs/shared/src/abilities',
   'apps/client/src/components/auth',
   'apps/client/src/components/AccessDeniedPage.tsx',
