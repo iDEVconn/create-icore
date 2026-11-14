@@ -71,8 +71,9 @@ function redisConnectionOptions(name: string): {
   try {
     url = new URL(raw);
   } catch {
+    // Never echo the value: it usually carries the password and would end up in logs.
     throw new Error(
-      `Invalid ${name}: expected redis://[user:password@]host[:port][/db], got ${raw}`,
+      `Invalid ${name}: not a valid redis://[user:password@]host[:port][/db] URL (percent-encode special characters in the password)`,
     );
   }
   if (url.protocol !== 'redis:' && url.protocol !== 'rediss:') {

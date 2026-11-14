@@ -89,6 +89,20 @@ describe('buildTransport', () => {
       expect(redisOptions('redis://plain.example:6380').tls).toBeUndefined();
     });
 
+    it('never echoes the password of an unparsable URL in the error', () => {
+      process.env['AUTH_TRANSPORT'] = 'redis';
+      // an unescaped `]` in the password makes the URL invalid
+      process.env['AUTH_REDIS_URL'] = 'redis://app:S3cr3t]Pass@[bad-host:6379';
+      let message = '';
+      try {
+        buildTransport('AUTH');
+      } catch (err) {
+        message = (err as Error).message;
+      }
+      expect(message).toMatch(/AUTH_REDIS_URL/);
+      expect(message).not.toContain('S3cr3t');
+    });
+
     it('rejects a URL that is not redis:// or rediss://', () => {
       process.env['AUTH_TRANSPORT'] = 'redis';
       process.env['AUTH_REDIS_URL'] = 'http://h:6379';
