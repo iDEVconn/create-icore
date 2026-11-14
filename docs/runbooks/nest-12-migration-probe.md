@@ -1,6 +1,6 @@
 # NestJS 12 probe (2026-11-13)
 
-**Status: waiting.** Decision (2026-11-13): do not migrate yet. Re-run this probe when a stable Nx 24.1 ships; the Cloudflare Workers host (item 1 below) decides the schedule.
+**Status (corrected 2026-11-14): not blocked by Nx, blocked only by the Cloudflare Workers host.** The first version of this page said "wait for stable Nx 24.1"; that was wrong, see "Correction" below. The migration itself can run on stable Nx 24.0.6; what decides the schedule is Nest 12 failing to load in workerd (open item 1).
 
 The probe ran on a throwaway local branch (`spike/nest-12-nx-24-1-beta`, never pushed): Nest 12 + `@nx/nest@24.1.0-beta.0` (all `@nx/*` and `nx` on the same beta) on top of `dev` (Nx 24.0.6). It was not meant to merge; this page is the record. Stable Nx 24.0.6 blocks Nest 12 (`@nx/nest` peers `@nestjs/core|common` `<12`).
 
@@ -29,14 +29,24 @@ The probe ran on a throwaway local branch (`spike/nest-12-nx-24-1-beta`, never p
 4. `@nx/nest` generators and `tools/workspace-plugin`'s microservice generator were not exercised.
 5. AGENTS.md "NestJS tsconfig" section (`module: CommonJS`, `moduleResolution: node16`) would need rewriting; `emitDecoratorMetadata` interplay with ESM Nest was not checked beyond the auth boot.
 
-## Verdict
+## Correction (2026-11-14): what the sibling project showed
 
-Feasible but not a version bump: a tsconfig-wide module change, a test-runner move, Worker host work and a beta Nx. Wait for stable Nx 24.1 (and re-run this probe on it); the Worker host decides the schedule.
+The sibling project `crawler-nx` already runs Nest 12.5.0 on **stable Nx 24.0.6** (commit `aa906a8ac`, "upgrade NestJS 11 to 12"). Comparing with it:
+
+1. **The `@nx/nest` peer range is advisory, not a blocker.** `@nx/nest@24.0.6` peers `@nestjs/core|common` `<12`, but `crawler-nx` just sets `legacy-peer-deps=true`. Here yarn only prints `YN0060`. We use `@nx/nest` for generators only (builds are `@nx/webpack`). A clean way to silence it in yarn is a `packageExtensions` entry for `@nx/nest@*` widening `@nestjs/core|common` to `<13` and `@nestjs/schematics` to `>=11 <13` in `.yarnrc.yml` (not tried here yet). No Nx beta needed.
+2. **`reflect-metadata` is no longer imported by Nest 12.** They added `import 'reflect-metadata'` to every `main.ts` and `setupFiles: ['reflect-metadata']` to every vitest config. None of our `apps/api`, `apps/microservices/*/src/main.ts` or `apps/worker` entry files import it. The probe did not notice because the `auth` microservice got it transitively: do not rely on that, add it explicitly.
+3. **tsconfig:** `module` and `moduleResolution` both `nodenext` (what they use) is enough; `module: node20` from the probe is equivalent, and `node20` is not a valid `moduleResolution`.
+4. **Test runner:** they have no jest. Our jest-based `libs/ai-client` and `libs/jobs-client` must move to vitest (as found by the probe).
+5. **They have no Cloudflare Worker.** The workerd load failure (item 1 below) is ours alone, which is why it is the only real blocker. They also use `@nestjs/platform-fastify` (we use express; the probe built fine with express 12.5.0).
 
 ## How to repeat the probe
 
-1. Branch from `dev`. Bump `nx` and every `@nx/*` in all tracked `package.json` files to the new release; set `@nestjs/{common,core,microservices,platform-express,testing,websockets}` to `^12`, plus `swagger`, `schematics`, `config`, `mongoose` to their 12.x (`npm view <pkg> version`). Check `npm view @nx/nest@<version> peerDependencies` first: if it still says `<12`, stop.
+1. Branch from `dev` (stable Nx is enough; the first probe used `24.1.0-beta.0` unnecessarily). Set `@nestjs/{common,core,microservices,platform-express,testing,websockets}` to `^12`, plus `swagger`, `schematics`, `config`, `mongoose` to their 12.x (`npm view <pkg> version`). `@nx/nest` peers `<12` only produce `YN0060`; add the `packageExtensions` entry from the Correction section to silence it.
 2. `yarn install`, then `yarn nx run-many -t lint test build --skip-nx-cache`. Expect `TS1479` in `libs/shared` until the tsconfigs use `module: node20` + `moduleResolution: nodenext` (`node20` is not a valid `moduleResolution`: TS6046).
 3. `apps/worker/wrangler.jsonc`: add `alias` stubs for `@nats-io/transport-node` and `@fastify/static` (-> `./stubs/empty.js`); then `yarn nx run worker:smoke` is the real Workers gate.
 4. Boot a built microservice to prove `require()` of ESM Nest at runtime, e.g. `AUTH_TRANSPORT=tcp AUTH_HOST=127.0.0.1 AUTH_PORT=4010 node dist/apps/microservices/auth/main.js` from `apps/microservices/auth`.
 5. Update this page with the new result and the dependency-upgrades status table.
+
+## Verdict
+
+Do the migration on stable Nx 24.0.6 once the Workers host question is answered: `packageExtensions`, `nodenext`, explicit `reflect-metadata`, jest -> vitest for two libs, two wrangler alias stubs, and a fix or workaround for workerd. Do not wait for Nx 24.1.
