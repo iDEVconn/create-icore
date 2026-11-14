@@ -191,6 +191,13 @@ describe('validateOptions', () => {
       expect(warnings.join()).toMatch(/every option is "none".*gateway/i);
     });
 
+    it('does not print the all-none notice when the API is GraphQL', () => {
+      for (const api of ['graphql', 'both'] as const)
+        expect(validateOptions({ ...allNone, api }).warnings.join()).not.toMatch(
+          /every option is "none"/i,
+        );
+    });
+
     it('does not warn while at least one feature or the client is kept', () => {
       expect(validateOptions({ ...allNone, ui: 'shadcn' }).warnings.join()).not.toMatch(
         /every option is "none"/i,
@@ -231,17 +238,33 @@ describe('api axis', () => {
     }
   });
 
-  it('rejects graphql/both with auth=none (resolvers are guarded by the session)', () => {
+  it('accepts graphql/both with auth=none: no error and no warning', () => {
     for (const api of ['graphql', 'both'] as const) {
-      const { errors } = validateOptions({
+      const { errors, warnings } = validateOptions({
         ...base,
         api,
         authProvider: 'none',
         dbProvider: 'none',
         example: 'none',
       });
-      expect(errors).toContain(`--api=${api} needs auth (resolvers are guarded by the session)`);
+      expect(errors).toEqual([]);
+      expect(warnings).toEqual([]);
     }
+  });
+
+  it('graphql + cloudflare + auth=none yields only the cloudflare --api error', () => {
+    const { errors } = validateOptions({
+      ...base,
+      api: 'graphql',
+      host: 'cloudflare',
+      authProvider: 'none',
+      dbProvider: 'none',
+      upload: 'none',
+      example: 'none',
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('--api=graphql');
+    expect(errors[0]).toContain('docs/runbooks/cloudflare-workers-host.md');
   });
 
   it('accepts api=rest with auth=none', () => {

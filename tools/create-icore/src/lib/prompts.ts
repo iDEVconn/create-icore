@@ -323,11 +323,11 @@ export async function collectOptions({ argv, cwd }: PromptInput): Promise<Create
         })) as ExampleMode));
   if (p.isCancel(example)) throw new Error('cancelled');
 
-  // GraphQL resolvers are session-guarded (no auth, no GraphQL) and the Worker has no GraphQL
-  // surface, so neither case is asked: it is REST there.
+  // The Worker has no GraphQL surface, so it is not asked there: REST. With auth=none GraphQL is
+  // allowed (open, unguarded resolvers), so the question is asked.
   const api: ApiStyle =
     flags.api ??
-    (authProvider === 'none' || cf
+    (cf
       ? 'rest'
       : (((await p.select({
           message: 'API style',

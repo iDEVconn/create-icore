@@ -549,25 +549,38 @@ describe('collectOptions — --api', () => {
     expect(opts.api).toBe('rest');
   });
 
-  it('is not asked, and is rest, with auth=none', async () => {
-    vi.mocked(clack.select).mockClear();
-    const opts = await collectOptions({
-      argv: [
-        'my-app',
-        '--auth=none',
-        '--upload=none',
-        '--payment=none',
-        '--jobs=none',
-        '--ai=none',
-        '--ui=shadcn',
-        '--package-manager=yarn',
-        '--no-git',
-        '--no-install',
-      ],
-      cwd: '.',
-    });
-    expect(opts.api).toBe('rest');
-    expect(askedMessages()).not.toContain('API style');
+  const noAuthArgv = [
+    'my-app',
+    '--auth=none',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=none',
+    '--ai=none',
+    '--ui=shadcn',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+
+  it('accepts --api=graphql with --auth=none without throwing', async () => {
+    const opts = await collectOptions({ argv: [...noAuthArgv, '--api=graphql'], cwd: '.' });
+    expect(opts.api).toBe('graphql');
+    expect(opts.authProvider).toBe('none');
+  });
+
+  it('asks for the API style with auth=none too', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockReset();
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'API style' ? 'graphql' : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({ argv: noAuthArgv, cwd: '.' });
+      expect(askedMessages()).toContain('API style');
+      expect(opts.api).toBe('graphql');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
   });
 
   it('is not asked, and is rest, on host=cloudflare', async () => {

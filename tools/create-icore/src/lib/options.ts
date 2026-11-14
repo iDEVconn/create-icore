@@ -95,10 +95,6 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
       errors.push('--session=durable-object needs --host=cloudflare');
   }
 
-  if (opts.api !== 'rest' && opts.authProvider === 'none') {
-    errors.push(`--api=${opts.api} needs auth (resolvers are guarded by the session)`);
-  }
-
   // The notes sample persists through a DBStrategy; with db=none its db.provider is never wired and
   // the generated project fails to compile (imports a pruned @icore/db-* lib).
   if (opts.authProvider !== 'none' && opts.dbProvider === 'none' && opts.example === 'notes') {
@@ -133,7 +129,8 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
     opts.jobs === 'none' &&
     opts.ai === 'none' &&
     opts.example === 'none' &&
-    opts.ui === 'none';
+    opts.ui === 'none' &&
+    opts.api === 'rest';
   if (everythingNone) {
     warnings.push(
       'every option is "none" — only the bare NestJS gateway (apps/api) will be generated: no auth, database, upload, payment, jobs, AI, notes example or client',
