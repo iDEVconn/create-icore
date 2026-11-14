@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { access, mkdtemp, readFile, readdir, symlink } from 'node:fs/promises';
+import {
+  access,
+  chmod,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -117,4 +127,25 @@ describe('remove-notes keeps the gateway compiling (api=graphql)', () => {
       expect(r.status, cfg).toBe(0);
     }
   }, 300_000);
+});
+
+describe('remove-notes entry point', () => {
+  // main() runs only when the script is executed, also through a symlink; importing it (above)
+  // never runs main(). A stub `yarn` on PATH records the first nx call and fails it.
+  it('runs main() when executed through a symlink', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'icore-rm-notes-entry-'));
+    await mkdir(join(dir, 'tools'));
+    await copyFile(join(repoRoot, 'tools/remove-notes.mjs'), join(dir, 'tools/remove-notes.mjs'));
+    await symlink(join(dir, 'tools/remove-notes.mjs'), join(dir, 'linked.mjs'));
+    await mkdir(join(dir, 'bin'));
+    await writeFile(join(dir, 'bin/yarn'), '#!/bin/sh\necho "stub-yarn $*"\nexit 3\n');
+    await chmod(join(dir, 'bin/yarn'), 0o755);
+    const r = spawnSync('node', [join(dir, 'linked.mjs')], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${join(dir, 'bin')}:${process.env['PATH'] ?? ''}` },
+    });
+    expect(r.stdout).toContain('stub-yarn nx g @nx/workspace:remove --projectName=notes');
+    expect(r.status).toBe(1);
+  });
 });

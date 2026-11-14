@@ -10,12 +10,12 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 const SHARED = join(repoRoot, 'libs/shared/src');
 
-function walk(dir: string, out: string[] = []): string[] {
+function walk(dir: string, withTests = false, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) {
-      if (name !== '__tests__') walk(p, out);
-    } else if (p.endsWith('.ts') && !/\.(test|spec)\.ts$/.test(p)) out.push(p);
+      if (withTests || name !== '__tests__') walk(p, withTests, out);
+    } else if (p.endsWith('.ts') && (withTests || !/\.(test|spec)\.ts$/.test(p))) out.push(p);
   }
   return out;
 }
@@ -35,12 +35,18 @@ const STRIPPED_SYMBOLS = exportedSymbols([
   join(SHARED, 'local-transport.ts'),
 ]);
 
-/** Gateway files that ship in an all-none project (auth=none, no feature, any api mode). */
+/**
+ * Gateway files (tests included: they are typechecked by the spec tsconfig) that ship in an
+ * all-none project (auth=none, no feature, any api mode).
+ */
 const NEUTRAL_FILES = [
-  ...walk(join(repoRoot, 'apps/api/src/app/http')),
-  ...walk(join(repoRoot, 'apps/api/src/app/graphql')).filter(
-    // Generated per project by wireApi.
-    (f) => !/api-surface(s\.module|-resolvers)\.ts$/.test(f),
+  ...walk(join(repoRoot, 'apps/api/src/app/http'), true),
+  ...walk(join(repoRoot, 'apps/api/src/app/graphql'), true).filter(
+    (f) =>
+      // Generated per project by wireApi.
+      !/api-surface(s\.module|-resolvers)\.ts$/.test(f) &&
+      // Ships only with api=both + auth + notes + upload (resolve.ts), never in all-none.
+      !f.endsWith('graphql.integration.unit.test.ts'),
   ),
   join(repoRoot, 'apps/api/src/main.ts'),
 ];

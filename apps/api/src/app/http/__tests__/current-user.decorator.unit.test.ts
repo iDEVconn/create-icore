@@ -47,10 +47,12 @@ describe('CurrentUser', () => {
   });
 });
 
-// Compile-time pin: the provider token shape stays assignable to the decorator's payload.
-// Type-only import, so the test ships no runtime dependency on the strategies folder.
+// Compile-time pin of the payload against a mirror of VerifiedToken's shape
+// (libs/shared/src/strategies/auth.ts). The mirror is deliberate: this test ships in projects
+// without the strategies folder, so it cannot import VerifiedToken itself. If VerifiedToken
+// changes, update this mirror; a mismatch then fails here instead of in a resolver.
 type AssertAssignable<T extends CurrentUserPayload> = T;
-export type VerifiedTokenFitsPayload = AssertAssignable<{
+export type VerifiedTokenShapeFitsPayload = AssertAssignable<{
   uid: string;
   email?: string;
   role?: string;

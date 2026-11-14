@@ -2,9 +2,10 @@
 // Post-generate helper: removes the notes sample feature from a scaffolded project.
 // Run from the project root: node tools/remove-notes.mjs  (or: yarn remove-notes)
 import { rm, readFile, writeFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -127,8 +128,18 @@ async function main() {
   console.log('  Run `yarn nx run-many -t build` to verify the build is clean.');
 }
 
-// Run only when executed (`node tools/remove-notes.mjs`), not when imported by a test.
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+// Run only when executed (`node tools/remove-notes.mjs`), not when imported by a test. realpath on
+// both sides: the script may be reached through a symlink (or a symlinked project directory).
+function isEntryPoint() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(resolve(process.argv[1]));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
   main().catch((e) => {
     console.error(e);
     process.exit(1);
