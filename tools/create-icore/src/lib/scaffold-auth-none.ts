@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import type { ApiStyle } from './options.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -35,9 +36,6 @@ const AUTH_ONLY_PATHS = [
   'apps/api/src/app/auth',
   'apps/api/src/app/profile',
   'apps/api/src/app/abilities',
-  // The GraphQL surface runs behind the session guards (a GraphQL API needs auth).
-  'apps/api/src/app/graphql',
-  'apps/api/scripts/emit-schema.ts',
   'libs/shared/src/abilities',
   'apps/client/src/components/auth',
   'apps/client/src/components/AccessDeniedPage.tsx',
@@ -49,8 +47,26 @@ const AUTH_ONLY_PATHS = [
   'libs/template-shared/src/lib/abilities',
 ];
 
-export async function removeAuthOnlyPaths(targetDir: string): Promise<void> {
-  for (const p of AUTH_ONLY_PATHS) {
+// GraphQL with auth=none (spec decision 11): ApiGraphqlModule and its public health query stay;
+// the per-feature surfaces need a session and these tests import auth-only code. resolveBindings
+// already leaves them out of the copy; deleting again keeps this step correct on its own.
+const AUTH_ONLY_GRAPHQL_PATHS = [
+  'apps/api/src/app/notes/graphql',
+  'apps/api/src/app/profile/graphql',
+  'apps/api/src/app/storage/graphql',
+  'apps/api/src/app/graphql/__tests__/graphql.integration.unit.test.ts',
+  'apps/api/src/app/graphql/__tests__/health.resolver.unit.test.ts',
+];
+
+// api=rest ships no GraphQL at all.
+const REST_GRAPHQL_PATHS = ['apps/api/src/app/graphql', 'apps/api/scripts/emit-schema.ts'];
+
+export async function removeAuthOnlyPaths(
+  targetDir: string,
+  api: ApiStyle = 'rest',
+): Promise<void> {
+  const graphqlPaths = api === 'rest' ? REST_GRAPHQL_PATHS : AUTH_ONLY_GRAPHQL_PATHS;
+  for (const p of [...AUTH_ONLY_PATHS, ...graphqlPaths]) {
     await rm(join(targetDir, p), { recursive: true, force: true });
   }
   await stripDeps(join(targetDir, 'apps/api/package.json'), [
@@ -178,6 +194,32 @@ import { FeaturesModule } from './features.module';
       envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],
     }),
     ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),
+    StorageModule,
+    FeaturesModule,
+  ],
+})
+export class AppModule {}
+`;
+
+// api=graphql|both (decision 12): the GraphQL request-level throttle middleware reads the
+// `default` throttler, so this variant registers the gateway's throttlerOptions. No APP_GUARD
+// (the guards live in the auth module); the rest variant above stays as it is.
+const GATEWAY_APP_MODULE_GRAPHQL_TS = `\
+import { join } from 'node:path';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { StorageModule } from './storage/storage.module';
+import { FeaturesModule } from './features.module';
+import { throttlerOptions } from './http/throttler.config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],
+    }),
+    ThrottlerModule.forRoot(throttlerOptions),
     StorageModule,
     FeaturesModule,
   ],
@@ -897,10 +939,16 @@ const UI_VARIANTS: Record<string, Record<string, string>> = {
   },
 };
 
-export async function applyAuthNoneVariants(targetDir: string, ui: string): Promise<void> {
+export async function applyAuthNoneVariants(
+  targetDir: string,
+  ui: string,
+  api: ApiStyle = 'rest',
+): Promise<void> {
   // ui=none: only the shared (non-client) variants apply; never create apps/client files.
   const uiFiles = ui === 'none' ? {} : (UI_VARIANTS[ui] ?? UI_VARIANTS['shadcn']);
-  const all = { ...COMMON_VARIANTS, ...uiFiles };
+  const apiFiles: Record<string, string> =
+    api === 'rest' ? {} : { 'apps/api/src/app/app.module.ts': GATEWAY_APP_MODULE_GRAPHQL_TS };
+  const all = { ...COMMON_VARIANTS, ...apiFiles, ...uiFiles };
   for (const [rel, content] of Object.entries(all)) {
     const dest = join(targetDir, rel);
     try {

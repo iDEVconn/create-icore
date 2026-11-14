@@ -48,15 +48,58 @@ const UPLOAD_NONE_EXCLUDED_PATHS = [
   'Dockerfile.ms-upload',
 ];
 
-/**
- * Interim until the `--api` axis: ApiSurfacesModule and api-surface-resolvers.ts wire the notes
- * and storage GraphQL surfaces together, so a project without either feature drops the GraphQL
- * API entirely instead of shipping dangling imports. auth=none drops it in scaffold-auth-none.ts.
- */
-const GRAPHQL_SURFACE_PATHS = [
+/** Storage's list/signed-url/remove controller, replaced by StorageResolver when that exists. */
+const STORAGE_REST_CONTROLLER = 'apps/api/src/app/storage/storage.controller.ts';
+/** api=graphql registry of storage controllers; wireApi swaps it in when StorageResolver exists. */
+const STORAGE_GRAPHQL_CONTROLLERS = 'apps/api/src/app/storage/storage.controllers.graphql.ts';
+
+/** `--api=rest`: no server GraphQL artefact ships (spec section 1, decision 1). */
+const API_REST_EXCLUDED_PATHS = [
   'apps/api/src/app/graphql',
-  'apps/api/scripts/emit-schema.ts',
+  'apps/api/src/app/notes/graphql',
+  'apps/api/src/app/profile/graphql',
+  'apps/api/src/app/storage/graphql',
   'apps/api/schema.gql',
+  'apps/api/scripts/emit-schema.ts',
+  STORAGE_GRAPHQL_CONTROLLERS,
+];
+
+/**
+ * `--api=graphql`: the REST surface of every feature that has a GraphQL twin. Storage keeps its
+ * module and the upload/download controller; wireApi swaps the controller registry.
+ */
+const API_GRAPHQL_EXCLUDED_PATHS = [
+  'apps/api/src/app/notes/notes.controller.ts',
+  'apps/api/src/app/notes/notes.module.ts',
+  'apps/api/src/app/notes/__tests__/notes.controller.unit.test.ts',
+  'apps/api/src/app/profile/profile.controller.ts',
+  'apps/api/src/app/profile/profile.module.ts',
+];
+
+/**
+ * `--api=graphql|both`: the committed schema is the full-feature one, so generated projects do not
+ * ship it (R12) nor the test that compares it with the emitted schema. It appears when the gateway
+ * boots in development or on `nx run api:graphql-schema`.
+ */
+const API_SCHEMA_EXCLUDED_PATHS = [
+  'apps/api/schema.gql',
+  'apps/api/src/app/graphql/__tests__/schema.unit.test.ts',
+];
+
+/** Boots the real guards, the REST NotesModule and the notes + storage surfaces. */
+const GRAPHQL_INTEGRATION_TEST =
+  'apps/api/src/app/graphql/__tests__/graphql.integration.unit.test.ts';
+
+/**
+ * `--api=graphql|both` with auth=none (decision 11): health is the only surface. Per-feature
+ * surfaces need a session; the tests below import auth-only code.
+ */
+const API_AUTH_NONE_EXCLUDED_PATHS = [
+  'apps/api/src/app/notes/graphql',
+  'apps/api/src/app/profile/graphql',
+  'apps/api/src/app/storage/graphql',
+  GRAPHQL_INTEGRATION_TEST,
+  'apps/api/src/app/graphql/__tests__/health.resolver.unit.test.ts',
 ];
 
 /** `--ui=none`: API-only project, nothing of the React client (or its browser-only libs) ships. */
@@ -68,6 +111,25 @@ const UI_NONE_EXCLUDED_PATHS = [
   'libs/template-shared',
   'libs/vite-plugins',
 ];
+
+/** Server paths the `--api` axis leaves out; absent features vanish through their own lists. */
+function apiExcludedPaths(opts: CreateIcoreOptions): string[] {
+  if (opts.api === 'rest') return API_REST_EXCLUDED_PATHS;
+  const out = [...API_SCHEMA_EXCLUDED_PATHS];
+  if (opts.api === 'graphql') out.push(...API_GRAPHQL_EXCLUDED_PATHS);
+  // StorageResolver exists only with auth (decision 11); without it storage stays fully REST.
+  const storageResolver = opts.authProvider !== 'none' && opts.upload !== 'none';
+  if (opts.api === 'graphql' && storageResolver) out.push(STORAGE_REST_CONTROLLER);
+  else out.push(STORAGE_GRAPHQL_CONTROLLERS);
+  if (opts.authProvider === 'none') out.push(...API_AUTH_NONE_EXCLUDED_PATHS);
+  const integrationRuns =
+    opts.api === 'both' &&
+    opts.authProvider !== 'none' &&
+    opts.example === 'notes' &&
+    opts.upload !== 'none';
+  if (!integrationRuns) out.push(GRAPHQL_INTEGRATION_TEST);
+  return out;
+}
 
 export interface BindingDiagnostic {
   /** Options after cross-axis constraint normalization (e.g. auth=none -> example=none). */
@@ -191,9 +253,7 @@ export function resolveBindings(rawOpts: CreateIcoreOptions): BindingDiagnostic 
     }
   }
 
-  if (opts.example === 'none' || opts.upload === 'none') {
-    for (const p of GRAPHQL_SURFACE_PATHS) addExcludedPath(p);
-  }
+  for (const p of apiExcludedPaths(opts)) addExcludedPath(p);
 
   if (opts.ui === 'none') {
     for (const p of UI_NONE_EXCLUDED_PATHS) excludedPaths.add(p);

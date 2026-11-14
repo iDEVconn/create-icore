@@ -146,27 +146,125 @@ describe('resolveBindings', () => {
   });
 });
 
-// Interim until the `--api` axis: ApiSurfacesModule / api-surface-resolvers wire the notes AND
-// storage GraphQL surfaces, so a scaffold missing either feature must not ship them (dangling
-// imports). With both features present they ship as before.
-describe('resolveBindings: GraphQL surface paths', () => {
-  const GRAPHQL_PATHS = [
+// The `--api` axis decides which server API artefacts ship (spec sections 1, 9; decisions 2, 11).
+describe('resolveBindings: api axis (server)', () => {
+  const SERVER_GRAPHQL = [
     'apps/api/src/app/graphql',
-    'apps/api/scripts/emit-schema.ts',
+    'apps/api/src/app/notes/graphql',
+    'apps/api/src/app/profile/graphql',
+    'apps/api/src/app/storage/graphql',
     'apps/api/schema.gql',
+    'apps/api/scripts/emit-schema.ts',
+    'apps/api/src/app/storage/storage.controllers.graphql.ts',
   ];
+  const REST_SURFACE = [
+    'apps/api/src/app/notes/notes.controller.ts',
+    'apps/api/src/app/notes/notes.module.ts',
+    'apps/api/src/app/notes/__tests__/notes.controller.unit.test.ts',
+    'apps/api/src/app/profile/profile.controller.ts',
+    'apps/api/src/app/profile/profile.module.ts',
+    'apps/api/src/app/storage/storage.controller.ts',
+  ];
+  const SCHEMA_TEST = 'apps/api/src/app/graphql/__tests__/schema.unit.test.ts';
+  const INTEGRATION_TEST = 'apps/api/src/app/graphql/__tests__/graphql.integration.unit.test.ts';
+  const HEALTH_TEST = 'apps/api/src/app/graphql/__tests__/health.resolver.unit.test.ts';
+  const full = { ...base, example: 'notes' as const };
+  const excluded = (o: Partial<CreateIcoreOptions>) =>
+    resolveBindings({ ...full, ...o }).excludedPaths;
+
+  it('rest: excludes every server GraphQL artefact and no REST surface', () => {
+    const ex = excluded({ api: 'rest' });
+    for (const p of SERVER_GRAPHQL) expect(ex.has(p), p).toBe(true);
+    for (const p of REST_SURFACE) expect(ex.has(p), p).toBe(false);
+  });
+
+  it('graphql: excludes the REST surface of surfaced features and the committed schema', () => {
+    const ex = excluded({ api: 'graphql' });
+    for (const p of REST_SURFACE) expect(ex.has(p), p).toBe(true);
+    expect(ex.has('apps/api/schema.gql')).toBe(true);
+    expect(ex.has(SCHEMA_TEST)).toBe(true);
+    for (const p of [
+      'apps/api/src/app/graphql',
+      'apps/api/src/app/notes/graphql',
+      'apps/api/src/app/profile/graphql',
+      'apps/api/src/app/storage/graphql',
+      'apps/api/scripts/emit-schema.ts',
+      'apps/api/src/app/storage/storage.controllers.graphql.ts',
+      // Shared REST pieces still used by the GraphQL surface or by upload/download.
+      'apps/api/src/app/notes/notes-gateway.service.ts',
+      'apps/api/src/app/storage/storage.module.ts',
+      'apps/api/src/app/storage/storage-files.controller.ts',
+      'apps/api/src/app/storage/storage.controllers.ts',
+    ])
+      expect(ex.has(p), p).toBe(false);
+  });
+
+  it('graphql: drops the integration test (it boots the REST NotesModule)', () => {
+    expect(excluded({ api: 'graphql' }).has(INTEGRATION_TEST)).toBe(true);
+  });
+
+  it('both: keeps REST and GraphQL surfaces, drops the committed schema and the swap file', () => {
+    const ex = excluded({ api: 'both' });
+    for (const p of REST_SURFACE) expect(ex.has(p), p).toBe(false);
+    for (const p of SERVER_GRAPHQL.slice(0, 4)) expect(ex.has(p), p).toBe(false);
+    expect(ex.has('apps/api/scripts/emit-schema.ts')).toBe(false);
+    expect(ex.has('apps/api/schema.gql')).toBe(true);
+    expect(ex.has('apps/api/src/app/storage/storage.controllers.graphql.ts')).toBe(true);
+    expect(ex.has(SCHEMA_TEST)).toBe(true);
+    expect(ex.has(INTEGRATION_TEST)).toBe(false);
+  });
 
   it.each([
     ['example=none', { example: 'none' as const }],
-    ['upload=none', { example: 'notes' as const, upload: 'none' as const }],
-  ])('excludes them when %s', (_label, over) => {
-    const { excludedPaths } = resolveBindings({ ...base, ...over });
-    for (const p of GRAPHQL_PATHS) expect(excludedPaths.has(p)).toBe(true);
+    ['upload=none', { upload: 'none' as const }],
+  ])('both with %s drops the integration test (needs notes and upload)', (_l, over) => {
+    const ex = excluded({ api: 'both', ...over });
+    expect(ex.has(INTEGRATION_TEST)).toBe(true);
+    expect(ex.has('apps/api/src/app/graphql')).toBe(false);
   });
 
-  it('keeps them when notes and storage are both present', () => {
-    const { excludedPaths } = resolveBindings({ ...base, example: 'notes' });
-    for (const p of GRAPHQL_PATHS) expect(excludedPaths.has(p)).toBe(false);
+  it('graphql --example=none --upload=none keeps the graphql dir and profile surface', () => {
+    const ex = excluded({ api: 'graphql', example: 'none', upload: 'none' });
+    expect(ex.has('apps/api/src/app/graphql')).toBe(false);
+    expect(ex.has('apps/api/src/app/profile/graphql')).toBe(false);
+    expect(ex.has('apps/api/scripts/emit-schema.ts')).toBe(false);
+    // Absent features vanish through their own lists.
+    expect(ex.has('apps/api/src/app/notes')).toBe(true);
+    expect(ex.has('apps/api/src/app/storage')).toBe(true);
+  });
+
+  describe.each(['graphql', 'both'] as const)('auth=none + api=%s', (api) => {
+    const ex = () => excluded({ api, authProvider: 'none', dbProvider: 'none', example: 'none' });
+
+    it('keeps the GraphQL module (health) and the schema script', () => {
+      expect(ex().has('apps/api/src/app/graphql')).toBe(false);
+      expect(ex().has('apps/api/scripts/emit-schema.ts')).toBe(false);
+    });
+
+    it('drops every per-feature GraphQL surface (they need a session)', () => {
+      for (const p of [
+        'apps/api/src/app/notes/graphql',
+        'apps/api/src/app/profile/graphql',
+        'apps/api/src/app/storage/graphql',
+      ])
+        expect(ex().has(p), p).toBe(true);
+    });
+
+    it('drops the GraphQL tests that import auth-only code', () => {
+      expect(ex().has(INTEGRATION_TEST)).toBe(true);
+      expect(ex().has(HEALTH_TEST)).toBe(true);
+    });
+
+    it('keeps the storage REST stack when upload is chosen (no StorageResolver)', () => {
+      expect(ex().has('apps/api/src/app/storage')).toBe(false);
+      expect(ex().has('apps/api/src/app/storage/storage.controller.ts')).toBe(false);
+      expect(ex().has('apps/api/src/app/storage/storage.controllers.graphql.ts')).toBe(true);
+    });
+  });
+
+  it('auth=none + rest: still excludes every server GraphQL artefact', () => {
+    const ex = excluded({ api: 'rest', authProvider: 'none', dbProvider: 'none', example: 'none' });
+    for (const p of SERVER_GRAPHQL) expect(ex.has(p), p).toBe(true);
   });
 });
 
