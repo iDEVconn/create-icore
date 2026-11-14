@@ -1017,7 +1017,10 @@ describe('rewriteRootPackageJson — broker transport driver deps', () => {
   }
 
   it('adds the matching driver dep per broker transport (optional peer deps)', async () => {
-    expect((await run('nats')).dependencies?.['nats']).toBeDefined();
+    // NATS v3 (Nest 12): the old `nats` package is not imported any more and must not be installed.
+    const nats = (await run('nats')).dependencies ?? {};
+    expect(nats['@nats-io/transport-node']).toBeDefined();
+    expect(nats['nats']).toBeUndefined();
     expect((await run('mqtt')).dependencies?.['mqtt']).toBeDefined();
     const rmq = (await run('rmq')).dependencies ?? {};
     expect(rmq['amqplib']).toBeDefined();
@@ -1028,7 +1031,7 @@ describe('rewriteRootPackageJson — broker transport driver deps', () => {
   it('adds no broker driver for tcp or redis (redis ships via the jobs stack)', async () => {
     for (const t of ['tcp', 'redis'] as const) {
       const deps = (await run(t)).dependencies ?? {};
-      expect(deps['nats']).toBeUndefined();
+      expect(deps['@nats-io/transport-node']).toBeUndefined();
       expect(deps['mqtt']).toBeUndefined();
       expect(deps['amqplib']).toBeUndefined();
       expect(deps['kafkajs']).toBeUndefined();

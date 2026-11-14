@@ -9,7 +9,7 @@ work" bugs slips through and is only discovered after publishing to npm:
 
 - `TS2304: Cannot find name 'expect'` (test DSL leaking into the build surface)
 - dangling `makeFirebase*` / `getFirebaseAdmin` references after pruning
-- a missing dependency (`nats`), an out-of-date `yarn.lock`
+- a missing dependency (`@nats-io/transport-node`), an out-of-date `yarn.lock`
 - a service that **crashes at runtime** on a missing `.env` or a down broker
   instead of degrading to a banner + fake
 
