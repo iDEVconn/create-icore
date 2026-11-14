@@ -52,6 +52,48 @@ function required(name: string): string {
   return value;
 }
 
+/**
+ * Resolves `redis://[user]:[password]@host[:port][/db]` (or `rediss://` for TLS) into ioredis options.
+ * Nest passes the transport options straight to `new Redis({ host, port, ...options })` and ioredis
+ * ignores a `url` key in an options object (only `new Redis(url, opts)` parses a URL), so handing Nest
+ * the raw URL silently connects to localhost:6379.
+ */
+function redisConnectionOptions(name: string): {
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  db?: number;
+  tls?: Record<string, never>;
+} {
+  const raw = required(name);
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(
+      `Invalid ${name}: expected redis://[user:password@]host[:port][/db], got ${raw}`,
+    );
+  }
+  if (url.protocol !== 'redis:' && url.protocol !== 'rediss:') {
+    throw new Error(`Invalid ${name}: expected a redis:// or rediss:// URL, got ${url.protocol}//`);
+  }
+  const db = url.pathname.length > 1 ? Number(url.pathname.slice(1)) : undefined;
+  if (db !== undefined && (!Number.isInteger(db) || db < 0)) {
+    throw new Error(
+      `Invalid ${name}: database must be a non-negative integer, got ${url.pathname.slice(1)}`,
+    );
+  }
+  return {
+    host: url.hostname,
+    port: url.port ? Number(url.port) : 6379,
+    ...(url.username && { username: decodeURIComponent(url.username) }),
+    ...(url.password && { password: decodeURIComponent(url.password) }),
+    ...(db !== undefined && { db }),
+    ...(url.protocol === 'rediss:' && { tls: {} }),
+  };
+}
+
 function requiredPort(name: string): number {
   const raw = required(name);
   const port = Number(raw);
@@ -88,7 +130,7 @@ export function buildTransport(prefix: string): ClientOptions {
       return {
         transport: Transport.REDIS,
         options: {
-          url: required(`${prefix}_REDIS_URL`),
+          ...redisConnectionOptions(`${prefix}_REDIS_URL`),
           retryAttempts: Number.POSITIVE_INFINITY,
           retryDelay: 2000,
         },

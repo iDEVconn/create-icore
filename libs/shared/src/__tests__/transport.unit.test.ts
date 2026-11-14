@@ -34,12 +34,66 @@ describe('buildTransport', () => {
     process.env['AUTH_REDIS_URL'] = 'redis://localhost:6379';
     const opts = buildTransport('AUTH');
     expect(opts.transport).toBe(Transport.REDIS);
-    const redis = opts.options as { url: string; retryAttempts: number; retryDelay: number };
-    expect(redis.url).toBe('redis://localhost:6379');
+    const redis = opts.options as { retryAttempts: number; retryDelay: number };
     // Resilience: NestJS gives up (and app.listen() rejects) when retryAttempts
     // is unset — an effectively-infinite retry keeps reconnecting instead.
     expect(redis.retryAttempts).toBe(Number.POSITIVE_INFINITY);
     expect(redis.retryDelay).toBeGreaterThan(0);
+  });
+
+  // ioredis ignores a `url` key inside an options object (only `new Redis(url, opts)` parses a URL), and
+  // Nest hands the options straight to `new Redis({ host, port, ...options })`. So the URL has to be
+  // resolved to host/port/credentials here, otherwise every Redis URL silently connects to localhost:6379.
+  describe('Redis URL is resolved to ioredis connection options', () => {
+    type RedisOpts = {
+      host: string;
+      port: number;
+      username?: string;
+      password?: string;
+      db?: number;
+      tls?: object;
+      url?: unknown;
+    };
+    const redisOptions = (url: string): RedisOpts => {
+      process.env['AUTH_TRANSPORT'] = 'redis';
+      process.env['AUTH_REDIS_URL'] = url;
+      return buildTransport('AUTH').options as RedisOpts;
+    };
+
+    it('uses the host and port from the URL (not the localhost:6379 default)', () => {
+      const o = redisOptions('redis://redis.internal:6390');
+      expect(o.host).toBe('redis.internal');
+      expect(o.port).toBe(6390);
+      expect(o.url).toBeUndefined();
+    });
+
+    it('defaults the port to 6379 when the URL has none', () => {
+      expect(redisOptions('redis://cache.local').port).toBe(6379);
+    });
+
+    it('passes password and db from the URL', () => {
+      const o = redisOptions('redis://:s3cret@h:6380/2');
+      expect(o.password).toBe('s3cret');
+      expect(o.db).toBe(2);
+      expect(o.username).toBeUndefined();
+    });
+
+    it('decodes percent-encoded credentials and keeps the username', () => {
+      const o = redisOptions('redis://app:p%40ss%2Fword@h:6380');
+      expect(o.username).toBe('app');
+      expect(o.password).toBe('p@ss/word');
+    });
+
+    it('enables TLS for rediss://', () => {
+      expect(redisOptions('rediss://secure.example:6380').tls).toBeDefined();
+      expect(redisOptions('redis://plain.example:6380').tls).toBeUndefined();
+    });
+
+    it('rejects a URL that is not redis:// or rediss://', () => {
+      process.env['AUTH_TRANSPORT'] = 'redis';
+      process.env['AUTH_REDIS_URL'] = 'http://h:6379';
+      expect(() => buildTransport('AUTH')).toThrow(/AUTH_REDIS_URL/);
+    });
   });
 
   it('selects NATS when ${PREFIX}_TRANSPORT=nats', () => {
