@@ -182,7 +182,7 @@ describe('validateOptions', () => {
       ai: 'none' as const,
       example: 'none' as const,
       ui: 'none' as const,
-      api: 'rest',
+      api: 'rest' as const,
     };
 
     it('warns that only the bare gateway will be generated, without blocking', () => {
