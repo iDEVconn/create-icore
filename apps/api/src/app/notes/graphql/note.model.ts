@@ -1,8 +1,9 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import type { Note } from '@icore/shared';
 
-// Every type is named explicitly: `api:graphql-schema` runs under tsx, which emits no
-// decorator metadata to infer from.
+// Every type is named explicitly (`() => String`): the schema stays independent of decorator
+// metadata inference. `api:graphql-schema` runs under @swc-node/register with metadata on, but
+// explicit types keep the printed schema stable if that ever changes.
 
 @ObjectType('Note')
 export class NoteModel implements Note {

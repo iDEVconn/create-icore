@@ -43,15 +43,20 @@ only: it is the foundation you add your own resolvers to.
 - Introspection and GraphiQL are **off when `NODE_ENV=production`**. Docker images and every deployed gateway must run with
   `NODE_ENV=production`; otherwise introspection and GraphiQL are on, unmasked error messages reach clients, and the gateway tries to
   write `apps/api/schema.gql`.
+- Production: no "Did you mean …?" field suggestions in validation errors (`hideSchemaDetailsFromClientErrors`).
 - Production error masking: unexpected errors become `Internal server error` with `INTERNAL_SERVER_ERROR`; 5xx `HttpException`s keep
   their code but not their message; no stack traces.
-- Limits: query depth 8, 15 aliases per operation (fragments are expanded before counting), batched HTTP requests rejected, Apollo
-  `csrfPrevention` on.
-- Every resolver runs behind the global `AuthGuard` unless it is `@Public()` (only `health`). Every operation is `POST /api/graphql`, so
-  `CsrfGuard` requires `X-CSRF-Token` on all of them, queries included (`health` is `@SkipCsrf()`). The client already sends it.
+- Limits: query depth 8, 15 aliases per operation (fragments are expanded before counting; a fragment chain too deep to measure is
+  refused with 400), batched HTTP requests rejected, Apollo `csrfPrevention` on.
+- Every resolver runs behind the global `AuthGuard` unless it is `@Public()` (only `health`). The client sends every operation as
+  `POST /api/graphql`, and `CsrfGuard` requires `X-CSRF-Token` on every POST, queries included (`health` is `@SkipCsrf()`). A query
+  sent as `GET` runs only with Apollo's preflight header (`apollo-require-preflight` or a non-simple content type, `csrfPrevention`)
+  and a valid session; `CsrfGuard` does not check GET (a safe method). Mutations over `GET` are always rejected (405).
 - `@CheckAbility` parity with the controllers (admin sees all notes, a user only their own).
 - Throttling: the `default` 120 requests/minute floor applies to `/api/graphql` at request level (middleware, before Apollo parses
-  anything) and per resolver (guard). A costly new operation declares its own named `@Throttle` (see AGENTS.md, named throttlers).
+  anything) and per resolver (guard). The per-resolver guard counts each root field of an operation separately, so one request
+  with several root fields uses several units of the floor. A costly new operation declares its own named `@Throttle` (see
+  AGENTS.md, named throttlers).
 - `auth=none`: no `AuthGuard` and no `CsrfGuard` exist (they live in the auth module); `health` is public anyway. The gateway registers
   the throttler options so the request-level GraphQL throttle has its `default` throttler (no `APP_GUARD`).
 
