@@ -131,4 +131,17 @@ describe('createLimitRules', () => {
     expect(errors.some((e) => /aliases exceed/.test(e))).toBe(true);
     expect(ms).toBeLessThan(100);
   });
+
+  // A long single-spread chain (f0 -> f1 -> ... -> fN) recurses once per fragment. Past the JS
+  // stack the walker must report a validation error (HTTP 400), never throw (HTTP 500).
+  it('reports a too deeply nested fragment chain instead of throwing', () => {
+    const n = 2_500;
+    const defs = Array.from({ length: n }, (_, i) => `fragment f${i} on Query { ...f${i + 1} }`);
+    const doc = parse(`{ ...f0 } ${defs.join(' ')} fragment f${n} on Query { ping }`);
+    let errors: string[] = [];
+    expect(() => {
+      errors = validate(schema, doc, rules).map((e) => e.message);
+    }).not.toThrow();
+    expect(errors).toEqual([expect.stringMatching(/too deeply nested/i)]);
+  });
 });

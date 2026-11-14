@@ -39,7 +39,19 @@ function costLimitRule({ maxDepth, maxAliases }: LimitOptions): ValidationRule {
     const walker = new CostWalker(context);
     return {
       OperationDefinition(node) {
-        const { depth, aliases } = walker.selectionSet(node.selectionSet);
+        let cost: Cost;
+        try {
+          cost = walker.selectionSet(node.selectionSet);
+        } catch (err) {
+          // A fragment chain longer than the JS stack: refuse it as a validation error (400)
+          // instead of letting the RangeError become a 500.
+          if (!(err instanceof RangeError)) throw err;
+          context.reportError(
+            new GraphQLError('Query is too deeply nested to validate.', { nodes: [node] }),
+          );
+          return;
+        }
+        const { depth, aliases } = cost;
         if (depth > maxDepth) {
           context.reportError(
             new GraphQLError(`Query depth ${depth} exceeds the maximum of ${maxDepth}.`, {
