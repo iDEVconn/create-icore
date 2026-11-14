@@ -1,6 +1,6 @@
 # NestJS 12 probe (2026-11-13)
 
-**Status (corrected 2026-11-14): not blocked by Nx, blocked only by the Cloudflare Workers host.** The first version of this page said "wait for stable Nx 24.1"; that was wrong, see "Correction" below. The migration itself can run on stable Nx 24.0.6; what decides the schedule is Nest 12 failing to load in workerd (open item 1).
+**Status (2026-11-14): nothing blocks the upgrade any more.** Two corrections after the first write-up: the `@nx/nest` peer range is advisory (see "Correction"), and the Cloudflare Workers failure has a root cause and a one-line fix (see "Workers: root cause"). The migration can run on stable Nx 24.0.6.
 
 The probe ran on a throwaway local branch (`spike/nest-12-nx-24-1-beta`, never pushed): Nest 12 + `@nx/nest@24.1.0-beta.0` (all `@nx/*` and `nx` on the same beta) on top of `dev` (Nx 24.0.6). It was not meant to merge; this page is the record. Stable Nx 24.0.6 blocks Nest 12 (`@nx/nest` peers `@nestjs/core|common` `<12`).
 
@@ -11,19 +11,19 @@ The probe ran on a throwaway local branch (`spike/nest-12-nx-24-1-beta`, never p
 
 ## Result of `yarn nx run-many -t lint test build`
 
-| Step                                                                 | Result                                                                                                                                   |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Drop-in version bump                                                 | `shared:build` fails: `TS1479` / `TS1541` - **every Nest 12 package is ESM-only** (`"type": "module"`), our NestJS projects are CommonJS |
-| tsconfigs `module: node20` + `moduleResolution: nodenext` (39 files) | All builds + lint green: `shared`, `api`, 6 microservices, client templates; TS accepts `require()` of ESM                               |
-| `apps/worker` esbuild                                                | Needs two more alias stubs in `wrangler.jsonc`: `@nats-io/transport-node` (Nest 12's new NATS driver) and `@fastify/static`; then builds |
-| `ai-client:test`, `jobs-client:test` (jest)                          | **Fail: `ERR_REQUIRE_ESM`** - jest-runtime cannot load Nest 12. Needs those libs moved to vitest (the other libs already use it)         |
-| `create-icore:test`                                                  | Green after the `mongoose` pin in `scaffold-env.ts` (`^12.0.1`); `sync-template-shell.mjs` had nothing left to sync                      |
-| Runtime on Node 24                                                   | `require('@nestjs/core')` works; the built `auth` microservice boots (NestFactory, InstanceLoader, fake-strategy banner)                 |
-| `yarn nx run worker:smoke` (`wrangler dev --local`)                  | **Fails in workerd** at module load: `Uncaught TypeError: The argument 'path' ... must be a file URL ... or an absolute path string`     |
+| Step                                                                 | Result                                                                                                                                    |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Drop-in version bump                                                 | `shared:build` fails: `TS1479` / `TS1541` - **every Nest 12 package is ESM-only** (`"type": "module"`), our NestJS projects are CommonJS  |
+| tsconfigs `module: node20` + `moduleResolution: nodenext` (39 files) | All builds + lint green: `shared`, `api`, 6 microservices, client templates; TS accepts `require()` of ESM                                |
+| `apps/worker` esbuild                                                | Needs two more alias stubs in `wrangler.jsonc`: `@nats-io/transport-node` (Nest 12's new NATS driver) and `@fastify/static`; then builds  |
+| `ai-client:test`, `jobs-client:test` (jest)                          | **Fail: `ERR_REQUIRE_ESM`** - jest-runtime cannot load Nest 12. Needs those libs moved to vitest (the other libs already use it)          |
+| `create-icore:test`                                                  | Green after the `mongoose` pin in `scaffold-env.ts` (`^12.0.1`); `sync-template-shell.mjs` had nothing left to sync                       |
+| Runtime on Node 24                                                   | `require('@nestjs/core')` works; the built `auth` microservice boots (NestFactory, InstanceLoader, fake-strategy banner)                  |
+| `yarn nx run worker:smoke` (`wrangler dev --local`)                  | Fails in workerd at module load: `Uncaught TypeError: The argument 'path' ... Received 'undefined'`; **fixed**, see "Workers: root cause" |
 
 ## Still open before a real migration
 
-1. Cloudflare Workers host: Nest 12 throws while loading inside workerd (likely an ESM `import.meta.url` / `fs` use at import time in a Nest 12 package). Find the culprit, or keep the Worker on a bundled/pinned path. `--host=cloudflare` is the blocker.
+1. ~~Cloudflare Workers host~~ - root cause found and fixed in the probe, see below.
 2. jest -> vitest for `libs/ai-client` and `libs/jobs-client` (`notes-client`/`payment-client` have no tests).
 3. Generated projects: `create-icore` templates inherit the tsconfig change; an install-mode scaffold smoke (yarn/npm/pnpm) on Nest 12 was NOT run, and neither was a booted gateway or full e2e.
 4. `@nx/nest` generators and `tools/workspace-plugin`'s microservice generator were not exercised.
@@ -39,6 +39,14 @@ The sibling project `crawler-nx` already runs Nest 12.5.0 on **stable Nx 24.0.6*
 4. **Test runner:** they have no jest. Our jest-based `libs/ai-client` and `libs/jobs-client` must move to vitest (as found by the probe).
 5. **They have no Cloudflare Worker.** The workerd load failure (item 1 below) is ours alone, which is why it is the only real blocker. They also use `@nestjs/platform-fastify` (we use express; the probe built fine with express 12.5.0).
 
+## Workers: root cause
+
+`worker:smoke` died at load with `Uncaught TypeError: The argument 'path' must be a file URL object, a file URL string, or an absolute path string. Received 'undefined'` (stack: `createRequire` in `node:module`).
+
+- **Cause:** `@nestjs/swagger` 12 calls `createRequire(import.meta.url)` at module scope (`dist/swagger-ui/swagger-ui.js:4`, `dist/plugin/utils/plugin-utils.js:7`). workerd gives bundled modules no `import.meta.url`, so it is `undefined`. The gateway modules the Worker hosts import `@nestjs/swagger` (decorators), which pulls those files in. Other Nest 12 `createRequire(import.meta.url)` calls (`loadPackageSync`, mqtt/rmq/grpc clients) are lazy and never run in the Worker.
+- **Fix:** `apps/worker/wrangler.jsonc` gets `"define": { "import.meta.url": "\"file:///worker.js\"" }`. The Worker never calls `SwaggerModule.setup`, so the `require` created from that URL is never used. `yarn nx run worker:smoke` then ends with `worker smoke: all checks ok`.
+- Only that one `define` plus the two alias stubs from the table above (`@nats-io/transport-node`, `@fastify/static`) were needed for the Worker.
+
 ## How to repeat the probe
 
 1. Branch from `dev` (stable Nx is enough; the first probe used `24.1.0-beta.0` unnecessarily). Set `@nestjs/{common,core,microservices,platform-express,testing,websockets}` to `^12`, plus `swagger`, `schematics`, `config`, `mongoose` to their 12.x (`npm view <pkg> version`). `@nx/nest` peers `<12` only produce `YN0060`; add the `packageExtensions` entry from the Correction section to silence it.
@@ -49,4 +57,4 @@ The sibling project `crawler-nx` already runs Nest 12.5.0 on **stable Nx 24.0.6*
 
 ## Verdict
 
-Do the migration on stable Nx 24.0.6 once the Workers host question is answered: `packageExtensions`, `nodenext`, explicit `reflect-metadata`, jest -> vitest for two libs, two wrangler alias stubs, and a fix or workaround for workerd. Do not wait for Nx 24.1.
+Do the migration on stable Nx 24.0.6; nothing external blocks it. Work list: `packageExtensions` for `@nx/nest`, `nodenext`, explicit `reflect-metadata` (each `main.ts` + vitest `setupFiles`), jest -> vitest for `ai-client`/`jobs-client`, the Worker's `define` and two alias stubs, then the install-mode scaffold smoke (yarn/npm/pnpm) and a booted gateway before release.
