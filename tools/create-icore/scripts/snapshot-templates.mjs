@@ -2,6 +2,7 @@ import { cp, mkdir, rename, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { filesUnder, listSnapshotFiles } from './snapshot-files.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../..');
@@ -73,18 +74,21 @@ async function main() {
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
 
+  // Only files git knows (tracked, or untracked but not ignored): local `.env`, agent state and
+  // other gitignored files never reach templates/ (and so never the published tarball).
+  const sourceFiles = listSnapshotFiles(root);
+
   for (const rel of PATHS_TO_COPY) {
-    const src = resolve(root, rel);
-    const dest = resolve(out, rel);
-    await mkdir(dirname(dest), { recursive: true });
-    await cp(src, dest, {
-      recursive: true,
-      filter: (entry) => {
-        const r = entry.replace(root + '/', '');
-        for (const ig of IGNORE_REL) if (r.includes(`/${ig}`) || r === ig) return false;
-        return true;
-      },
+    const files = filesUnder(sourceFiles, rel).filter((f) => {
+      for (const ig of IGNORE_REL) if (f.includes(`/${ig}`) || f === ig) return false;
+      return true;
     });
+    if (files.length === 0) throw new Error(`snapshot: nothing to copy for ${rel}`);
+    for (const f of files) {
+      const dest = resolve(out, f);
+      await mkdir(dirname(dest), { recursive: true });
+      await cp(resolve(root, f), dest);
+    }
   }
 
   // shell-level overrides (see SHELL_OVERRIDES above for why each one exists).
