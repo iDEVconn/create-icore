@@ -3,7 +3,7 @@ import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UploadClientService } from '@icore/upload-client';
 import type { StorageRef, VerifiedToken } from '@icore/shared';
 import { CurrentUser } from '../../http/current-user.decorator';
-import { assertOwnership } from '../assert-ownership';
+import { assertOwnership, assertSafeListPrefix } from '../assert-ownership';
 import { StorageRefModel } from './storage.model';
 
 // The global AuthGuard has already rejected anonymous callers; this keeps a missing user a 401.
@@ -25,6 +25,7 @@ export class StorageResolver {
     @CurrentUser() user: VerifiedToken | undefined,
     @Args('prefix', { type: () => String, nullable: true }) prefix: string | undefined,
   ): Promise<StorageRef[]> {
+    assertSafeListPrefix(prefix);
     return this.uploadClient.list(uidOf(user), prefix ?? undefined);
   }
 
