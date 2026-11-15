@@ -43,3 +43,13 @@ jobs:
 
       - name: Affected lint, test, build
         run: npx nx affected -t lint test build --parallel
+
+      # --api=graphql|both projects only (no project has the target in a rest project): the GraphQL
+      # documents must still validate against the gateway schema. `graphql-codegen` first emits the
+      # schema (`api:graphql-schema`), then checks every .graphql operation and rewrites
+      # src/gql/types.ts; commit that file after changing an operation or a resolver.
+      - name: GraphQL operations match the schema
+        run: |
+          for p in $(npx nx show projects --with-target graphql-codegen | tr -d '[]"' | tr ',\n' '  '); do
+            npx nx run "$p:graphql-codegen"
+          done

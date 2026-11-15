@@ -10,10 +10,10 @@ interface Props {
 export function CheckEmailScreen({ email, onBack }: Props) {
   const { t } = useTranslation();
   return (
-    <Stack spacing={3} alignItems="center" textAlign="center">
+    <Stack spacing={3} sx={{ alignItems: 'center', textAlign: 'center' }}>
       <MarkEmailReadOutlinedIcon sx={{ fontSize: 56, color: 'primary.main' }} />
       <Stack spacing={1}>
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           {t('auth.checkEmail')}
         </Typography>
         <Typography variant="body2" color="text.secondary">

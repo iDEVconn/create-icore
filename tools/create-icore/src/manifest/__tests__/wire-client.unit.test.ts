@@ -16,6 +16,7 @@ const base: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'npm',
@@ -40,6 +41,18 @@ describe('writeNavConfig', () => {
     expect(src).toContain("{ to: '/notes', labelKey: 'nav.notes', iconName: 'notes' }");
     expect(src).toContain("{ to: '/profile', labelKey: 'nav.profile', iconName: 'profile' }");
     expect(src).toContain('export interface NavItem');
+  });
+
+  it("keeps 'aiUsage' in the iconName union for shadcn only (its LayoutSider maps that key)", async () => {
+    const dir = await fixture();
+    await writeNavConfig(dir, { ...base, targetDir: dir, ui: 'shadcn' });
+    const shadcn = await readFile(join(dir, 'apps/client/src/nav.config.ts'), 'utf8');
+    expect(shadcn).toContain("iconName: 'dashboard' | 'notes' | 'profile' | 'aiUsage';");
+    for (const ui of ['mui', 'antd'] as const) {
+      await writeNavConfig(dir, { ...base, targetDir: dir, ui });
+      const src = await readFile(join(dir, 'apps/client/src/nav.config.ts'), 'utf8');
+      expect(src).toContain("iconName: 'dashboard' | 'notes' | 'profile';");
+    }
   });
 
   it('omits the notes entry when example=none', async () => {

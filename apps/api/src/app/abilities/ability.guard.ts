@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { VerifiedToken } from '@icore/shared';
+import { requestOf } from '../http/execution-context';
 import { AbilityFactory } from './ability.factory';
 import { CHECK_ABILITY_KEY, type RequiredRule } from './check-ability.decorator';
 
@@ -19,7 +20,7 @@ export class AbilityGuard implements CanActivate {
     ]);
     if (!required) return true;
 
-    const req = ctx.switchToHttp().getRequest<Request & { user?: VerifiedToken }>();
+    const req = requestOf<Request & { user?: VerifiedToken }>(ctx);
     const ability = this.factory.forUser(req.user);
     if (!ability.can(required.action, required.subject)) {
       throw new ForbiddenException();

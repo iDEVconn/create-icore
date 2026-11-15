@@ -182,7 +182,7 @@ try {
 
     if (hasNotes) {
       r = await call('POST', '/api/notes', {
-        body: { title: 'smoke', content: 'hello' },
+        body: { title: 'smoke', body: 'hello' },
         csrf: true,
       });
       const id = r.json?.id;

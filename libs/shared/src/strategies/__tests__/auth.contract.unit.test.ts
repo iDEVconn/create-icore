@@ -141,6 +141,30 @@ export function runAuthContract(
       expect(await strategy.getRole(session.user.id)).toBe('admin');
     });
 
+    it('getProfile returns a null name until updateProfile has set one', async () => {
+      const session = await strategy.signUp('p0@x.com', 'pw12345!');
+      expect(await strategy.getProfile(session.user.id)).toEqual({ name: null });
+    });
+
+    it('updateProfile stores the name, returns it and getProfile reads it back', async () => {
+      const session = await strategy.signUp('p1@x.com', 'pw12345!');
+      expect(await strategy.updateProfile(session.user.id, { name: 'Ada' })).toEqual({
+        name: 'Ada',
+      });
+      expect(await strategy.getProfile(session.user.id)).toEqual({ name: 'Ada' });
+      await strategy.updateProfile(session.user.id, { name: 'Ada L.' });
+      expect(await strategy.getProfile(session.user.id)).toEqual({ name: 'Ada L.' });
+    });
+
+    it('updateProfile leaves the role and the login intact', async () => {
+      const session = await strategy.signUp('p2@x.com', 'pw12345!');
+      await strategy.setRole(session.user.id, 'admin');
+      await strategy.updateProfile(session.user.id, { name: 'Grace' });
+      expect(await strategy.getRole(session.user.id)).toBe('admin');
+      const again = await strategy.signIn('p2@x.com', 'pw12345!');
+      expect((await strategy.verifyToken(again.accessToken)).role).toBe('admin');
+    });
+
     if (helpers?.getPasswordResetToken) {
       const tokenFor = (email: string) => helpers.getPasswordResetToken!(strategy, email);
 

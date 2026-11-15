@@ -8,6 +8,7 @@ import type {
   OAuthProvider,
   OAuthStartResult,
   SignUpConfirmationRequired,
+  UserProfile,
   VerifiedToken,
 } from '@icore/shared';
 
@@ -68,6 +69,16 @@ export class AuthController {
   async setRole(@Payload() payload: { uid: string; role: string }): Promise<{ ok: true }> {
     await this.strategy.setRole(payload.uid, payload.role);
     return { ok: true };
+  }
+
+  @MessagePattern('auth.profile.get')
+  getProfile(@Payload() payload: { uid: string }): Promise<UserProfile> {
+    return this.strategy.getProfile(payload.uid);
+  }
+
+  @MessagePattern('auth.profile.update')
+  updateProfile(@Payload() payload: { uid: string; name: string }): Promise<UserProfile> {
+    return this.strategy.updateProfile(payload.uid, { name: payload.name });
   }
 
   @MessagePattern('auth.revoke')

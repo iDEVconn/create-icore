@@ -21,6 +21,7 @@ const cf: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'local',
   session: 'durable-object',
   packageManager: 'yarn',

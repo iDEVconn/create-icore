@@ -2,6 +2,19 @@ import type { Manifest, Unit } from './types.js';
 
 const EMPTY: Unit = { libDirs: [], deps: {}, tsPaths: {} };
 
+/** Server deps of the GraphQL surface; versions equal the root package.json (drift guard). */
+const GRAPHQL_SERVER: Unit = {
+  libDirs: [],
+  deps: {
+    '@apollo/server': '^5.5.2',
+    '@as-integrations/express5': '^1.1.2',
+    '@nestjs/apollo': '^14.2.1',
+    '@nestjs/graphql': '^14.2.1',
+    graphql: '^16.11.0',
+  },
+  tsPaths: {},
+};
+
 export const MANIFEST = {
   auth: {
     supabase: {
@@ -232,6 +245,18 @@ export const MANIFEST = {
     },
   },
   ui: { shadcn: EMPTY, antd: EMPTY, mui: EMPTY, none: EMPTY },
+  api: { rest: EMPTY, graphql: GRAPHQL_SERVER, both: GRAPHQL_SERVER },
+  apiClient: {
+    libDirs: [],
+    deps: {
+      '@graphql-codegen/cli': '^8.0.0',
+      '@graphql-codegen/typescript-operations': '^7.0.1',
+      '@graphql-typed-document-node/core': '^3.2.0',
+      graphql: '^16.11.0',
+      'vite-plugin-graphql-loader': '^6.0.0',
+    },
+    tsPaths: {},
+  },
   transport: {
     tcp: EMPTY,
     redis: EMPTY,

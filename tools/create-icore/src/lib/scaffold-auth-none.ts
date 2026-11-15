@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import type { ApiStyle } from './options.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -42,12 +43,34 @@ const AUTH_ONLY_PATHS = [
   'apps/client/src/routes/reset-password.tsx',
   'apps/client/src/routes/auth.callback.tsx',
   'apps/client/src/routes/auth.oauth.callback.tsx',
+  // Imports the callback route above (shadcn only).
+  'apps/client/src/routes/__tests__/auth.callback.unit.test.tsx',
   'apps/client/src/routes/_dashboard/profile.tsx',
+  'apps/client/src/queries/profile.ts',
+  'apps/client/src/queries/__tests__/profile.unit.test.ts',
   'libs/template-shared/src/lib/abilities',
 ];
 
-export async function removeAuthOnlyPaths(targetDir: string): Promise<void> {
-  for (const p of AUTH_ONLY_PATHS) {
+// GraphQL with auth=none (spec decision 11): ApiGraphqlModule and its public health query stay;
+// the per-feature surfaces need a session and these tests import auth-only code. resolveBindings
+// already leaves them out of the copy; deleting again keeps this step correct on its own.
+const AUTH_ONLY_GRAPHQL_PATHS = [
+  'apps/api/src/app/notes/graphql',
+  'apps/api/src/app/profile/graphql',
+  'apps/api/src/app/storage/graphql',
+  'apps/api/src/app/graphql/__tests__/graphql.integration.unit.test.ts',
+  'apps/api/src/app/graphql/__tests__/health.resolver.unit.test.ts',
+];
+
+// api=rest ships no GraphQL at all.
+const REST_GRAPHQL_PATHS = ['apps/api/src/app/graphql', 'apps/api/scripts/emit-schema.ts'];
+
+export async function removeAuthOnlyPaths(
+  targetDir: string,
+  api: ApiStyle = 'rest',
+): Promise<void> {
+  const graphqlPaths = api === 'rest' ? REST_GRAPHQL_PATHS : AUTH_ONLY_GRAPHQL_PATHS;
+  for (const p of [...AUTH_ONLY_PATHS, ...graphqlPaths]) {
     await rm(join(targetDir, p), { recursive: true, force: true });
   }
   await stripDeps(join(targetDir, 'apps/api/package.json'), [
@@ -160,13 +183,21 @@ bootstrap()
   });
 `;
 
+// auth=none has no AuthModule, and the global throttler guard is registered there. Without this
+// APP_GUARD the gateway registered ThrottlerModule but enforced nothing (no rate limit at all), and
+// only `auth-burst` was configured. Same options as the full gateway: the fail-closed `default`
+// floor, the scoped `auth-burst` / `ai-burst`, and the request-level GraphQL throttle reads
+// `default` too. Identical for every --api mode.
 const GATEWAY_APP_MODULE_TS = `\
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, seconds } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { StorageModule } from './storage/storage.module';
 import { FeaturesModule } from './features.module';
+import { ContextAwareThrottlerGuard } from './http/context-aware-throttler.guard';
+import { throttlerOptions } from './http/throttler.config';
 
 @Module({
   imports: [
@@ -174,10 +205,11 @@ import { FeaturesModule } from './features.module';
       isGlobal: true,
       envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],
     }),
-    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),
+    ThrottlerModule.forRoot(throttlerOptions),
     StorageModule,
     FeaturesModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ContextAwareThrottlerGuard }],
 })
 export class AppModule {}
 `;
@@ -258,6 +290,9 @@ import { useDraft, useLoading } from '@icore/template-shared';
 interface PageLayoutProps {
   title: string;
   description?: string;
+  /** CASL gate props of the auth variant, accepted so shared pages (ai-usage) compile; no auth means no gate. */
+  action?: string;
+  subject?: string;
   actions?: ReactNode;
   children: ReactNode;
 }

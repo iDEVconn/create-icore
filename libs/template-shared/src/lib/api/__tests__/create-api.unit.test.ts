@@ -33,12 +33,13 @@ describe('createIcoreApi', () => {
     );
   });
 
-  it('provides truthy getAccessToken/getRefreshToken so api-client never short-circuits as unauthenticated — the cookie, not these, is what actually authenticates', () => {
+  it('keeps a truthy getAccessToken so a 401 counts as unauthenticated, but no refresh token', () => {
     createIcoreApi({ baseUrl: '/api' });
 
     const config = vi.mocked(createApiClient).mock.calls[0]?.[0];
     expect(config?.getAccessToken()).toBe('cookie');
-    expect(config?.getRefreshToken()).toBe('cookie');
+    // null makes api-client skip its POST /auth/refresh (a route the gateway does not have)
+    expect(config?.getRefreshToken()).toBeNull();
   });
 
   it('logs out and invokes the caller-supplied onUnauthorized hook on 401', () => {

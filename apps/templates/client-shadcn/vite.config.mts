@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import graphqlLoader from 'vite-plugin-graphql-loader';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
@@ -66,6 +67,7 @@ export default defineConfig(() => ({
       routeFileIgnorePattern: '(__tests__|\\.test\\.(t|j)sx?$)',
     }),
     react(),
+    graphqlLoader(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',

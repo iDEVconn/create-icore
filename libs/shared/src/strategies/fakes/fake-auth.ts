@@ -5,6 +5,7 @@ import type {
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  UserProfile,
   VerifiedToken,
 } from '../auth';
 
@@ -18,6 +19,7 @@ interface StoredUser {
   email: string;
   password: string;
   role?: string;
+  name?: string;
 }
 
 export class FakeAuthStrategy implements AuthStrategy {
@@ -83,6 +85,16 @@ export class FakeAuthStrategy implements AuthStrategy {
   async getRole(uid: string): Promise<string | null> {
     const user = this.findById(uid);
     return user.role ?? null;
+  }
+
+  async getProfile(uid: string): Promise<UserProfile> {
+    return { name: this.findById(uid).name ?? null };
+  }
+
+  async updateProfile(uid: string, patch: { name: string }): Promise<UserProfile> {
+    const user = this.findById(uid);
+    user.name = patch.name;
+    return { name: user.name };
   }
 
   async sendMagicLink(req: MagicLinkRequest): Promise<void> {

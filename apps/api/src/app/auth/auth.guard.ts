@@ -12,6 +12,7 @@ import { AuthClientService } from '@icore/auth-client';
 import { readSessionId, type SessionRecord, type SessionStore } from '@icore/shared';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from './public.decorator';
+import { requestOf } from '../http/execution-context';
 import { SESSION_STORE } from '../session/session-store.provider';
 
 const REFRESH_SKEW_MS = 30_000; // refresh 30s before the provider's own expiry
@@ -31,7 +32,7 @@ export class AuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const req = ctx.switchToHttp().getRequest<Request & { user?: unknown }>();
+    const req = requestOf<Request & { user?: unknown }>(ctx);
     const sessionId = readSessionId(req);
     if (!sessionId) throw new UnauthorizedException('missing_session');
 

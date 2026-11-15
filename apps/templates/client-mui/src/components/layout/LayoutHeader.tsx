@@ -54,7 +54,7 @@ export function LayoutHeader() {
   return (
     <AppBar position="sticky" color="default" elevation={1}>
       <Toolbar sx={{ justifyContent: 'space-between' }}>
-        <Typography variant="h6" component="div" fontWeight={600}>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
           iCore{' '}
           <span style={{ opacity: 0.6, fontSize: '0.75em', fontWeight: 400 }}>v{APP_VERSION}</span>
         </Typography>

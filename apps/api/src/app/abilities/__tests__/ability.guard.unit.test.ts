@@ -46,4 +46,19 @@ describe('AbilityGuard', () => {
     const guard = new AbilityGuard(reflector, factory);
     expect(() => guard.canActivate(ctx(undefined))).toThrow(ForbiddenException);
   });
+
+  it('denies a user without the rule in a graphql context', () => {
+    const reflector = {
+      getAllAndOverride: vi.fn().mockReturnValue({ action: 'manage', subject: 'all' }),
+    } as unknown as Reflector;
+    const guard = new AbilityGuard(reflector, factory);
+    const gql = {
+      getType: () => 'graphql',
+      getHandler: () => undefined,
+      getClass: () => undefined,
+      getArgByIndex: (i: number) =>
+        i === 2 ? { req: { user: { uid: 'u', role: 'user' } }, res: {} } : undefined,
+    } as unknown as ExecutionContext;
+    expect(() => guard.canActivate(gql)).toThrow(ForbiddenException);
+  });
 });

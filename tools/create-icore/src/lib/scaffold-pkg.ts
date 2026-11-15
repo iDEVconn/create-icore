@@ -27,6 +27,8 @@ export async function writePnpmWorkspace(targetDir: string): Promise<void> {
   // fresh `pnpm install` is clean and non-interactive. `esbuild` + `workerd`
   // arrive with wrangler (`--host=cloudflare`).
   const allowBuilds = [
+    // @apollo/server (--api=graphql|both) depends on it; it has a postinstall script.
+    '@apollo/protobufjs',
     '@firebase/util',
     '@nestjs/core',
     '@parcel/watcher',

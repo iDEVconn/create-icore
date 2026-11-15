@@ -13,6 +13,7 @@ const base: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'yarn',
@@ -181,12 +182,20 @@ describe('validateOptions', () => {
       ai: 'none' as const,
       example: 'none' as const,
       ui: 'none' as const,
+      api: 'rest' as const,
     };
 
     it('warns that only the bare gateway will be generated, without blocking', () => {
       const { warnings, errors } = validateOptions(allNone);
       expect(errors).toEqual([]);
       expect(warnings.join()).toMatch(/every option is "none".*gateway/i);
+    });
+
+    it('does not print the all-none notice when the API is GraphQL', () => {
+      for (const api of ['graphql', 'both'] as const)
+        expect(validateOptions({ ...allNone, api }).warnings.join()).not.toMatch(
+          /every option is "none"/i,
+        );
     });
 
     it('does not warn while at least one feature or the client is kept', () => {
@@ -213,8 +222,73 @@ describe('validateOptions', () => {
         dbProvider: 'd1',
         upload: 'r2',
         ui: 'none',
+        api: 'rest',
       });
       expect(errors.join()).toMatch(/--ui=none/);
     });
+  });
+});
+
+describe('api axis', () => {
+  it('accepts rest, graphql and both with a supported auth provider on the Node host', () => {
+    for (const api of ['rest', 'graphql', 'both'] as const) {
+      const { errors, corrected } = validateOptions({ ...base, api });
+      expect(errors).toEqual([]);
+      expect(corrected.api).toBe(api);
+    }
+  });
+
+  it('accepts graphql/both with auth=none: no error and no warning', () => {
+    for (const api of ['graphql', 'both'] as const) {
+      const { errors, warnings } = validateOptions({
+        ...base,
+        api,
+        authProvider: 'none',
+        dbProvider: 'none',
+        example: 'none',
+      });
+      expect(errors).toEqual([]);
+      expect(warnings).toEqual([]);
+    }
+  });
+
+  it('graphql + cloudflare + auth=none yields only the cloudflare --api error', () => {
+    const { errors } = validateOptions({
+      ...base,
+      api: 'graphql',
+      host: 'cloudflare',
+      authProvider: 'none',
+      dbProvider: 'none',
+      upload: 'none',
+      example: 'none',
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('--api=graphql');
+    expect(errors[0]).toContain('docs/runbooks/cloudflare-workers-host.md');
+  });
+
+  it('accepts api=rest with auth=none', () => {
+    const { errors } = validateOptions({
+      ...base,
+      authProvider: 'none',
+      dbProvider: 'none',
+      example: 'none',
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects graphql/both on host=cloudflare and points at the runbook', () => {
+    for (const api of ['graphql', 'both'] as const) {
+      const { errors } = validateOptions({
+        ...base,
+        api,
+        host: 'cloudflare',
+        dbProvider: 'd1',
+        upload: 'r2',
+      });
+      const msg = errors.find((e) => e.includes('--api'));
+      expect(msg).toBeDefined();
+      expect(msg).toContain('docs/runbooks/cloudflare-workers-host.md');
+    }
   });
 });

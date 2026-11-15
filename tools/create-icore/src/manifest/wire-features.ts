@@ -31,8 +31,10 @@ export async function writeFeaturesWiring(
 ): Promise<void> {
   const chosen = selectedFeatures(opts);
 
-  // features.module.ts — import + @Module of chosen gateway feature modules.
+  // features.module.ts — import + @Module of chosen gateway feature modules. With api=graphql the
+  // REST NotesModule is not shipped: its GraphQL twin comes in through ApiSurfacesModule (wireApi).
   const mods = chosen
+    .filter((k) => !(k === 'notes' && opts.api === 'graphql'))
     .map((k) => FEATURES[k].gatewayModule)
     .filter((m): m is NonNullable<typeof m> => !!m);
   const imports = mods.map((m) => `import { ${m.symbol} } from '${m.importFrom}';`).join('\n');

@@ -22,6 +22,7 @@ const base: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'none',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'yarn',

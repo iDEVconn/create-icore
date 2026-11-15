@@ -6,18 +6,15 @@ export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => v
   const client = createApiClient({
     baseUrl: opts.baseUrl,
     credentials: 'include',
-    // No access token, no client-driven refresh at all under the BFF model
-    // -- the session cookie is the only credential, and AuthGuard refreshes
-    // the provider token pair server-side, invisibly. api-client still
-    // needs SOME truthy getAccessToken/getRefreshToken to not short-circuit
-    // requests as unauthenticated; the session cookie is what actually
-    // authenticates, these are just satisfying the client library's shape.
+    // Cookie-session (BFF) model: the session cookie is the only credential and AuthGuard refreshes
+    // the provider token pair server-side, so the client has nothing to refresh. api-client only
+    // treats a 401 as "unauthenticated" when getAccessToken() is truthy, hence the 'cookie'
+    // placeholder. getRefreshToken() is null on purpose: api-client then skips its refresh call
+    // (the gateway has no POST /auth/refresh -- it used to 404 before every redirect) and goes
+    // straight to onUnauthorized below.
     getAccessToken: () => 'cookie',
-    getRefreshToken: () => 'cookie',
-    // Required by ApiClientConfig's shape, but under the BFF model the
-    // internal refresh cycle never meaningfully succeeds (the client no
-    // longer has a real /auth/refresh route to hit) -- a failed refresh
-    // always falls through to onUnauthorized below, so this never fires.
+    getRefreshToken: () => null,
+    // Required by ApiClientConfig's shape; never called because there is no refresh token.
     // eslint-disable-next-line @typescript-eslint/no-empty-function -- required by ApiClientConfig, intentionally a no-op (see comment above)
     onTokenRefreshed: () => {},
     onUnauthorized: () => {
@@ -26,12 +23,8 @@ export function createIcoreApi(opts: { baseUrl: string; onUnauthorized?: () => v
     },
   });
 
-  // @idevconn/api-client's `getRefreshHeaders` config option only merges
-  // headers into the library's own internal refresh request -- a route
-  // (`/auth/refresh`) that no longer exists at all under the BFF model
-  // (Task 5 deleted it). CsrfGuard (Task 6) protects every mutating route
-  // globally now, not just refresh, so the CSRF double-submit header must
-  // go out on every real request this app makes. The library exposes no
+  // CsrfGuard protects every mutating route globally, so the CSRF
+  // double-submit header must go out on every real request this app makes. The library exposes no
   // per-request header hook, so we wrap the client it returns and attach
   // the header here instead. Safe methods (GET/HEAD/OPTIONS) don't need it
   // -- CsrfGuard already skips those -- but sending it anyway is harmless.

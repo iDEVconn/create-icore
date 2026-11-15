@@ -35,7 +35,7 @@ export function AuthBrandPanel() {
       />
       <Stack spacing={4} sx={{ position: 'relative', zIndex: 1 }}>
         <Stack spacing={0.5}>
-          <Typography variant="h4" fontWeight={700} sx={{ color: '#22c55e' }}>
+          <Typography variant="h4" sx={{ color: '#22c55e', fontWeight: 700 }}>
             iCore
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -45,7 +45,7 @@ export function AuthBrandPanel() {
 
         <Stack spacing={1}>
           {FEATURES.map((f) => (
-            <Stack key={f} direction="row" spacing={1} alignItems="center">
+            <Stack key={f} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <CheckCircleOutlinedIcon sx={{ color: '#22c55e', fontSize: 16 }} />
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)' }}>
                 {f}

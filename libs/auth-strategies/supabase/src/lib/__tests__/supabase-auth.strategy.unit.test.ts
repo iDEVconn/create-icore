@@ -250,3 +250,30 @@ describe('SupabaseAuthStrategy — password reset against GoTrue semantics', () 
     expect((err as RpcException).getError()).toBe('weak_password');
   });
 });
+
+describe('SupabaseAuthStrategy — updateProfile()', () => {
+  it('merges the name into user_metadata instead of replacing it', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const session = await strategy.signUp('meta@x.com', 'pw12345!');
+    // metadata the provider holds for other reasons (avatar, OAuth identity data)
+    await mock.client.auth.admin.updateUserById(session.user.id, {
+      user_metadata: { avatar_url: 'https://x/a.png' },
+    });
+
+    await strategy.updateProfile(session.user.id, { name: 'Ada' });
+
+    const { data } = await mock.client.auth.admin.getUserById(session.user.id);
+    expect(data.user?.user_metadata).toEqual({ avatar_url: 'https://x/a.png', name: 'Ada' });
+  });
+
+  it('getProfile ignores a non-string or empty name in user_metadata', async () => {
+    const mock = createMockSupabaseClient();
+    const strategy = new SupabaseAuthStrategy({ client: mock.client });
+    const session = await strategy.signUp('odd@x.com', 'pw12345!');
+    await mock.client.auth.admin.updateUserById(session.user.id, { user_metadata: { name: 42 } });
+    expect(await strategy.getProfile(session.user.id)).toEqual({ name: null });
+    await mock.client.auth.admin.updateUserById(session.user.id, { user_metadata: { name: '' } });
+    expect(await strategy.getProfile(session.user.id)).toEqual({ name: null });
+  });
+});

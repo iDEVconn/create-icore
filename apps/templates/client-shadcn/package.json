@@ -17,6 +17,7 @@
     "@tanstack/react-router": "^1.170.46",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "graphql": "^16.11.0",
     "i18next": "^26.7.2",
     "lucide-react": "^1.70.0",
     "react": "^19.3.1",
@@ -30,6 +31,9 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@graphql-codegen/cli": "^8.0.0",
+    "@graphql-codegen/typescript-operations": "^7.0.1",
+    "@graphql-typed-document-node/core": "^3.2.0",
     "@icore/vite-plugins": "*",
     "@nx/vite": "24.0.6",
     "@tanstack/router-plugin": "^1.168.48",
@@ -38,6 +42,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
     "vite": "^8.3.6",
+    "vite-plugin-graphql-loader": "^6.0.0",
     "vitest": "~5.1.0"
   }
 }

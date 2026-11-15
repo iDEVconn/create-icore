@@ -10,6 +10,8 @@ export type AiProvider = 'llm-router' | 'none';
 export type ExampleMode = 'notes' | 'none';
 /** `none` = API-only project: no React client is generated. */
 export type UiLibrary = 'shadcn' | 'antd' | 'mui' | 'none';
+/** Which API surface the gateway exposes: REST controllers, GraphQL resolvers, or both. */
+export type ApiStyle = 'rest' | 'graphql' | 'both';
 export type HostKind = 'node' | 'cloudflare';
 /** `local` is in-process and only exists on the Cloudflare Workers host. */
 export type MsTransport = 'tcp' | 'redis' | 'nats' | 'mqtt' | 'rmq' | 'kafka' | 'local';
@@ -52,6 +54,10 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
     if (opts.ui === 'none')
       errors.push(
         '--host=cloudflare does not support --ui=none (the Worker serves the built client) — see docs/runbooks/cloudflare-workers-host.md',
+      );
+    if (opts.api !== 'rest')
+      errors.push(
+        `--host=cloudflare does not support --api=${opts.api} (the Worker has no GraphQL surface yet) — see docs/runbooks/cloudflare-workers-host.md`,
       );
     if (opts.authProvider !== 'supabase' && opts.authProvider !== 'none')
       unsupported('--auth', opts.authProvider, 'supabase, none');
@@ -123,7 +129,8 @@ export function validateOptions(opts: CreateIcoreOptions): OptionsValidation {
     opts.jobs === 'none' &&
     opts.ai === 'none' &&
     opts.example === 'none' &&
-    opts.ui === 'none';
+    opts.ui === 'none' &&
+    opts.api === 'rest';
   if (everythingNone) {
     warnings.push(
       'every option is "none" — only the bare NestJS gateway (apps/api) will be generated: no auth, database, upload, payment, jobs, AI, notes example or client',
@@ -151,6 +158,8 @@ export interface CreateIcoreOptions {
   ai: AiProvider;
   example: ExampleMode;
   ui: UiLibrary;
+  /** API surface of the gateway (`rest` is the classic REST-only project). */
+  api: ApiStyle;
   transport: MsTransport;
   /** Where the gateway keeps login sessions: Redis (default) or in its own process. */
   session: SessionStoreKind;

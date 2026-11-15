@@ -65,6 +65,14 @@
           "buildTarget": "api:build:production"
         }
       }
+    },
+    "graphql-schema": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/schema.gql"],
+      "options": {
+        "command": "node -r @swc-node/register apps/api/scripts/emit-schema.ts",
+        "env": { "SWC_NODE_PROJECT": "apps/api/tsconfig.app.json" }
+      }
     }
   }
 }

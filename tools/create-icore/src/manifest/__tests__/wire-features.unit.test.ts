@@ -17,6 +17,7 @@ const base: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'npm',
@@ -87,6 +88,23 @@ describe('writeFeaturesWiring', () => {
     expect(fm).toContain("import { AdminModule } from './admin/admin.module';");
     expect(fm).not.toContain('PaymentModule');
     expect(fm).toMatch(/imports:\s*\[NotesModule, AdminModule\]/);
+  });
+
+  it('api=graphql: features.module.ts skips the REST NotesModule but keeps the notes transport', async () => {
+    const dir = await fixture();
+    await writeFeaturesWiring(dir, { ...base, targetDir: dir, payment: 'none', api: 'graphql' });
+    const fm = await readFile(join(dir, 'apps/api/src/app/features.module.ts'), 'utf8');
+    expect(fm).not.toContain('NotesModule');
+    expect(fm).toMatch(/imports:\s*\[AdminModule\]/);
+    const gs = await readFile(join(dir, 'apps/api/src/app/gateway-services.ts'), 'utf8');
+    expect(gs).toContain("{ name: 'notes', prefix: 'NOTES' }");
+  });
+
+  it('api=both: features.module.ts keeps the REST NotesModule', async () => {
+    const dir = await fixture();
+    await writeFeaturesWiring(dir, { ...base, targetDir: dir, payment: 'none', api: 'both' });
+    const fm = await readFile(join(dir, 'apps/api/src/app/features.module.ts'), 'utf8');
+    expect(fm).toContain("import { NotesModule } from './notes/notes.module';");
   });
 
   it('gateway-services.ts lists auth+upload + chosen transport services (jobs excluded)', async () => {

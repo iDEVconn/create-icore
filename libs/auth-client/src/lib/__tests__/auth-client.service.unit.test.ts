@@ -21,6 +21,16 @@ describe('AuthClientService — wire contract', () => {
     expect(send).toHaveBeenCalledWith('auth.setRole', { uid: 'u1', role: 'admin' });
   });
 
+  it('getProfile() / updateProfile() send uid (and name) to the profile patterns', async () => {
+    const send = vi.fn(() => of({ name: 'Ada' }));
+    const service = new AuthClientService({ send } as unknown as ClientProxy);
+
+    await expect(service.getProfile('u1')).resolves.toEqual({ name: 'Ada' });
+    expect(send).toHaveBeenCalledWith('auth.profile.get', { uid: 'u1' });
+    await expect(service.updateProfile('u1', 'Ada')).resolves.toEqual({ name: 'Ada' });
+    expect(send).toHaveBeenCalledWith('auth.profile.update', { uid: 'u1', name: 'Ada' });
+  });
+
   it('sendMagicLink() sends email+callbackUrl and resolves against the real {ok:true} wire response', async () => {
     const send = vi.fn(() => of({ ok: true as const }));
     const client = { send } as unknown as ClientProxy;
