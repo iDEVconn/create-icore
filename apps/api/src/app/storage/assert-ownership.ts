@@ -6,17 +6,18 @@ const CONTROL_OR_BACKSLASH = /[\u0000-\u001f\u007f\\]/;
 
 const MAX_DECODE_PASSES = 4;
 
-/** Repeatedly percent-decodes `segment` (a backend may decode once or twice); null = never settles. */
+/**
+ * Leniently decodes each well-formed `%XX` escape on its own (a malformed escape elsewhere in the
+ * string must not stop the rest from being decoded, as a lenient server would), repeating while the
+ * string changes. Returns every form seen; null when it never settles (deeply nested encoding).
+ */
 function decodedForms(segment: string): string[] | null {
   const forms = [segment];
   let current = segment;
   for (let i = 0; i < MAX_DECODE_PASSES; i++) {
-    let next: string;
-    try {
-      next = decodeURIComponent(current);
-    } catch {
-      return forms; // malformed escape: nothing more to decode
-    }
+    const next = current.replace(/%([0-9a-f]{2})/gi, (_m, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    );
     if (next === current) return forms;
     forms.push(next);
     current = next;

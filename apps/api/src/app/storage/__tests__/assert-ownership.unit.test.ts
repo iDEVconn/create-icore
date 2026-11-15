@@ -41,6 +41,8 @@ describe('assertOwnership path traversal', () => {
     'user-1/%252e%252e/user-2/x',
     'user-1/%2e%2e%5cuser-2',
     'user-1/%00x',
+    'user-1/..%2f%zz',
+    'user-1/%zz%2f%2e%2e/x',
   ])('rejects %j', (path) => {
     expect(() => assertOwnership({ bucket: 'b', path }, 'user-1')).toThrow(ForbiddenException);
   });
