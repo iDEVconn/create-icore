@@ -8,14 +8,11 @@ import {
   Patch,
   Post,
   Query,
-  Optional,
   Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { Note, VerifiedToken } from '@icore/shared';
-import { NotesClientService } from '@icore/notes-client';
-import { AbilityFactory } from '../abilities/ability.factory';
 import { CheckAbility } from '../abilities/check-ability.decorator';
 import { NotesGatewayService } from './notes-gateway.service';
 
@@ -25,15 +22,7 @@ type AuthedRequest = Request & { user?: VerifiedToken };
 @ApiBearerAuth()
 @Controller('notes')
 export class NotesController {
-  private readonly gateway: NotesGatewayService;
-
-  constructor(
-    notes: NotesClientService,
-    abilities: AbilityFactory,
-    @Optional() gateway?: NotesGatewayService,
-  ) {
-    this.gateway = gateway ?? new NotesGatewayService(notes, abilities);
-  }
+  constructor(private readonly gateway: NotesGatewayService) {}
 
   @Get()
   @ApiOperation({ summary: 'List notes (admin sees all, users see own)' })
