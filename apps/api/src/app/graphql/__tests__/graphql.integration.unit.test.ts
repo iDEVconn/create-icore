@@ -20,7 +20,7 @@ import {
   type ThrottlerOptions,
 } from '@nestjs/throttler';
 import cookieParser from 'cookie-parser';
-import { AuthClientService } from '@icore/auth-client';
+import { AUTH_CLIENT, AuthClientService } from '@icore/auth-client';
 import { NOTES_CLIENT, NotesClientService } from '@icore/notes-client';
 import {
   InMemorySessionStore,
@@ -35,6 +35,7 @@ import { ContextAwareThrottlerGuard } from '../../http/context-aware-throttler.g
 import { CsrfGuard } from '../../http/csrf.guard';
 import { throttlerOptions } from '../../http/throttler.config';
 import { NotesModule } from '../../notes/notes.module';
+import { ProfileModule } from '../../profile/profile.module';
 import { SESSION_STORE } from '../../session/session-store.provider';
 import { ApiSurfacesModule } from '../api-surfaces.module';
 import { ApiGraphqlModule } from '../graphql.module';
@@ -557,8 +558,21 @@ function fakeUploadClient() {
   };
 }
 
+function fakeAuthClient() {
+  const names = new Map<string, string>();
+  return {
+    names,
+    getProfile: vi.fn(async (uid: string) => ({ name: names.get(uid) ?? null })),
+    updateProfile: vi.fn(async (uid: string, name: string) => {
+      names.set(uid, name);
+      return { name };
+    }),
+  };
+}
+
 interface Surfaces {
   app: INestApplication;
+  auth: ReturnType<typeof fakeAuthClient>;
   base: string;
   sid: { ua: string; ub: string; admin: string };
   notes: ReturnType<typeof fakeNotesClient>;
@@ -566,6 +580,7 @@ interface Surfaces {
 }
 
 async function bootSurfaces(): Promise<Surfaces> {
+  const auth = fakeAuthClient();
   const store = new InMemorySessionStore();
   const sessionFor = async (uid: string, role: string) =>
     (
@@ -588,7 +603,7 @@ async function bootSurfaces(): Promise<Surfaces> {
   @Module({
     providers: [
       { provide: SESSION_STORE, useValue: store },
-      { provide: AuthClientService, useValue: {} },
+      { provide: AuthClientService, useValue: auth },
       { provide: APP_GUARD, useClass: ContextAwareThrottlerGuard },
       { provide: APP_GUARD, useClass: AuthGuard },
       { provide: APP_GUARD, useClass: CsrfGuard },
@@ -607,6 +622,7 @@ async function bootSurfaces(): Promise<Surfaces> {
         TestAuthModule,
         ApiSurfacesModule,
         NotesModule,
+        ProfileModule,
       ],
     })
       // The transport ClientProxies are never used (the services are faked) and would otherwise
@@ -615,6 +631,10 @@ async function bootSurfaces(): Promise<Surfaces> {
       .useValue({})
       .overrideProvider(UPLOAD_CLIENT)
       .useValue({})
+      .overrideProvider(AUTH_CLIENT)
+      .useValue({})
+      .overrideProvider(AuthClientService)
+      .useValue(auth)
       .overrideProvider(NotesClientService)
       .useValue(notes)
       .overrideProvider(UploadClientService)
@@ -624,10 +644,38 @@ async function bootSurfaces(): Promise<Surfaces> {
     app.setGlobalPrefix('api');
     app.use(cookieParser());
     await app.listen(0, '127.0.0.1');
-    return { app, base: await app.getUrl(), sid, notes, upload };
+    return { app, base: await app.getUrl(), sid, notes, upload, auth };
   } finally {
     process.env['NODE_ENV'] = previous;
   }
+}
+
+async function restProfile(
+  s: Surfaces,
+  sid: string | undefined,
+  method: 'GET' | 'PATCH',
+  body?: unknown,
+  opts: { csrf?: boolean } = {},
+): Promise<{ status: number; body: unknown }> {
+  const cookies = [`icore_csrf=${CSRF}`];
+  if (sid) cookies.push(`icore_sid=${sid}`);
+  const res = await fetch(`${s.base}/api/profile`, {
+    method,
+    headers: {
+      cookie: cookies.join('; '),
+      ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+      ...(opts.csrf === false ? {} : { 'x-csrf-token': CSRF }),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let parsed: unknown = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    // keep the raw text
+  }
+  return { status: res.status, body: parsed };
 }
 
 describe('API surfaces over /api/graphql', () => {
@@ -732,6 +780,83 @@ describe('API surfaces over /api/graphql', () => {
     const r = await send(b, { query: '{ me { uid email role } }' }, { sid: s.sid.ua });
     expect(r.status).toBe(200);
     expect(r.body.data.me).toEqual({ uid: 'ua', email: 'ua@example.com', role: 'user' });
+  });
+
+  it('me does not call the auth microservice unless name is selected', async () => {
+    s.auth.getProfile.mockClear();
+    await send(b, { query: '{ me { uid email role } }' }, { sid: s.sid.ua });
+    expect(s.auth.getProfile).not.toHaveBeenCalled();
+  });
+
+  it('updateProfile sets the name for the SESSION user; me and REST GET /profile read it back', async () => {
+    const m = await send(
+      b,
+      { query: 'mutation { updateProfile(name: "  Ada ") { uid name } }' },
+      { sid: s.sid.ua },
+    );
+    expect(m.status).toBe(200);
+    expect(m.body.data.updateProfile).toEqual({ uid: 'ua', name: 'Ada' });
+    expect(s.auth.names.get('ua')).toBe('Ada');
+    expect(s.auth.names.has('ub')).toBe(false);
+
+    const q = await send(b, { query: '{ me { uid name } }' }, { sid: s.sid.ua });
+    expect(q.body.data.me).toEqual({ uid: 'ua', name: 'Ada' });
+    const other = await send(b, { query: '{ me { uid name } }' }, { sid: s.sid.ub });
+    expect(other.body.data.me).toEqual({ uid: 'ub', name: null });
+
+    const rest = await restProfile(s, s.sid.ua, 'GET');
+    expect(rest.status).toBe(200);
+    expect(rest.body).toMatchObject({ uid: 'ua', email: 'ua@example.com', name: 'Ada' });
+  });
+
+  it('updateProfile with an invalid name is HTTP 400 BAD_USER_INPUT and writes nothing', async () => {
+    s.auth.updateProfile.mockClear();
+    for (const name of ['', '   ', 'a\nb', 'x'.repeat(101)]) {
+      const r = await send(
+        b,
+        {
+          query: 'mutation($n: String!) { updateProfile(name: $n) { uid } }',
+          variables: { n: name },
+        },
+        { sid: s.sid.ua },
+      );
+      expect(r.status).toBe(400);
+      expect(r.body.errors[0].message).toBe('invalid_name');
+      expect(r.body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
+    }
+    expect(s.auth.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('updateProfile needs a session and the CSRF header', async () => {
+    s.auth.updateProfile.mockClear();
+    const anon = await send(
+      b,
+      { query: 'mutation { updateProfile(name: "x") { uid } }' },
+      { session: false },
+    );
+    expect(anon.status).toBe(401);
+    const noCsrf = await send(
+      b,
+      { query: 'mutation { updateProfile(name: "x") { uid } }' },
+      { sid: s.sid.ua, csrf: false },
+    );
+    expect(noCsrf.status).toBe(403);
+    expect(s.auth.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('REST PATCH /profile: sets the name, 400 on an invalid one, 403 without CSRF, 401 without a session', async () => {
+    const ok = await restProfile(s, s.sid.ub, 'PATCH', { name: 'Grace' });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ uid: 'ub', name: 'Grace' });
+    expect(s.auth.names.get('ub')).toBe('Grace');
+
+    expect((await restProfile(s, s.sid.ub, 'PATCH', { name: '' })).status).toBe(400);
+    expect((await restProfile(s, s.sid.ub, 'PATCH', {})).status).toBe(400);
+    expect((await restProfile(s, s.sid.ub, 'PATCH', { name: 'x' }, { csrf: false })).status).toBe(
+      403,
+    );
+    expect((await restProfile(s, undefined, 'PATCH', { name: 'x' })).status).toBe(401);
+    expect(s.auth.names.get('ub')).toBe('Grace');
   });
 
   it('me without a session is HTTP 401 UNAUTHENTICATED', async () => {

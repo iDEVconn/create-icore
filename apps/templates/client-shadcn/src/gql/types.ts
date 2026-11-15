@@ -54,4 +54,11 @@ export type DeleteNoteMutation = { deleteNote: boolean };
 export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMeQuery = { me: { uid: string, email: string, role: string | null } };
+export type GetMeQuery = { me: { uid: string, email: string, role: string | null, name: string | null } };
+
+export type UpdateProfileMutationVariables = Exact<{
+  name: string;
+}>;
+
+
+export type UpdateProfileMutation = { updateProfile: { uid: string, name: string | null } };

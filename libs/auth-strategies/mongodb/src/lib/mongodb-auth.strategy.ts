@@ -10,6 +10,7 @@ import {
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  UserProfile,
 } from '@icore/shared';
 
 export interface MongoDbAuthStrategyOptions {
@@ -24,6 +25,7 @@ interface UserDoc {
   email: string;
   passwordHash?: string;
   role?: string;
+  name?: string;
 }
 
 interface SessionDoc {
@@ -55,6 +57,7 @@ export class MongoDbAuthStrategy implements AuthStrategy {
         email: { type: String, required: true, unique: true },
         passwordHash: { type: String, required: false },
         role: { type: String, required: false },
+        name: { type: String, required: false },
       },
       { timestamps: true },
     );
@@ -139,6 +142,20 @@ export class MongoDbAuthStrategy implements AuthStrategy {
   async getRole(uid: string): Promise<string | null> {
     const user = await this.userModel.findOne({ id: uid }).exec();
     return user?.role ?? null;
+  }
+
+  async getProfile(uid: string): Promise<UserProfile> {
+    const user = await this.userModel.findOne({ id: uid }).exec();
+    if (!user) throw new Error('user_missing');
+    return { name: user.name ? user.name : null };
+  }
+
+  async updateProfile(uid: string, patch: { name: string }): Promise<UserProfile> {
+    const user = await this.userModel
+      .findOneAndUpdate({ id: uid }, { name: patch.name }, { new: true })
+      .exec();
+    if (!user) throw new Error('user_missing');
+    return { name: patch.name };
   }
 
   async sendMagicLink(_req: MagicLinkRequest): Promise<void> {

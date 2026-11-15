@@ -6,6 +6,8 @@ export interface Profile {
   uid: string;
   email: string;
   role?: string | null;
+  /** Display name; null until one is set. */
+  name?: string | null;
 }
 
 const KEY = ['profile'] as const;

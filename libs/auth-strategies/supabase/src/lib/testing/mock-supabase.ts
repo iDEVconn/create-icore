@@ -5,6 +5,7 @@ interface FakeUser {
   email: string;
   password: string;
   role?: string;
+  userMetadata?: Record<string, unknown>;
 }
 
 interface FakeSession {
@@ -93,13 +94,19 @@ export function createMockSupabaseClient(
     },
     async updateUserById(
       uid: string,
-      updates: { app_metadata?: { role?: string }; password?: string },
+      updates: {
+        app_metadata?: { role?: string };
+        user_metadata?: Record<string, unknown>;
+        password?: string;
+      },
     ) {
       const user = findById(uid);
       if (!user) return { data: { user: null }, error: { message: 'user missing' } };
       if (updates.app_metadata && typeof updates.app_metadata.role === 'string') {
         user.role = updates.app_metadata.role;
       }
+      // Like GoTrue: user_metadata is replaced wholesale, not merged.
+      if (updates.user_metadata) user.userMetadata = { ...updates.user_metadata };
       if (typeof updates.password === 'string') {
         user.password = updates.password;
         // Real GoTrue (admin update → User.UpdatePassword(tx, nil) → Logout):
@@ -117,7 +124,12 @@ export function createMockSupabaseClient(
       if (!user) return { data: { user: null }, error: { message: 'user missing' } };
       return {
         data: {
-          user: { id: user.id, email: user.email, app_metadata: { role: user.role } },
+          user: {
+            id: user.id,
+            email: user.email,
+            app_metadata: { role: user.role },
+            user_metadata: user.userMetadata ?? {},
+          },
         },
         error: null,
       };

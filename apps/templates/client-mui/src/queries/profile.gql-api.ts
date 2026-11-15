@@ -2,14 +2,15 @@
 // notifications. create-icore renames it over profile.ts for `--api=graphql`.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNotify } from '@icore/template-shared';
-import { api } from '../main';
 import { request } from '../api/graphql';
-import { GetMe } from '../graphql/profile.queries';
+import { GetMe, UpdateProfile } from '../graphql/profile.queries';
 
 export interface Profile {
   uid: string;
   email: string;
   role?: string | null;
+  /** Display name; null until one is set. */
+  name?: string | null;
 }
 
 const KEY = ['profile'] as const;
@@ -21,18 +22,11 @@ export function useProfile() {
   });
 }
 
-// The GraphQL schema has no profile mutation (only `me`), so saving keeps the
-// exact REST request of ./profile.ts until the gateway exposes one.
 export function useUpdateProfile() {
   const qc = useQueryClient();
   const notify = useNotify();
   return useMutation({
-    mutationFn: (name: string) =>
-      api('/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      }),
+    mutationFn: async (name: string) => (await request(UpdateProfile, { name })).updateProfile,
     onSuccess: () => {
       notify.success('Saved');
       void qc.invalidateQueries({ queryKey: KEY });

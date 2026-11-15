@@ -7,15 +7,20 @@ interface FakeAdminAuthOptions {
 export interface FakeAdminAuth {
   verifyIdToken(idToken: string): Promise<{ uid: string; email?: string; role?: string }>;
   setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
-  getUser(
-    uid: string,
-  ): Promise<{ uid: string; email?: string; customClaims?: Record<string, unknown> }>;
+  getUser(uid: string): Promise<{
+    uid: string;
+    email?: string;
+    displayName?: string;
+    customClaims?: Record<string, unknown>;
+  }>;
+  updateUser(uid: string, props: { displayName: string }): Promise<unknown>;
   revokeRefreshTokens(uid: string): Promise<void>;
   getUserByEmail(email: string): Promise<{ uid: string }>;
 }
 
 export function createMockAdminAuth(opts: FakeAdminAuthOptions): FakeAdminAuth {
   const roles = new Map<string, string>();
+  const displayNames = new Map<string, string>();
 
   return {
     async verifyIdToken(idToken) {
@@ -36,8 +41,16 @@ export function createMockAdminAuth(opts: FakeAdminAuthOptions): FakeAdminAuth {
       return {
         uid: user.localId,
         email: user.email,
+        displayName: displayNames.get(uid),
         customClaims: role ? { role } : undefined,
       };
+    },
+    async updateUser(uid, props) {
+      if (![...opts.identityToolkit.users.values()].some((u) => u.localId === uid)) {
+        throw new Error('USER_NOT_FOUND');
+      }
+      displayNames.set(uid, props.displayName);
+      return undefined;
     },
     async revokeRefreshTokens(uid) {
       opts.identityToolkit.revokeUser(uid);

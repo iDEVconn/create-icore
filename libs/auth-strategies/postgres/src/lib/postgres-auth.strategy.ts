@@ -8,6 +8,7 @@ import type {
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  UserProfile,
   VerifiedToken,
 } from '@icore/shared';
 import { decideRefresh, hashRefreshToken } from './refresh-token';
@@ -66,10 +67,13 @@ export class PostgresAuthStrategy implements AuthStrategy {
         email          TEXT UNIQUE NOT NULL,
         password_hash  TEXT,
         role           TEXT,
+        name           TEXT,
         last_logged_in TIMESTAMPTZ,
         created_at     TIMESTAMPTZ DEFAULT now()
       )
     `;
+    // Deployments created before profiles existed have the table without `name`.
+    await this.sql`ALTER TABLE _icore_users ADD COLUMN IF NOT EXISTS name TEXT`;
     await this.sql`
       CREATE TABLE IF NOT EXISTS _icore_sessions (
         id             TEXT PRIMARY KEY,
@@ -209,6 +213,24 @@ export class PostgresAuthStrategy implements AuthStrategy {
       SELECT role FROM _icore_users WHERE id = ${uid}
     `;
     return rows[0]?.role ?? null;
+  }
+
+  async getProfile(uid: string): Promise<UserProfile> {
+    await this.ensureTables();
+    const rows = await this.sql<{ name: string | null }[]>`
+      SELECT name FROM _icore_users WHERE id = ${uid}
+    `;
+    if (!rows[0]) throw new Error('user_missing');
+    return { name: rows[0].name || null };
+  }
+
+  async updateProfile(uid: string, patch: { name: string }): Promise<UserProfile> {
+    await this.ensureTables();
+    const rows = await this.sql<{ id: string }[]>`
+      UPDATE _icore_users SET name = ${patch.name} WHERE id = ${uid} RETURNING id
+    `;
+    if (!rows[0]) throw new Error('user_missing');
+    return { name: patch.name };
   }
 
   async sendMagicLink(_req: MagicLinkRequest): Promise<void> {

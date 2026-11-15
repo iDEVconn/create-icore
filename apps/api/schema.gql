@@ -23,6 +23,9 @@ type Mutation {
 
   """Update a note (owner or admin only)"""
   updateNote(id: ID!, input: UpdateNoteInput!): Note!
+
+  """Set the display name of the authenticated user"""
+  updateProfile(name: String!): Profile!
 }
 
 type Note {
@@ -41,6 +44,9 @@ type NotePage {
 
 type Profile {
   email: String!
+
+  """Display name; null until one is set"""
+  name: String
   role: String
   uid: String!
 }
@@ -50,7 +56,7 @@ type Query {
   files(prefix: String): [StorageRef!]!
   health: Health!
 
-  """The authenticated user (uid / email / role)"""
+  """The authenticated user (uid / email / role / name)"""
   me: Profile!
 
   """Get a note by id"""
