@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, HttpException, HttpStatus } from '@nestjs/common';
+import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { GraphQLError } from 'graphql';
 
@@ -25,26 +25,41 @@ export function graphqlCodeFor(status: number): string {
 }
 
 /**
- * Turns an `HttpException` raised inside a GraphQL operation (by `AuthGuard`, `CsrfGuard`,
+ * Turns an exception raised inside a GraphQL operation (by `AuthGuard`, `CsrfGuard`,
  * `AbilityGuard`, the throttler or a resolver) into a `GraphQLError` carrying
  * `extensions.http.status`. Apollo Server uses that as the HTTP status of the response, so a
  * missing session answers HTTP 401 (the client's refresh-on-401 keeps working) instead of 200
  * with `errors[]`. `ApiGraphqlModule` turns off `@nestjs/apollo`'s plugin that would reset it to
  * 200, and masks the message of 5xx errors in production (`formatGraphqlError`).
  *
+ * An error that is not an `HttpException` (a bug, a failed dependency) is logged and answered as
+ * HTTP 500 INTERNAL_SERVER_ERROR: left alone, Apollo reports it inside a 200 response. A
+ * `GraphQLError` thrown on purpose passes through unchanged.
+ *
  * Registered globally, so REST exceptions also land here: they are passed to Nest's default
  * handling unchanged.
  */
-@Catch(HttpException)
+@Catch()
 export class GraphqlErrorFilter extends BaseExceptionFilter {
-  override catch(exception: HttpException, host: ArgumentsHost): void {
+  private readonly logger = new Logger(GraphqlErrorFilter.name);
+
+  override catch(exception: unknown, host: ArgumentsHost): void {
     if (host.getType<string>() !== 'graphql') {
       super.catch(exception, host);
       return;
     }
-    const status = exception.getStatus();
-    throw new GraphQLError(exception.message, {
-      extensions: { code: graphqlCodeFor(status), http: { status } },
+    if (exception instanceof GraphQLError) throw exception;
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      throw new GraphQLError(exception.message, {
+        extensions: { code: graphqlCodeFor(status), http: { status } },
+      });
+    }
+    const message = exception instanceof Error ? exception.message : 'Unknown error';
+    this.logger.error(exception instanceof Error ? (exception.stack ?? message) : message);
+    throw new GraphQLError(message, {
+      originalError: exception instanceof Error ? exception : undefined,
+      extensions: { code: 'INTERNAL_SERVER_ERROR', http: { status: 500 } },
     });
   }
 }

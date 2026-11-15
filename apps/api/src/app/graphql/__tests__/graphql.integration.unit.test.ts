@@ -127,6 +127,11 @@ class RestController {
   forbidden(): never {
     throw new ForbiddenException('rest_nope');
   }
+
+  @Get('crash')
+  crash(): never {
+    throw new Error('rest_crash');
+  }
 }
 
 const CSRF = 'a'.repeat(64);
@@ -291,6 +296,12 @@ describe('ApiGraphqlModule over HTTP (non-production)', () => {
     expect(r.body.errors[0].message).toBe('nope');
   });
 
+  it('answers an unexpected resolver error (plain Error) with HTTP 500 INTERNAL_SERVER_ERROR', async () => {
+    const r = await send(b, { query: '{ boom }' });
+    expect(r.status).toBe(500);
+    expect(r.body.errors[0].extensions.code).toBe('INTERNAL_SERVER_ERROR');
+  });
+
   it('maps a NotFoundException thrown by a resolver to HTTP 404 NOT_FOUND', async () => {
     const r = await send(b, { query: '{ missing }' });
     expect(r.status).toBe(404);
@@ -377,6 +388,14 @@ describe('ApiGraphqlModule over HTTP (non-production)', () => {
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ statusCode: 403, message: 'rest_nope' });
   });
+
+  it('keeps answering an unexpected REST error with the default 500 body', async () => {
+    const res = await fetch(`${b.base}/api/rest/crash`, {
+      headers: { cookie: `icore_sid=${b.sessionId}` },
+    });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ statusCode: 500, message: 'Internal server error' });
+  });
 });
 
 describe('ApiGraphqlModule over HTTP (NODE_ENV=production)', () => {
@@ -399,6 +418,7 @@ describe('ApiGraphqlModule over HTTP (NODE_ENV=production)', () => {
 
   it('masks unexpected errors: no stack trace, no internal message', async () => {
     const r = await send(b, { query: '{ boom }' });
+    expect(r.status).toBe(500);
     expect(r.body.errors[0].extensions.stacktrace).toBeUndefined();
     expect(r.body.errors[0].extensions.code).toBe('INTERNAL_SERVER_ERROR');
     expect(r.body.errors[0].message).not.toContain('boom');
