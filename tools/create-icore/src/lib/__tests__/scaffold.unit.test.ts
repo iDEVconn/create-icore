@@ -652,53 +652,24 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(content).toContain('StorageModule');
   });
 
-  // Decision 12: rest + auth=none keeps today's gateway module byte for byte.
-  it.each([[undefined], ['rest' as const]])(
-    'applyAuthNoneVariants (api=%s): app.module.ts is unchanged',
-    async (api) => {
-      await applyAuthNoneVariants(authDir, 'shadcn', api);
-      const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
-      expect(content).toBe(
-        [
-          "import { join } from 'node:path';",
-          "import { Module } from '@nestjs/common';",
-          "import { ConfigModule } from '@nestjs/config';",
-          "import { ThrottlerModule, seconds } from '@nestjs/throttler';",
-          "import { StorageModule } from './storage/storage.module';",
-          "import { FeaturesModule } from './features.module';",
-          '',
-          '@Module({',
-          '  imports: [',
-          '    ConfigModule.forRoot({',
-          '      isGlobal: true,',
-          "      envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],",
-          '    }),',
-          "    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),",
-          '    StorageModule,',
-          '    FeaturesModule,',
-          '  ],',
-          '})',
-          'export class AppModule {}',
-          '',
-        ].join('\n'),
-      );
-    },
-  );
-
-  // Decision 12: the GraphQL request-level throttle needs the `default` throttler; no APP_GUARD.
-  it.each(['graphql', 'both'] as const)(
-    'applyAuthNoneVariants (api=%s): app.module.ts registers throttlerOptions',
-    async (api) => {
-      await applyAuthNoneVariants(authDir, 'shadcn', api);
-      const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
-      expect(content).toContain("import { throttlerOptions } from './http/throttler.config';");
-      expect(content).toContain('ThrottlerModule.forRoot(throttlerOptions),');
-      expect(content).not.toContain('auth-burst');
-      expect(content).not.toContain('seconds');
-      expect(content).not.toContain('APP_GUARD');
-      expect(content).toMatch(/\n {4}StorageModule,\n {4}FeaturesModule,\n/);
-    },
-  );
+  // The auth module (which registers the global throttler guard) does not exist without auth, so
+  // the variant registers the guard itself with the gateway's throttlerOptions: before, a
+  // rest + auth=none gateway had ThrottlerModule with only `auth-burst` and no APP_GUARD, i.e. no
+  // effective rate limit. Identical for every --api mode.
+  it('applyAuthNoneVariants: app.module.ts registers throttlerOptions AND the global throttler guard', async () => {
+    await applyAuthNoneVariants(authDir, 'shadcn');
+    const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+    expect(content).toContain("import { throttlerOptions } from './http/throttler.config';");
+    expect(content).toContain(
+      "import { ContextAwareThrottlerGuard } from './http/context-aware-throttler.guard';",
+    );
+    expect(content).toContain('ThrottlerModule.forRoot(throttlerOptions),');
+    expect(content).toContain(
+      'providers: [{ provide: APP_GUARD, useClass: ContextAwareThrottlerGuard }],',
+    );
+    expect(content).not.toContain('auth-burst');
+    expect(content).toMatch(/\n {4}StorageModule,\n {4}FeaturesModule,\n/);
+  });
 
   it('removeAuthOnlyPaths (api=rest): removes the GraphQL module and the schema script', async () => {
     await mkdir(join(authDir, 'apps/api/src/app/graphql'), { recursive: true });

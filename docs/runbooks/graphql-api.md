@@ -59,11 +59,12 @@ only: it is the foundation you add your own resolvers to.
   anything) and per resolver (guard). The per-resolver guard counts each root field of an operation separately, so one request
   with several root fields uses several units of the floor. A costly new operation declares its own named `@Throttle` (see
   AGENTS.md, named throttlers).
-- `auth=none`: no `AuthGuard` and no `CsrfGuard` exist (they live in the auth module); `health` is public anyway. The gateway registers
-  the throttler options so the request-level GraphQL throttle has its `default` throttler (no `APP_GUARD`).
-
-Known, not changed by this work (reported to the owner): a `rest` + `auth=none` gateway imports `ThrottlerModule` with only the
-`auth-burst` throttler and no `APP_GUARD`, so it has **no effective rate limit**.
+- `auth=none`: no `AuthGuard` and no `CsrfGuard` exist (they live in the auth module); `health` is public anyway. The auth module is also
+  where the global throttler guard is registered, so the `auth=none` gateway `app.module.ts` (every `--api` mode) registers
+  `ThrottlerModule.forRoot(throttlerOptions)` **and** `{ provide: APP_GUARD, useClass: ContextAwareThrottlerGuard }` itself: the
+  `default` floor (120/min) applies to REST routes and resolvers, and the request-level GraphQL throttle has its `default` throttler.
+  (Until this was fixed, a `rest` + `auth=none` gateway had `ThrottlerModule` with only `auth-burst` and no `APP_GUARD`, i.e. no
+  effective rate limit.)
 
 ## Profile (display name)
 

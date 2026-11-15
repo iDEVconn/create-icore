@@ -183,38 +183,20 @@ bootstrap()
   });
 `;
 
+// auth=none has no AuthModule, and the global throttler guard is registered there. Without this
+// APP_GUARD the gateway registered ThrottlerModule but enforced nothing (no rate limit at all), and
+// only `auth-burst` was configured. Same options as the full gateway: the fail-closed `default`
+// floor, the scoped `auth-burst` / `ai-burst`, and the request-level GraphQL throttle reads
+// `default` too. Identical for every --api mode.
 const GATEWAY_APP_MODULE_TS = `\
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, seconds } from '@nestjs/throttler';
-import { StorageModule } from './storage/storage.module';
-import { FeaturesModule } from './features.module';
-
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],
-    }),
-    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),
-    StorageModule,
-    FeaturesModule,
-  ],
-})
-export class AppModule {}
-`;
-
-// api=graphql|both (decision 12): the GraphQL request-level throttle middleware reads the
-// `default` throttler, so this variant registers the gateway's throttlerOptions. No APP_GUARD
-// (the guards live in the auth module); the rest variant above stays as it is.
-const GATEWAY_APP_MODULE_GRAPHQL_TS = `\
-import { join } from 'node:path';
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { StorageModule } from './storage/storage.module';
 import { FeaturesModule } from './features.module';
+import { ContextAwareThrottlerGuard } from './http/context-aware-throttler.guard';
 import { throttlerOptions } from './http/throttler.config';
 
 @Module({
@@ -227,6 +209,7 @@ import { throttlerOptions } from './http/throttler.config';
     StorageModule,
     FeaturesModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ContextAwareThrottlerGuard }],
 })
 export class AppModule {}
 `;
@@ -946,16 +929,10 @@ const UI_VARIANTS: Record<string, Record<string, string>> = {
   },
 };
 
-export async function applyAuthNoneVariants(
-  targetDir: string,
-  ui: string,
-  api: ApiStyle = 'rest',
-): Promise<void> {
+export async function applyAuthNoneVariants(targetDir: string, ui: string): Promise<void> {
   // ui=none: only the shared (non-client) variants apply; never create apps/client files.
   const uiFiles = ui === 'none' ? {} : (UI_VARIANTS[ui] ?? UI_VARIANTS['shadcn']);
-  const apiFiles: Record<string, string> =
-    api === 'rest' ? {} : { 'apps/api/src/app/app.module.ts': GATEWAY_APP_MODULE_GRAPHQL_TS };
-  const all = { ...COMMON_VARIANTS, ...apiFiles, ...uiFiles };
+  const all = { ...COMMON_VARIANTS, ...uiFiles };
   for (const [rel, content] of Object.entries(all)) {
     const dest = join(targetDir, rel);
     try {
