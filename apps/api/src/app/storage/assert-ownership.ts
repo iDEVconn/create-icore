@@ -53,6 +53,12 @@ function hasOnlyPlainSegments(path: string): boolean {
  * storage backend that normalises paths, so traversal segments are rejected too.
  */
 export function assertOwnership(ref: StorageRef, userId: string): void {
+  // Query/body values are only typed as strings: `?path=a&path=b` arrives as an array and an
+  // object body as an object (CodeQL js/type-confusion-through-parameter-tampering). 400, not a
+  // TypeError 500, and never a method call on a non-string.
+  if (typeof ref?.path !== 'string' || typeof ref.bucket !== 'string') {
+    throw new BadRequestException('invalid_storage_ref');
+  }
   if (!ref.path.startsWith(`${userId}/`) || !hasOnlyPlainSegments(ref.path)) {
     throw new ForbiddenException('foreign_storage_ref');
   }
@@ -62,8 +68,10 @@ export function assertOwnership(ref: StorageRef, userId: string): void {
  * `prefix` is relative to the caller's folder (strategies build `${userId}/${prefix}`), so it
  * must not climb out of it. One trailing `/` is allowed (`docs/`).
  */
-export function assertSafeListPrefix(prefix: string | undefined | null): void {
-  if (!prefix) return;
+export function assertSafeListPrefix(prefix: unknown): void {
+  if (prefix === undefined || prefix === null || prefix === '') return;
+  // `?prefix=a&prefix=b` is an array at runtime although the handler types it as a string.
+  if (typeof prefix !== 'string') throw new BadRequestException('invalid_storage_prefix');
   const trimmed = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
   if (trimmed === '' || !hasOnlyPlainSegments(trimmed)) {
     throw new BadRequestException('invalid_storage_prefix');
