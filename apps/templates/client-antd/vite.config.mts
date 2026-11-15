@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import graphqlLoader from 'vite-plugin-graphql-loader';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import {
   apiInfoPlugin,
@@ -47,6 +48,7 @@ export default defineConfig(() => ({
       routeFileIgnorePattern: '(__tests__|\\.test\\.(t|j)sx?$)',
     }),
     react(),
+    graphqlLoader(),
     noServerModulesPlugin(),
     apiInfoPlugin(),
     injectAppVersionPlugin(rootPackageJson),

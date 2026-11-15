@@ -32,6 +32,13 @@ describe('writePnpmWorkspace', () => {
     expect(yaml).toContain("'workerd': true");
   });
 
+  // --api=graphql|both: @apollo/server -> @apollo/protobufjs has a postinstall script that pnpm
+  // blocks by default (ERR_PNPM_IGNORED_BUILDS).
+  it('pre-approves the Apollo protobufjs build script', async () => {
+    const yaml = await workspaceYaml(['apps/*']);
+    expect(yaml).toContain("'@apollo/protobufjs': true");
+  });
+
   // The built microservice bundles keep every non-@icore package EXTERNAL and
   // resolve it upward from dist/ to the ROOT node_modules (apps/*/webpack.config.js).
   // Under pnpm's strict isolation a dependency declared only in a workspace lib

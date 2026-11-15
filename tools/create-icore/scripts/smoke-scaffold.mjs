@@ -96,6 +96,7 @@ const opts = {
   ai: args.ai ?? 'none',
   example: args.example ?? 'notes',
   ui: args.ui ?? 'shadcn',
+  api: args.api ?? 'rest',
   transport: args.transport ?? (host === 'cloudflare' ? 'local' : 'tcp'),
   session: args.session ?? (host === 'cloudflare' ? 'durable-object' : 'redis'),
   packageManager: pm,
@@ -204,7 +205,7 @@ async function main() {
   opts.targetDir = join(dir, opts.projectName);
   await mkdir(opts.targetDir, { recursive: true });
 
-  const combo = `host=${host} auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} transport=${opts.transport} session=${opts.session} pm=${pm} mode=${mode} run=${doRun}`;
+  const combo = `host=${host} auth=${opts.authProvider} db=${opts.dbProvider} upload=${opts.upload} payment=${opts.payment} jobs=${opts.jobs} ai=${opts.ai} api=${opts.api} transport=${opts.transport} session=${opts.session} pm=${pm} mode=${mode} run=${doRun}`;
   console.log(`\n=== smoke: ${combo} ===`);
 
   await scaffold(opts, templatesDir);

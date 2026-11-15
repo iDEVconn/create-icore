@@ -11,6 +11,7 @@ async function readmeFor(authProvider: CreateIcoreOptions['authProvider']): Prom
     projectName: 'demo',
     packageManager: 'yarn',
     ui: 'shadcn',
+    api: 'rest',
     authProvider,
     dbProvider: 'none',
     upload: 'none',

@@ -195,3 +195,16 @@ describe('loadConfig', () => {
     await expect(loadConfig(file)).rejects.toThrowError('"authProvider"');
   });
 });
+
+describe('validateConfig — api', () => {
+  it('accepts rest, graphql and both', () => {
+    for (const api of ['rest', 'graphql', 'both'] as const) {
+      expect(validateConfig({ api }).api).toBe(api);
+    }
+  });
+
+  it('rejects an unknown api style and lists the allowed values', () => {
+    expect(() => validateConfig({ api: 'soap' })).toThrowError(ConfigFileError);
+    expect(() => validateConfig({ api: 'soap' })).toThrowError(/rest, graphql, both/);
+  });
+});

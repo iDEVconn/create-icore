@@ -24,7 +24,14 @@ export default [
             '{projectRoot}/webpack.config.{js,ts}',
           ],
           // Declared so Yarn PnP can satisfy @nestjs/* and @bull-board/api peers (see docs/audits/dependency-resolution-fix.spec.md); never imported here.
-          ignoredDependencies: ['@bull-board/ui', 'bullmq', 'reflect-metadata', 'rxjs'],
+          // @as-integrations/express5: loaded at runtime by @nestjs/apollo on the Express platform.
+          ignoredDependencies: [
+            '@as-integrations/express5',
+            '@bull-board/ui',
+            'bullmq',
+            'reflect-metadata',
+            'rxjs',
+          ],
         },
       ],
     },

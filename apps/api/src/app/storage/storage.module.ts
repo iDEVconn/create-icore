@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { UploadClientModule } from '@icore/upload-client';
-import { StorageController } from './storage.controller';
+import { STORAGE_REST_CONTROLLERS } from './storage.controllers';
 
 @Module({
   imports: [UploadClientModule.forRoot()],
-  controllers: [StorageController],
+  controllers: STORAGE_REST_CONTROLLERS,
   exports: [UploadClientModule],
 })
 export class StorageModule {}

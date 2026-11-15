@@ -1,0 +1,74 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateNoteInput {
+  body: String!
+  title: String!
+}
+
+type Health {
+  status: String!
+}
+
+type Mutation {
+  """Create a note (ownerId is set from the session)"""
+  createNote(input: CreateNoteInput!): Note!
+
+  """Delete a note (owner or admin only)"""
+  deleteNote(id: ID!): Boolean!
+
+  """Delete a file the caller owns"""
+  removeFile(bucket: String!, path: String!): Boolean!
+
+  """Update a note (owner or admin only)"""
+  updateNote(id: ID!, input: UpdateNoteInput!): Note!
+}
+
+type Note {
+  body: String!
+  createdAt: String!
+  id: String!
+  ownerId: String!
+  title: String!
+  updatedAt: String!
+}
+
+type NotePage {
+  items: [Note!]!
+  total: Int!
+}
+
+type Profile {
+  email: String!
+  role: String
+  uid: String!
+}
+
+type Query {
+  """List the caller's stored files"""
+  files(prefix: String): [StorageRef!]!
+  health: Health!
+
+  """The authenticated user (uid / email / role)"""
+  me: Profile!
+
+  """Get a note by id"""
+  note(id: ID!): Note!
+
+  """List notes (admin sees all, users see own)"""
+  notes(limit: Int, offset: Int): NotePage!
+
+  """Sign a StorageRef for short-lived download"""
+  signedUrl(bucket: String!, path: String!, ttlSec: Int): String!
+}
+
+type StorageRef {
+  bucket: String!
+  path: String!
+}
+
+input UpdateNoteInput {
+  body: String
+  title: String
+}

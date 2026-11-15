@@ -35,6 +35,7 @@ import {
 } from './scaffold-auth-none.js';
 import { cleanupUnusedFeatures, writeFeaturesWiring } from '../manifest/wire-features.js';
 import { writeNavConfig } from '../manifest/wire-client.js';
+import { applyApiVariants, wireApi } from '../manifest/wire-api.js';
 import { writeBlueprintJson, writeServiceBlueprints } from '../manifest/blueprint.js';
 import { cleanupUnusedAuth, writeAuthProvider } from '../manifest/wire-auth.js';
 import { cleanupUnusedStorage, writeStorageProvider } from '../manifest/wire-storage.js';
@@ -134,6 +135,11 @@ export async function copyTree(
     }
     // symlinks skipped intentionally
   }
+  // A template directory whose every entry was excluded (e.g. apps/client/src/api with
+  // api != graphql) leaves no empty directory behind. An empty source directory is copied as is.
+  if (relPrefix !== '' && entries.length > 0 && (await readdir(dest)).length === 0) {
+    await rmdir(dest);
+  }
 }
 
 export async function selectClientTemplate(
@@ -172,6 +178,8 @@ async function rewriteClientPaths(clientDir: string, ui: string): Promise<void> 
     'tsconfig.spec.json',
     'project.json',
     'eslint.config.mjs',
+    // Resolves apps/api/schema.gql from its own directory.
+    'codegen.ts',
   ];
   for (const rel of candidates) {
     const path = join(clientDir, rel);
@@ -251,18 +259,21 @@ export async function scaffold(
   await writeGatewayEnv(opts.targetDir, opts);
   await writeRootEnv(opts.targetDir, opts);
   await selectClientTemplate(opts.targetDir, opts);
+  await applyApiVariants(opts.targetDir, opts);
   if (opts.ui !== 'none') await writeClientEnv(opts.targetDir, opts);
   if (opts.authProvider === 'none') {
     // Blueprint-driven auth=none: delete auth-only paths then overlay auth-none
     // file variants. Must run BEFORE removeUploadStack and cleanupUnusedFeatures
     // so those functions can do their own surgery on the freshly-written variants
     // (e.g. strip StorageModule when upload=none, strip ./jobs when jobs=none).
-    await removeAuthOnlyPaths(opts.targetDir);
-    await applyAuthNoneVariants(opts.targetDir, opts.ui);
+    await removeAuthOnlyPaths(opts.targetDir, opts.api);
+    await applyAuthNoneVariants(opts.targetDir, opts.ui, opts.api);
   }
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   await cleanupUnusedFeatures(opts.targetDir, opts);
   await writeFeaturesWiring(opts.targetDir, opts);
+  // After the auth-none overlay and removeUploadStack have shaped app.module.ts.
+  await wireApi(opts.targetDir, opts);
   if (opts.ui !== 'none') await writeNavConfig(opts.targetDir, opts);
   else await removeClientTsconfigPaths(opts.targetDir);
   if (opts.authProvider !== 'none') {

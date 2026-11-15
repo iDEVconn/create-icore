@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { verifyCsrf } from '@icore/shared';
-import type { Request } from 'express';
+import { requestOf } from './execution-context';
 import { SKIP_CSRF_KEY } from './skip-csrf.decorator';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -23,7 +23,7 @@ export class CsrfGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(ctx: ExecutionContext): boolean {
-    const req = ctx.switchToHttp().getRequest<Request>();
+    const req = requestOf(ctx);
     if (SAFE_METHODS.has(req.method)) return true;
 
     const skip = this.reflector.getAllAndOverride<boolean>(SKIP_CSRF_KEY, [

@@ -14,6 +14,7 @@ async function readmeFor(
     projectName: 'demo',
     packageManager: 'yarn',
     ui: 'shadcn',
+    api: 'rest',
     authProvider,
     dbProvider: 'none',
     upload: 'none',

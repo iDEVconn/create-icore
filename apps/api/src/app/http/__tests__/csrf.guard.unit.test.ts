@@ -133,4 +133,28 @@ describe('CsrfGuard', () => {
       guard.canActivate(ctxFor('POST', WebhookController.prototype.handle, WebhookController)),
     ).toBe(true);
   });
+
+  describe('graphql execution context', () => {
+    const gqlCtx = (req: object) =>
+      ({
+        getType: () => 'graphql',
+        getArgByIndex: (i: number) => (i === 2 ? { req, res: {} } : undefined),
+        getHandler: () => UnrelatedController.prototype.mutate,
+        getClass: () => UnrelatedController,
+      }) as unknown as ExecutionContext;
+
+    it('rejects a mutation with no CSRF token', () => {
+      const req = { method: 'POST', cookies: {}, headers: {} };
+      expect(() => guard.canActivate(gqlCtx(req))).toThrow(new ForbiddenException('csrf_mismatch'));
+    });
+
+    it('allows a mutation with a matching CSRF pair', () => {
+      const req = {
+        method: 'POST',
+        cookies: { icore_csrf: 'same' },
+        headers: { 'x-csrf-token': 'same' },
+      };
+      expect(guard.canActivate(gqlCtx(req))).toBe(true);
+    });
+  });
 });

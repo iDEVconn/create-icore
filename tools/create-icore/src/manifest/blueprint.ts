@@ -16,6 +16,8 @@ export interface BlueprintJson {
   ai: string;
   example: string;
   ui: string;
+  /** `rest` | `graphql` | `both`; absent in blueprints written before the option existed (= rest). */
+  api?: string;
   transport: string;
   packageManager: string;
   generatorVersion: string;
@@ -45,6 +47,7 @@ export async function writeBlueprintJson(
     ai: opts.ai,
     example: opts.example,
     ui: opts.ui,
+    api: opts.api,
     transport: opts.transport,
     packageManager: opts.packageManager,
     generatorVersion,

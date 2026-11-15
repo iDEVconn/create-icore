@@ -125,6 +125,19 @@ jobs:
       - name: Route integrity
         if: ${{ !cancelled() }}
         run: node tools/create-icore/scripts/check-route-integrity.mjs
+      # The committed GraphQL schema and the client's generated operation types must match the
+      # code-first resolvers and the .graphql operations (graphql-codegen also validates every
+      # operation against the schema). graphql-codegen depends on api:graphql-schema.
+      - name: GraphQL schema drift
+        if: ${{ !cancelled() }}
+        run: |
+          yarn nx run api:graphql-schema
+          git diff --exit-code apps/api/schema.gql
+      - name: GraphQL codegen drift
+        if: ${{ !cancelled() }}
+        run: |
+          yarn nx run client-shadcn:graphql-codegen
+          git diff --exit-code apps/templates/client-shadcn/src/gql
       - name: Template tarball dotfiles check
         if: ${{ !cancelled() }}
         # The underscore dotfiles (_yarnrc.yml, _gitignore, _github/) are not tracked: the
@@ -174,8 +187,11 @@ jobs:
   # least once. The client/ui variants need a real Vite build, so they're
   # covered by the heavier install+build+RUN matrix in scaffold-smoke-matrix.yml.
   #
-  # Two shards (four and five combos): the ~35s install + CLI build is paid
-  # twice instead of nine times. Each combo scaffolds into its own tmp dir.
+  # The api-* combos cover the `--api` axis (graphql per UI, both, graphql without
+  # notes/upload); the client half of the axis is typechecked by the nightly matrix.
+  #
+  # Two shards (four and fourteen combos): the ~35s install + CLI build is paid
+  # twice instead of eighteen times. Each combo scaffolds into its own tmp dir.
   scaffold-smoke:
     name: Scaffold smoke (shard ${{ matrix.shard.name }})
     needs: [detect-affected]
@@ -202,6 +218,11 @@ jobs:
               cloudflare-worker-minimal|--host=cloudflare --auth=none --db=none --upload=none --example=none
               ui-none|--auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --ui=none
               ui-none-minimal|--auth=none --db=none --upload=none --example=none --ui=none
+              api-graphql-shadcn|--auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --api=graphql --ui=shadcn
+              api-graphql-antd|--auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --api=graphql --ui=antd
+              api-graphql-mui|--auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --api=graphql --ui=mui
+              api-both|--auth=supabase --db=supabase --upload=supabase --payment=none --jobs=none --example=notes --transport=tcp --api=both
+              api-graphql-minimal|--auth=supabase --db=supabase --upload=none --payment=none --jobs=none --example=none --transport=tcp --api=graphql
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

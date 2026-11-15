@@ -25,6 +25,10 @@ export class NotesClientService {
   }
 
   delete(id: string): Promise<void> {
-    return firstValueFrom(this.client.send<void>('notes.delete', { id }));
+    // The handler returns nothing: the reply completes without a value (defaultValue avoids
+    // EmptyError after a successful delete).
+    return firstValueFrom(this.client.send<void>('notes.delete', { id }), {
+      defaultValue: undefined,
+    });
   }
 }

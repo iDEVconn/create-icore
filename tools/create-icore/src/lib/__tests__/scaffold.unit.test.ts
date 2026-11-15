@@ -31,6 +31,7 @@ const baseOpts: CreateIcoreOptions = {
   ai: 'none',
   example: 'notes',
   ui: 'shadcn',
+  api: 'rest',
   transport: 'tcp',
   session: 'redis',
   packageManager: 'yarn',
@@ -647,6 +648,89 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(content).toContain('FeaturesModule');
     expect(content).toContain('StorageModule');
   });
+
+  // Decision 12: rest + auth=none keeps today's gateway module byte for byte.
+  it.each([[undefined], ['rest' as const]])(
+    'applyAuthNoneVariants (api=%s): app.module.ts is unchanged',
+    async (api) => {
+      await applyAuthNoneVariants(authDir, 'shadcn', api);
+      const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+      expect(content).toBe(
+        [
+          "import { join } from 'node:path';",
+          "import { Module } from '@nestjs/common';",
+          "import { ConfigModule } from '@nestjs/config';",
+          "import { ThrottlerModule, seconds } from '@nestjs/throttler';",
+          "import { StorageModule } from './storage/storage.module';",
+          "import { FeaturesModule } from './features.module';",
+          '',
+          '@Module({',
+          '  imports: [',
+          '    ConfigModule.forRoot({',
+          '      isGlobal: true,',
+          "      envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],",
+          '    }),',
+          "    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),",
+          '    StorageModule,',
+          '    FeaturesModule,',
+          '  ],',
+          '})',
+          'export class AppModule {}',
+          '',
+        ].join('\n'),
+      );
+    },
+  );
+
+  // Decision 12: the GraphQL request-level throttle needs the `default` throttler; no APP_GUARD.
+  it.each(['graphql', 'both'] as const)(
+    'applyAuthNoneVariants (api=%s): app.module.ts registers throttlerOptions',
+    async (api) => {
+      await applyAuthNoneVariants(authDir, 'shadcn', api);
+      const content = await readFile(join(authDir, 'apps/api/src/app/app.module.ts'), 'utf8');
+      expect(content).toContain("import { throttlerOptions } from './http/throttler.config';");
+      expect(content).toContain('ThrottlerModule.forRoot(throttlerOptions),');
+      expect(content).not.toContain('auth-burst');
+      expect(content).not.toContain('seconds');
+      expect(content).not.toContain('APP_GUARD');
+      expect(content).toMatch(/\n {4}StorageModule,\n {4}FeaturesModule,\n/);
+    },
+  );
+
+  it('removeAuthOnlyPaths (api=rest): removes the GraphQL module and the schema script', async () => {
+    await mkdir(join(authDir, 'apps/api/src/app/graphql'), { recursive: true });
+    await writeFile(join(authDir, 'apps/api/src/app/graphql/graphql.module.ts'), '');
+    await mkdir(join(authDir, 'apps/api/scripts'), { recursive: true });
+    await writeFile(join(authDir, 'apps/api/scripts/emit-schema.ts'), '');
+    await removeAuthOnlyPaths(authDir, 'rest');
+    await expect(access(join(authDir, 'apps/api/src/app/graphql'))).rejects.toThrow();
+    await expect(access(join(authDir, 'apps/api/scripts/emit-schema.ts'))).rejects.toThrow();
+  });
+
+  it.each(['graphql', 'both'] as const)(
+    'removeAuthOnlyPaths (api=%s): keeps the GraphQL module (health) and the schema script',
+    async (api) => {
+      await mkdir(join(authDir, 'apps/api/src/app/graphql/__tests__'), { recursive: true });
+      await writeFile(join(authDir, 'apps/api/src/app/graphql/graphql.module.ts'), '');
+      await writeFile(
+        join(authDir, 'apps/api/src/app/graphql/__tests__/health.resolver.unit.test.ts'),
+        '',
+      );
+      await mkdir(join(authDir, 'apps/api/scripts'), { recursive: true });
+      await writeFile(join(authDir, 'apps/api/scripts/emit-schema.ts'), '');
+      await removeAuthOnlyPaths(authDir, api);
+      await expect(
+        access(join(authDir, 'apps/api/src/app/graphql/graphql.module.ts')),
+      ).resolves.toBeUndefined();
+      await expect(
+        access(join(authDir, 'apps/api/scripts/emit-schema.ts')),
+      ).resolves.toBeUndefined();
+      // Imports ../../auth/public.decorator.
+      await expect(
+        access(join(authDir, 'apps/api/src/app/graphql/__tests__/health.resolver.unit.test.ts')),
+      ).rejects.toThrow();
+    },
+  );
 
   it('applyAuthNoneVariants: writes _dashboard.tsx without beforeLoad auth guard', async () => {
     await applyAuthNoneVariants(authDir, 'shadcn');

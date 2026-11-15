@@ -74,6 +74,8 @@ export async function runMigrateCli(
     jobs: blueprint.jobs,
     example: blueprint.example,
     ui: blueprint.ui,
+    // Blueprints written before the api axis existed are REST-only projects.
+    api: blueprint.api ?? 'rest',
     transport: blueprint.transport,
   };
 

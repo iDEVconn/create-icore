@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MANIFEST } from '../../manifest/index.js';
 import { MONGODB_DEPS, TRANSPORT_DEPS } from '../scaffold-env.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
@@ -61,6 +62,21 @@ describe('generated-project versions do not drift from this repo', () => {
     expect(
       mismatches(pinned, root),
       `scaffold-env.ts pins have drifted from the root package.json. ${HOW_TO_FIX}`,
+    ).toEqual([]);
+  });
+
+  it('GraphQL deps in MANIFEST.api / MANIFEST.apiClient match the root where the root has them', () => {
+    const manifestDeps = {
+      ...MANIFEST.api.graphql.deps,
+      ...MANIFEST.api.both.deps,
+      ...MANIFEST.apiClient.deps,
+    };
+    expect(Object.keys(manifestDeps).length).toBeGreaterThan(0);
+    // Every manifest GraphQL dep must exist in the root, not merely agree where present.
+    for (const name of Object.keys(manifestDeps)) expect(root, name).toHaveProperty([name]);
+    expect(
+      mismatches(manifestDeps, root),
+      `MANIFEST.api / apiClient have drifted from the root package.json. ${HOW_TO_FIX}`,
     ).toEqual([]);
   });
 

@@ -8,6 +8,7 @@ import type {
   AiProvider,
   ExampleMode,
   UiLibrary,
+  ApiStyle,
   MsTransport,
   PackageManager,
   CreateIcoreOptions,
@@ -52,6 +53,7 @@ const JOBS_PROVIDERS: readonly JobsProvider[] = ['bullmq', 'none'];
 const AI_PROVIDERS: readonly AiProvider[] = ['llm-router', 'none'];
 const EXAMPLE_MODES: readonly ExampleMode[] = ['notes', 'none'];
 const UI_LIBRARIES: readonly UiLibrary[] = ['shadcn', 'antd', 'mui', 'none'];
+const API_STYLES: readonly ApiStyle[] = ['rest', 'graphql', 'both'];
 const MS_TRANSPORTS: readonly MsTransport[] = [
   'tcp',
   'redis',
@@ -115,6 +117,7 @@ export function validateConfig(raw: unknown, label = 'config field'): Partial<Cr
   if ('example' in obj)
     result.example = assertEnum('example', obj['example'], EXAMPLE_MODES, label);
   if ('ui' in obj) result.ui = assertEnum('ui', obj['ui'], UI_LIBRARIES, label);
+  if ('api' in obj) result.api = assertEnum('api', obj['api'], API_STYLES, label);
   if ('transport' in obj)
     result.transport = assertEnum('transport', obj['transport'], MS_TRANSPORTS, label);
   if ('session' in obj)

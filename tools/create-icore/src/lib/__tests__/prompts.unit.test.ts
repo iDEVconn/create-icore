@@ -480,3 +480,116 @@ describe('collectOptions — --host=cloudflare', () => {
     expect(opts.host).toBe('node');
   });
 });
+
+describe('collectOptions — --api', () => {
+  const argv = [
+    'my-app',
+    '--auth=supabase',
+    '--db=supabase',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=none',
+    '--ai=none',
+    '--example=notes',
+    '--ui=shadcn',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+  const askedMessages = () =>
+    vi.mocked(clack.select).mock.calls.map(([o]) => (o as { message: string }).message);
+
+  it('parses --api=graphql and the space-separated form', () => {
+    expect(parseFlags(['my-app', '--api=graphql']).api).toBe('graphql');
+    expect(parseFlags(['my-app', '--api', 'both']).api).toBe('both');
+  });
+
+  it('rejects an invalid --api value', async () => {
+    await expect(collectOptions({ argv: [...argv, '--api=soap'], cwd: '.' })).rejects.toThrow(
+      /rest, graphql, both/,
+    );
+  });
+
+  it('passes the flag through without asking', async () => {
+    vi.mocked(clack.select).mockClear();
+    const opts = await collectOptions({ argv: [...argv, '--api=both'], cwd: '.' });
+    expect(opts.api).toBe('both');
+    expect(askedMessages()).not.toContain('API style');
+  });
+
+  it('asks for the API style after the example question, with rest first', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockReset();
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'API style' ? 'graphql' : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({
+        argv: argv.filter((a) => !a.startsWith('--example=')),
+        cwd: '.',
+      });
+      expect(opts.api).toBe('graphql');
+      const asked = askedMessages();
+      const apiIdx = asked.indexOf('API style');
+      expect(apiIdx).toBeGreaterThan(-1);
+      expect(apiIdx).toBeGreaterThan(asked.findIndex((m) => m.startsWith('Include notes')));
+      const q = select.mock.calls[apiIdx]?.[0] as {
+        options: { value: string }[];
+        initialValue: string;
+      };
+      expect(q.options.map((o) => o.value)).toEqual(['rest', 'graphql', 'both']);
+      expect(q.initialValue).toBe('rest');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('defaults to rest when the answer is empty', async () => {
+    const opts = await collectOptions({ argv, cwd: '.' });
+    expect(opts.api).toBe('rest');
+  });
+
+  const noAuthArgv = [
+    'my-app',
+    '--auth=none',
+    '--upload=none',
+    '--payment=none',
+    '--jobs=none',
+    '--ai=none',
+    '--ui=shadcn',
+    '--package-manager=yarn',
+    '--no-git',
+    '--no-install',
+  ];
+
+  it('accepts --api=graphql with --auth=none without throwing', async () => {
+    const opts = await collectOptions({ argv: [...noAuthArgv, '--api=graphql'], cwd: '.' });
+    expect(opts.api).toBe('graphql');
+    expect(opts.authProvider).toBe('none');
+  });
+
+  it('asks for the API style with auth=none too', async () => {
+    const select = vi.mocked(clack.select);
+    select.mockReset();
+    select.mockImplementation((async (o: { message: string }) =>
+      o.message === 'API style' ? 'graphql' : undefined) as unknown as typeof clack.select);
+    try {
+      const opts = await collectOptions({ argv: noAuthArgv, cwd: '.' });
+      expect(askedMessages()).toContain('API style');
+      expect(opts.api).toBe('graphql');
+    } finally {
+      select.mockReset();
+      select.mockResolvedValue(undefined);
+    }
+  });
+
+  it('is not asked, and is rest, on host=cloudflare', async () => {
+    vi.mocked(clack.select).mockClear();
+    const opts = await collectOptions({
+      argv: [...argv.filter((a) => a !== '--upload=none'), '--host=cloudflare', '--upload=r2'],
+      cwd: '.',
+    });
+    expect(opts.api).toBe('rest');
+    expect(askedMessages()).not.toContain('API style');
+  });
+});

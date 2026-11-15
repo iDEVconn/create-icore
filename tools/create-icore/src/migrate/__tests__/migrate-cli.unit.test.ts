@@ -74,4 +74,74 @@ describe('runMigrateCli', () => {
       await rm(packageRoot, { recursive: true, force: true });
     }
   });
+
+  describe('api axis', () => {
+    async function migrateWith(
+      blueprintExtra: Record<string, string>,
+      axis: string,
+    ): Promise<boolean> {
+      const projectDir = await mkdtemp(join(tmpdir(), 'icore-migrate-api-proj-'));
+      const packageRoot = await mkdtemp(join(tmpdir(), 'icore-migrate-api-pkgroot-'));
+      try {
+        await git(projectDir, ['init', '-q']);
+        await git(projectDir, ['config', 'user.email', 'test@example.com']);
+        await git(projectDir, ['config', 'user.name', 'Test']);
+        await writeFile(
+          join(projectDir, 'blueprint.json'),
+          JSON.stringify({ schemaVersion: 1, generatorVersion: '0.1.0', ...blueprintExtra }) + '\n',
+        );
+        await git(projectDir, ['add', '-A']);
+        await git(projectDir, ['commit', '-q', '-m', 'init']);
+        const registry: RegistryFile = {
+          entries: [
+            {
+              id: 'api-step',
+              kind: 'codemod',
+              affectedAxes: [axis],
+              affectedGlobs: ['x/**'],
+              commitRange: '1234567..89abcde',
+              description: 'api step',
+              version: '0.5.0',
+              diff: '',
+            },
+          ],
+        };
+        await mkdir(join(packageRoot, 'migrations'), { recursive: true });
+        await writeFile(
+          join(packageRoot, 'migrations', 'registry.json'),
+          JSON.stringify(registry) + '\n',
+        );
+        await mkdir(join(packageRoot, 'dist', 'migrations', 'codemods'), { recursive: true });
+        await writeFile(
+          join(packageRoot, 'dist', 'migrations', 'codemods', 'api-step.js'),
+          `import { writeFile } from 'node:fs/promises';\n` +
+            `import { join } from 'node:path';\n` +
+            `export default async function (projectDir) {\n` +
+            `  await writeFile(join(projectDir, 'ran.txt'), 'yes');\n` +
+            `}\n`,
+        );
+        await runMigrateCli(['--to=latest'], projectDir, packageRoot);
+        return await readFile(join(projectDir, 'ran.txt'), 'utf8').then(
+          () => true,
+          () => false,
+        );
+      } finally {
+        await rm(projectDir, { recursive: true, force: true });
+        await rm(packageRoot, { recursive: true, force: true });
+      }
+    }
+
+    it('applies an api:graphql migration to a project whose blueprint records api=graphql', async () => {
+      expect(await migrateWith({ api: 'graphql' }, 'api:graphql')).toBe(true);
+    });
+
+    it('skips an api:graphql migration for api=rest', async () => {
+      expect(await migrateWith({ api: 'rest' }, 'api:graphql')).toBe(false);
+    });
+
+    it('treats a blueprint without api (older project) as rest', async () => {
+      expect(await migrateWith({}, 'api:rest')).toBe(true);
+      expect(await migrateWith({}, 'api:graphql')).toBe(false);
+    });
+  });
 });

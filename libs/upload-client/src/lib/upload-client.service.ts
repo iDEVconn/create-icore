@@ -25,7 +25,11 @@ export class UploadClientService {
   }
 
   remove(userId: string, ref: StorageRef): Promise<void> {
-    return firstValueFrom(this.client.send<void>('storage.remove', { userId, ref }));
+    // The handler returns nothing: the reply completes without a value (defaultValue avoids
+    // EmptyError after a successful removal).
+    return firstValueFrom(this.client.send<void>('storage.remove', { userId, ref }), {
+      defaultValue: undefined,
+    });
   }
 
   signedUrl(userId: string, ref: StorageRef, ttlSec?: number): Promise<string> {
