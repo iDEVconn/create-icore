@@ -93,8 +93,14 @@ The client's `request()` turns `errors[]` into `ApiError`.
   codegen succeed in a project without operations (`auth=none`).
 - CI (`pipeline.yml`, `check` job): `GraphQL schema drift` (`api:graphql-schema` + `git diff --exit-code apps/api/schema.gql`) and
   `GraphQL codegen drift` (`client-shadcn:graphql-codegen` + `git diff --exit-code apps/templates/client-shadcn/src/gql`). Scaffold smoke
-  combos `api-graphql-{shadcn,antd,mui}`, `api-both`, `api-graphql-minimal` (typecheck) and the nightly legs `supabase-graphql-tcp-antd`,
-  `supabase-both-tcp-shadcn` (install, build, boot).
+  combos `api-graphql-{shadcn,antd,mui}`, `api-both`, `api-graphql-minimal`, `api-graphql-ui-none`, `api-graphql-auth-none` (typecheck) and
+  the nightly legs `supabase-graphql-tcp-antd`, `supabase-both-tcp-shadcn`, `api-only-graphql-auth-none-tcp` (install, build, boot).
+  For `--api=graphql|both` the boot phase of `smoke-scaffold.mjs` also POSTs `{ health { status } }` to the booted gateway's
+  `/api/graphql` and, with auth, checks that an anonymous `{ me { uid } }` answers HTTP 401 (guards apply to GraphQL); a gateway that
+  never answers within `--run-seconds` fails the leg.
+- Generated projects: the shipped `ci.yml` runs `graphql-codegen` for every project that has the target (none in a `rest` project), so a
+  `.graphql` operation that no longer matches the gateway schema fails their CI. It does not diff `src/gql/types.ts` (the shipped copy is
+  the full-feature superset, so the first run would always differ): commit the regenerated file after changing an operation or resolver.
 
 ## Adding a resolver
 

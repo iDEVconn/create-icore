@@ -137,12 +137,50 @@ const TSCONFIG = {
 };
 
 /**
+ * One real round trip against the booted gateway's `/api/graphql` (api=graphql|both). `health` is
+ * public and needs no CSRF token, so it proves the whole stack answers: Nest + Apollo + the global
+ * guards + the schema. With auth a guarded field must answer HTTP 401 without a session, which
+ * proves the guards run on GraphQL (a stack that serves guarded data anonymously is worse than one
+ * that is down).
+ */
+async function probeGraphql(authProvider) {
+  const port = Number(process.env.API_PORT ?? 3001);
+  const post = async (query) => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/graphql`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(3000),
+    });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  };
+  try {
+    const health = await post('{ health { status } }');
+    if (health.status !== 200 || health.body?.data?.health?.status !== 'ok') {
+      return { done: false, reason: `health answered ${health.status}` };
+    }
+    if (authProvider !== 'none') {
+      const guarded = await post('{ me { uid } }');
+      if (guarded.status !== 401) {
+        return {
+          done: true,
+          failed: `anonymous { me } answered HTTP ${guarded.status}, expected 401 (guards not applied to GraphQL)`,
+        };
+      }
+    }
+    return { done: true };
+  } catch (err) {
+    return { done: false, reason: String(err?.message ?? err) };
+  }
+}
+
+/**
  * Boots `nx run-many -t serve` for the services and asserts the process stays
  * alive for `runSeconds` without printing a crash marker. In dev every service
  * must survive missing .env / down brokers (banner + fake + retry), so a clean
  * exit or a crash marker is a failure.
  */
-async function bootCheck(nxBin, svcList, cwd, logPath) {
+async function bootCheck(nxBin, svcList, cwd, logPath, probe = null) {
   const { createWriteStream } = await import('node:fs');
   const out = createWriteStream(logPath);
   const child = spawn(
@@ -163,9 +201,14 @@ async function bootCheck(nxBin, svcList, cwd, logPath) {
     exitedEarly = code;
   });
 
+  // The gateway is up some time after `serve` starts (it builds first): retry the probe until it
+  // answers or the window closes; a probe that answered but found a defect fails at once.
+  let probeResult = probe ? { done: false, reason: 'gateway never answered' } : { done: true };
   const deadline = Date.now() + runSeconds * 1000;
   while (Date.now() < deadline) {
     if (exitedEarly !== null) break;
+    if (!probeResult.done) probeResult = await probe();
+    if (probeResult.failed) break;
     await delay(1000);
   }
 
@@ -184,6 +227,10 @@ async function bootCheck(nxBin, svcList, cwd, logPath) {
   }
   if (hit) {
     return { ok: false, reason: `crash marker in serve output: "${hit}"`, log };
+  }
+  if (probeResult.failed) return { ok: false, reason: probeResult.failed, log };
+  if (!probeResult.done) {
+    return { ok: false, reason: `/api/graphql probe failed: ${probeResult.reason}`, log };
   }
   return { ok: true };
 }
@@ -322,14 +369,21 @@ async function main() {
       console.log('\n--- no services in this combo to boot, skipping run phase ---');
     } else {
       console.log(`\n--- booting services (${present.join(', ')}) for ${runSeconds}s ---`);
-      const res = await bootCheck(nxBin, present, opts.targetDir, join(dir, 'serve.log'));
+      // api=graphql|both with a gateway in the boot set: also prove /api/graphql answers.
+      const probe =
+        present.includes('api') && opts.api !== 'rest'
+          ? () => probeGraphql(opts.authProvider)
+          : null;
+      const res = await bootCheck(nxBin, present, opts.targetDir, join(dir, 'serve.log'), probe);
       if (!res.ok) {
         console.error(`\n✗ smoke FAILED (${combo}) — ${res.reason}`);
         console.error(`--- serve log tail ---\n${res.log.split('\n').slice(-200).join('\n')}`);
         console.error(`inspect: ${opts.targetDir}`);
         process.exit(1);
       }
-      console.log(`✓ services stayed up ${runSeconds}s, no crash`);
+      console.log(
+        `✓ services stayed up ${runSeconds}s, no crash${probe ? ', /api/graphql answered' : ''}`,
+      );
     }
   }
 
