@@ -627,6 +627,9 @@ describe('removeAuthOnlyPaths + applyAuthNoneVariants + removeAuthTsconfigPaths 
     expect(src).toContain('useDraft');
     expect(src).toContain('useLoading');
     expect(src).toContain('PageLayout');
+    // ai-usage's page passes the CASL gate props; the ungated variant must still accept them (tsc).
+    expect(src).toMatch(/action\?: string;/);
+    expect(src).toMatch(/subject\?: string;/);
   });
 
   it('removeAuthOnlyPaths: strips @icore/auth-client and cookie-parser from api package.json', async () => {

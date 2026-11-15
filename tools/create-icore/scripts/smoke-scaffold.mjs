@@ -280,7 +280,10 @@ async function main() {
     await symlink(join(repoRoot, 'node_modules'), join(opts.targetDir, 'node_modules'), 'dir');
     const tsc = resolveBin(repoRoot, 'typescript', 'tsc');
     let failed = false;
-    for (const proj of projects) {
+    // The client is typechecked here (cheap: tsc only) but is not in `projects`, which also drives
+    // the install-mode nx build/lint. Skipped by the existsSync check below for --ui=none.
+    const typecheckProjects = projects.includes('client') ? projects : [...projects, 'client'];
+    for (const proj of typecheckProjects) {
       const rel = TSCONFIG[proj];
       if (!rel) {
         console.error(`  (skip ${proj}: no tsconfig mapping)`);

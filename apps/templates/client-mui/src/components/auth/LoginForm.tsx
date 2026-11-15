@@ -58,7 +58,7 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink, onSwitchForgot 
   return (
     <Stack spacing={2}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           {t('auth.loginTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -121,7 +121,7 @@ export function LoginForm({ onSwitchRegister, onSwitchMagicLink, onSwitchForgot 
         </Button>
       </Box>
 
-      <Stack spacing={0.5} alignItems="center">
+      <Stack spacing={0.5} sx={{ alignItems: 'center' }}>
         <Typography variant="body2" color="text.secondary">
           {t('auth.switchToRegister')}{' '}
           <Box

@@ -307,6 +307,9 @@ import { useDraft, useLoading } from '@icore/template-shared';
 interface PageLayoutProps {
   title: string;
   description?: string;
+  /** CASL gate props of the auth variant, accepted so shared pages (ai-usage) compile; no auth means no gate. */
+  action?: string;
+  subject?: string;
   actions?: ReactNode;
   children: ReactNode;
 }
