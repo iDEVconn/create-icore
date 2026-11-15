@@ -40,7 +40,7 @@ function ProfilePage() {
         <TextField
           label="Email"
           value={authUser?.email ?? ''}
-          inputProps={{ readOnly: true }}
+          slotProps={{ htmlInput: { readOnly: true } }}
           disabled
           fullWidth
         />

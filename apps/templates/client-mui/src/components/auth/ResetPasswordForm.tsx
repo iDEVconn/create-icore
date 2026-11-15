@@ -57,7 +57,7 @@ export function ResetPasswordForm({ token }: Props) {
   return (
     <Stack spacing={2}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           {t('auth.resetPasswordTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary">

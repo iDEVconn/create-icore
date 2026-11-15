@@ -33,17 +33,16 @@ export function PageLayout({
           <Box sx={{ p: 3 }}>
             <Stack
               direction="row"
-              justifyContent="space-between"
-              alignItems="flex-start"
+
               spacing={2}
-              mb={3}
+              sx={{ justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}
             >
               <Box>
                 <Typography variant="h4" component="h1">
                   {title}
                 </Typography>
                 {description ? (
-                  <Typography variant="body2" color="text.secondary" mt={0.5}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                     {description}
                   </Typography>
                 ) : null}

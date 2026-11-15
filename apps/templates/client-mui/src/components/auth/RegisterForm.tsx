@@ -59,7 +59,7 @@ export function RegisterForm({ onSuccess, onSwitchLogin }: Props) {
   return (
     <Stack spacing={2}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>
           {t('auth.registerTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -108,7 +108,7 @@ export function RegisterForm({ onSuccess, onSwitchLogin }: Props) {
         </Button>
       </Box>
 
-      <Typography variant="body2" color="text.secondary" textAlign="center">
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
         {t('auth.switchToLogin')}{' '}
         <Box
           component="span"

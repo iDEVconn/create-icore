@@ -12,7 +12,7 @@ export function AccessDeniedPage() {
       <Typography variant="h5" gutterBottom>
         {t('error.accessDenied')}
       </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         {t('error.unknown')}
       </Typography>
       <Box>

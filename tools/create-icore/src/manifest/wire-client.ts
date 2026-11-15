@@ -37,6 +37,10 @@ export async function writeNavConfig(targetDir: string, opts: CreateIcoreOptions
   }
   entries.push(PROFILE_NAV);
 
+  // Only the shadcn LayoutSider maps (and filters on) an admin-only 'aiUsage' entry; mui/antd do not,
+  // and a union member without an icon would break their `Record<NavItem['iconName'], ...>`.
+  const iconNames = ['dashboard', 'notes', 'profile', ...(opts.ui === 'shadcn' ? ['aiUsage'] : [])];
+
   const content =
     `/**\n` +
     ` * Sidebar navigation. UI-agnostic: each LayoutSider maps \`iconName\` to its own\n` +
@@ -45,7 +49,7 @@ export async function writeNavConfig(targetDir: string, opts: CreateIcoreOptions
     `export interface NavItem {\n` +
     `  to: string;\n` +
     `  labelKey: string;\n` +
-    `  iconName: 'dashboard' | 'notes' | 'profile';\n` +
+    `  iconName: ${iconNames.map((n) => `'${n}'`).join(' | ')};\n` +
     `  exact?: boolean;\n` +
     `}\n\n` +
     `export const NAV_CONFIG: NavItem[] = [\n` +
