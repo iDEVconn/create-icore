@@ -108,6 +108,14 @@ jobs:
       - name: Test
         if: ${{ !cancelled() }}
         run: yarn nx affected -t test --parallel
+      # create-icore's golden/matrix tests scaffold from the REPO sources (apps/, libs/), but the Nx
+      # graph has no edge from them to create-icore, so `affected` skips it on a PR that touches only
+      # those sources (a new test file in libs/*-client, a profile service in apps/api...). That left
+      # `dev` red twice (#417, #422) with a green PR. Run it always: ~10 s, and a cache hit when
+      # `affected` already ran it.
+      - name: create-icore tests (always)
+        if: ${{ !cancelled() }}
+        run: yarn nx run create-icore:test
       - name: Format check (changed files)
         if: ${{ !cancelled() }}
         run: |
