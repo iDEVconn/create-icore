@@ -4,14 +4,46 @@ import type { StorageRef } from '@icore/shared';
 // eslint-disable-next-line no-control-regex
 const CONTROL_OR_BACKSLASH = /[\u0000-\u001f\u007f\\]/;
 
+const MAX_DECODE_PASSES = 4;
+
+/** Repeatedly percent-decodes `segment` (a backend may decode once or twice); null = never settles. */
+function decodedForms(segment: string): string[] | null {
+  const forms = [segment];
+  let current = segment;
+  for (let i = 0; i < MAX_DECODE_PASSES; i++) {
+    let next: string;
+    try {
+      next = decodeURIComponent(current);
+    } catch {
+      return forms; // malformed escape: nothing more to decode
+    }
+    if (next === current) return forms;
+    forms.push(next);
+    current = next;
+  }
+  return null;
+}
+
 /**
  * True when every `/`-separated segment is a real name: no `.`/`..` (directory traversal),
  * no empty segment (`a//b`), no backslash (Windows-style separator) or control character.
- * Dots inside a name (`my..file.txt`) are fine.
+ * Percent-encoded forms count too (`%2e%2e`, `..%2f`, double-encoded): a storage SDK or server
+ * may decode the key before resolving it, so a segment is rejected when any decoded form
+ * contains a `.`/`..` piece, a backslash or a control character. Dots inside a name
+ * (`my..file.txt`) and a literal `%` are fine.
  */
 function hasOnlyPlainSegments(path: string): boolean {
   if (CONTROL_OR_BACKSLASH.test(path)) return false;
-  return path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+  return path.split('/').every((segment) => {
+    if (segment === '' || segment === '.' || segment === '..') return false;
+    const forms = decodedForms(segment);
+    if (!forms) return false;
+    return forms.every(
+      (form) =>
+        !CONTROL_OR_BACKSLASH.test(form) &&
+        form.split('/').every((piece) => piece !== '.' && piece !== '..'),
+    );
+  });
 }
 
 /**

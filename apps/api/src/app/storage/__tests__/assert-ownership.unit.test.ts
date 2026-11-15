@@ -35,8 +35,20 @@ describe('assertOwnership path traversal', () => {
     'user-1/a/../../user-2/x',
     'user-1\\..\\user-2\\x',
     'user-1/x\u0000.txt',
+    'user-1/%2e%2e/user-2/x',
+    'user-1/%2E%2E/user-2/x',
+    'user-1/..%2fuser-2/x',
+    'user-1/%252e%252e/user-2/x',
+    'user-1/%2e%2e%5cuser-2',
+    'user-1/%00x',
   ])('rejects %j', (path) => {
     expect(() => assertOwnership({ bucket: 'b', path }, 'user-1')).toThrow(ForbiddenException);
+  });
+
+  it('allows a literal percent and dots inside a file name', () => {
+    expect(() =>
+      assertOwnership({ bucket: 'b', path: 'user-1/100%25-done%20(1).txt' }, 'user-1'),
+    ).not.toThrow();
   });
 
   it('allows dots inside a file name', () => {
@@ -51,10 +63,18 @@ describe('assertSafeListPrefix', () => {
     expect(() => assertSafeListPrefix(prefix)).not.toThrow();
   });
 
-  it.each(['..', '../user-2', 'a/../b', './x', '/abs', 'a//b', 'a\\b', 'x\u0000'])(
-    'rejects %j with 400',
-    (prefix) => {
-      expect(() => assertSafeListPrefix(prefix)).toThrow(BadRequestException);
-    },
-  );
+  it.each([
+    '..',
+    '../user-2',
+    'a/../b',
+    './x',
+    '/abs',
+    'a//b',
+    'a\\b',
+    'x\u0000',
+    '%2e%2e',
+    'a/%2e%2e/b',
+  ])('rejects %j with 400', (prefix) => {
+    expect(() => assertSafeListPrefix(prefix)).toThrow(BadRequestException);
+  });
 });
