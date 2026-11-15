@@ -31,6 +31,8 @@ only: it is the foundation you add your own resolvers to.
   `<feature>/graphql/<feature>-graphql.module.ts`. **Generated** by `create-icore` (`manifest/wire-api.ts`) for the selected features and
   imported into `app.module.ts`; the repo keeps the full version.
 - `apps/api/src/app/graphql/api-surface-resolvers.ts` (`API_SURFACE_RESOLVERS`): the resolvers printed into the schema. Generated the same way.
+- `NotesClientModule.forRoot()` and `UploadClientModule.forRoot()` return one memoized `DynamicModule`, so `both` (REST module + GraphQL module
+  importing the same client) opens one TCP client per microservice, not two (`notes/__tests__/client-module-sharing.unit.test.ts`).
 - Business rules are not duplicated: resolvers and controllers call the same gateway services (`NotesGatewayService`, `assertOwnership`).
 - Guards are context-neutral (`requestOf` in `http/execution-context.ts`): the global `AuthGuard`, `CsrfGuard`, `AbilityGuard` and the
   throttler guard work on resolvers unchanged; `@Public()`, `@SkipCsrf()`, `@CheckAbility()` and `@CurrentUser()` apply to resolvers.

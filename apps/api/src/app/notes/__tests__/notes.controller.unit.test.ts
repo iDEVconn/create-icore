@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { NotesClientService } from '@icore/notes-client';
 import { AbilityFactory } from '../../abilities/ability.factory';
 import { NotesController } from '../notes.controller';
+import { NotesGatewayService } from '../notes-gateway.service';
 
 function makeClient(): NotesClientService {
   return {
@@ -31,14 +32,14 @@ describe('NotesController (gateway)', () => {
 
   it('owner list passes own uid as ownerId', async () => {
     const client = makeClient();
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await ctl.list(makeReq('u1') as never, '20', '0');
     expect(client.list).toHaveBeenCalledWith({ ownerId: 'u1', limit: 20, offset: 0 });
   });
 
   it('admin list passes ownerId=null (sees all)', async () => {
     const client = makeClient();
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await ctl.list(makeReq('a1', 'admin') as never, '20', '0');
     expect(client.list).toHaveBeenCalledWith({ ownerId: null, limit: 20, offset: 0 });
   });
@@ -46,21 +47,21 @@ describe('NotesController (gateway)', () => {
   it('get returns 404 when note missing', async () => {
     const client = makeClient();
     (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await expect(ctl.get(makeReq('u1') as never, 'n1')).rejects.toThrow();
   });
 
   it('get rejects 403 when caller is not owner', async () => {
     const client = makeClient();
     (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(noteFoo);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await expect(ctl.get(makeReq('u2') as never, 'n1')).rejects.toThrow();
   });
 
   it('get returns the note when caller owns it', async () => {
     const client = makeClient();
     (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(noteFoo);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     const result = await ctl.get(makeReq('u1') as never, 'n1');
     expect(result.id).toBe('n1');
   });
@@ -68,7 +69,7 @@ describe('NotesController (gateway)', () => {
   it('admin can read any note', async () => {
     const client = makeClient();
     (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(noteFoo);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     const result = await ctl.get(makeReq('a1', 'admin') as never, 'n1');
     expect(result.ownerId).toBe('u1');
   });
@@ -76,7 +77,7 @@ describe('NotesController (gateway)', () => {
   it('create forwards ownerId from req.user.uid (not body)', async () => {
     const client = makeClient();
     (client.create as ReturnType<typeof vi.fn>).mockResolvedValue(noteFoo);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await ctl.create(makeReq('u1') as never, { title: 't', body: 'b' });
     expect(client.create).toHaveBeenCalledWith({ ownerId: 'u1', title: 't', body: 'b' });
   });
@@ -84,14 +85,14 @@ describe('NotesController (gateway)', () => {
   it('update by non-owner rejects 403', async () => {
     const client = makeClient();
     (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(noteFoo);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await expect(ctl.update(makeReq('u2') as never, 'n1', { title: 'x' })).rejects.toThrow();
   });
 
   it('delete by owner succeeds', async () => {
     const client = makeClient();
     (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(noteFoo);
-    const ctl = new NotesController(client, abilities);
+    const ctl = new NotesController(new NotesGatewayService(client, abilities));
     await ctl.delete(makeReq('u1') as never, 'n1');
     expect(client.delete).toHaveBeenCalledWith('n1');
   });
