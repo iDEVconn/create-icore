@@ -42,6 +42,9 @@ const NEUTRAL_PROFILE = [
   'apps/client/src/queries/__tests__/profile.unit.test.ts',
 ];
 
+/** Pins the 401 path of createIcoreApi (#417); ships with every client UI. */
+const NEUTRAL_CLIENT = ['libs/template-shared/src/lib/api/__tests__/create-api.401.unit.test.ts'];
+
 // Local tool state the snapshot copies from a developer's working tree, never in git or CI:
 // gitignored agent state, and the TanStack router plugin's empty `.tanstack/tmp` cache dir.
 const LOCAL_ARTEFACT = /(^|\/)(\.claude-flow|\.swarm|\.tanstack)(\/|$)|(^|\/)ruvector\.db$/;
@@ -77,13 +80,19 @@ const CASES: GoldenCase[] = [
     name: `ui=${ui}, supabase, notes, upload`,
     fixture: `rest-baseline-${ui}`,
     options: { ui },
-    neutral: [...NEUTRAL_HTTP, ...NEUTRAL_NOTES, ...NEUTRAL_STORAGE, ...NEUTRAL_PROFILE],
+    neutral: [
+      ...NEUTRAL_HTTP,
+      ...NEUTRAL_NOTES,
+      ...NEUTRAL_STORAGE,
+      ...NEUTRAL_PROFILE,
+      ...NEUTRAL_CLIENT,
+    ],
   })),
   {
     name: 'ui=shadcn, auth=none, upload',
     fixture: 'rest-authnone-baseline-shadcn',
     options: { ui: 'shadcn', authProvider: 'none', dbProvider: 'none', example: 'none' },
-    neutral: [...NEUTRAL_HTTP, ...NEUTRAL_STORAGE],
+    neutral: [...NEUTRAL_HTTP, ...NEUTRAL_STORAGE, ...NEUTRAL_CLIENT],
   },
 ];
 

@@ -20,6 +20,8 @@ const AUTH_NONE_EXCLUDED_PATHS = [
   'apps/client/src/routes/login.tsx',
   'apps/client/src/routes/auth.callback.tsx',
   'apps/client/src/routes/auth.oauth.callback.tsx',
+  // Imports the callback route above (shadcn only).
+  'apps/client/src/routes/__tests__/auth.callback.unit.test.tsx',
   'apps/client/src/routes/_dashboard/profile.tsx',
   // The profile hook serves only the profile page above.
   'apps/client/src/queries/profile.ts',
