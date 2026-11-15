@@ -79,6 +79,8 @@ that status (`preserveHttpStatusForExecutionErrors: false`), so the client's ref
 | other ≥ 500 | `INTERNAL_SERVER_ERROR` |
 | other 4xx   | `BAD_USER_INPUT`        |
 
+An error that is not an `HttpException` (a bug, a failed dependency) is logged and answered as HTTP 500 `INTERNAL_SERVER_ERROR` instead of Apollo's default 200 with `errors[]`; in production its message is masked.
+
 The client's `request()` turns `errors[]` into `ApiError`.
 
 ## Schema and codegen
