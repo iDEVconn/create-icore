@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ForbiddenException } from '@nestjs/common';
-import { assertOwnership } from '../assert-ownership';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { assertOwnership, assertSafeListPrefix } from '../assert-ownership';
 
 describe('assertOwnership', () => {
   it('passes when the path starts with userId/', () => {
@@ -24,5 +24,59 @@ describe('assertOwnership', () => {
     expect(() => assertOwnership({ bucket: 'b', path: 'user-12/x' }, 'user-1')).toThrow(
       ForbiddenException,
     );
+  });
+});
+
+describe('assertOwnership path traversal', () => {
+  it.each([
+    'user-1/../user-2/secret.txt',
+    'user-1/./x',
+    'user-1//x',
+    'user-1/a/../../user-2/x',
+    'user-1\\..\\user-2\\x',
+    'user-1/x\u0000.txt',
+    'user-1/%2e%2e/user-2/x',
+    'user-1/%2E%2E/user-2/x',
+    'user-1/..%2fuser-2/x',
+    'user-1/%252e%252e/user-2/x',
+    'user-1/%2e%2e%5cuser-2',
+    'user-1/%00x',
+    'user-1/..%2f%zz',
+    'user-1/%zz%2f%2e%2e/x',
+  ])('rejects %j', (path) => {
+    expect(() => assertOwnership({ bucket: 'b', path }, 'user-1')).toThrow(ForbiddenException);
+  });
+
+  it('allows a literal percent and dots inside a file name', () => {
+    expect(() =>
+      assertOwnership({ bucket: 'b', path: 'user-1/100%25-done%20(1).txt' }, 'user-1'),
+    ).not.toThrow();
+  });
+
+  it('allows dots inside a file name', () => {
+    expect(() =>
+      assertOwnership({ bucket: 'b', path: 'user-1/my..file.v1.2.txt' }, 'user-1'),
+    ).not.toThrow();
+  });
+});
+
+describe('assertSafeListPrefix', () => {
+  it.each([undefined, '', 'docs', 'docs/', 'docs/2026', 'my..dir'])('accepts %j', (prefix) => {
+    expect(() => assertSafeListPrefix(prefix)).not.toThrow();
+  });
+
+  it.each([
+    '..',
+    '../user-2',
+    'a/../b',
+    './x',
+    '/abs',
+    'a//b',
+    'a\\b',
+    'x\u0000',
+    '%2e%2e',
+    'a/%2e%2e/b',
+  ])('rejects %j with 400', (prefix) => {
+    expect(() => assertSafeListPrefix(prefix)).toThrow(BadRequestException);
   });
 });

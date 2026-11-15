@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs
 import { UploadClientService } from '@icore/upload-client';
 import type { StorageRef, VerifiedToken } from '@icore/shared';
 import type { Request } from 'express';
-import { assertOwnership } from './assert-ownership';
+import { assertOwnership, assertSafeListPrefix } from './assert-ownership';
 
 interface AuthedReq extends Request {
   user?: VerifiedToken;
@@ -50,6 +50,7 @@ export class StorageController {
   @ApiOperation({ summary: "List the caller's stored files" })
   @ApiQuery({ name: 'prefix', type: String, required: false })
   list(@Query('prefix') prefix: string | undefined, @Req() req: AuthedReq): Promise<StorageRef[]> {
+    assertSafeListPrefix(prefix);
     return this.uploadClient.list(req.user!.uid, prefix);
   }
 }
