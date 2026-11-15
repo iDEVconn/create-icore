@@ -32,7 +32,6 @@ apps/client/src/components/ui
 apps/client/src/layouts
 apps/client/src/lib
 apps/client/src/routes
-apps/client/src/routes/__tests__
 apps/client/src/routes/_dashboard
 apps/microservices
 apps/microservices/upload

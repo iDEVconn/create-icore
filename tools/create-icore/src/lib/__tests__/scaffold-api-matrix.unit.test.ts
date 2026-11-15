@@ -61,12 +61,6 @@ async function walk(dir: string, out: string[] = []): Promise<string[]> {
   return out;
 }
 
-// Not part of the api axis, reported to the owner: on the branch base already, an auth=none
-// shadcn project ships this test without the route it imports (AUTH_NONE excludes the route only).
-const KNOWN_PREEXISTING = new Set([
-  'apps/client/src/routes/__tests__/auth.callback.unit.test.tsx -> ../auth.callback',
-]);
-
 /** Relative imports (code and `.graphql` documents) that point at a missing file. */
 async function danglingRelativeImports(outDir: string): Promise<string[]> {
   const out: string[] = [];
@@ -82,7 +76,7 @@ async function danglingRelativeImports(outDir: string): Promise<string[]> {
           existsSync(target + ext),
         );
         const entry = `${relative(outDir, file)} -> ${m[1]}`;
-        if (!found && !KNOWN_PREEXISTING.has(entry)) out.push(entry);
+        if (!found) out.push(entry);
       }
     }
   }
