@@ -14,6 +14,7 @@ import type {
   OAuthProvider,
   OAuthStartResult,
   SignUpConfirmationRequired,
+  UserProfile,
   VerifiedToken,
 } from '@icore/shared';
 import { AUTH_CLIENT } from './auth-client.tokens';
@@ -121,6 +122,14 @@ export class AuthClientService {
 
   async setRole(uid: string, role: string): Promise<void> {
     await firstValueFrom(this.send<{ ok: true }>('auth.setRole', { uid, role }));
+  }
+
+  getProfile(uid: string): Promise<UserProfile> {
+    return firstValueFrom(this.send<UserProfile>('auth.profile.get', { uid }));
+  }
+
+  updateProfile(uid: string, name: string): Promise<UserProfile> {
+    return firstValueFrom(this.send<UserProfile>('auth.profile.update', { uid, name }));
   }
 
   async sendMagicLink(email: string, callbackUrl: string): Promise<void> {

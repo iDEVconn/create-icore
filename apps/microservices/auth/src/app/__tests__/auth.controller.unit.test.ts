@@ -74,6 +74,20 @@ describe('AuthController', () => {
     expect(verified.role).toBe('admin');
   });
 
+  it('profile.update stores the name, profile.get reads it back; both answer a non-empty object', async () => {
+    const { controller } = fixture();
+    const session = (await controller.signup({
+      email: 'pr@x.com',
+      password: 'pw12345!',
+    })) as AuthSession;
+    expect(await controller.getProfile({ uid: session.user.id })).toEqual({ name: null });
+    // An object, never void: a firstValueFrom() client over TCP fails on an empty reply.
+    expect(await controller.updateProfile({ uid: session.user.id, name: 'Ada' })).toEqual({
+      name: 'Ada',
+    });
+    expect(await controller.getProfile({ uid: session.user.id })).toEqual({ name: 'Ada' });
+  });
+
   it('signup auto-assigns admin role when email is in ADMINS_LIST', async () => {
     const { strategy, controller } = fixture({ ADMINS_LIST: 'boss@x.com, owner@x.com' });
     const session = (await controller.signup({

@@ -15,8 +15,8 @@ function ProfilePage() {
   useDraft(dirty);
 
   useEffect(() => {
-    if (data?.email) setName(data.email);
-  }, [data?.email]);
+    if (data) setName(data.name ?? '');
+  }, [data]);
 
   const save = useUpdateProfile();
 

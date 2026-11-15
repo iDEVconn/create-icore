@@ -16,7 +16,7 @@ concerns), webhooks, admin (bull-board), storage upload and download (multipart 
 remains).
 
 **Per feature.** A GraphQL surface exists only when its feature does: notes (`notes`, `note`, `createNote`, `updateNote`, `deleteNote`) needs
-`--example=notes`; profile (`me`) needs auth; storage (`files`, `signedUrl`, `removeFile`) needs `--upload` ≠ `none` and auth. The public
+`--example=notes`; profile (`me`, `updateProfile`) needs auth; storage (`files`, `signedUrl`, `removeFile`) needs `--upload` ≠ `none` and auth. The public
 `health` query (`Query { health: Health! }`) is always there, so the schema is never empty. With `--auth=none` the endpoint serves `health`
 only: it is the foundation you add your own resolvers to.
 
@@ -64,6 +64,18 @@ only: it is the foundation you add your own resolvers to.
 
 Known, not changed by this work (reported to the owner): a `rest` + `auth=none` gateway imports `ThrottlerModule` with only the
 `auth-burst` throttler and no `APP_GUARD`, so it has **no effective rate limit**.
+
+## Profile (display name)
+
+`PATCH /api/profile {name}` and the GraphQL mutation `updateProfile(name:)` set the display name; `GET /api/profile` and `me { name }`
+read it. Both go through `ProfileGatewayService` (`apps/api/src/app/profile/`): the uid is the session's, never the request's, and the
+name is validated by `parseProfileName` (trimmed, 1-100 characters, no control characters; else 400 `invalid_name`).
+
+The name lives at the identity provider, behind `AuthStrategy.getProfile(uid)` / `updateProfile(uid, { name })` (auth MS patterns
+`auth.profile.get` / `auth.profile.update`): Supabase `user_metadata.name` (merged into the existing metadata, which GoTrue otherwise
+replaces whole), Firebase `displayName`, MongoDB a `name` field, Postgres a `name` column (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+on first use, so existing deployments need no manual migration). The session record does not carry it: the name is read on demand
+(`me { uid }` alone makes no call to the auth microservice, only a selected `name` does), so a rename shows up in every session at once.
 
 ## Error mapping
 

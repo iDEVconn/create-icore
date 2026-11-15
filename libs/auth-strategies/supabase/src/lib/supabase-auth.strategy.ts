@@ -9,6 +9,7 @@ import type {
   OAuthProvider,
   OAuthStartResult,
   SignUpOptions,
+  UserProfile,
   VerifiedToken,
 } from '@icore/shared';
 
@@ -223,6 +224,23 @@ export class SupabaseAuthStrategy implements AuthStrategy {
     return meta?.role ?? null;
   }
 
+  async getProfile(uid: string): Promise<UserProfile> {
+    const { data, error } = await this.client.auth.admin.getUserById(uid);
+    if (error || !data.user) throw new Error(error?.message ?? 'user_missing');
+    return { name: readName(data.user.user_metadata) };
+  }
+
+  async updateProfile(uid: string, patch: { name: string }): Promise<UserProfile> {
+    // admin.updateUserById REPLACES user_metadata as a whole, so merge into what is there: other
+    // keys (avatar_url, OAuth identity data, app-specific flags) must survive a rename.
+    const { data, error } = await this.client.auth.admin.getUserById(uid);
+    if (error || !data.user) throw new Error(error?.message ?? 'user_missing');
+    const merged = { ...(data.user.user_metadata ?? {}), name: patch.name };
+    const updated = await this.client.auth.admin.updateUserById(uid, { user_metadata: merged });
+    if (updated.error) throw new Error(updated.error.message);
+    return { name: patch.name };
+  }
+
   private toSession(s: {
     access_token: string;
     refresh_token: string;
@@ -236,4 +254,9 @@ export class SupabaseAuthStrategy implements AuthStrategy {
       user: { id: s.user?.id ?? '', email: s.user?.email ?? '' },
     };
   }
+}
+
+function readName(meta: unknown): string | null {
+  const name = (meta as { name?: unknown } | null | undefined)?.name;
+  return typeof name === 'string' && name.length > 0 ? name : null;
 }

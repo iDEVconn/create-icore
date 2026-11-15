@@ -24,6 +24,7 @@ describe('committed apps/api/schema.gql', () => {
       'updateNote(id: ID!, input: UpdateNoteInput!): Note!',
       'deleteNote(id: ID!): Boolean!',
       'removeFile(bucket: String!, path: String!): Boolean!',
+      'updateProfile(name: String!): Profile!',
       'health: Health!',
       'items: [Note!]!',
       'total: Int!',
@@ -37,7 +38,7 @@ describe('committed apps/api/schema.gql', () => {
     expect(sdl).toMatch(/type StorageRef \{\n {2}bucket: String!\n {2}path: String!\n\}/);
     // role is optional on the session record (VerifiedToken), so it is nullable here.
     expect(sdl).toMatch(
-      /type Profile \{\n {2}email: String!\n {2}role: String\n {2}uid: String!\n\}/,
+      /type Profile \{\n {2}email: String!\n\n {2}"""Display name; null until one is set"""\n {2}name: String\n {2}role: String\n {2}uid: String!\n\}/,
     );
     expect(sdl).toMatch(/input CreateNoteInput \{\n {2}body: String!\n {2}title: String!\n\}/);
     expect(sdl).toMatch(/input UpdateNoteInput \{\n {2}body: String\n {2}title: String\n\}/);

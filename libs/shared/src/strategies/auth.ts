@@ -11,6 +11,11 @@ export interface VerifiedToken {
   role?: string;
 }
 
+/** Account details a user may edit. `name` is the display name; null until one is set. */
+export interface UserProfile {
+  name: string | null;
+}
+
 export interface MagicLinkRequest {
   email: string;
   callbackUrl: string;
@@ -71,6 +76,14 @@ export interface AuthStrategy {
   revoke(refreshToken: string): Promise<void>;
   setRole(uid: string, role: string): Promise<void>;
   getRole(uid: string): Promise<string | null>;
+  /** The editable profile of `uid`. `name` is null until `updateProfile` has set one. */
+  getProfile(uid: string): Promise<UserProfile>;
+  /**
+   * Stores the display name at the provider (user metadata / displayName / a column) and returns the
+   * resulting profile. Callers validate the value (the gateway trims and bounds it); other profile
+   * fields are never touched, so metadata the provider holds for other purposes survives.
+   */
+  updateProfile(uid: string, patch: { name: string }): Promise<UserProfile>;
   sendMagicLink(req: MagicLinkRequest): Promise<void>;
   verifyMagicLink(token: string): Promise<AuthSession>;
   /**

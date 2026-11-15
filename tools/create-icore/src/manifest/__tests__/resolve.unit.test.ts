@@ -162,6 +162,7 @@ describe('resolveBindings: api axis (server)', () => {
     'apps/api/src/app/notes/notes.module.ts',
     'apps/api/src/app/notes/__tests__/notes.controller.unit.test.ts',
     'apps/api/src/app/profile/profile.controller.ts',
+    'apps/api/src/app/profile/__tests__/profile.controller.unit.test.ts',
     'apps/api/src/app/profile/profile.module.ts',
     'apps/api/src/app/storage/storage.controller.ts',
   ];

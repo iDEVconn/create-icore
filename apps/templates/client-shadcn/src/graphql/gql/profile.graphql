@@ -3,5 +3,13 @@ query GetMe {
     uid
     email
     role
+    name
+  }
+}
+
+mutation UpdateProfile($name: String!) {
+  updateProfile(name: $name) {
+    uid
+    name
   }
 }

@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { print } from 'graphql';
 import { api } from '../../main';
-import { GetMe } from '../../graphql/profile.queries';
+import { GetMe, UpdateProfile } from '../../graphql/profile.queries';
 import { useProfile, useUpdateProfile } from '../profile.gql-api';
 
 const notify = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -27,9 +27,9 @@ describe('profile queries (GraphQL)', () => {
     notify.error.mockReset();
   });
 
-  it('useProfile sends GetMe and returns me (role may be null)', async () => {
+  it('useProfile sends GetMe and returns me (role and name may be null)', async () => {
     vi.mocked(api).mockResolvedValueOnce({
-      data: { me: { uid: 'u1', email: 'a@b.c', role: null } },
+      data: { me: { uid: 'u1', email: 'a@b.c', role: null, name: null } },
     });
     const { Wrapper } = wrapper();
     const { result } = renderHook(() => useProfile(), { wrapper: Wrapper });
@@ -40,20 +40,24 @@ describe('profile queries (GraphQL)', () => {
       query: print(GetMe),
       operationName: 'GetMe',
     });
-    expect(result.current.data).toEqual({ uid: 'u1', email: 'a@b.c', role: null });
+    expect(result.current.data).toEqual({ uid: 'u1', email: 'a@b.c', role: null, name: null });
   });
 
-  it('useUpdateProfile keeps the REST request (the schema has no profile mutation), notifies and invalidates ["profile"]', async () => {
-    vi.mocked(api).mockResolvedValueOnce({});
+  it('useUpdateProfile sends the UpdateProfile mutation, notifies and invalidates ["profile"]', async () => {
+    vi.mocked(api).mockResolvedValueOnce({
+      data: { updateProfile: { uid: 'u1', name: 'Ann' } },
+    });
     const { Wrapper, invalidate } = wrapper();
     const { result } = renderHook(() => useUpdateProfile(), { wrapper: Wrapper });
     const onSuccess = vi.fn();
     result.current.mutate('Ann', { onSuccess });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(api).toHaveBeenCalledWith('/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Ann' }),
+    const [path, init] = vi.mocked(api).mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/graphql');
+    expect(JSON.parse(init.body as string)).toEqual({
+      query: print(UpdateProfile),
+      variables: { name: 'Ann' },
+      operationName: 'UpdateProfile',
     });
     expect(notify.success).toHaveBeenCalledWith('Saved');
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['profile'] });

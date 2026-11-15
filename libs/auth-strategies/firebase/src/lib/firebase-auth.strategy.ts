@@ -6,6 +6,7 @@ import type {
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  UserProfile,
   VerifiedToken,
 } from '@icore/shared';
 import type { IdentityToolkitClient, OAuthTokenClient } from './identity-toolkit.client';
@@ -66,9 +67,14 @@ function isInvalidOobCode(err: unknown): boolean {
 export interface FirebaseAdminAuthLike {
   verifyIdToken(idToken: string): Promise<{ uid: string; email?: string; role?: string }>;
   setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
-  getUser(
-    uid: string,
-  ): Promise<{ uid: string; email?: string; customClaims?: Record<string, unknown> }>;
+  getUser(uid: string): Promise<{
+    uid: string;
+    email?: string;
+    displayName?: string;
+    customClaims?: Record<string, unknown>;
+  }>;
+  /** Sets the profile display name. Fields not present in `props` are left unchanged. */
+  updateUser(uid: string, props: { displayName: string }): Promise<unknown>;
   /** Invalidates every refresh token currently issued to this uid (Firebase has
    *  no per-session revoke primitive — this is always uid-wide, unlike
    *  Supabase's/postgres's per-refresh-token revoke). */
@@ -294,5 +300,16 @@ export class FirebaseAuthStrategy implements AuthStrategy {
     const claims = user.customClaims ?? {};
     const role = claims['role'];
     return typeof role === 'string' ? role : null;
+  }
+
+  async getProfile(uid: string): Promise<UserProfile> {
+    const user = await this.adminAuth.getUser(uid);
+    return { name: user.displayName ? user.displayName : null };
+  }
+
+  async updateProfile(uid: string, patch: { name: string }): Promise<UserProfile> {
+    // updateUser only touches the fields it is given: claims (role), email and the password stay.
+    await this.adminAuth.updateUser(uid, { displayName: patch.name });
+    return { name: patch.name };
   }
 }

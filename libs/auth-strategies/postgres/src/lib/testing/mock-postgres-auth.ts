@@ -7,6 +7,7 @@ import type {
   MagicLinkRequest,
   OAuthProvider,
   OAuthStartResult,
+  UserProfile,
   VerifiedToken,
 } from '@icore/shared';
 
@@ -15,7 +16,7 @@ const MOCK_JWT_SECRET = 'mock-test-secret';
 export function createMockPostgresAuth(): AuthStrategy {
   const users = new Map<
     string,
-    { id: string; email: string; passwordHash: string; role?: string }
+    { id: string; email: string; passwordHash: string; role?: string; name?: string }
   >();
   const sessions = new Map<string, { userId: string; expiresAt: Date }>();
 
@@ -88,6 +89,19 @@ export function createMockPostgresAuth(): AuthStrategy {
 
     async getRole(uid: string): Promise<string | null> {
       return users.get(uid)?.role ?? null;
+    },
+
+    async getProfile(uid: string): Promise<UserProfile> {
+      const user = users.get(uid);
+      if (!user) throw new Error('user_missing');
+      return { name: user.name ?? null };
+    },
+
+    async updateProfile(uid: string, patch: { name: string }): Promise<UserProfile> {
+      const user = users.get(uid);
+      if (!user) throw new Error('user_missing');
+      user.name = patch.name;
+      return { name: patch.name };
     },
 
     async sendMagicLink(_req: MagicLinkRequest): Promise<void> {

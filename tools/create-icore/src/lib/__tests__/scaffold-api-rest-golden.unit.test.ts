@@ -41,6 +41,12 @@ const NEUTRAL_STORAGE = [
 ];
 /** The profile hook exists only with auth (its page is auth-only). */
 const NEUTRAL_PROFILE = [
+  'apps/api/src/app/profile/profile-gateway.service.ts',
+  'apps/api/src/app/profile/profile-name.ts',
+  'apps/api/src/app/profile/__tests__/profile-gateway.service.unit.test.ts',
+  'apps/api/src/app/profile/__tests__/profile-name.unit.test.ts',
+  'apps/api/src/app/profile/__tests__/profile.controller.unit.test.ts',
+  'libs/auth-client/src/lib/__tests__/auth-client.module.unit.test.ts',
   'apps/client/src/queries/profile.ts',
   'apps/client/src/queries/__tests__/profile.unit.test.ts',
 ];
