@@ -300,12 +300,12 @@ describe.each([
       expect(await exists(join(outDir, p)), p).toBe(false);
   });
 
-  it('registers throttlerOptions (the default throttler) and ApiSurfacesModule, no APP_GUARD', async () => {
+  it('registers throttlerOptions (the default throttler), the global throttler guard and ApiSurfacesModule', async () => {
     const app = await read(outDir, `${APP}/app.module.ts`);
     expect(app).toContain("import { throttlerOptions } from './http/throttler.config';");
     expect(app).toContain('ThrottlerModule.forRoot(throttlerOptions),');
     expect(app).toContain('ApiSurfacesModule,');
-    expect(app).not.toContain('APP_GUARD');
+    expect(app).toContain('{ provide: APP_GUARD, useClass: ContextAwareThrottlerGuard }');
   });
 
   it('is sound', async () => expectSound(outDir));
@@ -321,37 +321,18 @@ describe('scaffold --api=graphql with auth=none keeps storage on REST', () => {
   }, 120_000);
 });
 
-describe('scaffold --api=rest with auth=none (decision 12: unchanged)', () => {
+describe('scaffold --api=rest with auth=none (rate limit)', () => {
   let outDir: string;
   beforeAll(async () => {
     outDir = await generate({ ...AUTH_NONE, api: 'rest' });
   }, 120_000);
 
-  it("keeps today's auth-none app.module.ts", async () => {
-    expect(await read(outDir, `${APP}/app.module.ts`)).toBe(
-      [
-        "import { join } from 'node:path';",
-        "import { Module } from '@nestjs/common';",
-        "import { ConfigModule } from '@nestjs/config';",
-        "import { ThrottlerModule, seconds } from '@nestjs/throttler';",
-        "import { StorageModule } from './storage/storage.module';",
-        "import { FeaturesModule } from './features.module';",
-        '',
-        '@Module({',
-        '  imports: [',
-        '    ConfigModule.forRoot({',
-        '      isGlobal: true,',
-        "      envFilePath: [join(process.cwd(), 'apps/api/.env'), join(process.cwd(), '.env')],",
-        '    }),',
-        "    ThrottlerModule.forRoot([{ name: 'auth-burst', ttl: seconds(60), limit: 10 }]),",
-        '    StorageModule,',
-        '    FeaturesModule,',
-        '  ],',
-        '})',
-        'export class AppModule {}',
-        '',
-      ].join('\n'),
-    );
+  it('enforces the gateway throttler options through a global guard (no auth module to do it)', async () => {
+    const src = await read(outDir, `${APP}/app.module.ts`);
+    expect(src).toContain('ThrottlerModule.forRoot(throttlerOptions),');
+    expect(src).toContain('{ provide: APP_GUARD, useClass: ContextAwareThrottlerGuard }');
+    expect(await exists(join(outDir, `${APP}/http/context-aware-throttler.guard.ts`))).toBe(true);
+    expect(await exists(join(outDir, `${APP}/http/throttler.config.ts`))).toBe(true);
     expect(await exists(join(outDir, `${APP}/graphql`))).toBe(false);
   });
 

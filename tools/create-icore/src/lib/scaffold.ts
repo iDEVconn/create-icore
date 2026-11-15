@@ -267,7 +267,7 @@ export async function scaffold(
     // so those functions can do their own surgery on the freshly-written variants
     // (e.g. strip StorageModule when upload=none, strip ./jobs when jobs=none).
     await removeAuthOnlyPaths(opts.targetDir, opts.api);
-    await applyAuthNoneVariants(opts.targetDir, opts.ui, opts.api);
+    await applyAuthNoneVariants(opts.targetDir, opts.ui);
   }
   if (opts.upload === 'none') await removeUploadStack(opts.targetDir);
   await cleanupUnusedFeatures(opts.targetDir, opts);
