@@ -80,3 +80,37 @@ describe('assertSafeListPrefix', () => {
     expect(() => assertSafeListPrefix(prefix)).toThrow(BadRequestException);
   });
 });
+
+describe('non-string input (repeated query parameters, odd bodies)', () => {
+  it.each([
+    ['array path', { bucket: 'b', path: ['u1/a', 'u2/b'] }],
+    ['object path', { bucket: 'b', path: { startsWith: 'u1/' } }],
+    ['missing path', { bucket: 'b' }],
+    ['array bucket', { bucket: ['b'], path: 'u1/a' }],
+    ['number bucket', { bucket: 1, path: 'u1/a' }],
+  ])('assertOwnership rejects %s with 400 invalid_storage_ref (never a TypeError)', (_l, ref) => {
+    let caught: unknown;
+    try {
+      assertOwnership(ref as never, 'u1');
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(BadRequestException);
+    expect((caught as BadRequestException).message).toBe('invalid_storage_ref');
+  });
+
+  it('assertOwnership rejects a missing ref', () => {
+    expect(() => assertOwnership(undefined as never, 'u1')).toThrow(BadRequestException);
+  });
+
+  it.each([[['a', 'b']], [{ x: 1 }], [42], [true]])(
+    'assertSafeListPrefix rejects %j with 400 invalid_storage_prefix',
+    (prefix) => {
+      expect(() => assertSafeListPrefix(prefix)).toThrow('invalid_storage_prefix');
+    },
+  );
+
+  it('assertSafeListPrefix still accepts undefined, null and the empty string', () => {
+    for (const ok of [undefined, null, '']) expect(() => assertSafeListPrefix(ok)).not.toThrow();
+  });
+});

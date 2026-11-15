@@ -115,8 +115,22 @@ export async function removeNotesFiles(projectRoot) {
 
   // 7. Strip notes block from template-shared i18n keys.ts
   await tryEdit(join(projectRoot, 'libs/template-shared/src/lib/i18n/keys.ts'), (src) =>
-    src.replace(/^\s{4}notes: \{\n(?:\s+.*\n)*?\s{4}\},\n/m, ''),
+    removeNotesKeysBlock(src),
   );
+}
+
+/**
+ * Drops the `    notes: { ... },` block (4-space indent, closed by the first `    },`) from keys.ts.
+ * Line-based on purpose: the regex form (`(?:\s+.*\n)*?` where `\s` also matches newlines) can
+ * backtrack exponentially (CodeQL js/redos), and the block's shape is fixed by prettier.
+ */
+export function removeNotesKeysBlock(src) {
+  const lines = src.split('\n');
+  const start = lines.findIndex((l) => /^ {4}notes: \{$/.test(l));
+  if (start === -1) return src;
+  const end = lines.findIndex((l, i) => i > start && l === '    },');
+  if (end === -1) return src;
+  return [...lines.slice(0, start), ...lines.slice(end + 1)].join('\n');
 }
 
 async function main() {

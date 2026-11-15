@@ -28,7 +28,11 @@ export class StorageController {
   ): Promise<string> {
     const ref: StorageRef = { bucket, path };
     assertOwnership(ref, req.user!.uid);
-    return this.uploadClient.signedUrl(req.user!.uid, ref, ttlSec ? Number(ttlSec) : undefined);
+    return this.uploadClient.signedUrl(
+      req.user!.uid,
+      ref,
+      typeof ttlSec === 'string' && ttlSec ? Number(ttlSec) : undefined,
+    );
   }
 
   @Delete('remove')
