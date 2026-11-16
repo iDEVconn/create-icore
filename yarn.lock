@@ -4735,7 +4735,7 @@ __metadata:
     "@idevconn/use-draft": "npm:^0.2.3"
     "@nx/vite": "npm:24.0.6"
     "@tanstack/react-router": "npm:^1.170.46"
-    i18next: "npm:^26.7.2"
+    i18next: "npm:^27.1.1"
     jsonc-eslint-parser: "npm:^3.3.0"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
@@ -14766,7 +14766,7 @@ __metadata:
     "@vitejs/plugin-react": "npm:^6.2.1"
     antd: "npm:^6.7.0"
     graphql: "npm:^16.11.0"
-    i18next: "npm:^26.7.2"
+    i18next: "npm:^27.1.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
     react-i18next: "npm:^17.1.13"
@@ -14802,7 +14802,7 @@ __metadata:
     "@types/react-dom": "npm:^19.3.0"
     "@vitejs/plugin-react": "npm:^6.2.1"
     graphql: "npm:^16.11.0"
-    i18next: "npm:^26.7.2"
+    i18next: "npm:^27.1.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
     react-i18next: "npm:^17.1.13"
@@ -14842,7 +14842,7 @@ __metadata:
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
     graphql: "npm:^16.11.0"
-    i18next: "npm:^26.7.2"
+    i18next: "npm:^27.1.1"
     lucide-react: "npm:^1.70.0"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
@@ -18638,15 +18638,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"i18next@npm:^26.7.2":
-  version: 26.7.2
-  resolution: "i18next@npm:26.7.2"
+"i18next@npm:^27.1.1":
+  version: 27.1.1
+  resolution: "i18next@npm:27.1.1"
   peerDependencies:
     typescript: ^5 || ^6 || ^7
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10c0/671576c1a225e10994cff250dfc44585fcccc4486cda4162caadbefe5287052e56998fe80aa15e36e1c441215b601770702a820fd1dc5511255bc4ad514aa2cf
+  checksum: 10c0/505e7a83a9cd3a4060346dbdae7dd4a439a9a7332e3c52bdafea3fff4abf633978506cf6faabbae53afb160abae55dd5a2c487a7b6947446cef741f60f1c60ae
   languageName: node
   linkType: hard
 
@@ -18778,7 +18778,7 @@ __metadata:
     eslint-plugin-react-hooks: "npm:7.1.1"
     graphql: "npm:^16.11.0"
     husky: "npm:^9.1.7"
-    i18next: "npm:^26.7.2"
+    i18next: "npm:^27.1.1"
     jest: "npm:~30.5.2"
     jest-environment-node: "npm:~30.5.2"
     jest-util: "npm:~30.5.1"
