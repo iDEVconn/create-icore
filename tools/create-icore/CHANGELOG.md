@@ -1,5 +1,26 @@
 # @idevconn/create-icore
 
+## 0.23.0
+
+### Minor Changes
+
+- 70fbaf1: Add the `--api=rest|graphql|both` option: `graphql` serves notes, profile and storage as GraphQL on `/api/graphql` (and the client uses it), `both` adds `/api/graphql` next to REST; auth, uploads, webhooks and admin stay REST. `rest` (default) output is unchanged apart from the shared guard/service refactor.
+- 2e00159: feat(api): `PATCH /api/profile {name}` and GraphQL `updateProfile(name:)` (plus `name` on `GET /api/profile` and `me`). The display name is stored at the identity provider through the new `AuthStrategy.getProfile/updateProfile` (Supabase `user_metadata`, Firebase `displayName`, MongoDB field, Postgres column added automatically). The client profile pages, REST and GraphQL queries now read and save it; `GraphQL` clients no longer fall back to a REST request for saving.
+
+### Patch Changes
+
+- 88b9915: fix(api): `--api=both` shares one notes/upload microservice client between the REST and GraphQL surfaces (`forRoot()` is memoized), and `NotesController` takes `NotesGatewayService` directly instead of the `@Optional()` shim.
+- df3ef8b: Generated clients no longer call the non-existent `POST /api/auth/refresh` on a 401: `createIcoreApi` passes no refresh token, so a 401 goes straight to logout and the login redirect instead of a 404 first.
+- 4d7272d: `--auth=none` shadcn projects no longer ship `routes/__tests__/auth.callback.unit.test.tsx`, which imported a route that auth=none already excludes.
+- 16a6886: fix(create-icore): a `--auth=none` gateway now rate-limits. Its generated `app.module.ts` registers the gateway's `throttlerOptions` (the `default` 120/min floor plus the scoped `auth-burst`/`ai-burst`) and the global `ContextAwareThrottlerGuard` as `APP_GUARD`; the guard used to live only in the auth module, so `rest` + `auth=none` had `ThrottlerModule` and no enforcement.
+- 0786bda: CI coverage for `--api=graphql|both`: scaffold-smoke combos for `--ui=none` and `--auth=none`, a nightly leg whose boot phase makes a real `/api/graphql` round trip (public `health`, and a 401 for an anonymous guarded query), and a `graphql-codegen` validation step in the generated project's `ci.yml`.
+- e2b0aee: fix: storage handlers answer 400 (not a 500 TypeError) for a repeated or non-string `path`/`bucket`/`prefix` parameter, and `tools/remove-notes.mjs` no longer uses a backtracking regex to strip the notes i18n keys (the two CodeQL alerts raised on the dev to main PR).
+- cc70484: ci: run the create-icore tests on every PR. Its golden/matrix tests scaffold from the repo's `apps/` and `libs/`, which the Nx graph does not link to `create-icore`, so `nx affected` skipped them and `dev` went red after #417 and #422 behind a green PR.
+- 0cceba6: fix(client): generated shadcn/mui clients typecheck in every mode. MUI 9 system props (`mb`, `fontWeight`, `alignItems`, ...) on `Typography`/`Stack` moved into `sx` (they were silently ignored at runtime), `TextField` `inputProps` -> `slotProps.htmlInput`, `nav.config.ts` keeps the `aiUsage` icon name for shadcn, the shadcn spec tsconfig loads `vite-plugin-pwa/react`, and the `--auth=none` shadcn `PageLayout` accepts the CASL gate props. Link-mode scaffold smoke now typechecks the client.
+- 52d4230: GraphQL: an unexpected resolver error (not an `HttpException`) now answers HTTP 500 `INTERNAL_SERVER_ERROR` and is logged, instead of HTTP 200 with `errors[]`.
+- 88f0a73: `snapshot-templates` now copies only files git knows (tracked, or untracked and not ignored), so a local `apps/api/.env`, agent state (`.claude-flow`, `ruvector.db`) and similar can no longer end up in `templates/` and the published tarball. The stale tracked copies under `templates/` are untracked.
+- d01c4ce: Fix storage path traversal: `assertOwnership` and the list `prefix` (REST and GraphQL) now reject `..`, `.`, empty segments, backslashes and control characters, so `uid/../other/x` can no longer reach another user's files.
+
 ## 0.22.1
 
 ### Patch Changes

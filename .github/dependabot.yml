@@ -29,6 +29,9 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # @apollo/server@5 peers graphql ^16.11.0, so graphql 17 breaks the gateway.
+      - dependency-name: graphql
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
