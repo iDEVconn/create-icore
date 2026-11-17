@@ -1,5 +1,11 @@
 # @idevconn/create-icore
 
+## 0.23.1
+
+### Patch Changes
+
+- 90500a3: Dependabot no longer proposes graphql 17: @apollo/server 5 peers graphql 16.
+
 ## 0.23.0
 
 ### Minor Changes
