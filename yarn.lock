@@ -13268,7 +13268,7 @@ __metadata:
     bullmq: "npm:^6.7.1"
     cookie-parser: "npm:^1.4.7"
     express: "npm:^5.3.0"
-    graphql: "npm:^16.11.0"
+    graphql: "npm:^17.1.0"
     ioredis: "npm:^6.0.0"
     jsonc-eslint-parser: "npm:^3.3.0"
     reflect-metadata: "npm:^0.2.2"
@@ -14765,7 +14765,7 @@ __metadata:
     "@types/react-dom": "npm:^19.3.0"
     "@vitejs/plugin-react": "npm:^6.2.1"
     antd: "npm:^6.7.0"
-    graphql: "npm:^16.11.0"
+    graphql: "npm:^17.1.0"
     i18next: "npm:^27.1.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
@@ -14801,7 +14801,7 @@ __metadata:
     "@types/react": "npm:^19.3.0"
     "@types/react-dom": "npm:^19.3.0"
     "@vitejs/plugin-react": "npm:^6.2.1"
-    graphql: "npm:^16.11.0"
+    graphql: "npm:^17.1.0"
     i18next: "npm:^27.1.1"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
@@ -14841,7 +14841,7 @@ __metadata:
     "@vitejs/plugin-react": "npm:^6.2.1"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
-    graphql: "npm:^16.11.0"
+    graphql: "npm:^17.1.0"
     i18next: "npm:^27.1.1"
     lucide-react: "npm:^1.70.0"
     react: "npm:^19.3.1"
@@ -18237,10 +18237,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"graphql@npm:^16.11.0":
-  version: 16.15.0
-  resolution: "graphql@npm:16.15.0"
-  checksum: 10c0/b97c78a02dab6392cdc492e78290bca479b5881dbeeefaed79cc88128b0e9a810feea043da61c5cd086f1af645dc9c46d61ed5297995031d8542a11c94f7cd0f
+"graphql@npm:^17.1.0":
+  version: 17.1.0
+  resolution: "graphql@npm:17.1.0"
+  checksum: 10c0/7bebb1c13c352577c14e10accd38ce51c642bf8e7bfb474c49790c893636f8abf7d61802c47f3ce413703b0a669220c142de9aed67b3e961da3c00d005c9cfd3
   languageName: node
   linkType: hard
 
@@ -18776,7 +18776,7 @@ __metadata:
     eslint-plugin-playwright: "npm:^2.12.2"
     eslint-plugin-react: "npm:7.37.5"
     eslint-plugin-react-hooks: "npm:7.1.1"
-    graphql: "npm:^16.11.0"
+    graphql: "npm:^17.1.0"
     husky: "npm:^9.1.7"
     i18next: "npm:^27.1.1"
     jest: "npm:~30.5.2"
