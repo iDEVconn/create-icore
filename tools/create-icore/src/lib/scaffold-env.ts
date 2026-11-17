@@ -20,12 +20,12 @@ export const TRANSPORT_ENV_TOKEN: Record<string, string> = {
 export const TRANSPORT_DEPS: Record<string, Record<string, string>> = {
   nats: { '@nats-io/transport-node': '^3.4.0' },
   mqtt: { mqtt: '^5.16.1' },
-  rmq: { amqplib: '^2.2.1', 'amqp-connection-manager': '^5.0.1' },
+  rmq: { amqplib: '^2.3.1', 'amqp-connection-manager': '^5.0.1' },
   kafka: { kafkajs: '^2.2.4' },
 };
 
 export const MONGODB_DEPS: Record<string, string> = {
-  mongoose: '^9.12.0',
+  mongoose: '^9.12.1',
   '@nestjs/mongoose': '^12.0.1',
   bcrypt: '^6.0.0',
   jsonwebtoken: '^9.0.3',
