@@ -148,7 +148,7 @@
     "mongoose": "^9.12.1",
     "mqtt": "^5.16.1",
     "postgres": "^4.1.1",
-    "react-i18next": "^17.1.13",
+    "react-i18next": "^18.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "uuid": "^14.0.3",

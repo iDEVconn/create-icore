@@ -118,7 +118,7 @@
     "cookie-parser": "^1.4.7",
     "dayjs": "^1.11.23",
     "i18next": "^27.1.1",
-    "react-i18next": "^17.1.13",
+    "react-i18next": "^18.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zustand": "^5.1.0"
