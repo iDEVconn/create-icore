@@ -5,13 +5,13 @@
   "description": "Cloudflare Workers host: the gateway and the microservices in one isolate over the local transport.",
   "dependencies": {
     "@icore/shared": "*",
-    "@nestjs/common": "^12.5.0",
+    "@nestjs/common": "^12.5.1",
     "@nestjs/config": "^12.1.1",
-    "@nestjs/core": "^12.5.0",
-    "@nestjs/microservices": "^12.5.0",
-    "@nestjs/platform-express": "^12.5.0",
-    "@nestjs/throttler": "^6.7.1",
-    "@nestjs/websockets": "^12.5.0",
+    "@nestjs/core": "^12.5.1",
+    "@nestjs/microservices": "^12.5.1",
+    "@nestjs/platform-express": "^12.5.1",
+    "@nestjs/throttler": "^6.8.0",
+    "@nestjs/websockets": "^12.5.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@nx/vite": "24.0.6",
     "vite": "^8.3.8",
-    "vitest": "~5.1.0",
-    "wrangler": "^4.162.0"
+    "vitest": "~5.1.1",
+    "wrangler": "^4.165.0"
   }
 }
